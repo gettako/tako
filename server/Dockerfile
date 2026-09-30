@@ -1,5 +1,6 @@
 # Stage 1: Build static Go binary
-FROM golang:alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
+ARG TARGETOS TARGETARCH
 WORKDIR /app
 
 # Cache dependency downloads
@@ -11,7 +12,7 @@ COPY internal/ ./internal/
 COPY server/ ./server/
 
 # Build static binary with stripped debug symbols
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/server ./server
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-s -w" -o /bin/server ./server
 
 # Stage 2: Minimal runtime image
 FROM alpine:3.20 AS runner

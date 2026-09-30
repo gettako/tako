@@ -190,7 +190,7 @@ TAKO_DOMAIN=${DOMAIN}
 TAKO_ADMIN_EMAIL=${ADMIN_EMAIL}
 TAKO_SECRET_KEY=${SECRET_KEY}
 TAKO_LOCAL_ENROLLMENT_TOKEN=${LOCAL_TOKEN}
-TAKO_WEB_PORT=3000
+TAKO_CONSOLE_PORT=3000
 TAKO_PORT=8080
 TAKO_GRPC_PORT=50051
 EOF
@@ -259,12 +259,12 @@ services:
     networks:
       - tako_network
 
-  web:
-    image: ghcr.io/gettako/web:latest
-    container_name: tako-web
+  console:
+    image: ghcr.io/gettako/console:latest
+    container_name: tako-console
     restart: unless-stopped
     ports:
-      - "\${TAKO_WEB_PORT:-3000}:3000"
+      - "\${TAKO_CONSOLE_PORT:-\${TAKO_WEB_PORT:-3000}}:3000"
     environment:
       - TAKO_BACKEND_URL=http://server:8080
       - NODE_ENV=production

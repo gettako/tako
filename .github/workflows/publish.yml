@@ -77,9 +77,9 @@ jobs:
           - service: agent
             dockerfile: agent/Dockerfile
             image: ghcr.io/${{ github.repository_owner }}/agent
-          - service: web
+          - service: console
             dockerfile: console/Dockerfile
-            image: ghcr.io/${{ github.repository_owner }}/web
+            image: ghcr.io/${{ github.repository_owner }}/console
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
