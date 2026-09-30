@@ -40,6 +40,4 @@ pnpm-debug.log*
 *.tsbuildinfo
 skills-lock.json
 
-# Generated protobuf stubs (source: api/proto/agent.proto → internal/protocol/)
-*.pb.go
 
