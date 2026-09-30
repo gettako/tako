@@ -1,0 +1,40 @@
+name: Feature Request
+description: Suggest an idea or architectural improvement for Tako
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We welcome feature ideas and suggestions! Before opening a feature request, please review [Why Tako?](https://gettako.dev/why-tako) and [Limitations & Non-Goals](https://gettako.dev/limitations) to ensure the proposal aligns with Tako's architectural scope.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: Is your feature request related to a problem or limitation? Please describe clearly.
+      placeholder: I am always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you would like to see implemented.
+      placeholder: A clear and concise description of what you want to happen...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or workarounds you have considered.
+      placeholder: Other approaches I tried or thought about...
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or architectural diagrams about the feature request here.

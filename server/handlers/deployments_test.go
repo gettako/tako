@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,12 +27,23 @@ import (
 )
 
 type mockStreamServer struct {
+	mu   sync.Mutex
 	sent []*protocol.ServerMessage
 }
 
 func (m *mockStreamServer) Send(msg *protocol.ServerMessage) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.sent = append(m.sent, msg)
 	return nil
+}
+
+func (m *mockStreamServer) getSent() []*protocol.ServerMessage {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cp := make([]*protocol.ServerMessage, len(m.sent))
+	copy(cp, m.sent)
+	return cp
 }
 
 func (m *mockStreamServer) Recv() (*protocol.AgentMessage, error) {

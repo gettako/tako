@@ -98,16 +98,24 @@ func TestTerminalManager_StartSession_Success(t *testing.T) {
 	// Wait briefly for data to be read
 	time.Sleep(50 * time.Millisecond)
 
-	readBuf := make([]byte, 1024)
+	readCh := make(chan string, 1)
 	go func() {
-		n, _ := clientConn.Read(readBuf)
-		readBuf = readBuf[:n]
+		buf := make([]byte, 1024)
+		n, err := clientConn.Read(buf)
+		if err == nil {
+			readCh <- string(buf[:n])
+		}
 	}()
 
 	tm.WriteData("sess_1", []byte("ls -la\n"))
 	tm.Resize("sess_1", 120, 40)
 
-	time.Sleep(50 * time.Millisecond)
+	var readData string
+	select {
+	case readData = <-readCh:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for terminal data to be read from clientConn")
+	}
 
 	msgs := sender.getMessages()
 	if len(msgs) == 0 {
@@ -126,8 +134,8 @@ func TestTerminalManager_StartSession_Success(t *testing.T) {
 		t.Errorf("expected to receive terminal data 'root@container:/# ', got messages: %+v", msgs)
 	}
 
-	if string(readBuf) != "ls -la\n" {
-		t.Errorf("expected written data 'ls -la\\n', got %q", string(readBuf))
+	if readData != "ls -la\n" {
+		t.Errorf("expected written data 'ls -la\\n', got %q", readData)
 	}
 
 	cols, rows := cli.getResize()

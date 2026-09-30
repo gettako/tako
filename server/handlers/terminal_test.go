@@ -91,13 +91,14 @@ func TestHandleServiceTerminal_WebSocketSession(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	if len(mockStream.sent) == 0 {
+	sentMsgs := mockStream.getSent()
+	if len(sentMsgs) == 0 {
 		t.Fatalf("expected TerminalStart sent to agent, got 0 messages")
 	}
 
-	startMsg := mockStream.sent[0].GetTerminalStart()
+	startMsg := sentMsgs[0].GetTerminalStart()
 	if startMsg == nil {
-		t.Fatalf("expected TerminalStart message, got %+v", mockStream.sent[0])
+		t.Fatalf("expected TerminalStart message, got %+v", sentMsgs[0])
 	}
 	sessionID := startMsg.GetSessionId()
 
@@ -125,7 +126,7 @@ func TestHandleServiceTerminal_WebSocketSession(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	var foundInput bool
-	for _, msg := range mockStream.sent {
+	for _, msg := range mockStream.getSent() {
 		if td := msg.GetTerminalData(); td != nil && td.GetSessionId() == sessionID {
 			if string(td.GetData()) == "ls\n" {
 				foundInput = true
@@ -133,7 +134,7 @@ func TestHandleServiceTerminal_WebSocketSession(t *testing.T) {
 		}
 	}
 	if !foundInput {
-		t.Errorf("expected TerminalData 'ls\\n' sent to node, got %d messages", len(mockStream.sent))
+		t.Errorf("expected TerminalData 'ls\\n' sent to node, got %d messages", len(mockStream.getSent()))
 	}
 
 	_ = sql.ErrNoRows

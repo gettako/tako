@@ -39,3 +39,22 @@ jobs:
 
       - name: Format Check
         run: bun run format:check
+
+  go-checks:
+    name: Go Backend Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Go Tests
+        run: go test -v -race ./server/... ./agent/... ./internal/...

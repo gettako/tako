@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation & Guides
+    url: https://gettako.dev/docs
+    about: Read official guides, architecture concepts, and API references.
+  - name: Security Vulnerability Disclosure
+    url: https://github.com/gettako/tako/blob/main/SECURITY.md
+    about: Please report security vulnerabilities responsibly to security@gettako.dev

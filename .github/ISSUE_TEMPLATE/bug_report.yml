@@ -1,0 +1,93 @@
+name: Bug Report
+description: File a bug report to help us improve Tako
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please fill out the form below with as much detail as possible to help us reproduce and resolve the problem.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe what happened...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed step-by-step instructions to reproduce the issue.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+      placeholder: What should have happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs or Terminal Output
+      description: Please copy and paste any relevant logs from Tako Server, Agent, or browser console. Sensitive credentials/tokens are automatically redacted by Tako.
+      render: shell
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Which host operating system are you running Tako or Agent on?
+      options:
+        - Ubuntu 24.04 / 22.04 LTS
+        - Debian 12 (Bookworm)
+        - Debian 11 (Bullseye)
+        - Rocky Linux / AlmaLinux / CentOS
+        - Alpine Linux
+        - macOS (Development)
+        - Other (specify in description)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: System Architecture
+      description: What CPU architecture is your server?
+      options:
+        - x86_64 (AMD64)
+        - aarch64 (ARM64)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Tako Version
+      description: What version of Tako are you running? (e.g., v0.1.0-beta.1 or git commit)
+      placeholder: v0.1.0-beta.1
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Acknowledgement
+      options:
+        - label: I have searched existing issues and verified this is not a duplicate.
+          required: true
+        - label: I understand that Tako is currently in Beta and my feedback helps improve stability.
+          required: false

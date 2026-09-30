@@ -1,0 +1,140 @@
+name: Build & Publish Containers
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  test-web:
+    name: Web Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify API types in sync
+        run: |
+          bun run api:generate
+          git diff --exit-code console/lib/api/types.ts
+
+      - name: Verify OpenAPI docs in sync
+        run: bun run docs:check
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit Tests
+        run: bun run test
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Format Check
+        run: bun run format:check
+
+  test-go:
+    name: Go Backend Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Go Vet
+        run: go vet ./...
+
+      - name: Go Tests
+        run: go test -v -race ./server/... ./agent/... ./internal/...
+
+  build-and-push:
+    name: Build & Push (${{ matrix.service }})
+    needs: [test-web, test-go]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: server
+            dockerfile: server/Dockerfile
+            image: ghcr.io/${{ github.repository_owner }}/server
+          - service: agent
+            dockerfile: agent/Dockerfile
+            image: ghcr.io/${{ github.repository_owner }}/agent
+          - service: web
+            dockerfile: console/Dockerfile
+            image: ghcr.io/${{ github.repository_owner }}/web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=edge,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,enable=true
+
+      - name: Build and push container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  create-release:
+    name: Create GitHub Release
+    needs: [build-and-push]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Tako ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          generate_release_notes: true
+          body: |
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md) for detailed notes on this release.
