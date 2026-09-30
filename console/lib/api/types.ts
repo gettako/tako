@@ -3302,8 +3302,8 @@ export interface components {
              */
             id: string;
             /**
-             * @description Identity of the actor who performed the action (always 'owner' in single-user system).
-             * @example owner
+             * @description Identity of the user or system actor that performed the action.
+             * @example usr_01HZX8N8V7QY6XW3
              */
             actor: string;
             /**

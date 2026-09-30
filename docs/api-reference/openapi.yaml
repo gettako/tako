@@ -5549,8 +5549,8 @@ components:
           example: 01HZX8N8V7QY6XW3T1ABCDEF01
         actor:
           type: string
-          description: Identity of the actor who performed the action (always 'owner' in single-user system).
-          example: owner
+          description: Identity of the user or system actor that performed the action.
+          example: usr_01HZX8N8V7QY6XW3
         action:
           type: string
           description: Event action identifier (e.g. 'service.deploy', 'project.create', 'server.delete', 'env.update').

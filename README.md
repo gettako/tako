@@ -1,10 +1,23 @@
 <p align="center">
-  <img src="docs/images/tako.png" width="100" alt="Tako Logo" />
+  <a href="https://gettako.dev">
+    <img src="docs/images/tako.png" width="100" alt="Tako Logo" />
+  </a>
 </p>
 
-<h1 align="center">Tako: Community Edition</h1>
-<p align="center"><i>Simple. Lightweight. Yours. Self-hosted platform for auto-deploying applications, no cloud lock-in.</i></p>
-<p align="center"><a href="https://gettako.dev">gettako.dev</a></p>
+<h1 align="center">Tako</h1>
+
+<p align="center">
+  <b>Self-hosted platform for deploying modern web applications across your own servers.</b><br />
+  Simple, git-driven container deployments with zero cloud lock-in.
+</p>
+
+<p align="center">
+  <a href="https://gettako.dev">Official Website</a> •
+  <a href="https://gettako.dev/docs">Documentation</a> •
+  <a href="#quickstart">Quickstart</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
 
 <p align="center">
   <a href="https://github.com/gettako/tako/releases">
@@ -29,62 +42,63 @@
 
 ---
 
-## About Tako
+## Overview
 
-Tako is a self-hosted platform for automatically deploying modern web applications (Laravel, Go, Node.js, Python, Rust, and more) to one or more virtual private servers (VPS). It is designed as a lightweight, personal alternative to tools like Dokploy and Coolify, with deliberately fewer features and zero bloat.
+**Tako** is an open-source, self-hosted deployment platform that turns standard Linux servers into a private application PaaS. Connect your GitHub repositories, define your services using standard Dockerfiles or Compose configurations, and manage deployments across multiple servers from a single control plane.
 
-Tako is built for solo developers, founders, and small teams who want:
+Tako is designed for solo developers, founders, and small teams who want:
 
-- Full ownership of their hosting infrastructure.
-- Zero-downtime automated deployments from GitHub on git push.
-- Automatic SSL termination via Let's Encrypt and Traefik.
-- Transparent container and live build log streaming.
-- Simple, reliable multi-server management without Kubernetes complexity.
+- **Infrastructure ownership**: Run your workloads on any cloud provider (Hetzner, DigitalOcean, AWS) or bare-metal server.
+- **Git-driven workflow**: Automated container builds and deployments triggered directly on `git push`.
+- **Zero-downtime cutover**: Health check validation gates traffic routing before older containers are stopped.
+- **Multi-server orchestration**: Manage remote worker nodes from one control plane without exposing inbound management ports.
+- **Collaborative access**: Shared workspace with role-based permissions (`admin` and `member`) and token invite links.
+- **Transparent tooling**: Standard Docker Engine and Traefik v3 under the hood—no hidden buildpack abstractions.
 
-Tako is strictly for **single-user personal use** (one owner/admin account per installation). However, it natively supports managing **multiple remote servers** from a single control plane dashboard.
-
-> [!NOTE]
-> **Single-Operator Architecture.** Tako is intentionally built for a single administrator. Multi-tenancy, team permissions, and third-party app stores are explicit non-goals to keep the platform lightweight, secure, and rock-solid.
+Visit [gettako.dev](https://gettako.dev) for official guides, documentation, and release notes.
 
 ---
 
-## Key Features
+## Features
 
-- **Multi-Server Management**: Orchestrate multiple remote worker nodes from a single central control plane dashboard.
-- **Outbound-Only gRPC Streams**: Node agents connect outbound to the control plane over TLS streams, requiring zero open inbound management ports on remote servers.
-- **Dockerfile-Driven Builds**: Predictable and transparent container builds directly from git repositories, avoiding heavy buildpack abstractions.
-- **Zero-Downtime Deployments**: Automated HTTP health checking gates traffic cutover before older containers are gracefully drained and stopped.
-- **Instant Rollback**: Local Docker image retention enables rollback to prior successful releases in seconds without rebuilding.
-- **Automatic SSL & Ingress**: Dedicated Traefik reverse proxy on each node provisions and renews Let's Encrypt wildcard and custom domain certificates automatically.
-- **Encrypted Secrets**: Runtime environment variables and build secrets are encrypted at rest in SQLite using AES-256-GCM.
-- **Real-Time Log Streaming**: Live build logs and container runtime outputs stream directly to your browser over Server-Sent Events (SSE).
-- **Precision Flat UI**: Clean dashboard engineered with Next.js 16, Base UI (`base-vega`), Tailwind CSS 4, and zero shadows.
-- **Resource-Efficient Architecture**: Written in pure Go with SQLite (WAL mode) and Next.js, requiring minimal host resources.
+- **Multi-Server Orchestration**: Attach and orchestrate remote worker nodes across different providers from a single centralized dashboard.
+- **Outbound-Only gRPC Streams**: Worker nodes initiate outbound TLS connections to the control plane. Remote servers require no open inbound SSH or agent ports.
+- **Standard Docker Tooling**: Transparent builds directly from source using standard `Dockerfile` or `docker-compose.yml` configurations.
+- **Zero-Downtime Deployments**: Automated HTTP health checking gates traffic switchover in Traefik before older containers are gracefully retired.
+- **Instant Rollbacks**: Revert to previous successful image tags in seconds using local Docker image retention without rebuilding from source.
+- **Automatic SSL & Ingress**: Integrated Traefik reverse proxy automatically provisions and renews Let's Encrypt certificates for custom domains.
+- **Team Collaboration**: Invite colleagues to a shared workspace with `admin` and `member` roles via secure token links (no SMTP setup required).
+- **Real-Time Logs & Web Terminal**: Live build output and container stdout/stderr stream directly to the browser via Server-Sent Events (SSE), alongside interactive in-browser container terminals.
+- **Encrypted Secrets**: Runtime environment variables and build secrets are stored encrypted at rest with AES-256-GCM in embedded SQLite.
+- **Managed Database Templates**: One-click provisioning for PostgreSQL, MySQL, and Redis services with persistent Docker volumes.
+- **Scheduled S3 Backups**: Automated database dumps and volume backups to any S3-compatible storage bucket.
+- **Pull Request Previews**: Ephemeral preview environments with automatic wildcard routing for GitHub pull requests.
 
 ---
 
 ## Tech Stack
 
-- **Control Plane**: [Go](https://go.dev/) 1.24+ (REST API, SSE streaming, gRPC coordinator)
-- **Web Dashboard**: [Next.js](https://nextjs.org/) 16, [React](https://react.dev/) 19, [Tailwind CSS](https://tailwindcss.com/) 4, [Bun](https://bun.sh/)
-- **UI & Design System**: [Base UI](https://base-ui.com/) (`@base-ui/react`) with shadcn/ui `base-vega` (zero shadows, border-driven hierarchy)
-- **Node Agent**: [Go](https://go.dev/) (Docker Engine SDK, Traefik dynamic provider, outbound gRPC client)
-- **Reverse Proxy**: [Traefik](https://traefik.io/) v3 (automated Let's Encrypt SSL, dynamic container routing)
-- **Database**: Pure-Go [SQLite](https://sqlite.org/) with WAL mode and AES-256-GCM encryption
-- **API Specifications**: OpenAPI 3.1 & Protocol Buffers (gRPC)
+| Component | Technology | Description |
+|---|---|---|
+| **Control Plane** | [Go](https://go.dev/) 1.24+ | REST API, SSE event broker, gRPC coordinator |
+| **Web Dashboard** | [Next.js](https://nextjs.org/) 16 & [React](https://react.dev/) 19 | Border-driven UI with Base UI, Tailwind CSS 4, Bun |
+| **Worker Agent** | [Go](https://go.dev/) | Docker Engine SDK, Traefik provider, outbound gRPC client |
+| **Reverse Proxy** | [Traefik](https://traefik.io/) v3 | Dynamic container routing, Let's Encrypt automated TLS |
+| **Database** | [SQLite](https://sqlite.org/) | Embedded pure-Go engine with WAL mode and AES-256-GCM encryption |
+| **API Contracts** | OpenAPI 3.1 & gRPC | Type-safe API contracts and streaming protocols |
 
 ---
 
-## Architecture & Data Hierarchy
+## Architecture
 
 ### System Topology
 
 ```
 Tako Architecture
 ├── Control Plane (Primary Server)
-│   ├── Next.js 16 Dashboard (Port 3000 / Web UI)
+│   ├── Next.js 16 Console (Port 3000 / Web UI)
 │   ├── Go API & Orchestrator (Port 8080 / REST + SSE)
-│   ├── gRPC Server (Port 50051 / TLS)
+│   ├── gRPC Coordinator (Port 50051 / TLS)
 │   └── SQLite DB (Encrypted at rest with AES-256-GCM)
 │
 └── Worker Nodes (Remote Servers)
@@ -93,17 +107,19 @@ Tako Architecture
     └── Docker Containers (Isolated application runtime)
 ```
 
+Remote worker nodes connect **outbound** to the control plane over a single persistent gRPC stream. This design eliminates the need to expose SSH or agent management ports to the public internet on worker nodes.
+
 ### Entity Hierarchy
 
 ```
-Dashboard
-└── Project (e.g., "acme-corp")
-    └── Service (e.g., "api", "web")
-        ├── Overview (Status, primary URL, metrics)
-        ├── Deployments (History, live build logs, rollback)
-        ├── Domains (Routing, Let's Encrypt SSL, ports)
-        ├── Monitoring (Container health, runtime logs, stats)
-        └── Environment (Encrypted variables, build arguments)
+Control Plane
+└── Project (e.g., "analytics")
+    └── Service (e.g., "api", "web", "worker")
+        ├── Deployments (Git triggers, build history, instant rollback)
+        ├── Domains (Custom domains, automatic Let's Encrypt SSL)
+        ├── Environment (Encrypted variables, build args)
+        ├── Monitoring (Container health status, runtime logs, stats)
+        └── Terminal (Interactive browser shell)
 ```
 
 ---
@@ -114,24 +130,25 @@ Dashboard
 
 - **Operating System**: Linux (Ubuntu 22.04+, Debian 12+, Rocky Linux 9+, or Alpine Linux)
 - **Architecture**: `x86_64` (AMD64) or `aarch64` (ARM64)
-- **RAM**: Minimum 1 GB (2 GB+ recommended for builds)
+- **RAM**: Minimum 1 GB (2 GB+ recommended for concurrent builds)
 - **Disk**: 10 GB+ available SSD storage
 - **Docker**: Docker Engine 24.0+ and Docker Compose v2
 
 ### Production Installation
 
-Run the official installation script on your primary server:
+Install the Tako control plane on your primary server with the official install script:
 
 ```bash
 curl -fsSL https://gettako.dev/install.sh | bash
 ```
 
-The script performs the following setup:
+The script will:
+1. Verify system dependencies (Docker, Docker Compose, network ports).
+2. Generate secure random credentials and an AES-256-GCM encryption key.
+3. Start the Tako control plane stack (`server`, `console`, and `traefik`) via Docker Compose.
+4. Output the initial one-time administrator onboarding URL.
 
-1. Validates system dependencies (Docker, Compose, network ports).
-2. Generates secure random credentials and an encryption key for secrets (`AES-256-GCM`).
-3. Starts the Tako control plane stack (`server`, `web`, and `traefik`) via Docker Compose.
-4. Outputs the initial one-time administrator onboarding URL.
+For detailed installation guides, see the [Documentation](https://gettako.dev/docs).
 
 ### Local Development
 
@@ -148,13 +165,13 @@ cd tako
 bun install
 ```
 
-**3. Run the console dashboard:**
+**3. Start the web dashboard:**
 
 ```bash
 bun run --filter console dev
 ```
 
-**4. Run the Go control plane server:**
+**4. Start the Go control plane server:**
 
 ```bash
 go run ./server
@@ -169,36 +186,45 @@ tako/
 ├── console/              # Next.js 16 dashboard (Base UI, Tailwind CSS 4, Bun)
 ├── server/               # Go control plane (REST API, SSE, SQLite DB, orchestrator)
 ├── agent/                # Go worker node daemon (Docker SDK, Traefik, gRPC client)
-├── docs/                 # Mintlify documentation (public user guides + API reference)
+├── docs/                 # Documentation source (https://gettako.dev/docs)
 ├── internal/             # Shared Go packages (protocol, models, crypto)
-├── api/                  # Contract definitions (openapi.yaml, protobuf)
-├── assets/               # Branding graphics and sponsor assets
+├── api/                  # API contracts (openapi.yaml, protobuf definitions)
 ├── deploy/               # Production Docker Compose definitions and install script
-├── plans/                # Architecture specs and roadmap task breakdown
-├── AGENTS.md             # Working protocols for AI coding agents
+├── tests/                # Integration and end-to-end test suites
 ├── go.mod                # Root Go module
-├── package.json          # Root Bun workspace configuration
-└── README.md             # Project documentation
+└── package.json          # Root Bun workspace configuration
 ```
 
 ---
 
-## Security & Privacy
+## Design Principles & Boundaries
 
-Tako enforces end-to-end security across all deployments. Remote agents communicate exclusively over outbound TLS gRPC channels with no open inbound ports required on worker nodes. All application secrets and environment variables are encrypted at rest with AES-256-GCM.
+Tako is built with clear architectural boundaries to maintain simplicity and reliability:
 
-**Reporting a Vulnerability:** If you discover a security issue, please follow the responsible disclosure process described in [SECURITY.md](SECURITY.md). Do not open a public GitHub issue for security vulnerabilities: contact **security@gettako.dev** directly.
+- **Single Flat Workspace**: Designed for solo operators and small teams with straightforward `admin` and `member` roles. Multi-tenant organizational hierarchies and custom permission matrices are intentional non-goals.
+- **Dockerfile & Compose Workflows**: Builds rely on standard Dockerfiles and Compose configurations. Proprietary buildpacks (such as Cloud Native Buildpacks or Nixpacks) are not used, keeping builds predictable and reproducible locally.
+- **Native Docker Engine**: Works directly with the local Docker daemon on Linux hosts. No Kubernetes or Docker Swarm overlay networks required.
+- **Embedded SQLite Persistence**: The control plane uses pure-Go SQLite in WAL mode with AES-256-GCM encryption. No standalone relational database service is required to operate the control plane.
+- **Linux Host Requirement**: Production deployments require Linux with access to `/var/run/docker.sock`.
+
+---
+
+## Security
+
+- Worker nodes connect exclusively via outbound TLS-encrypted gRPC streams.
+- Application secrets and environment variables are encrypted at rest with AES-256-GCM.
+- Sensitive values are redacted from build logs and system audit logs.
+
+**Reporting Vulnerabilities:** If you discover a security issue, please follow our responsible disclosure process outlined in [SECURITY.md](SECURITY.md) or email **security@gettako.dev**. Please do not open public issues for security vulnerabilities.
 
 ---
 
 ## Contributing
 
-Contributions are welcome: bug reports, feature discussions, and pull requests alike. If you are new to the codebase, check out issues labeled `good first issue` as a starting point.
-
-Before submitting a pull request, please read [CONTRIBUTING.md](CONTRIBUTING.md). It covers architecture constraints, code style, commit conventions, branch workflows, and PR review expectations.
+Contributions, bug reports, and feedback are welcome! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) for code style guidelines, development workflows, and PR expectations.
 
 ---
 
 ## License
 
-Tako is licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for the full license text.
+Tako is licensed under the [Apache License 2.0](LICENSE).

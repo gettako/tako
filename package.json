@@ -1,5 +1,7 @@
 {
   "name": "tako",
+  "description": "Self-hosted platform for deploying modern web applications across your own servers.",
+  "homepage": "https://gettako.dev",
   "private": true,
   "workspaces": [
     "console"

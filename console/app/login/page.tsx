@@ -427,7 +427,7 @@ export default function LoginPage() {
         {/* Footer info */}
         <div className="border-t border-border pt-4 text-center">
           <p className="text-xs text-muted-foreground">
-            Single-user self-hosted deployment.{" "}
+            Self-hosted application deployment.{" "}
             <Link
               href="https://gettako.dev/docs"
               target="_blank"

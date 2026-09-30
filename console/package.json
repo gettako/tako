@@ -1,6 +1,8 @@
 {
   "name": "console",
   "version": "0.0.1",
+  "description": "Tako Console — Web dashboard for managing projects, services, and worker nodes.",
+  "homepage": "https://gettako.dev",
   "type": "module",
   "private": true,
   "scripts": {
