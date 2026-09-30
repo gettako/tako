@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  web-checks:
+    name: Web Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify API types in sync
+        run: |
+          bun run api:generate
+          git diff --exit-code console/lib/api/types.ts
+
+      - name: Verify OpenAPI docs in sync
+        run: bun run docs:check
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit Tests
+        run: bun run test
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Format Check
+        run: bun run format:check

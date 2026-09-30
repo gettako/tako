@@ -1,0 +1,74 @@
+---
+title: "Projects & Services"
+description: "Understanding the Tako entity hierarchy, service types, and configuration models."
+---
+
+Tako organizes your infrastructure into a clean, two-tier hierarchy: **Projects** and **Services**.
+
+```
+Dashboard
+└── Project (e.g., "SaaS Platform")
+    ├── Web Service (e.g., "api", "web")
+    ├── Auxiliary Worker (e.g., "queue-worker")
+    ├── Scheduled Cron (e.g., "daily-report")
+    └── Managed Database (e.g., "postgres-primary")
+```
+
+---
+
+## Projects
+
+A **Project** represents a logical boundary for related applications and shared infrastructure.
+
+- All services within a project belong to the same product or team domain.
+- Services in the same project can share managed database connection strings automatically.
+- Deleting a project safely tears down all child services and removes associated routing rules.
+
+---
+
+## Service Types
+
+Tako supports four distinct service types tailored to modern application stacks:
+
+### 1. Web Application Services (Dockerfile / Image)
+Standard HTTP services built from a git repository via a `Dockerfile`, or launched directly from a pre-built Docker image tag.
+- Configured with an internal HTTP port (e.g., `3000` or `8080`).
+- Configured with an HTTP health check path (e.g., `/healthz`).
+- Routes incoming public web traffic through Traefik with automatic SSL.
+- Features zero-downtime blue-green container replacements on deploy.
+
+### 2. Multi-Container Docker Compose Stacks
+Deploy interconnected multi-container applications defined by standard Docker Compose syntax:
+- Define services, internal networks, and volumes in an inline YAML editor or sync from a repository `docker-compose.yml`.
+- Tako validates compose files before launch to ensure compatibility with node networking.
+- Containers communicate over the private Docker bridge network without exposing internal ports publicly.
+
+### 3. Auxiliary Services (Workers & Cron Jobs)
+Background processes that support your main web applications:
+- **Zero-Build Image Reuse:** Auxiliary services reference a parent web service ID and inherit its already built Docker image and encrypted environment variables. They do not trigger separate builds.
+- **Queue Workers:** Run continuous background jobs (such as Laravel `queue:work` or Celery workers) with an automatic restart policy. They bypass Traefik HTTP routing.
+- **Scheduled Cron Jobs:** Run periodic one-off commands (such as database cleanups or sync scripts) defined by standard 5-part cron syntax (e.g., `0 2 * * *`). The Tako Agent embeds a native cron scheduler (`robfig/cron/v3`) that triggers ephemeral container execution on time.
+
+### 4. Managed Database Templates
+Production-ready database containers provisioned with persistent storage volumes:
+- **PostgreSQL 16:** Configured with UTF-8 encoding and dedicated data volume.
+- **MySQL 8.0:** Configured with UTF-8 character sets and persistent volume storage.
+- **Redis 7.2:** Configured with append-only file (AOF) persistence.
+- **Connection String Injection:** One click injects ready-to-use connection URLs (e.g., `DATABASE_URL=postgres://...`) into the environment variables of sibling web and worker services.
+
+---
+
+## Service Lifecycle Tabs
+
+Every service detail view in the web console provides dedicated tabs for lifecycle management:
+
+| Tab | Purpose |
+|---|---|
+| **Overview** | Service status pill, primary public URL, quick restart/stop controls, and metadata. |
+| **Deployments** | Deployment history list, live streaming build logs, deployment cancellation, and rollback actions. |
+| **Domains** | Custom domain routing, path-prefix rules (`/api`), and real-time Let's Encrypt SSL certificate status. |
+| **Monitoring** | Container stdout and stderr log stream with pause/autoscroll, plus real-time CPU and memory graphs. |
+| **Environment** | AES-256-GCM encrypted runtime environment variables and plain build arguments. |
+| **Auxiliary** | Management for child background worker processes and scheduled cron jobs. |
+| **Backups** | Automated and on-demand streaming database dumps or volume backups to S3 storage. |
+| **Terminal** | Interactive in-browser shell session (xterm.js) running inside the active container. |

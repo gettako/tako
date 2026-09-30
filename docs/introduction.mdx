@@ -1,0 +1,42 @@
+---
+title: "Introduction"
+description: "A self-hosted, lightweight platform for deploying Docker-based applications across one or more servers."
+---
+
+Tako is a self-hosted platform for automatically deploying modern web applications to one or more virtual private servers (VPS). It provides a personal deployment dashboard without the resource overhead and operational complexity of larger platforms like Dokploy or Coolify.
+
+## Who Tako is for
+
+Tako is built for solo developers, founders, and small engineering teams who want:
+
+- Full ownership of their hosting infrastructure without vendor lock-in.
+- Automated deployments triggered directly from GitHub on `git push`.
+- Multi-server cluster management from a single control plane.
+- Outbound-only agent connectivity with zero open management ports on remote servers.
+- Automated SSL certificate provisioning and zero-downtime container cutovers.
+- Direct, transparent container builds using standard Dockerfiles.
+
+## What you can do with Tako
+
+The capabilities below reflect what is fully implemented in the codebase today:
+
+- **Git-driven deployments:** Connect GitHub repositories and trigger automated builds on branch push events.
+- **Dockerfile and Compose stacks:** Deploy single services from a Dockerfile or multi-container stacks defined in Docker Compose.
+- **Multi-server orchestration:** Attach remote worker nodes across different cloud providers using a one-time enrollment token.
+- **Outbound-only agent streams:** Manage remote nodes without opening SSH or management ports to the internet.
+- **Zero-downtime cutover:** Verify new containers using HTTP health check gates before switching traffic in Traefik.
+- **One-click rollbacks:** Revert to previous successful image tags in seconds without rebuilding from source.
+- **Automated SSL and routing:** Provision Let's Encrypt certificates automatically via Traefik and configure path-prefix routing.
+- **Auxiliary services:** Run background workers and scheduled cron jobs that reuse built application images.
+- **Managed database templates:** Provision PostgreSQL, MySQL, and Redis services with persistent Docker volumes.
+- **Pull request previews:** Automatically create ephemeral staging environments with wildcard subdomains for GitHub pull requests.
+- **Encrypted configuration:** Store runtime environment variables and build arguments encrypted at rest with AES-256-GCM.
+- **Real-time log streaming:** Monitor Docker build progress and live container stdout/stderr through Server-Sent Events (SSE).
+- **Web terminal access:** Open interactive shell sessions directly into running containers from the browser.
+- **S3 backups:** Schedule streaming database dumps and volume archives to S3-compatible storage destinations.
+- **Audit logging:** Inspect tamper-evident activity records with monotonic ULID identifiers and actor attribution.
+- **Team collaboration:** Invite team members with simple role-based access control (`admin` and `member`) in a flat workspace.
+
+## Next steps
+
+Follow the [Quickstart Guide](/quickstart/installation) to install Tako on your server using Docker Compose in minutes.

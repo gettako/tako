@@ -1,0 +1,69 @@
+---
+title: "System Requirements"
+description: "Hardware specifications, operating systems, and network configurations for self-hosting Tako."
+---
+
+Tako is engineered to operate comfortably on low-cost virtual private servers while scaling smoothly as your deployment workloads grow.
+
+## Hardware Specifications
+
+The table below outlines hardware recommendations for the primary control plane server and remote worker nodes:
+
+| Component | Minimum Specification | Recommended Specification |
+|---|---|---|
+| **Control Plane CPU** | 1 vCPU | 2 vCPUs or more |
+| **Control Plane RAM** | 1 GB | 2 GB to 4 GB (handles concurrent Docker builds) |
+| **Control Plane Storage** | 10 GB SSD | 25 GB to 50 GB NVMe SSD |
+| **Worker Node CPU** | 1 vCPU | Sized based on application demands |
+| **Worker Node RAM** | 512 MB (agent base) | 1 GB to 2 GB+ (depending on container memory) |
+| **Worker Node Storage** | 10 GB SSD | 20 GB to 40 GB SSD (for Docker images and cache) |
+
+<Note>
+**Measured Baselines vs Sizing Estimates:**
+Component idle memory footprints measured in standard testing environments are minimal: the Go Control Plane server and SQLite engine consume under 20 MB of RAM, the Tako Agent consumes under 25 MB, and the Traefik proxy consumes approximately 30 MB to 50 MB.
+
+Formalized stress benchmarks measuring sustained high-concurrency builds across hundreds of nodes have not yet been completed. Sizing recommendations above are conservative operational estimates, not yet benchmarked at scale.
+</Note>
+
+---
+
+## Operating System Compatibility
+
+Tako is distributed as standard Docker containers and static Go binaries compiled with `CGO_ENABLED=0`. It runs on any modern 64-bit Linux distribution:
+
+- **Ubuntu:** 22.04 LTS, 24.04 LTS
+- **Debian:** 12 (Bookworm), 11 (Bullseye)
+- **Rocky Linux / AlmaLinux / RHEL:** 9.x, 8.x
+- **Alpine Linux:** 3.18, 3.19, 3.20
+
+### Processor Architectures
+- **`x86_64` (AMD64):** Standard Intel and AMD server platforms.
+- **`aarch64` (ARM64):** Compatible with AWS Graviton, Ampere Altra (Oracle Cloud, Hetzner CAX), and Raspberry Pi 4/5.
+
+---
+
+## Network & Firewall Configuration
+
+Understanding port requirements ensures secure operations without exposing unnecessary administrative interfaces:
+
+### Primary Control Plane Host
+
+| Port | Protocol | Inbound Source | Description |
+|---|---|---|---|
+| **80** | TCP | Public Internet (`0.0.0.0/0`) | HTTP traffic and ACME Let's Encrypt challenges |
+| **443** | TCP | Public Internet (`0.0.0.0/0`) | Secure HTTPS access to console and web services |
+| **50051**| TCP | Worker Nodes (or Public) | gRPC coordinator receiving outbound agent streams |
+| **22** | TCP | Trusted IP or VPN only | Host administrative SSH access |
+
+### Remote Worker Nodes
+
+| Port | Protocol | Inbound Source | Description |
+|---|---|---|---|
+| **80** | TCP | Public Internet (`0.0.0.0/0`) | Application HTTP traffic & Let's Encrypt challenges |
+| **443** | TCP | Public Internet (`0.0.0.0/0`) | Application HTTPS traffic |
+| **50051**| TCP | **Closed Inbound** | Not needed inbound; agent initiates outbound connection |
+| **22** | TCP | Optional / VPN only | Not needed by Tako; can remain disabled |
+
+<Tip>
+Because worker agents establish **outbound-only** connections to the control plane, remote servers can reside behind strict NAT gateways, corporate firewalls, or dynamic IP allocations without opening any management ports to the public internet.
+</Tip>

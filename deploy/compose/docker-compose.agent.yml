@@ -1,0 +1,47 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: tako-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - tako_traefik_acme:/etc/traefik/acme
+    networks:
+      - tako_network
+
+  agent:
+    image: ghcr.io/gettako/agent:latest
+    container_name: tako-agent
+    restart: unless-stopped
+    environment:
+      - TAKO_SERVER_URL=${TAKO_SERVER_URL}
+      - TAKO_ENROLLMENT_TOKEN=${TAKO_ENROLLMENT_TOKEN:-}
+      - TAKO_CONFIG_DIR=/etc/tako
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/traefik/dynamic
+      - TAKO_TRAEFIK_ACME_PATH=/etc/traefik/acme/acme.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - tako_agent_data:/etc/tako
+      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - tako_traefik_acme:/etc/traefik/acme:ro
+    networks:
+      - tako_network
+
+volumes:
+  tako_agent_data:
+    name: tako_agent_data
+  tako_traefik_dynamic:
+    name: tako_traefik_dynamic
+  tako_traefik_acme:
+    name: tako_traefik_acme
+
+networks:
+  tako_network:
+    name: tako_network

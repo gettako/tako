@@ -1,0 +1,13 @@
+# Tako Docs Task Runner (Rune)
+# Run from the docs/ directory: rune <task>
+
+#[Synchronize OpenAPI spec from api/openapi.yaml]
+sync:
+    rune info "Syncing api/openapi.yaml to docs/..."
+    cp ../api/openapi.yaml api-reference/openapi.yaml
+    rune done "Mintlify documentation synchronized."
+
+#[Start local Mintlify documentation preview server]
+dev:
+    rune info "Starting Mintlify docs preview..."
+    mintlify dev

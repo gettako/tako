@@ -1,0 +1,298 @@
+syntax = "proto3";
+
+package tako.agent.v1;
+
+option go_package = "gettako.dev/tako/internal/protocol;protocol";
+
+service AgentService {
+  rpc Enroll (EnrollRequest) returns (EnrollResponse);
+  rpc StreamNodeSession (stream AgentMessage) returns (stream ServerMessage);
+}
+
+message EnrollRequest {
+  string token = 1;
+  string hostname = 2;
+  string agent_version = 3;
+  string docker_version = 4;
+  string os_info = 5;
+}
+
+message EnrollResponse {
+  string node_id = 1;
+  string node_secret = 2;
+  string server_url = 3;
+}
+
+message Heartbeat {
+  double cpu_percent = 1;
+  double ram_percent = 2;
+  double disk_percent = 3;
+  int64 uptime_seconds = 4;
+  int64 timestamp = 5;
+  uint64 ram_total_bytes = 6;
+  uint64 ram_used_bytes = 7;
+}
+
+message BuildLogChunk {
+  string deployment_id = 1;
+  string step = 2;
+  string log_line = 3;
+  bool is_error = 4;
+  int64 timestamp = 5;
+}
+
+message ContainerLogChunk {
+  string service_id = 1;
+  string log_line = 2;
+  bool is_stderr = 3;
+  int64 timestamp = 4;
+  string container_name = 5;
+}
+
+message DeploymentStatusTransition {
+  string deployment_id = 1;
+  string status = 2;
+  string error_reason = 3;
+  string active_container_id = 4;
+  string image_tag = 5;
+  int64 timestamp = 6;
+}
+
+message TaskAck {
+  string task_id = 1;
+  bool success = 2;
+  string message = 3;
+  int64 reclaimed_bytes = 4;
+  int64 backup_size_bytes = 5;
+}
+
+message DomainSSLStatus {
+  string domain = 1;
+  string status = 2; // "active", "pending", "error"
+  string error_message = 3;
+  int64 expires_at = 4;
+}
+
+message DomainSSLReport {
+  repeated DomainSSLStatus statuses = 1;
+  int64 timestamp = 2;
+}
+
+message TraefikConfigResponse {
+  string task_id = 1;
+  string custom_yaml = 2;
+  string static_yaml = 3;
+  bool success = 4;
+  string error_message = 5;
+}
+
+message ServiceMetricPoint {
+  string service_id = 1;
+  string container_id = 2;
+  double cpu_percent = 3;
+  uint64 memory_bytes = 4;
+  uint64 memory_limit_bytes = 5;
+  uint64 network_rx_bytes = 6;
+  uint64 network_tx_bytes = 7;
+  int32 restart_count = 8;
+  int64 timestamp = 9;
+}
+
+message ServiceMetricsReport {
+  repeated ServiceMetricPoint metrics = 1;
+  int64 timestamp = 2;
+}
+
+message AgentMessage {
+  string node_id = 1;
+  oneof payload {
+    Heartbeat heartbeat = 2;
+    BuildLogChunk build_log = 3;
+    ContainerLogChunk container_log = 4;
+    DeploymentStatusTransition deployment_status = 5;
+    TaskAck task_ack = 6;
+    DomainSSLReport domain_ssl_report = 7;
+    TraefikConfigResponse traefik_config_response = 8;
+    TerminalData terminal_data = 9;
+    TerminalClose terminal_close = 10;
+    ServiceMetricsReport service_metrics_report = 11;
+  }
+}
+
+message HeartbeatAck {
+  int64 timestamp = 1;
+}
+
+message DeployJob {
+  string deployment_id = 1;
+  string service_id = 2;
+  string repository = 3;
+  string branch = 4;
+  string commit_sha = 5;
+  string dockerfile_path = 6;
+  int32 internal_port = 7;
+  string health_check_path = 8;
+  map<string, string> env_vars = 9;
+  map<string, string> build_args = 10;
+  string domain = 11;
+  bool is_rollback = 12;
+  string rollback_image_tag = 13;
+  string ssh_private_key = 14;
+  string service_type = 15;
+  string command = 16;
+  string cron_expression = 17;
+  string parent_service_id = 18;
+  string volume_name = 19;
+  string volume_mount_path = 20;
+  string image = 21;
+  string pre_deploy_command = 22;
+  string post_deploy_command = 23;
+  int32 published_port = 24;
+  repeated IngressRule ingress_rules = 25;
+  string project_id = 26;
+  string compose_file_content = 27;
+  string compose_file_path = 28;
+}
+
+message IngressRule {
+  string rule_id = 1;
+  string domain = 2;
+  int32 port = 3;
+  string path_prefix = 4;
+  bool strip_prefix = 5;
+  bool is_canonical = 6;
+  string redirect_mode = 7;
+  bool auth_enabled = 8;
+  string auth_user = 9;
+  string auth_password = 10;
+  string entrypoints = 11;
+  string ssl_resolver = 12;
+  string service_id = 13;
+}
+
+message SyncIngressCommand {
+  string task_id = 1;
+  string service_id = 2;
+  repeated IngressRule rules = 3;
+}
+
+message TerminalStart {
+  string session_id = 1;
+  string service_id = 2;
+  string container_id = 3;
+  string shell = 4;
+  int32 cols = 5;
+  int32 rows = 6;
+}
+
+message TerminalData {
+  string session_id = 1;
+  bytes data = 2;
+}
+
+message TerminalResize {
+  string session_id = 1;
+  int32 cols = 2;
+  int32 rows = 3;
+}
+
+message TerminalClose {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message ContainerAction {
+  string task_id = 1;
+  string service_id = 2;
+  string action = 3; // "start", "stop", "restart", "delete", "pull-update"
+  bool delete_volumes = 4;
+  bool prune_images = 5;
+  string image = 6;
+}
+
+message PruneCommand {
+  string task_id = 1;
+  int32 keep_recent_images = 2;
+}
+
+message CancelDeploy {
+  string deployment_id = 1;
+  string service_id = 2;
+}
+
+message TraefikConfigQuery {
+  string task_id = 1;
+}
+
+message TraefikConfigUpdate {
+  string task_id = 1;
+  string custom_yaml = 2;
+}
+
+message TraefikRestartCommand {
+  string task_id = 1;
+}
+
+message CheckSSLCommand {
+  string task_id = 1;
+  string domain = 2;
+}
+
+message S3StorageConfig {
+  string endpoint_url = 1;
+  string bucket = 2;
+  string region = 3;
+  string access_key = 4;
+  string secret_key = 5;
+}
+
+message BackupCommand {
+  string task_id = 1;
+  string service_id = 2;
+  string backup_type = 3; // "database", "volume"
+  string database_engine = 4; // "postgres", "mysql", "redis"
+  string database_name = 5;
+  string database_user = 6;
+  string database_password = 7;
+  string volume_name = 8;
+  string volume_mount_path = 9;
+  string s3_key = 10;
+  S3StorageConfig s3_config = 11;
+}
+
+message RestoreCommand {
+  string task_id = 1;
+  string service_id = 2;
+  string backup_type = 3; // "database", "volume"
+  string database_engine = 4;
+  string database_name = 5;
+  string database_user = 6;
+  string database_password = 7;
+  string volume_name = 8;
+  string volume_mount_path = 9;
+  string s3_key = 10;
+  S3StorageConfig s3_config = 11;
+}
+
+message ServerMessage {
+  oneof payload {
+    HeartbeatAck heartbeat_ack = 1;
+    DeployJob deploy_job = 2;
+    ContainerAction container_action = 3;
+    PruneCommand prune_command = 4;
+    CancelDeploy cancel_deploy = 5;
+    TraefikConfigQuery traefik_config_query = 6;
+    TraefikConfigUpdate traefik_config_update = 7;
+    TraefikRestartCommand traefik_restart_command = 8;
+    CheckSSLCommand check_ssl_command = 9;
+    TerminalStart terminal_start = 10;
+    TerminalData terminal_data = 11;
+    TerminalResize terminal_resize = 12;
+    TerminalClose terminal_close = 13;
+    BackupCommand backup_command = 14;
+    RestoreCommand restore_command = 15;
+    SyncIngressCommand sync_ingress_command = 16;
+  }
+}
+
+

@@ -1,0 +1,66 @@
+# Tako Task Runner (Rune)
+# https://github.com/octopyid/rune
+#
+# Sub-project tasks:
+#   console/  → cd console && rune <task>
+#   docs/     → cd docs && rune <task>
+
+#[Verify system dependencies and runtime tooling]
+check:
+    sh -c "which go >/dev/null 2>&1 || (rune error 'Go 1.22+ is required but not found in PATH.' && exit 1)"
+    sh -c "which bun >/dev/null 2>&1 || (rune error 'Bun is required for console package management.' && exit 1)"
+    sh -c "which protoc >/dev/null 2>&1 || rune warn 'protoc not found: rune proto requires protobuf compiler.'"
+    rune done "System dependencies and tooling verified."
+
+#[Generate gRPC protobuf stubs from agent.proto]
+proto:
+    rune info "Generating gRPC protobuf stubs for agent.proto..."
+    mkdir -p internal/protocol
+    sh -c 'PATH="$(go env GOPATH)/bin:$PATH" protoc --proto_path=api/proto --go_out=internal/protocol --go_opt=paths=source_relative --go-grpc_out=internal/protocol --go-grpc_opt=paths=source_relative agent.proto'
+    rune done "Protobuf stubs generated in internal/protocol."
+
+#[Run Go unit and integration test suite]
+test:
+    rune info "Running Go unit and integration tests..."
+    go test -v ./...
+    rune done "All Go tests passed successfully."
+
+#[Run full test suites across Go backend and console frontend]
+test:all: test
+    rune info "Running console unit tests..."
+    sh -c "cd console && bun run test"
+    rune done "Entire test suite passed."
+
+#[Build all application binaries]
+build: build:server build:agent
+    rune done "All application binaries built in bin/."
+
+#[Build Tako control plane server binary]
+#[env: CGO_ENABLED=0]
+build:server:
+    rune info "Compiling Tako control plane server..."
+    mkdir -p bin
+    go build -o bin/server ./server
+    rune done "Control plane binary ready: bin/server."
+
+#[Build Tako agent daemon binary]
+#[env: CGO_ENABLED=0]
+build:agent:
+    rune info "Compiling Tako agent daemon..."
+    mkdir -p bin
+    go build -o bin/agent ./agent
+    rune done "Agent daemon binary ready: bin/agent."
+
+#[Run control plane server in development mode]
+dev:server:
+    go run ./server
+
+#[Run agent daemon in development mode]
+dev:agent:
+    go run ./agent
+
+#[Clean compiled binaries]
+#[confirm: Remove all compiled binaries in bin directory?]
+clean:
+    rm -rf bin/
+    rune done "Cleaned bin/ directory."

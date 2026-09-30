@@ -1,0 +1,46 @@
+---
+title: "Instant Rollbacks"
+description: "How to instantly revert to a previous release without rebuilding Docker images."
+---
+
+When an unexpected regression or configuration error reaches production, Tako enables you to roll back to any recent successful release in seconds.
+
+## How Rollback Works Under the Hood
+
+Unlike traditional continuous deployment pipelines that re-trigger an entire git clone and Docker build sequence, Tako executes rollbacks **locally on the target worker node**:
+
+1. **Local Image Retention:** The Tako Agent retains Docker images for the last 5 successful deployments per service (`tako-app-{service_id}:{deployment_id}`). These images are protected from automated prune operations.
+2. **Zero Build Time:** When a rollback is requested, the control plane instructs the agent to launch a container from the existing local image tag. The build step is completely bypassed.
+3. **Environment Snapshot:** The container launches with the environment variables and secrets that were active when that deployment was originally released.
+4. **Health Check Gate:** Even during a rollback, the container must pass the configured HTTP health check loop before Traefik shifts traffic.
+5. **Zero Downtime:** If the rollback container fails to start, existing traffic continues serving from the active container without interruption.
+
+---
+
+## Step-by-Step Rollback Procedure
+
+To roll back a service:
+
+1. In the Tako dashboard, open the service that requires recovery.
+2. Select the **Deployments** tab.
+3. Review your deployment history. Each deployment displays:
+   - Git commit SHA and author.
+   - Commit message.
+   - Deployment timestamp and execution duration.
+   - Final status badge (**Healthy**, **Failed**, or **Cancelled**).
+4. Locate the previous deployment you wish to restore.
+5. Click the **Rollback** button on that deployment row.
+6. A confirmation dialog will summarize the commit details and target image tag. Click **Confirm Rollback**.
+7. The console switches to live log streaming as the agent spins up the container, runs the health check, updates Traefik routing, and tears down the faulty container.
+
+Within 5 to 10 seconds, your application is restored to the known good state.
+
+---
+
+## Image Retention Policy
+
+The Tako Agent enforces an automated image retention window to balance disk usage against rollback availability:
+
+- **Retained Count:** By default, the 5 most recent successful deployment images are preserved locally.
+- **Automated Pruning:** Older deployment images that fall outside the retention window are automatically pruned during scheduled cleanup cycles.
+- **Manual Image Verification:** You can verify available images directly on the host using `docker images` with the filter `label=tako.service_id=<id>`.

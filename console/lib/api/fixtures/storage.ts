@@ -1,0 +1,40 @@
+import type { S3Destination } from "../client"
+
+export const mockS3Destinations: S3Destination[] = [
+  {
+    id: "s3d_r2_primary",
+    name: "Cloudflare R2 Backups",
+    endpoint: "https://a1b2c3d4e5f6.r2.cloudflarestorage.com",
+    region: "auto",
+    bucket_name: "tako-production-backups",
+    access_key_id: "cf_r2_access_key_12345",
+    use_path_style: false,
+    is_default: true,
+    created_at: "2026-09-15T08:00:00Z",
+    updated_at: "2026-09-15T08:00:00Z",
+  },
+  {
+    id: "s3d_aws_cold",
+    name: "AWS S3 Glacier Archival",
+    endpoint: "https://s3.us-east-1.amazonaws.com",
+    region: "us-east-1",
+    bucket_name: "tako-cold-archive",
+    access_key_id: "AKIAIOSFODNN7EXAMPLE",
+    use_path_style: false,
+    is_default: false,
+    created_at: "2026-09-20T11:30:00Z",
+    updated_at: "2026-09-20T11:30:00Z",
+  },
+  {
+    id: "s3d_minio_local",
+    name: "Self-Hosted MinIO Staging",
+    endpoint: "https://minio.internal.tako.dev:9000",
+    region: "us-east-1",
+    bucket_name: "staging-snapshots",
+    access_key_id: "minioadmin",
+    use_path_style: true,
+    is_default: false,
+    created_at: "2026-09-25T14:15:00Z",
+    updated_at: "2026-09-25T14:15:00Z",
+  },
+]

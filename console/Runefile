@@ -1,0 +1,42 @@
+# Tako Console Task Runner (Rune)
+# Run from the console/ directory: rune <task>
+
+#[Start development server]
+dev:
+    bun run dev
+
+#[Build production bundle]
+build:
+    rune info "Building console production bundle..."
+    bun run build
+    rune done "Console production build complete."
+
+#[Run TypeScript typecheck]
+typecheck:
+    rune info "Typechecking console..."
+    bun run typecheck
+    rune done "TypeScript validation clean."
+
+#[Lint codebase with ESLint]
+lint:
+    rune info "Linting console..."
+    bun run lint
+    rune done "ESLint checks passed."
+
+#[Format codebase with Prettier]
+format:
+    rune info "Formatting console..."
+    bun run format
+    rune done "Formatting complete."
+
+#[Run unit tests]
+test:
+    rune info "Running console unit tests..."
+    bun run test
+    rune done "All console unit tests passed."
+
+#[Generate TypeScript API client types from OpenAPI spec]
+api:generate:
+    rune info "Generating TypeScript types from api/openapi.yaml..."
+    bun run api:generate
+    rune done "TypeScript client types synchronized."

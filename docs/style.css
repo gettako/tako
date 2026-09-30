@@ -1,0 +1,252 @@
+/* ==========================================================================
+   Mintlify Custom Style Overrides for Tako Documentation (Maple Theme)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Typography: Inter (Body @ 14px), Plus Jakarta Sans (Headings) & Iosevka (Mono)
+   -------------------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap');
+
+html,
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 14px !important;
+}
+
+.prose,
+.prose p,
+.prose li,
+.prose td,
+.prose th,
+#content-area p {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-heading,
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+code,
+pre,
+kbd {
+  font-family: 'Iosevka', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Brand Colors — synced with console globals.css
+   -------------------------------------------------------------------------- */
+:root {
+  --primary: 85 96 214 !important;       /* #5560d6 */
+  --primary-light: 121 128 224 !important; /* #7980e0 */
+  --primary-dark: 62 73 190 !important;   /* #3e49be */
+}
+
+::selection {
+  background-color: rgba(85, 96, 214, 0.2);
+  color: inherit;
+}
+
+:focus-visible {
+  outline-color: #5560d6 !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Background Colors — synced with console globals.css + subtle ambient top glow
+   -------------------------------------------------------------------------- */
+/* Light mode */
+html:not(.dark),
+body:not(.dark) {
+  background-color: #ffffff !important;
+  background-image: radial-gradient(
+    ellipse 85% 550px at 50% -30px,
+    rgba(85, 96, 214, 0.06) 0%,
+    rgba(85, 96, 214, 0.02) 40%,
+    transparent 75%
+  ) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  color: #526484 !important;
+}
+
+#sidebar:not(.dark *),
+nav:not(.dark *) {
+  background-color: transparent !important;
+  border-color: #dbdfea !important;
+}
+
+/* Dark mode */
+.dark,
+.dark body {
+  background-color: #0b0c14 !important;
+  background-image: radial-gradient(
+    ellipse 85% 550px at 50% -30px,
+    rgba(85, 96, 214, 0.12) 0%,
+    rgba(85, 96, 214, 0.035) 40%,
+    transparent 75%
+  ) !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+  color: #dee2e6 !important;
+}
+
+.dark #sidebar {
+  background-color: transparent !important;
+  border-color: #727da133 !important;
+}
+
+.dark header,
+.dark #content-area {
+  border-color: #727da133 !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. Content Area Layout — wider content column
+   -------------------------------------------------------------------------- */
+@media (min-width: 1024px) {
+  #content-area {
+    max-width: 56rem !important;
+  }
+
+  #content,
+  #content-area .prose,
+  .prose {
+    max-width: 100% !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  #content-area {
+    max-width: 64rem !important;
+    flex: 1 1 0% !important;
+  }
+}
+
+@media (min-width: 1536px) {
+  #content-area {
+    max-width: 72rem !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. Sidebar Navigation (left) — compact at 13px
+   -------------------------------------------------------------------------- */
+
+/* Page items */
+#sidebar nav a,
+#sidebar nav li,
+#sidebar a {
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+}
+
+/* Group labels */
+#sidebar nav .group-label,
+#sidebar [class*="group"] > span,
+#sidebar nav > div > p,
+#sidebar h4,
+#sidebar h5 {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: #8091a7 !important;
+}
+
+.dark #sidebar h4,
+.dark #sidebar h5,
+.dark #sidebar nav .group-label {
+  color: #8091a7 !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. TOC — "On this page" (right)
+   -------------------------------------------------------------------------- */
+
+/* "On this page" heading label */
+[class*="toc"] > p,
+[class*="toc"] > h2,
+[class*="toc"] > span:first-child,
+[aria-label="On this page"],
+aside nav > p,
+aside > div > p {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #8091a7 !important;
+}
+
+/* TOC items */
+[class*="toc"] a,
+aside nav a {
+  font-size: 12.5px !important;
+  line-height: 1.5 !important;
+}
+
+/* --------------------------------------------------------------------------
+   7. Custom Scrollbar — matches console
+   -------------------------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: #dbdfea;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #8091a7;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: rgba(114, 125, 161, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(128, 145, 167, 0.6);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #dbdfea transparent;
+}
+
+.dark * {
+  scrollbar-color: rgba(114, 125, 161, 0.2) transparent;
+}
+
+/* --------------------------------------------------------------------------
+   8. Logo size
+   -------------------------------------------------------------------------- */
+
+header a img,
+nav a img[src*="tako-logo"] {
+  height: 24px !important;
+  width: auto !important;
+}
+
+/* --------------------------------------------------------------------------
+   9. Flat overrides: no shadows, crisp borders
+   -------------------------------------------------------------------------- */
+.prose pre,
+.prose code {
+  border-radius: 6px !important;
+}

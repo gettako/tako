@@ -1,0 +1,237 @@
+---
+title: "Installation"
+description: "Install the Tako control plane on your primary Linux server using Docker Compose."
+---
+
+You can install Tako on any clean Linux server with Docker installed. You have two options: the automated one-line installation script or a manual Docker Compose configuration.
+
+## System requirements
+
+Before beginning, ensure your host server meets the baseline requirements:
+
+- **Operating System:** Linux (Ubuntu 22.04+, Debian 12+, Rocky Linux 9+, AlmaLinux 9+, or Alpine Linux 3.19+).
+- **Architecture:** `x86_64` (AMD64) or `aarch64` (ARM64).
+- **RAM:** 1 GB minimum (2 GB or more recommended when building images from source).
+- **Storage:** 10 GB or more available SSD space.
+- **Docker:** Docker Engine 24.0 or newer with Docker Compose v2.
+- **Network ports:** Inbound ports `80`, `443`, and `50051` accessible from the internet (port `50051` is required for worker agent gRPC communication).
+
+---
+
+## Option 1: Automated installation (Recommended)
+
+Run the official installation script with root privileges:
+
+```bash
+curl -fsSL https://gettako.dev/install.sh | bash
+```
+
+### What the script does automatically
+
+1. Detects your Linux distribution and verifies Docker Engine and Docker Compose v2. If missing, it installs the official packages.
+2. Identifies your public IP address or prompts for your custom domain name.
+3. Generates a cryptographically random 32-byte master encryption key (`TAKO_SECRET_KEY`) for database secrets.
+4. Generates an initial local enrollment token (`TAKO_LOCAL_ENROLLMENT_TOKEN`).
+5. Configures `/etc/tako/.env`, `/etc/tako/traefik.yaml`, and `/etc/tako/docker-compose.yml`.
+6. Launches the containers: Traefik, Go Server, Next.js Console, and Local Node Agent.
+7. Prints your onboarding URL and initial administrator credentials.
+
+---
+
+## Option 2: Manual Docker Compose installation
+
+If you prefer full control over file paths and container options, configure Tako manually.
+
+### 1. Create directory structure
+
+```bash
+sudo mkdir -p /etc/tako /etc/tako/traefik/dynamic
+sudo chmod 700 /etc/tako
+sudo chmod 755 /etc/tako/traefik /etc/tako/traefik/dynamic
+cd /etc/tako
+```
+
+### 2. Configure environment variables
+
+Generate a 32-byte hex secret key:
+
+```bash
+openssl rand -hex 32
+```
+
+Create `/etc/tako/.env` with strict permissions (`chmod 600`):
+
+```ini
+TAKO_DOMAIN=gettako.yourdomain.com
+TAKO_ADMIN_EMAIL=admin@yourdomain.com
+TAKO_SECRET_KEY=replace-with-your-generated-32-byte-hex-key
+TAKO_LOCAL_ENROLLMENT_TOKEN=tok_local_bootstrap_token
+TAKO_WEB_PORT=3000
+TAKO_PORT=8080
+TAKO_GRPC_PORT=50051
+```
+
+### 3. Create Traefik static configuration
+
+Create `/etc/tako/traefik.yaml`:
+
+```yaml
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+  format: common
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        certResolver: letsencrypt
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@yourdomain.com
+      storage: /etc/traefik/acme/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+```
+
+### 4. Create Docker Compose definition
+
+Create `/etc/tako/docker-compose.yml`:
+
+```yaml
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: tako-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - tako_traefik_acme:/etc/traefik/acme
+    networks:
+      - tako_network
+
+  server:
+    image: ghcr.io/gettako/server:latest
+    container_name: tako-server
+    restart: unless-stopped
+    ports:
+      - "${TAKO_PORT:-8080}:8080"
+      - "${TAKO_GRPC_PORT:-50051}:50051"
+    environment:
+      - TAKO_PORT=8080
+      - TAKO_GRPC_PORT=50051
+      - TAKO_DOMAIN=${TAKO_DOMAIN:-localhost}
+      - TAKO_DB_PATH=/etc/tako/tako.db
+      - TAKO_SECRET_KEY=${TAKO_SECRET_KEY}
+      - TAKO_LOCAL_ENROLLMENT_TOKEN=${TAKO_LOCAL_ENROLLMENT_TOKEN}
+    volumes:
+      - tako_server_data:/etc/tako
+    networks:
+      - tako_network
+
+  console:
+    image: ghcr.io/gettako/console:latest
+    container_name: tako-console
+    restart: unless-stopped
+    ports:
+      - "${TAKO_WEB_PORT:-3000}:3000"
+    environment:
+      - TAKO_BACKEND_URL=http://server:8080
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+    networks:
+      - tako_network
+    depends_on:
+      - server
+
+  agent-local:
+    image: ghcr.io/gettako/agent:latest
+    container_name: tako-agent-local
+    restart: unless-stopped
+    environment:
+      - TAKO_SERVER_URL=http://server:50051
+      - TAKO_ENROLLMENT_TOKEN=${TAKO_LOCAL_ENROLLMENT_TOKEN}
+      - TAKO_CONFIG_DIR=/etc/tako
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/traefik/dynamic
+      - TAKO_TRAEFIK_ACME_PATH=/etc/traefik/acme/acme.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - tako_agent_data:/etc/tako
+      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - tako_traefik_acme:/etc/traefik/acme:ro
+    networks:
+      - tako_network
+    depends_on:
+      - server
+
+volumes:
+  tako_server_data:
+  tako_agent_data:
+  tako_traefik_dynamic:
+  tako_traefik_acme:
+
+networks:
+  tako_network:
+    name: tako_network
+```
+
+### 5. Start the stack
+
+```bash
+docker compose up -d
+```
+
+---
+
+## Initial onboarding wizard
+
+1. Open your browser and navigate to `http://<your-server-ip>:3000` (or `https://<your-domain>` if you set up DNS pointing to port 443).
+2. Set your administrator account email and a strong password.
+3. Configure Two-Factor Authentication (TOTP authenticator app or WebAuthn hardware passkeys).
+4. Save your emergency recovery codes.
+5. The dashboard will load and confirm that the local node (`Local`) is online and ready to deploy services.
+
+---
+
+## Configuring Console Domain and SSL
+
+You do not need to configure DNS before installing Tako. You can bootstrap your control plane with your VPS IP address, and configure your domain anytime through the web dashboard:
+
+1. In your DNS provider (e.g. Cloudflare, Route53, Namecheap), add an `A` record pointing your domain (e.g. `tako.yourdomain.com`) to your server's public IP address.
+2. In the Tako dashboard, navigate to **Settings** and locate the **Console Domain & SSL Ingress** card.
+3. Enter your domain name and click **Verify DNS** to confirm your DNS record is live and pointing to the server.
+4. Select your desired SSL mode (**Let's Encrypt**, **Custom Certificate**, or **HTTP Only**).
+5. Click **Save & Apply Domain**. Traefik automatically hot-reloads the new dynamic router and requests an SSL certificate without any service interruption.
+
+<Note>
+**Anti-Lockout Protection:** Direct IP access on port `3000` (`http://<your-server-ip>:3000`) remains always open as an emergency fallback, ensuring you never get locked out if DNS records are misconfigured.
+</Note>
+

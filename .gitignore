@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# Next.js & Builds
+.next/
+out/
+build/
+dist/
+bin/
+
+# Environment & Secrets
+.env
+.env*.local
+*.pem
+*.key
+
+# Database
+*.db
+*.db-wal
+*.db-shm
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS & Editor
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.idea/
+.vscode/
+*.tsbuildinfo
+skills-lock.json
+
+# Generated protobuf stubs (source: api/proto/agent.proto → internal/protocol/)
+*.pb.go
+

@@ -1,0 +1,75 @@
+---
+title: "Auxiliary Workers & Cron Jobs"
+description: "Run continuous background queue workers and scheduled cron tasks reusing built application images."
+---
+
+Modern web applications frequently require background processes alongside their HTTP web servers, such as async queue processors or scheduled maintenance scripts. Tako handles these processes as **Auxiliary Services**.
+
+## Why Image Reuse Matters
+
+Traditional platforms often force you to configure separate git services for workers, resulting in redundant Docker builds, wasted CPU and disk space, and desynchronized code versions between your web frontend and background workers.
+
+In Tako:
+- Auxiliary services are configured as children of a parent web service.
+- They directly inherit the parent's active built Docker image and encrypted environment variables.
+- Deploying a new release of your web application automatically updates and restarts all associated workers and cron schedules with zero rebuild delay.
+
+---
+
+## 1. Background Queue Workers
+
+Queue workers run continuously in the background, consuming messages from queues or running background processing loops.
+
+### Common Use Cases
+- Laravel queue workers (`php artisan queue:work --tries=3 --timeout=90`)
+- Node.js BullMQ or Celery background job processors
+- Go worker daemons
+
+### Configuration Steps
+1. Open the parent web service and click the **Auxiliary** tab.
+2. Click **Add Auxiliary Service**.
+3. Select service type: **Worker**.
+4. Set a name for the worker (e.g., `queue-default`).
+5. Enter the custom execution command that overrides the Dockerfile `CMD` (e.g., `php artisan queue:work`).
+6. Click **Create Worker**.
+
+The Tako Agent launches the container with a persistent restart policy (`RestartPolicy: always`). The worker runs on the private Docker network without creating Traefik HTTP routing rules.
+
+---
+
+## 2. Scheduled Cron Jobs
+
+Scheduled cron services execute one-off commands at predefined recurring intervals.
+
+### Common Use Cases
+- Nightly database cleanups or archive generation
+- Scheduled invoice or email batch processing
+- Periodic cache pre-warming
+
+### Configuration Steps
+1. In the **Auxiliary** tab, click **Add Auxiliary Service**.
+2. Select service type: **Cron**.
+3. Set a name for the job (e.g., `nightly-cleanup`).
+4. Enter the command to run (e.g., `php artisan schedule:run`).
+5. Specify the execution schedule using standard 5-part cron format:
+   ```
+   ┌───────────── minute (0 - 59)
+   │ ┌───────────── hour (0 - 23)
+   │ │ ┌───────────── day of the month (1 - 31)
+   │ │ │ ┌───────────── month (1 - 12)
+   │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
+   │ │ │ │ │
+   0 2 * * *    # Runs every day at 02:00 UTC
+   ```
+6. Click **Create Cron Service**.
+
+The Tako Agent manages cron tasks using an embedded in-process scheduler (`robfig/cron/v3`). When the schedule triggers, the agent spins up an ephemeral container with the specified command, streams stdout and stderr to the log viewer, and tears down the container upon exit.
+
+---
+
+## Monitoring and Logs
+
+You can monitor both workers and cron executions from the **Auxiliary** tab:
+- **Status indicators:** View whether workers are active, stopped, or restarting.
+- **Log streaming:** Click on any worker or recent cron execution to stream real-time logs in the log viewer.
+- **Manual execution:** Trigger an immediate out-of-schedule run for any cron job using the **Run Now** action.

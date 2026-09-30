@@ -1,0 +1,26 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: tako-traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - /etc/traefik/dynamic:/etc/traefik/dynamic
+      - tako_traefik_acme:/etc/traefik/acme
+    networks:
+      - tako_network
+
+volumes:
+  tako_traefik_acme:
+    name: tako_traefik_acme
+
+networks:
+  tako_network:
+    external: true
+    name: tako_network

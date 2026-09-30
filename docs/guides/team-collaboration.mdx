@@ -1,0 +1,66 @@
+---
+title: "Team Collaboration & Roles"
+description: "Invite team members with role-based access control and zero SMTP setup requirements."
+---
+
+Tako supports team collaboration across a shared, flat workspace. You can invite team members to deploy applications, monitor services, and manage configuration without the operational overhead of multi-tenant enterprise hierarchies.
+
+## Roles and Permissions
+
+Tako provides two clearly delineated roles:
+
+| Action / Capability | Member | Admin |
+|---|:---:|:---:|
+| **View dashboard & metrics** | Yes | Yes |
+| **Create and deploy projects & services** | Yes | Yes |
+| **Manage service environment variables & domains** | Yes | Yes |
+| **Access interactive web terminal** | Yes | Yes |
+| **Trigger rollbacks and manual builds** | Yes | Yes |
+| **Add, prune, or delete server nodes** | No | Yes |
+| **Edit server-level Traefik configuration** | No | Yes |
+| **Invite, edit, or remove user accounts** | No | Yes |
+| **Configure global S3 storage & notification webhooks**| No | Yes |
+| **View system audit logs** | Yes | Yes |
+
+---
+
+## Inviting Team Members (No SMTP Required)
+
+Traditional self-hosted tools often require configuring SMTP credentials, SPF records, and transactional email providers before you can invite a colleague.
+
+Tako uses a **copyable invitation link** model:
+
+1. In the primary navigation, open **Settings** and select **Users**.
+2. Click **Invite User**.
+3. Select the role to assign (`admin` or `member`).
+4. Click **Generate Invite Link**.
+5. Tako generates a unique, single-use registration URL containing a secure cryptographic token:
+   ```
+   https://controlplane.yourdomain.com/register?token=tok_inv_abc123...
+   ```
+6. Copy the URL and send it directly to your colleague via Slack, email, or your team chat.
+
+### The Registration Experience
+When the invited user opens the link:
+1. Tako validates that the token is unexpired and has not been used.
+2. The user enters their full name and sets a secure password.
+3. Upon submission, Tako creates the account, invalidates the invitation token, and establishes their authenticated session immediately.
+
+---
+
+## Managing Existing Users
+
+Administrators can manage accounts under **Settings > Users**:
+
+- **Promoting or Demoting Roles:** Change a user's role between `member` and `admin`. Tako prevents administrators from demoting themselves or removing the last remaining administrator in the cluster.
+- **Revoking Invitations:** Cancel unused invite links at any time before they are accepted.
+- **Removing Users:** Deleting a user immediately terminates all of their active sessions and revokes access to the control plane API.
+
+---
+
+## Actor Attribution in Audit Logs
+
+When multiple team members collaborate in Tako, accountability is maintained through the tamper-evident **Audit Log**:
+- Every API mutation (such as triggering a deployment, editing an environment variable, adding a custom domain, or restarting a container) records the acting user ID and name.
+- Audit records use monotonic ULID identifiers and record client IP addresses.
+- Sensitive environment variable values are excluded from audit records, recording only key names and modification counts.
