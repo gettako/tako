@@ -17,6 +17,8 @@ import {
   EyeSlashIcon,
   ArrowsClockwiseIcon,
   ArrowSquareOutIcon,
+  CaretDownIcon,
+  TerminalWindowIcon,
 } from "@phosphor-icons/react"
 import {
   Dialog,
@@ -42,8 +44,11 @@ import {
   type GitHubBranch,
   type GitHubConnection,
   type Server,
+  type EnvVarInput,
   ApiError,
 } from "@/lib/api"
+import { YamlCodeEditor } from "@/components/editor/yaml-code-editor"
+import { EnvCodeEditor } from "@/components/editor/env-code-editor"
 import { cn } from "@/lib/utils"
 
 function generateRandomPassword(): string {
@@ -54,6 +59,27 @@ function generateRandomPassword(): string {
     pass += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return pass
+}
+
+function parseEnvText(text: string): EnvVarInput[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .flatMap((line) => {
+      const eqIdx = line.indexOf("=")
+      if (eqIdx === -1) return []
+      const key = line.slice(0, eqIdx).trim()
+      if (!key) return []
+      let value = line.slice(eqIdx + 1).trim()
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1)
+      }
+      return [{ key, value, is_secret: false }]
+    })
 }
 
 export function formatConnectionLabel(c?: GitHubConnection | null): string {
@@ -165,6 +191,10 @@ export function CreateServiceWizard({
   const [appVolumeMount, setAppVolumeMount] = React.useState("")
   const [preDeployCommand, setPreDeployCommand] = React.useState("")
   const [postDeployCommand, setPostDeployCommand] = React.useState("")
+
+  // Step 3: Env vars (app category only)
+  const [envVarsText, setEnvVarsText] = React.useState("")
+  const [envVarsExpanded, setEnvVarsExpanded] = React.useState(false)
 
   // Database Template State
   const [dbEngine, setDbEngine] = React.useState<
@@ -576,7 +606,20 @@ services:
           : selectedConnectionId || undefined,
       })
 
-      // 2. Trigger initial deployment
+      // 2. Save env vars if provided (before first deployment so build args are available)
+      const parsedEnvVars = parseEnvText(envVarsText)
+      if (parsedEnvVars.length > 0) {
+        await api.services
+          .updateEnv(createdService.id, {
+            env_vars: parsedEnvVars,
+            build_args: [],
+          })
+          .catch(() => {
+            // Non-fatal: env vars can be set later from the Environment tab
+          })
+      }
+
+      // 3. Trigger initial deployment
       await api.services
         .createDeployment(createdService.id, {
           branch: selectedBranch.trim(),
@@ -1173,6 +1216,57 @@ services:
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Environment Variables Collapsible Section */}
+              <div className="rounded-md border border-border">
+                <button
+                  type="button"
+                  onClick={() => setEnvVarsExpanded((v) => !v)}
+                  className="flex w-full cursor-pointer items-center justify-between rounded-md bg-muted/20 px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  aria-expanded={envVarsExpanded}
+                >
+                  <div className="flex items-center gap-2">
+                    <TerminalWindowIcon className="size-3.5 text-muted-foreground" />
+                    <span className="text-xs font-semibold text-foreground">
+                      Environment Variables
+                    </span>
+                    {parseEnvText(envVarsText).length > 0 && (
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-mono text-3xs font-medium text-primary">
+                        {parseEnvText(envVarsText).length} vars
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xs text-muted-foreground">
+                      {envVarsExpanded ? "" : "Paste .env before first deploy"}
+                    </span>
+                    <CaretDownIcon
+                      className={cn(
+                        "size-3.5 text-muted-foreground transition-transform duration-200",
+                        envVarsExpanded && "rotate-180"
+                      )}
+                    />
+                  </div>
+                </button>
+
+                {envVarsExpanded && (
+                  <div className="flex flex-col gap-2 p-3 pt-2">
+                    <p className="text-2xs text-muted-foreground">
+                      Paste your{" "}
+                      <code className="rounded bg-muted px-1 font-mono">.env</code>{" "}
+                      file below. Variables are saved before the first build so
+                      they are available during image build and container startup.
+                    </p>
+                    <EnvCodeEditor
+                      value={envVarsText}
+                      onChange={setEnvVarsText}
+                      placeholder={`DATABASE_URL=postgres://user:pass@db:5432/app\nNEXT_PUBLIC_API_URL=https://api.example.com\nJWT_SECRET=supersecretkey`}
+                      rows={7}
+                      ariaLabel="Environment variables for this service"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1836,16 +1930,15 @@ services:
                 </button>
               </div>
 
-              <textarea
-                id="compose-yaml-editor"
-                rows={10}
+              <YamlCodeEditor
                 value={composeYamlContent}
-                onChange={(e) => {
-                  setComposeYamlContent(e.target.value)
+                onChange={(v) => {
+                  setComposeYamlContent(v)
                   if (composeValidation) setComposeValidation(null)
                 }}
-                placeholder="version: '3.8'&#10;services:&#10;  web:&#10;    image: nginx:alpine"
-                className="w-full rounded-md border border-border bg-zinc-950 p-3 font-mono text-xs leading-relaxed text-zinc-100 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+                placeholder={`version: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n  db:\n    image: postgres:16-alpine`}
+                rows={10}
+                ariaLabel="Docker Compose YAML editor"
               />
 
               {/* Validation Feedback */}
