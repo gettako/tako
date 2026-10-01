@@ -5,16 +5,16 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeftIcon,
-  ArrowSquareOut,
-  HardDrives,
-  ArrowClockwise,
+  ArrowSquareOutIcon,
+  HardDrivesIcon,
+  ArrowClockwiseIcon,
   StopCircleIcon,
-  PlayCircle,
-  PencilSimple,
-  Check,
-  X,
+  PlayCircleIcon,
+  PencilSimpleIcon,
+  CheckIcon,
+  XIcon,
   CircleNotchIcon,
-  Trash,
+  TrashIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
@@ -242,7 +242,7 @@ export function ServiceHeader() {
                   {isSavingName ? (
                     <CircleNotchIcon className="size-4 animate-spin" />
                   ) : (
-                    <Check className="size-4 text-status-healthy-text" />
+                    <CheckIcon className="size-4 text-status-healthy-text" />
                   )}
                 </Button>
                 <Button
@@ -253,7 +253,7 @@ export function ServiceHeader() {
                   className="h-9 px-2.5"
                   aria-label="Cancel editing"
                 >
-                  <X className="size-4" />
+                  <XIcon className="size-4" />
                 </Button>
               </div>
             ) : (
@@ -268,7 +268,7 @@ export function ServiceHeader() {
                   aria-label="Rename service"
                   title="Rename service"
                 >
-                  <PencilSimple className="size-4" />
+                  <PencilSimpleIcon className="size-4" />
                 </button>
               </div>
             )}
@@ -280,7 +280,7 @@ export function ServiceHeader() {
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             {/* Server node pill */}
             <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 font-mono text-foreground">
-              <HardDrives
+              <HardDrivesIcon
                 className="size-3.5 text-muted-foreground"
                 aria-hidden="true"
               />
@@ -297,7 +297,7 @@ export function ServiceHeader() {
                 title="Open production URL in new tab"
               >
                 <span>{service.primary_domain}</span>
-                <ArrowSquareOut
+                <ArrowSquareOutIcon
                   className="size-3.5 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -311,7 +311,7 @@ export function ServiceHeader() {
                 title="Open direct port URL in new tab"
               >
                 <span>{directUrlLabel}</span>
-                <ArrowSquareOut
+                <ArrowSquareOutIcon
                   className="size-3.5 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -342,7 +342,7 @@ export function ServiceHeader() {
                   aria-hidden="true"
                 />
               ) : (
-                <ArrowClockwise className="size-4" aria-hidden="true" />
+                <ArrowClockwiseIcon className="size-4" aria-hidden="true" />
               )}
               <span>Pull Latest & Recreate</span>
             </Button>
@@ -360,7 +360,7 @@ export function ServiceHeader() {
                   aria-hidden="true"
                 />
               ) : (
-                <ArrowClockwise className="size-4" aria-hidden="true" />
+                <ArrowClockwiseIcon className="size-4" aria-hidden="true" />
               )}
               <span>Redeploy</span>
             </Button>
@@ -379,7 +379,7 @@ export function ServiceHeader() {
                 aria-hidden="true"
               />
             ) : (
-              <ArrowClockwise className="size-4" aria-hidden="true" />
+              <ArrowClockwiseIcon className="size-4" aria-hidden="true" />
             )}
             <span>Restart</span>
           </Button>
@@ -397,7 +397,7 @@ export function ServiceHeader() {
                 aria-hidden="true"
               />
             ) : isStopped ? (
-              <PlayCircle className="size-4" aria-hidden="true" />
+              <PlayCircleIcon className="size-4" aria-hidden="true" />
             ) : (
               <StopCircleIcon className="size-4" aria-hidden="true" />
             )}
@@ -412,7 +412,7 @@ export function ServiceHeader() {
             className="cursor-pointer gap-2 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
             aria-label={`Delete ${service.name}`}
           >
-            <Trash className="size-4" aria-hidden="true" />
+            <TrashIcon className="size-4" aria-hidden="true" />
             <span>Delete</span>
           </Button>
         </div>

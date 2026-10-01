@@ -3,25 +3,25 @@
 import * as React from "react"
 import Link from "next/link"
 import {
-  ArrowSquareOut,
-  GitBranch,
-  GitCommit,
-  User,
-  Clock,
-  HardDrives,
-  FileCode,
-  PlugsConnected,
-  Heartbeat,
-  TerminalWindow,
-  SlidersHorizontal,
+  ArrowSquareOutIcon,
+  GitBranchIcon,
+  GitCommitIcon,
+  UserIcon,
+  ClockIcon,
+  HardDrivesIcon,
+  FileCodeIcon,
+  PlugsConnectedIcon,
+  HeartbeatIcon,
+  TerminalWindowIcon,
+  SlidersHorizontalIcon,
   CircleNotchIcon,
-  Database,
-  Lock,
-  Copy,
-  Check,
-  Eye,
-  EyeSlash,
-  PlayCircle,
+  DatabaseIcon,
+  LockIcon,
+  CopyIcon,
+  CheckIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  PlayCircleIcon,
   StopCircleIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
@@ -222,7 +222,7 @@ function DatabaseServiceOverview({
         >
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <Database className="size-4 text-emerald-600 dark:text-emerald-400" />
+              <DatabaseIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
               <h2
                 id="card-db-credentials"
                 className="font-heading text-base font-semibold text-foreground"
@@ -274,9 +274,9 @@ function DatabaseServiceOverview({
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    <EyeSlash className="size-3.5" />
+                    <EyeSlashIcon className="size-3.5" />
                   ) : (
-                    <Eye className="size-3.5" />
+                    <EyeIcon className="size-3.5" />
                   )}
                 </Button>
                 {service.database_password && (
@@ -319,7 +319,7 @@ function DatabaseServiceOverview({
         >
           <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
-              <HardDrives className="size-4 text-muted-foreground" />
+              <HardDrivesIcon className="size-4 text-muted-foreground" />
               <h2
                 id="card-persistent-volume"
                 className="font-heading text-base font-semibold text-foreground"
@@ -362,7 +362,7 @@ function DatabaseServiceOverview({
                 Network Isolation
               </span>
               <span className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground">
-                <Lock className="size-3 text-emerald-600 dark:text-emerald-400" />
+                <LockIcon className="size-3 text-emerald-600 dark:text-emerald-400" />
                 <span>tako_network only</span>
               </span>
             </div>
@@ -393,7 +393,7 @@ function DatabaseServiceOverview({
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Server Name</span>
               <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                <HardDrives
+                <HardDrivesIcon
                   className="size-4 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -429,7 +429,7 @@ function DatabaseServiceOverview({
       >
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
-            <PlugsConnected className="size-5 text-emerald-600 dark:text-emerald-400" />
+            <PlugsConnectedIcon className="size-5 text-emerald-600 dark:text-emerald-400" />
             <div>
               <h3
                 id="card-inject-connection"
@@ -502,7 +502,7 @@ function DatabaseServiceOverview({
               {isInjecting ? (
                 <CircleNotchIcon className="size-4 animate-spin" />
               ) : (
-                <PlugsConnected className="size-4" />
+                <PlugsConnectedIcon className="size-4" />
               )}
               <span>Inject Variable</span>
             </Button>
@@ -535,7 +535,7 @@ function DatabaseServiceOverview({
               {isActionPending ? (
                 <CircleNotchIcon className="size-4 animate-spin" />
               ) : (
-                <PlayCircle className="size-4" />
+                <PlayCircleIcon className="size-4" />
               )}
               <span>Start Service</span>
             </Button>
@@ -561,7 +561,7 @@ function DatabaseServiceOverview({
             href={`/projects/${projectId}/services/${serviceId}/monitoring`}
             className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-background p-3 transition-colors hover:bg-muted/60"
           >
-            <TerminalWindow
+            <TerminalWindowIcon
               className="size-5 shrink-0 text-muted-foreground"
               aria-hidden="true"
             />
@@ -579,7 +579,7 @@ function DatabaseServiceOverview({
             href={`/projects/${projectId}/services/${serviceId}/environment`}
             className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-border bg-background p-3 transition-colors hover:bg-muted/60"
           >
-            <SlidersHorizontal
+            <SlidersHorizontalIcon
               className="size-5 shrink-0 text-muted-foreground"
               aria-hidden="true"
             />
@@ -772,7 +772,7 @@ export default function ServiceOverviewPage() {
               title="Open repository in GitHub"
             >
               <span>GitHub</span>
-              <ArrowSquareOut className="size-3.5" aria-hidden="true" />
+              <ArrowSquareOutIcon className="size-3.5" aria-hidden="true" />
             </a>
           </div>
 
@@ -792,7 +792,7 @@ export default function ServiceOverviewPage() {
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Branch</span>
               <span className="inline-flex items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
-                <GitBranch
+                <GitBranchIcon
                   className="size-3 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -811,7 +811,7 @@ export default function ServiceOverviewPage() {
                   rel="noopener noreferrer"
                   className="inline-flex cursor-pointer items-center gap-1 rounded border border-border bg-muted px-2 py-0.5 font-mono text-xs text-foreground hover:underline"
                 >
-                  <GitCommit
+                  <GitCommitIcon
                     className="size-3 text-muted-foreground"
                     aria-hidden="true"
                   />
@@ -848,7 +848,7 @@ export default function ServiceOverviewPage() {
             >
               Build & Port Specs
             </h2>
-            <FileCode
+            <FileCodeIcon
               className="size-4 text-muted-foreground"
               aria-hidden="true"
             />
@@ -935,7 +935,7 @@ export default function ServiceOverviewPage() {
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Server Name</span>
               <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                <HardDrives
+                <HardDrivesIcon
                   className="size-4 text-muted-foreground"
                   aria-hidden="true"
                 />

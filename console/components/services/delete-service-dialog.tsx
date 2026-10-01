@@ -10,7 +10,11 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { CircleNotchIcon, Trash, WarningCircle } from "@phosphor-icons/react"
+import {
+  CircleNotchIcon,
+  TrashIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react"
 import { api, ApiError } from "@/lib/api"
 
 export interface DeleteServiceFormProps {
@@ -69,7 +73,7 @@ export function DeleteServiceForm({
     <div className="flex flex-col gap-5">
       <DialogHeader className="border-b border-border pb-3">
         <div className="flex items-center gap-2 text-destructive">
-          <WarningCircle className="size-5 shrink-0" aria-hidden="true" />
+          <WarningCircleIcon className="size-5 shrink-0" aria-hidden="true" />
           <DialogTitle>Delete Service</DialogTitle>
         </div>
         <DialogDescription>
@@ -161,7 +165,7 @@ export function DeleteServiceForm({
             role="alert"
             className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
           >
-            <WarningCircle className="size-4 shrink-0" aria-hidden="true" />
+            <WarningCircleIcon className="size-4 shrink-0" aria-hidden="true" />
             <span>{deleteError}</span>
           </div>
         )}
@@ -216,7 +220,7 @@ export function DeleteServiceForm({
               </>
             ) : (
               <>
-                <Trash className="size-3.5" aria-hidden="true" />
+                <TrashIcon className="size-3.5" aria-hidden="true" />
                 <span>Delete Service</span>
               </>
             )}

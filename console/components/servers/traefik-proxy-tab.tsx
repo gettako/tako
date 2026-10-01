@@ -2,16 +2,16 @@
 
 import * as React from "react"
 import {
-  ShieldCheck,
+  ShieldCheckIcon,
   ArrowsClockwiseIcon,
-  FloppyDisk,
-  ArrowCounterClockwise,
-  Code,
-  Info,
+  FloppyDiskIcon,
+  ArrowCounterClockwiseIcon,
+  CodeIcon,
+  InfoIcon,
   CircleNotchIcon,
-  CaretDown,
-  CaretRight,
-  Plus,
+  CaretDownIcon,
+  CaretRightIcon,
+  PlusIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import {
@@ -272,7 +272,7 @@ export function TraefikProxyTab({ server, showToast }: TraefikProxyTabProps) {
       <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-            <ShieldCheck className="size-5" />
+            <ShieldCheckIcon className="size-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export function TraefikProxyTab({ server, showToast }: TraefikProxyTabProps) {
 
       {/* Isolation Architecture Notice */}
       <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-4 text-xs leading-relaxed text-muted-foreground">
-        <Info className="mt-0.5 size-5 shrink-0 text-foreground/80" />
+        <InfoIcon className="mt-0.5 size-5 shrink-0 text-foreground/80" />
         <div className="space-y-1">
           <p className="font-medium text-foreground">
             Strict Configuration Separation
@@ -334,7 +334,7 @@ export function TraefikProxyTab({ server, showToast }: TraefikProxyTabProps) {
         <div className="flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Code className="size-4 text-muted-foreground" />
+              <CodeIcon className="size-4 text-muted-foreground" />
               <h3 className="font-heading text-base font-semibold text-foreground">
                 Custom Dynamic Configuration
               </h3>
@@ -358,7 +358,7 @@ export function TraefikProxyTab({ server, showToast }: TraefikProxyTabProps) {
                 onClick={() => handleInsertTemplate(tpl.snippet)}
                 className="h-7 cursor-pointer gap-1 px-2 text-2xs"
               >
-                <Plus className="size-3" />
+                <PlusIcon className="size-3" />
                 <span>{tpl.label}</span>
               </Button>
             ))}
@@ -404,7 +404,7 @@ export function TraefikProxyTab({ server, showToast }: TraefikProxyTabProps) {
               disabled={!isDirty || isSaving}
               className="h-10 gap-1.5"
             >
-              <ArrowCounterClockwise className="size-4" />
+              <ArrowCounterClockwiseIcon className="size-4" />
               <span>Discard Changes</span>
             </Button>
 
@@ -422,7 +422,7 @@ export function TraefikProxyTab({ server, showToast }: TraefikProxyTabProps) {
                 </>
               ) : (
                 <>
-                  <FloppyDisk className="size-4" />
+                  <FloppyDiskIcon className="size-4" />
                   <span>Save Configuration</span>
                 </>
               )}
@@ -441,9 +441,9 @@ export function TraefikProxyTab({ server, showToast }: TraefikProxyTabProps) {
         >
           <div className="flex items-center gap-2">
             {staticOpen ? (
-              <CaretDown className="size-4 text-muted-foreground" />
+              <CaretDownIcon className="size-4 text-muted-foreground" />
             ) : (
-              <CaretRight className="size-4 text-muted-foreground" />
+              <CaretRightIcon className="size-4 text-muted-foreground" />
             )}
             <div>
               <h3 className="font-heading text-sm font-semibold text-foreground">

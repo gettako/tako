@@ -4,18 +4,18 @@ import * as React from "react"
 import Link from "next/link"
 import {
   ArrowsClockwiseIcon,
-  Check,
+  CheckIcon,
   CircleNotchIcon,
-  Copy,
-  Cpu,
-  FileCode,
-  HardDrives,
-  Network,
-  PlayCircle,
-  RocketLaunch,
-  SlidersHorizontal,
+  CopyIcon,
+  CpuIcon,
+  FileCodeIcon,
+  HardDrivesIcon,
+  NetworkIcon,
+  PlayCircleIcon,
+  RocketLaunchIcon,
+  SlidersHorizontalIcon,
   StopCircleIcon,
-  TerminalWindow,
+  TerminalWindowIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -201,7 +201,7 @@ export function ComposeServiceOverview({
                 {isActionPending ? (
                   <CircleNotchIcon className="size-4 animate-spin" />
                 ) : (
-                  <PlayCircle className="size-4" />
+                  <PlayCircleIcon className="size-4" />
                 )}
                 <span>Start Stack</span>
               </Button>
@@ -237,7 +237,7 @@ export function ComposeServiceOverview({
               disabled={isActionPending}
               className="cursor-pointer gap-2"
             >
-              <RocketLaunch className="size-4 text-muted-foreground" />
+              <RocketLaunchIcon className="size-4 text-muted-foreground" />
               <span>Re-deploy</span>
             </Button>
           </div>
@@ -247,7 +247,7 @@ export function ComposeServiceOverview({
         <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-3">
           <div className="flex flex-col gap-1 rounded-md border border-border bg-background p-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Network className="size-3.5" aria-hidden="true" />
+              <NetworkIcon className="size-3.5" aria-hidden="true" />
               <span>Isolated Internal Network</span>
             </span>
             <div className="mt-0.5 flex items-center justify-between gap-2">
@@ -265,7 +265,7 @@ export function ComposeServiceOverview({
 
           <div className="flex flex-col gap-1 rounded-md border border-border bg-background p-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <HardDrives className="size-3.5" aria-hidden="true" />
+              <HardDrivesIcon className="size-3.5" aria-hidden="true" />
               <span>Sub-Containers</span>
             </span>
             <span className="mt-0.5 font-heading text-base font-semibold text-foreground">
@@ -276,7 +276,7 @@ export function ComposeServiceOverview({
 
           <div className="flex flex-col gap-1 rounded-md border border-border bg-background p-3">
             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <FileCode className="size-3.5" aria-hidden="true" />
+              <FileCodeIcon className="size-3.5" aria-hidden="true" />
               <span>Configuration Source</span>
             </span>
             <span className="mt-0.5 truncate text-xs font-medium text-foreground">
@@ -424,7 +424,7 @@ export function ComposeServiceOverview({
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <div>
             <h3 className="flex items-center gap-2 font-heading text-base font-semibold text-foreground">
-              <TerminalWindow
+              <TerminalWindowIcon
                 className="size-4 text-muted-foreground"
                 aria-hidden="true"
               />
@@ -561,7 +561,7 @@ export function ComposeServiceOverview({
           href={`/projects/${projectId}/services/${serviceId}/environment`}
           className="flex min-h-11 items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/40"
         >
-          <SlidersHorizontal className="size-5 shrink-0 text-muted-foreground" />
+          <SlidersHorizontalIcon className="size-5 shrink-0 text-muted-foreground" />
           <div className="flex flex-col">
             <span className="font-heading text-sm font-semibold text-foreground">
               Environment Variables
@@ -576,7 +576,7 @@ export function ComposeServiceOverview({
           href={`/projects/${projectId}/services/${serviceId}/deployments`}
           className="flex min-h-11 items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-muted/40"
         >
-          <RocketLaunch className="size-5 shrink-0 text-muted-foreground" />
+          <RocketLaunchIcon className="size-5 shrink-0 text-muted-foreground" />
           <div className="flex flex-col">
             <span className="font-heading text-sm font-semibold text-foreground">
               Deployment History

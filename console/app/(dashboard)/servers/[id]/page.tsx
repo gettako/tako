@@ -5,23 +5,23 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeftIcon,
-  HardDrives,
-  Broom,
-  Trash,
-  Cpu,
-  HardDrive,
-  Copy,
-  Check,
-  Warning,
-  X,
+  HardDrivesIcon,
+  BroomIcon,
+  TrashIcon,
+  CpuIcon,
+  HardDriveIcon,
+  CopyIcon,
+  CheckIcon,
+  WarningIcon,
+  XIcon,
   CircleNotchIcon,
-  Cube,
-  Clock,
-  Pulse,
-  TerminalWindow,
-  ArrowRight,
-  Gauge,
-  ShieldCheck,
+  CubeIcon,
+  ClockIcon,
+  PulseIcon,
+  TerminalWindowIcon,
+  ArrowRightIcon,
+  GaugeIcon,
+  ShieldCheckIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import {
@@ -557,20 +557,20 @@ export default function ServerDetailPage({
                 aria-label={`Copy IP address ${server.host}`}
               >
                 {copiedIp ? (
-                  <Check className="size-3 text-emerald-500" />
+                  <CheckIcon className="size-3 text-emerald-500" />
                 ) : (
-                  <Copy className="size-3" />
+                  <CopyIcon className="size-3" />
                 )}
               </button>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <Clock className="size-3.5" />
+              <ClockIcon className="size-3.5" />
               <span>Uptime: {formatUptime(server.uptime_seconds)}</span>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <Pulse className="size-3.5" />
+              <PulseIcon className="size-3.5" />
               <span>Heartbeat: Active</span>
             </div>
           </div>
@@ -583,7 +583,7 @@ export default function ServerDetailPage({
             onClick={() => setPruneDialogOpen(true)}
             className="gap-2"
           >
-            <Broom className="size-4" />
+            <BroomIcon className="size-4" />
             <span>Prune Resources</span>
           </Button>
 
@@ -602,7 +602,7 @@ export default function ServerDetailPage({
                 "cursor-not-allowed opacity-50 hover:bg-transparent"
             )}
           >
-            <Trash className="size-4" />
+            <TrashIcon className="size-4" />
             <span>Unregister</span>
           </Button>
         </div>
@@ -616,7 +616,7 @@ export default function ServerDetailPage({
           className="flex flex-col gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-xs text-amber-900 sm:flex-row sm:items-center sm:justify-between dark:border-amber-500/30 dark:bg-amber-950/40 dark:text-amber-200"
         >
           <div className="flex items-start gap-3">
-            <Warning
+            <WarningIcon
               className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400"
               aria-hidden="true"
             />
@@ -645,12 +645,12 @@ export default function ServerDetailPage({
             >
               {copiedUpdateCommand ? (
                 <>
-                  <Check className="size-3 text-emerald-500" />
+                  <CheckIcon className="size-3 text-emerald-500" />
                   <span>Copied!</span>
                 </>
               ) : (
                 <>
-                  <Copy className="size-3" />
+                  <CopyIcon className="size-3" />
                   <span>Copy Command</span>
                 </>
               )}
@@ -681,7 +681,7 @@ export default function ServerDetailPage({
                 : "border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             )}
           >
-            <Gauge className="size-4 shrink-0" aria-hidden="true" />
+            <GaugeIcon className="size-4 shrink-0" aria-hidden="true" />
             <span>Overview</span>
           </button>
           <button
@@ -696,7 +696,7 @@ export default function ServerDetailPage({
                 : "border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
             )}
           >
-            <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
+            <ShieldCheckIcon className="size-4 shrink-0" aria-hidden="true" />
             <span>Traefik Proxy</span>
           </button>
         </div>
@@ -713,7 +713,7 @@ export default function ServerDetailPage({
                   CPU Utilization
                 </span>
                 <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-                  <Cpu className="size-4" />
+                  <CpuIcon className="size-4" />
                 </div>
               </div>
               <div className="mt-3">
@@ -743,7 +743,7 @@ export default function ServerDetailPage({
                   Memory Utilization
                 </span>
                 <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-                  <HardDrives className="size-4" />
+                  <HardDrivesIcon className="size-4" />
                 </div>
               </div>
               <div className="mt-3 flex items-baseline justify-between">
@@ -776,7 +776,7 @@ export default function ServerDetailPage({
                   Disk Utilization
                 </span>
                 <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted text-foreground">
-                  <HardDrive className="size-4" />
+                  <HardDriveIcon className="size-4" />
                 </div>
               </div>
               <div className="mt-3">
@@ -990,7 +990,7 @@ export default function ServerDetailPage({
                     </>
                   ) : hasSavedBuildSettings ? (
                     <>
-                      <Check className="size-3.5 text-emerald-500" />
+                      <CheckIcon className="size-3.5 text-emerald-500" />
                       <span>Saved</span>
                     </>
                   ) : (
@@ -1035,7 +1035,7 @@ export default function ServerDetailPage({
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex size-8 items-center justify-center rounded-md border border-border bg-background text-foreground">
-                        <Cube className="size-4" />
+                        <CubeIcon className="size-4" />
                       </div>
                       <div className="flex flex-col">
                         <span className="font-heading font-medium text-foreground">
@@ -1073,7 +1073,7 @@ export default function ServerDetailPage({
                         className="h-8 gap-1 px-2.5 text-xs"
                       >
                         <span>View</span>
-                        <ArrowRight className="size-3" />
+                        <ArrowRightIcon className="size-3" />
                       </Button>
                     </div>
                   </div>
@@ -1081,7 +1081,7 @@ export default function ServerDetailPage({
               </div>
             ) : (
               <div className="mt-6 flex flex-col items-center justify-center py-6 text-center text-xs text-muted-foreground">
-                <Cube className="size-8 text-muted-foreground/60" />
+                <CubeIcon className="size-8 text-muted-foreground/60" />
                 <p className="mt-2 font-medium text-foreground">
                   No active services
                 </p>
@@ -1133,9 +1133,9 @@ export default function ServerDetailPage({
           >
             <div className="flex items-center gap-2">
               {toast.type === "success" ? (
-                <Check className="size-4 text-emerald-500" />
+                <CheckIcon className="size-4 text-emerald-500" />
               ) : (
-                <Warning className="size-4 text-destructive" />
+                <WarningIcon className="size-4 text-destructive" />
               )}
               <span>{toast.message}</span>
             </div>
@@ -1144,7 +1144,7 @@ export default function ServerDetailPage({
               className="rounded p-0.5 text-muted-foreground hover:text-foreground"
               aria-label="Dismiss notification"
             >
-              <X className="size-3.5" />
+              <XIcon className="size-3.5" />
             </button>
           </div>
         ))}

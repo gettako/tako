@@ -3,11 +3,11 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
-  Warning,
-  Trash,
+  WarningIcon,
+  TrashIcon,
   CircleNotchIcon,
-  Check,
-  WarningCircle,
+  CheckIcon,
+  WarningCircleIcon,
 } from "@phosphor-icons/react"
 import {
   Dialog,
@@ -150,7 +150,7 @@ export function ProjectSettingsForm({
             role="alert"
             className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
           >
-            <WarningCircle className="size-4 shrink-0" />
+            <WarningCircleIcon className="size-4 shrink-0" />
             <span>{saveError}</span>
           </div>
         )}
@@ -160,7 +160,7 @@ export function ProjectSettingsForm({
             role="status"
             className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400"
           >
-            <Check className="size-4 shrink-0" />
+            <CheckIcon className="size-4 shrink-0" />
             <span>Project settings saved successfully.</span>
           </div>
         )}
@@ -236,7 +236,7 @@ export function ProjectSettingsForm({
       {/* Danger Zone */}
       <div className="flex flex-col gap-3 rounded-lg border border-red-500/30 bg-red-500/5 p-4">
         <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
-          <Warning className="size-4 shrink-0" />
+          <WarningIcon className="size-4 shrink-0" />
           <h3 className="font-heading text-sm font-semibold">Danger Zone</h3>
         </div>
 
@@ -250,7 +250,7 @@ export function ProjectSettingsForm({
             role="alert"
             className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
           >
-            <WarningCircle className="size-4 shrink-0" />
+            <WarningCircleIcon className="size-4 shrink-0" />
             <span>{deleteError}</span>
           </div>
         )}
@@ -264,7 +264,7 @@ export function ProjectSettingsForm({
               onClick={() => setShowDeleteConfirm(true)}
               className="gap-1.5 border border-red-500/40"
             >
-              <Trash className="size-4" />
+              <TrashIcon className="size-4" />
               <span>Delete Project</span>
             </Button>
           </div>
@@ -314,7 +314,7 @@ export function ProjectSettingsForm({
                   </>
                 ) : (
                   <>
-                    <Trash className="size-3.5" />
+                    <TrashIcon className="size-3.5" />
                     <span>I understand, delete this project</span>
                   </>
                 )}

@@ -3,21 +3,21 @@
 import * as React from "react"
 import Link from "next/link"
 import {
-  Cpu,
-  HardDrives,
-  Cube,
-  FolderSimple,
-  GitBranch,
-  GitCommit,
-  Clock,
-  ArrowRight,
-  Plus,
+  CpuIcon,
+  HardDrivesIcon,
+  CubeIcon,
+  FolderSimpleIcon,
+  GitBranchIcon,
+  GitCommitIcon,
+  ClockIcon,
+  ArrowRightIcon,
+  PlusIcon,
   CheckCircleIcon,
-  WarningCircle,
-  ClockAfternoon,
-  ArrowUpRight,
-  Pulse,
-  Stack,
+  WarningCircleIcon,
+  ClockAfternoonIcon,
+  ArrowUpRightIcon,
+  PulseIcon,
+  StackIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
@@ -248,7 +248,7 @@ export default function DashboardMonitorPage() {
     return (
       <>
         <EmptyState
-          icon={Pulse}
+          icon={PulseIcon}
           title="Cluster Not Initialized"
           description="Get started by creating your first project workspace and enrolling a server node."
           action={{
@@ -282,7 +282,7 @@ export default function DashboardMonitorPage() {
         {/* Quick Actions */}
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => setCreateProjectOpen(true)} className="gap-2">
-            <Plus className="size-4" />
+            <PlusIcon className="size-4" />
             <span>Create Project</span>
           </Button>
 
@@ -291,7 +291,7 @@ export default function DashboardMonitorPage() {
             onClick={() => setAddServerOpen(true)}
             className="gap-2"
           >
-            <HardDrives className="size-4" />
+            <HardDrivesIcon className="size-4" />
             <span>Add Server</span>
           </Button>
         </div>
@@ -301,7 +301,7 @@ export default function DashboardMonitorPage() {
       {(failingServicesCount > 0 || onlineServersCount < servers.length) && (
         <div className="flex items-center justify-between rounded-lg border border-status-failed-border bg-status-failed-bg p-4 text-xs text-status-failed-text">
           <div className="flex items-center gap-2">
-            <WarningCircle className="size-5 shrink-0" />
+            <WarningCircleIcon className="size-5 shrink-0" />
             <span>
               Attention required: {failingServicesCount} failing service(s) and{" "}
               {servers.length - onlineServersCount} offline server node(s)
@@ -323,7 +323,7 @@ export default function DashboardMonitorPage() {
         <div className="flex flex-col justify-between rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Services Running</span>
-            <Cube className="size-4 text-foreground" />
+            <CubeIcon className="size-4 text-foreground" />
           </div>
           <div className="my-2 flex items-baseline gap-2">
             <span className="font-heading text-2xl font-bold text-foreground">
@@ -361,7 +361,7 @@ export default function DashboardMonitorPage() {
         <div className="flex flex-col justify-between rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Connected Nodes</span>
-            <HardDrives className="size-4 text-foreground" />
+            <HardDrivesIcon className="size-4 text-foreground" />
           </div>
           <div className="my-2 flex items-baseline gap-2">
             <span className="font-heading text-2xl font-bold text-foreground">
@@ -390,7 +390,7 @@ export default function DashboardMonitorPage() {
         <div className="flex flex-col justify-between rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Cluster CPU Load</span>
-            <Cpu className="size-4 text-foreground" />
+            <CpuIcon className="size-4 text-foreground" />
           </div>
           <div className="my-2 flex items-baseline gap-2">
             <span className="font-heading font-mono text-2xl font-bold text-foreground">
@@ -419,7 +419,7 @@ export default function DashboardMonitorPage() {
         <div className="flex flex-col justify-between rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Cluster Memory</span>
-            <Stack className="size-4 text-foreground" />
+            <StackIcon className="size-4 text-foreground" />
           </div>
           <div className="my-2 flex items-baseline gap-2">
             <span className="font-heading font-mono text-2xl font-bold text-foreground">
@@ -520,7 +520,7 @@ export default function DashboardMonitorPage() {
               className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
             >
               <span>Manage Servers</span>
-              <ArrowRight className="size-3.5" />
+              <ArrowRightIcon className="size-3.5" />
             </Button>
           </div>
 
@@ -554,7 +554,7 @@ export default function DashboardMonitorPage() {
               className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground"
             >
               <span>All Projects</span>
-              <ArrowRight className="size-3.5" />
+              <ArrowRightIcon className="size-3.5" />
             </Button>
           </div>
 
@@ -609,11 +609,11 @@ export default function DashboardMonitorPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 text-2xs text-muted-foreground">
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1 font-mono">
-                        <GitBranch className="size-3" />
+                        <GitBranchIcon className="size-3" />
                         <span>{dep.branch}</span>
                       </span>
                       <span className="flex items-center gap-1 font-mono">
-                        <GitCommit className="size-3" />
+                        <GitCommitIcon className="size-3" />
                         <span>{dep.commit_sha.slice(0, 7)}</span>
                       </span>
                       {typeof dep.duration_seconds === "number" &&
@@ -624,7 +624,7 @@ export default function DashboardMonitorPage() {
 
                     <div className="flex items-center gap-2">
                       <span className="flex items-center gap-1">
-                        <Clock className="size-3" />
+                        <ClockIcon className="size-3" />
                         <span>{formatRelativeTime(dep.created_at)}</span>
                       </span>
                       <Link
@@ -632,7 +632,7 @@ export default function DashboardMonitorPage() {
                         className="inline-flex size-6 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                         aria-label={`View deployment logs for ${dep.serviceName}`}
                       >
-                        <ArrowUpRight className="size-3.5" />
+                        <ArrowUpRightIcon className="size-3.5" />
                       </Link>
                     </div>
                   </div>

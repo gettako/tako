@@ -2,20 +2,20 @@
 
 import * as React from "react"
 import {
-  Eye,
-  EyeSlash,
-  Plus,
-  Trash,
-  Warning,
-  FloppyDisk,
-  ArrowCounterClockwise,
-  SlidersHorizontal,
-  FileText,
-  Table,
+  EyeIcon,
+  EyeSlashIcon,
+  PlusIcon,
+  TrashIcon,
+  WarningIcon,
+  FloppyDiskIcon,
+  ArrowCounterClockwiseIcon,
+  SlidersHorizontalIcon,
+  FileTextIcon,
+  TableIcon,
   CircleNotchIcon,
-  Check,
-  ShieldCheck,
-  RocketLaunch,
+  CheckIcon,
+  ShieldCheckIcon,
+  RocketLaunchIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -397,7 +397,7 @@ export default function ServiceEnvironmentPage() {
                 : "border border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            <Table className="size-3.5" aria-hidden="true" />
+            <TableIcon className="size-3.5" aria-hidden="true" />
             <span>Key-Value Form</span>
           </button>
           <button
@@ -410,7 +410,7 @@ export default function ServiceEnvironmentPage() {
                 : "border border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
-            <FileText className="size-3.5" aria-hidden="true" />
+            <FileTextIcon className="size-3.5" aria-hidden="true" />
             <span>Raw .env</span>
           </button>
         </div>
@@ -469,7 +469,7 @@ export default function ServiceEnvironmentPage() {
                   aria-hidden="true"
                 />
               ) : (
-                <FloppyDisk className="size-4" aria-hidden="true" />
+                <FloppyDiskIcon className="size-4" aria-hidden="true" />
               )}
               <span>Save Changes</span>
             </Button>
@@ -502,7 +502,7 @@ export default function ServiceEnvironmentPage() {
               onClick={handleAddRuntimeRow}
               className="cursor-pointer gap-2"
             >
-              <Plus className="size-4" aria-hidden="true" />
+              <PlusIcon className="size-4" aria-hidden="true" />
               <span>Add Variable</span>
             </Button>
           )}
@@ -564,9 +564,9 @@ export default function ServiceEnvironmentPage() {
                       aria-label={row.revealed ? "Mask value" : "Reveal value"}
                     >
                       {row.revealed ? (
-                        <EyeSlash className="size-4" />
+                        <EyeSlashIcon className="size-4" />
                       ) : (
-                        <Eye className="size-4" />
+                        <EyeIcon className="size-4" />
                       )}
                     </button>
                   </div>
@@ -579,7 +579,7 @@ export default function ServiceEnvironmentPage() {
                       className="cursor-pointer text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       aria-label={`Delete ${row.key || "variable"}`}
                     >
-                      <Trash className="size-3.5" aria-hidden="true" />
+                      <TrashIcon className="size-3.5" aria-hidden="true" />
                     </Button>
                   </div>
                 </div>
@@ -630,7 +630,7 @@ export default function ServiceEnvironmentPage() {
               onClick={handleAddBuildArgRow}
               className="cursor-pointer gap-2"
             >
-              <Plus className="size-4" aria-hidden="true" />
+              <PlusIcon className="size-4" aria-hidden="true" />
               <span>Add Build Argument</span>
             </Button>
           )}
@@ -638,7 +638,7 @@ export default function ServiceEnvironmentPage() {
 
         {/* Warning Notification Box */}
         <div className="flex items-start gap-3 rounded-md border border-status-queued-border bg-status-queued-bg p-3.5 text-xs text-status-queued-text">
-          <Warning className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <WarningIcon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold">
               Security Notice Regarding Build Arguments
@@ -707,9 +707,9 @@ export default function ServiceEnvironmentPage() {
                       aria-label={row.revealed ? "Mask value" : "Reveal value"}
                     >
                       {row.revealed ? (
-                        <EyeSlash className="size-4" />
+                        <EyeSlashIcon className="size-4" />
                       ) : (
-                        <Eye className="size-4" />
+                        <EyeIcon className="size-4" />
                       )}
                     </button>
                   </div>
@@ -722,7 +722,7 @@ export default function ServiceEnvironmentPage() {
                       className="cursor-pointer text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       aria-label={`Delete ${row.key || "argument"}`}
                     >
-                      <Trash className="size-3.5" aria-hidden="true" />
+                      <TrashIcon className="size-3.5" aria-hidden="true" />
                     </Button>
                   </div>
                 </div>

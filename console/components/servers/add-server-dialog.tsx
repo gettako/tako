@@ -3,10 +3,10 @@
 import * as React from "react"
 import {
   CircleNotchIcon,
-  Check,
-  Copy,
-  TerminalWindow,
-  FileCode,
+  CheckIcon,
+  CopyIcon,
+  TerminalWindowIcon,
+  FileCodeIcon,
   CheckCircleIcon,
 } from "@phosphor-icons/react"
 import {
@@ -235,7 +235,7 @@ export function AddServerWizard({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <TerminalWindow className="size-3.5" />
+              <TerminalWindowIcon className="size-3.5" />
               <span>One-line Command</span>
             </button>
             <button
@@ -248,7 +248,7 @@ export function AddServerWizard({
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <FileCode className="size-3.5" />
+              <FileCodeIcon className="size-3.5" />
               <span>Docker Compose</span>
             </button>
           </div>
@@ -270,12 +270,12 @@ export function AddServerWizard({
                 >
                   {copiedCommand ? (
                     <>
-                      <Check className="size-3.5 text-emerald-500" />
+                      <CheckIcon className="size-3.5 text-emerald-500" />
                       <span className="ml-1 text-2xs">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="size-3.5" />
+                      <CopyIcon className="size-3.5" />
                       <span className="ml-1 text-2xs">Copy</span>
                     </>
                   )}
@@ -301,12 +301,12 @@ export function AddServerWizard({
                 >
                   {copiedCompose ? (
                     <>
-                      <Check className="size-3.5 text-emerald-500" />
+                      <CheckIcon className="size-3.5 text-emerald-500" />
                       <span className="ml-1 text-2xs">Copied!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="size-3.5" />
+                      <CopyIcon className="size-3.5" />
                       <span className="ml-1 text-2xs">Copy</span>
                     </>
                   )}

@@ -2,16 +2,16 @@
 
 import * as React from "react"
 import {
-  Terminal as TerminalIcon,
+  TerminalIcon,
   ArrowsClockwiseIcon,
-  Trash,
-  Play,
+  TrashIcon,
+  PlayIcon,
   CheckCircleIcon,
-  WarningCircle,
+  WarningCircleIcon,
   CircleNotchIcon,
-  CornersOut,
-  CornersIn,
-  HardDrives,
+  CornersOutIcon,
+  CornersInIcon,
+  HardDrivesIcon,
 } from "@phosphor-icons/react"
 import { useTheme } from "next-themes"
 import { useService } from "@/components/services/service-context"
@@ -573,7 +573,7 @@ export default function ServiceTerminalPage() {
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                    <WarningCircle className="h-3.5 w-3.5" />
+                    <WarningCircleIcon className="h-3.5 w-3.5" />
                     Disconnected
                   </span>
                 )
@@ -606,7 +606,7 @@ export default function ServiceTerminalPage() {
                     className="h-8 min-w-32.5 gap-2 font-mono text-xs"
                     aria-label="Select Container"
                   >
-                    <HardDrives className="size-3.5 text-muted-foreground" />
+                    <HardDrivesIcon className="size-3.5 text-muted-foreground" />
                     <SelectValue placeholder="Select Container" />
                   </SelectTrigger>
                   <SelectContent>
@@ -666,7 +666,7 @@ export default function ServiceTerminalPage() {
               onClick={handleClear}
               className="cursor-pointer gap-1.5 text-xs"
             >
-              <Trash className="h-3.5 w-3.5" />
+              <TrashIcon className="h-3.5 w-3.5" />
               Clear
             </Button>
 
@@ -693,12 +693,12 @@ export default function ServiceTerminalPage() {
             >
               {isFullscreen ? (
                 <>
-                  <CornersIn className="h-3.5 w-3.5" />
+                  <CornersInIcon className="h-3.5 w-3.5" />
                   <span>Minimize</span>
                 </>
               ) : (
                 <>
-                  <CornersOut className="h-3.5 w-3.5" />
+                  <CornersOutIcon className="h-3.5 w-3.5" />
                   <span>Fullscreen</span>
                 </>
               )}
@@ -766,7 +766,7 @@ export default function ServiceTerminalPage() {
             }}
             className="cursor-pointer gap-2"
           >
-            <Play className="h-4 w-4" />
+            <PlayIcon className="h-4 w-4" />
             Start Service
           </Button>
         </div>

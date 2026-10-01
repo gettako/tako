@@ -31,7 +31,7 @@ if (!Prism.languages.yaml) {
     },
     boolean: /\b(?:true|false|yes|no)\b/i,
     number: /\b\d+(?:\.\d+)?\b/,
-    punctuation: /[:\-]/,
+    punctuation: /[:-]/,
   }
 }
 

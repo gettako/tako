@@ -3,24 +3,24 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
-  GitBranch,
-  GithubLogo,
-  HardDrives,
-  Cpu,
-  Check,
-  ArrowRight,
+  GitBranchIcon,
+  GithubLogoIcon,
+  HardDrivesIcon,
+  CpuIcon,
+  CheckIcon,
+  ArrowRightIcon,
   ArrowLeftIcon,
   CircleNotchIcon,
-  MagnifyingGlass,
-  FileCode,
-  Globe,
-  WarningCircle,
-  Database,
-  Eye,
-  EyeSlash,
-  Copy,
+  MagnifyingGlassIcon,
+  FileCodeIcon,
+  GlobeIcon,
+  WarningCircleIcon,
+  DatabaseIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  CopyIcon,
   ArrowsClockwiseIcon,
-  ArrowSquareOut,
+  ArrowSquareOutIcon,
 } from "@phosphor-icons/react"
 import {
   Dialog,
@@ -587,7 +587,7 @@ services:
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <FileCode className="size-4 shrink-0" aria-hidden="true" />
+          <FileCodeIcon className="size-4 shrink-0" aria-hidden="true" />
           <span>Application (Git)</span>
         </button>
         <button
@@ -603,7 +603,7 @@ services:
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <Database className="size-4 shrink-0" aria-hidden="true" />
+          <DatabaseIcon className="size-4 shrink-0" aria-hidden="true" />
           <span>Database Template</span>
         </button>
         <button
@@ -619,7 +619,7 @@ services:
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          <HardDrives className="size-4 shrink-0" aria-hidden="true" />
+          <HardDrivesIcon className="size-4 shrink-0" aria-hidden="true" />
           <span>Docker Compose</span>
         </button>
       </div>
@@ -644,7 +644,9 @@ services:
               >
                 <span>{s.num}.</span>
                 <span>{s.title}</span>
-                {isCompleted && <Check className="size-3 text-emerald-600" />}
+                {isCompleted && (
+                  <CheckIcon className="size-3 text-emerald-600" />
+                )}
               </div>
             )
           })}
@@ -656,7 +658,7 @@ services:
           role="alert"
           className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive"
         >
-          <WarningCircle className="size-4 shrink-0" />
+          <WarningCircleIcon className="size-4 shrink-0" />
           <span>{generalError}</span>
         </div>
       )}
@@ -722,7 +724,7 @@ services:
                               className="inline-flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground"
                             >
                               <span>+ Install on another org</span>
-                              <ArrowSquareOut className="size-3" />
+                              <ArrowSquareOutIcon className="size-3" />
                             </a>
                           )
                         })()}
@@ -755,7 +757,7 @@ services:
                   )}
 
                   <div className="relative">
-                    <MagnifyingGlass className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <MagnifyingGlassIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       type="search"
                       placeholder="Filter repositories..."
@@ -792,7 +794,7 @@ services:
                             aria-pressed={isSelected}
                           >
                             <div className="flex min-w-0 items-center gap-2.5">
-                              <GithubLogo className="size-4 shrink-0 text-muted-foreground" />
+                              <GithubLogoIcon className="size-4 shrink-0 text-muted-foreground" />
                               <div className="truncate">
                                 <span className="font-semibold text-foreground">
                                   {repo.name}
@@ -803,7 +805,7 @@ services:
                               </div>
                             </div>
                             {isSelected && (
-                              <Check className="size-4 shrink-0 text-primary" />
+                              <CheckIcon className="size-4 shrink-0 text-primary" />
                             )}
                           </button>
                         )
@@ -936,7 +938,7 @@ services:
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted/60 text-foreground">
-                            <HardDrives className="size-4" />
+                            <HardDrivesIcon className="size-4" />
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
@@ -956,7 +958,7 @@ services:
                         </div>
                         {isSelected && (
                           <div className="flex size-5 items-center justify-center rounded-full bg-foreground text-background">
-                            <Check className="size-3" />
+                            <CheckIcon className="size-3" />
                           </div>
                         )}
                       </button>
@@ -1157,7 +1159,7 @@ services:
                 className="gap-1"
               >
                 <span>Continue</span>
-                <ArrowRight className="size-3.5" />
+                <ArrowRightIcon className="size-3.5" />
               </Button>
             ) : (
               <Button
@@ -1206,7 +1208,7 @@ services:
                   <span className="text-xs font-semibold text-foreground">
                     PostgreSQL
                   </span>
-                  <Database className="size-3.5 text-primary" />
+                  <DatabaseIcon className="size-3.5 text-primary" />
                 </div>
                 <span className="text-2xs text-muted-foreground">
                   Port 5432
@@ -1231,7 +1233,7 @@ services:
                   <span className="text-xs font-semibold text-foreground">
                     MySQL
                   </span>
-                  <Database className="size-3.5 text-primary" />
+                  <DatabaseIcon className="size-3.5 text-primary" />
                 </div>
                 <span className="text-2xs text-muted-foreground">
                   Port 3306
@@ -1256,7 +1258,7 @@ services:
                   <span className="text-xs font-semibold text-foreground">
                     Redis
                   </span>
-                  <Database className="size-3.5 text-primary" />
+                  <DatabaseIcon className="size-3.5 text-primary" />
                 </div>
                 <span className="text-2xs text-muted-foreground">
                   Port 6379
@@ -1403,9 +1405,9 @@ services:
                   }
                 >
                   {showDbPassword ? (
-                    <EyeSlash className="size-3.5" />
+                    <EyeSlashIcon className="size-3.5" />
                   ) : (
-                    <Eye className="size-3.5" />
+                    <EyeIcon className="size-3.5" />
                   )}
                 </Button>
                 <Button
@@ -1657,12 +1659,12 @@ services:
                   <div className="flex items-center gap-1.5 font-semibold">
                     {composeValidation.valid ? (
                       <>
-                        <Check className="size-4 text-emerald-500" />
+                        <CheckIcon className="size-4 text-emerald-500" />
                         <span>Valid Compose configuration</span>
                       </>
                     ) : (
                       <>
-                        <WarningCircle className="size-4 text-destructive" />
+                        <WarningCircleIcon className="size-4 text-destructive" />
                         <span>Compose configuration has errors</span>
                       </>
                     )}

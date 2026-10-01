@@ -4,12 +4,12 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  AppWindow,
-  Fingerprint,
-  Lock,
+  AppWindowIcon,
+  FingerprintIcon,
+  LockIcon,
   CircleNotchIcon,
   ArrowLeftIcon,
-  ShieldCheck,
+  ShieldCheckIcon,
   EnvelopeSimpleIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
@@ -296,7 +296,7 @@ export default function LoginPage() {
                   required
                   className="pr-9"
                 />
-                <Lock
+                <LockIcon
                   className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -347,7 +347,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <Fingerprint className="size-4 text-foreground" />
+                  <FingerprintIcon className="size-4 text-foreground" />
                   <span>Sign in with Passkey</span>
                 </>
               )}
@@ -386,7 +386,7 @@ export default function LoginPage() {
                   autoFocus
                   className="text-center font-mono text-lg tracking-widest"
                 />
-                <ShieldCheck
+                <ShieldCheckIcon
                   className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
                   aria-hidden="true"
                 />

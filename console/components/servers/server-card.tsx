@@ -3,13 +3,13 @@
 import * as React from "react"
 import Link from "next/link"
 import {
-  Copy,
-  Check,
-  Cube,
-  ArrowRight,
-  Cpu,
-  HardDrive,
-  HardDrives,
+  CopyIcon,
+  CheckIcon,
+  CubeIcon,
+  ArrowRightIcon,
+  CpuIcon,
+  HardDriveIcon,
+  HardDrivesIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
@@ -76,9 +76,9 @@ export function ServerCard({ server }: ServerCardProps) {
                   aria-label={`Copy IP address ${server.host}`}
                 >
                   {copiedIp ? (
-                    <Check className="size-3 text-emerald-500" />
+                    <CheckIcon className="size-3 text-emerald-500" />
                   ) : (
-                    <Copy className="size-3" />
+                    <CopyIcon className="size-3" />
                   )}
                 </button>
               </div>
@@ -110,7 +110,7 @@ export function ServerCard({ server }: ServerCardProps) {
         {/* Assigned Services Count */}
         <div className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Cube className="size-4 text-foreground" />
+            <CubeIcon className="size-4 text-foreground" />
             <span>Assigned Services</span>
           </div>
           <Link
@@ -128,7 +128,7 @@ export function ServerCard({ server }: ServerCardProps) {
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <Cpu className="size-3.5" />
+                <CpuIcon className="size-3.5" />
                 <span>CPU Usage</span>
               </span>
               <span className="font-mono text-2xs font-medium text-foreground">
@@ -154,7 +154,7 @@ export function ServerCard({ server }: ServerCardProps) {
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <HardDrives className="size-3.5" />
+                <HardDrivesIcon className="size-3.5" />
                 <span>Memory</span>
               </span>
               <span className="font-mono text-2xs font-medium text-foreground">
@@ -180,7 +180,7 @@ export function ServerCard({ server }: ServerCardProps) {
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">
-                <HardDrive className="size-3.5" />
+                <HardDriveIcon className="size-3.5" />
                 <span>Disk</span>
               </span>
               <span className="font-mono text-2xs font-medium text-foreground">
@@ -223,7 +223,7 @@ export function ServerCard({ server }: ServerCardProps) {
           className="h-8 gap-1.5 px-3 text-xs"
         >
           <span>View Details</span>
-          <ArrowRight className="size-3" />
+          <ArrowRightIcon className="size-3" />
         </Button>
       </div>
     </div>

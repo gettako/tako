@@ -28,7 +28,12 @@ export interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> 
 }
 
 type StatusCategory =
-  "healthy" | "building" | "failed" | "stopped" | "queued" | "unhealthy"
+  | "healthy"
+  | "building"
+  | "failed"
+  | "stopped"
+  | "queued"
+  | "unhealthy"
 
 function resolveCategory(variant: StatusVariant): StatusCategory {
   switch (variant) {

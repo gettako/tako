@@ -25,14 +25,14 @@ import {
 } from "@/components/ui/collapsible"
 import {
   CircleNotchIcon,
-  Globe,
-  Info,
-  Plus,
-  Lock,
-  Eye,
-  EyeSlash,
-  CaretDown,
-  Check,
+  GlobeIcon,
+  InfoIcon,
+  PlusIcon,
+  LockIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  CaretDownIcon,
+  CheckIcon,
   ArrowsClockwiseIcon,
 } from "@phosphor-icons/react"
 import { api, type Domain, type Service } from "@/lib/api"
@@ -48,7 +48,7 @@ export interface AddDomainFormProps {
 }
 
 const DOMAIN_REGEX =
-  /^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/
+  /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/
 
 export function AddDomainForm({
   serviceId,
@@ -470,7 +470,7 @@ export function AddDomainForm({
             />
             <div className="flex flex-col">
               <span className="flex items-center gap-1.5 font-semibold text-foreground">
-                <Lock
+                <LockIcon
                   className="size-3.5 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -537,9 +537,9 @@ export function AddDomainForm({
                     }
                   >
                     {showPassword ? (
-                      <EyeSlash className="size-4" aria-hidden="true" />
+                      <EyeSlashIcon className="size-4" aria-hidden="true" />
                     ) : (
-                      <Eye className="size-4" aria-hidden="true" />
+                      <EyeIcon className="size-4" aria-hidden="true" />
                     )}
                   </button>
                 </div>
@@ -556,7 +556,7 @@ export function AddDomainForm({
         >
           <CollapsibleTrigger className="flex w-full cursor-pointer items-center justify-between text-xs font-semibold text-foreground">
             <span>Advanced Ingress Options</span>
-            <CaretDown
+            <CaretDownIcon
               className={`size-3.5 text-muted-foreground transition-transform duration-200 ${
                 advancedOpen ? "rotate-180" : ""
               }`}
@@ -622,7 +622,7 @@ export function AddDomainForm({
 
         {/* DNS Guidance Box */}
         <div className="flex items-start gap-2.5 rounded-md border border-border bg-muted/60 p-3 text-xs">
-          <Info
+          <InfoIcon
             className="mt-0.5 size-4 shrink-0 text-muted-foreground"
             aria-hidden="true"
           />
@@ -674,9 +674,9 @@ export function AddDomainForm({
               aria-hidden="true"
             />
           ) : isEditing ? (
-            <Check className="size-4" aria-hidden="true" />
+            <CheckIcon className="size-4" aria-hidden="true" />
           ) : (
-            <Plus className="size-4" aria-hidden="true" />
+            <PlusIcon className="size-4" aria-hidden="true" />
           )}
           <span>{isEditing ? "Save Changes" : "Add Domain"}</span>
         </Button>

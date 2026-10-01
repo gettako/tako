@@ -12,13 +12,11 @@ import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
 import { LogViewer } from "@/components/log-viewer"
 import {
-  GitCommit,
-  GitBranch,
-  Clock,
+  GitCommitIcon,
+  GitBranchIcon,
+  ClockIcon,
   StopCircleIcon,
   CircleNotchIcon,
-  GitBranchIcon,
-  GitCommitIcon,
 } from "@phosphor-icons/react"
 import {
   api,
@@ -169,7 +167,7 @@ export function BuildLogPanel({
               {deployment.duration_seconds !== null &&
                 deployment.duration_seconds !== undefined && (
                   <span className="inline-flex items-center gap-1 font-mono">
-                    <Clock
+                    <ClockIcon
                       className="size-3 text-muted-foreground"
                       aria-hidden="true"
                     />

@@ -2,20 +2,20 @@
 
 import * as React from "react"
 import {
-  Globe,
-  Plus,
-  Copy,
-  Check,
-  ArrowClockwise,
-  Trash,
+  GlobeIcon,
+  PlusIcon,
+  CopyIcon,
+  CheckIcon,
+  ArrowClockwiseIcon,
+  TrashIcon,
   CircleNotchIcon,
-  ArrowSquareOut,
-  ShieldCheck,
-  ShieldWarning,
-  WarningCircle,
-  HardDrives,
-  Lock,
-  PencilSimple,
+  ArrowSquareOutIcon,
+  ShieldCheckIcon,
+  ShieldWarningIcon,
+  WarningCircleIcon,
+  HardDrivesIcon,
+  LockIcon,
+  PencilSimpleIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -183,14 +183,14 @@ export default function ServiceDomainsPage() {
           onClick={openAddDialog}
           className="cursor-pointer gap-2"
         >
-          <Plus className="size-4" aria-hidden="true" />
+          <PlusIcon className="size-4" aria-hidden="true" />
           <span>Add Domain</span>
         </Button>
       </div>
 
       {/* Target Server Info Pill */}
       <div className="flex items-center gap-2 rounded-md border border-border bg-card p-3 text-xs text-muted-foreground">
-        <HardDrives
+        <HardDrivesIcon
           className="size-4 shrink-0 text-muted-foreground"
           aria-hidden="true"
         />
@@ -210,7 +210,7 @@ export default function ServiceDomainsPage() {
             onClick: openAddDialog,
           }}
           icon={
-            <Globe
+            <GlobeIcon
               className="size-6 text-muted-foreground"
               aria-hidden="true"
             />
@@ -230,7 +230,7 @@ export default function ServiceDomainsPage() {
                 {/* Left: Domain identity, path, redirects, target, badges */}
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Globe
+                    <GlobeIcon
                       className="size-4 shrink-0 text-muted-foreground"
                       aria-hidden="true"
                     />
@@ -241,7 +241,7 @@ export default function ServiceDomainsPage() {
                       className="inline-flex cursor-pointer items-center gap-1 font-mono text-sm font-semibold text-foreground hover:underline"
                     >
                       <span>{domain.domain}</span>
-                      <ArrowSquareOut
+                      <ArrowSquareOutIcon
                         className="size-3 text-muted-foreground"
                         aria-hidden="true"
                       />
@@ -270,7 +270,7 @@ export default function ServiceDomainsPage() {
                       <>
                         {domain.ssl_status === "active" && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-status-healthy-border bg-status-healthy-bg px-2.5 py-0.5 text-xs font-medium text-status-healthy-text">
-                            <ShieldCheck
+                            <ShieldCheckIcon
                               className="size-3.5"
                               aria-hidden="true"
                             />
@@ -280,7 +280,7 @@ export default function ServiceDomainsPage() {
 
                         {domain.ssl_status === "pending" && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-status-queued-border bg-status-queued-bg px-2.5 py-0.5 text-xs font-medium text-status-queued-text">
-                            <ShieldWarning
+                            <ShieldWarningIcon
                               className="size-3.5"
                               aria-hidden="true"
                             />
@@ -290,7 +290,7 @@ export default function ServiceDomainsPage() {
 
                         {domain.ssl_status === "error" && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-status-failed-border bg-status-failed-bg px-2.5 py-0.5 text-xs font-medium text-status-failed-text">
-                            <WarningCircle
+                            <WarningCircleIcon
                               className="size-3.5"
                               aria-hidden="true"
                             />
@@ -333,7 +333,7 @@ export default function ServiceDomainsPage() {
                     {/* Basic Auth */}
                     {domain.auth_enabled && (
                       <span className="inline-flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-2xs font-medium text-amber-700 dark:text-amber-300">
-                        <Lock className="size-3" aria-hidden="true" />
+                        <LockIcon className="size-3" aria-hidden="true" />
                         <span>
                           Basic Auth ({domain.auth_user || "enabled"})
                         </span>
@@ -351,7 +351,7 @@ export default function ServiceDomainsPage() {
                     className="cursor-pointer gap-1.5"
                     aria-label={`Edit routing for ${domain.domain}`}
                   >
-                    <PencilSimple
+                    <PencilSimpleIcon
                       className="size-3.5 text-muted-foreground"
                       aria-hidden="true"
                     />
@@ -372,7 +372,7 @@ export default function ServiceDomainsPage() {
                           aria-hidden="true"
                         />
                       ) : (
-                        <ArrowClockwise
+                        <ArrowClockwiseIcon
                           className="size-3.5 text-muted-foreground"
                           aria-hidden="true"
                         />
@@ -395,7 +395,7 @@ export default function ServiceDomainsPage() {
                         aria-hidden="true"
                       />
                     ) : (
-                      <Trash className="size-3.5" aria-hidden="true" />
+                      <TrashIcon className="size-3.5" aria-hidden="true" />
                     )}
                   </Button>
                 </div>

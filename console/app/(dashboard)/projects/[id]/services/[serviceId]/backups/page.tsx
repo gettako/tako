@@ -2,16 +2,16 @@
 
 import * as React from "react"
 import {
-  CloudArrowUp,
-  CircleNotch,
-  Check,
-  Warning,
-  Database,
-  DownloadSimple,
-  ArrowCounterClockwise,
-  Trash,
-  HardDrives,
-  Clock,
+  CloudArrowUpIcon,
+  CircleNotchIcon,
+  CheckIcon,
+  WarningIcon,
+  DatabaseIcon,
+  DownloadSimpleIcon,
+  ArrowCounterClockwiseIcon,
+  TrashIcon,
+  HardDrivesIcon,
+  ClockIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import {
@@ -285,9 +285,9 @@ export default function ServiceBackupsPage() {
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-md border border-border bg-muted text-foreground">
             {isDatabase ? (
-              <Database className="size-5" />
+              <DatabaseIcon className="size-5" />
             ) : (
-              <HardDrives className="size-5" />
+              <HardDrivesIcon className="size-5" />
             )}
           </div>
           <div>
@@ -312,7 +312,7 @@ export default function ServiceBackupsPage() {
               disabled={isBackingUp}
               className="h-10 gap-1.5 text-xs"
             >
-              <CloudArrowUp className="size-4" />
+              <CloudArrowUpIcon className="size-4" />
               <span>Backup Database Now</span>
             </Button>
           )}
@@ -325,7 +325,7 @@ export default function ServiceBackupsPage() {
               disabled={isBackingUp}
               className="h-10 gap-1.5 text-xs"
             >
-              <HardDrives className="size-4" />
+              <HardDrivesIcon className="size-4" />
               <span>Snapshot Volume</span>
             </Button>
           )}
@@ -343,9 +343,9 @@ export default function ServiceBackupsPage() {
           )}
         >
           {feedback.type === "success" ? (
-            <Check className="size-4 shrink-0" />
+            <CheckIcon className="size-4 shrink-0" />
           ) : (
-            <Warning className="size-4 shrink-0" />
+            <WarningIcon className="size-4 shrink-0" />
           )}
           <span>{feedback.message}</span>
         </div>
@@ -360,7 +360,7 @@ export default function ServiceBackupsPage() {
             </h3>
             {schedule?.enabled ? (
               <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-3xs font-medium text-emerald-600 dark:text-emerald-400">
-                <Check className="size-3" />
+                <CheckIcon className="size-3" />
                 <span>Active</span>
               </span>
             ) : (
@@ -390,7 +390,7 @@ export default function ServiceBackupsPage() {
           }}
           className="h-9 shrink-0 gap-1.5 text-xs"
         >
-          <Clock className="size-3.5" />
+          <ClockIcon className="size-3.5" />
           <span>Configure Schedule</span>
         </Button>
       </div>
@@ -413,7 +413,7 @@ export default function ServiceBackupsPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
-            <CircleNotch className="size-6 animate-spin text-muted-foreground" />
+            <CircleNotchIcon className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : records.length === 0 ? (
           <div className="rounded-md border border-dashed border-border py-12 text-center text-xs text-muted-foreground">
@@ -448,7 +448,7 @@ export default function ServiceBackupsPage() {
                     </td>
                     <td className="px-4 py-3 text-2xs text-foreground">
                       <div className="flex items-center gap-1.5 font-medium">
-                        <HardDrives className="size-3 shrink-0 text-muted-foreground" />
+                        <HardDrivesIcon className="size-3 shrink-0 text-muted-foreground" />
                         <span>
                           {rec.s3_destination_name || "Default Storage"}
                         </span>
@@ -483,7 +483,7 @@ export default function ServiceBackupsPage() {
                           title="Download dump from S3"
                           className="h-8 gap-1 px-2.5 text-xs"
                         >
-                          <DownloadSimple className="size-3.5" />
+                          <DownloadSimpleIcon className="size-3.5" />
                           <span>Download</span>
                         </Button>
                         <Button
@@ -503,7 +503,7 @@ export default function ServiceBackupsPage() {
                           }
                           className="h-8 gap-1 px-2.5 text-xs text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
                         >
-                          <ArrowCounterClockwise className="size-3.5" />
+                          <ArrowCounterClockwiseIcon className="size-3.5" />
                           <span>Restore</span>
                         </Button>
                         <Button
@@ -513,7 +513,7 @@ export default function ServiceBackupsPage() {
                           title="Delete backup"
                           className="size-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                         >
-                          <Trash className="size-3.5" />
+                          <TrashIcon className="size-3.5" />
                         </Button>
                       </div>
                     </td>
@@ -622,9 +622,9 @@ export default function ServiceBackupsPage() {
               className="gap-1.5"
             >
               {isBackingUp ? (
-                <CircleNotch className="size-3.5 animate-spin" />
+                <CircleNotchIcon className="size-3.5 animate-spin" />
               ) : (
-                <CloudArrowUp className="size-3.5" />
+                <CloudArrowUpIcon className="size-3.5" />
               )}
               <span>Start Backup</span>
             </Button>
@@ -759,7 +759,7 @@ export default function ServiceBackupsPage() {
                 className="gap-1.5"
               >
                 {isSavingSchedule && (
-                  <CircleNotch className="size-3.5 animate-spin" />
+                  <CircleNotchIcon className="size-3.5 animate-spin" />
                 )}
                 <span>Save Schedule</span>
               </Button>
@@ -801,7 +801,9 @@ export default function ServiceBackupsPage() {
               disabled={isRestoring}
               className="gap-1.5 bg-amber-600 text-white hover:bg-amber-700"
             >
-              {isRestoring && <CircleNotch className="size-3.5 animate-spin" />}
+              {isRestoring && (
+                <CircleNotchIcon className="size-3.5 animate-spin" />
+              )}
               <span>Confirm & Restore</span>
             </Button>
           </DialogFooter>
@@ -838,7 +840,9 @@ export default function ServiceBackupsPage() {
               disabled={isDeleting}
               className="gap-1.5"
             >
-              {isDeleting && <CircleNotch className="size-3.5 animate-spin" />}
+              {isDeleting && (
+                <CircleNotchIcon className="size-3.5 animate-spin" />
+              )}
               <span>Delete Permanently</span>
             </Button>
           </DialogFooter>

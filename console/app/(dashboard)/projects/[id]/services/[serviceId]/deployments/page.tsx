@@ -2,19 +2,19 @@
 
 import * as React from "react"
 import {
-  RocketLaunch,
-  GitCommit,
-  GitBranch,
-  User,
-  Clock,
-  ArrowCounterClockwise,
-  TerminalWindow,
+  RocketLaunchIcon,
+  GitCommitIcon,
+  GitBranchIcon,
+  UserIcon,
+  ClockIcon,
+  ArrowCounterClockwiseIcon,
+  TerminalWindowIcon,
   CircleNotchIcon,
   CheckCircleIcon,
-  Warning,
-  ArrowSquareOut,
-  Trash,
-  Globe,
+  WarningIcon,
+  ArrowSquareOutIcon,
+  TrashIcon,
+  GlobeIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge, type StatusVariant } from "@/components/status-badge"
@@ -65,7 +65,7 @@ function CommitShaChip({ sha, fullSha }: { sha: string; fullSha?: string }) {
         </>
       ) : (
         <>
-          <GitCommit
+          <GitCommitIcon
             className="size-3 text-muted-foreground"
             aria-hidden="true"
           />
@@ -370,7 +370,7 @@ function DeploymentsPageContent({
                     aria-hidden="true"
                   />
                 ) : (
-                  <RocketLaunch className="size-4" aria-hidden="true" />
+                  <RocketLaunchIcon className="size-4" aria-hidden="true" />
                 )}
                 <span>Deploy Branch</span>
               </Button>
@@ -386,7 +386,7 @@ function DeploymentsPageContent({
                   onClick: handleDeployBranch,
                 }}
                 icon={
-                  <RocketLaunch
+                  <RocketLaunchIcon
                     className="size-6 text-muted-foreground"
                     aria-hidden="true"
                   />
@@ -453,7 +453,7 @@ function DeploymentsPageContent({
 
                             <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-muted-foreground">
                               <span className="inline-flex items-center gap-1">
-                                <GitBranch
+                                <GitBranchIcon
                                   className="size-3"
                                   aria-hidden="true"
                                 />
@@ -462,13 +462,19 @@ function DeploymentsPageContent({
 
                               {deployment.commit_author && (
                                 <span className="inline-flex items-center gap-1">
-                                  <User className="size-3" aria-hidden="true" />
+                                  <UserIcon
+                                    className="size-3"
+                                    aria-hidden="true"
+                                  />
                                   <span>{deployment.commit_author}</span>
                                 </span>
                               )}
 
                               <span className="inline-flex items-center gap-1">
-                                <Clock className="size-3" aria-hidden="true" />
+                                <ClockIcon
+                                  className="size-3"
+                                  aria-hidden="true"
+                                />
                                 <span>
                                   {formatRelativeTime(
                                     deployment.started_at ||
@@ -493,7 +499,7 @@ function DeploymentsPageContent({
                             onClick={() => setSelectedLogDeployment(deployment)}
                             className="cursor-pointer gap-1.5"
                           >
-                            <TerminalWindow
+                            <TerminalWindowIcon
                               className="size-3.5 text-muted-foreground"
                               aria-hidden="true"
                             />
@@ -514,7 +520,7 @@ function DeploymentsPageContent({
                             }
                             className="cursor-pointer gap-1.5 disabled:opacity-40"
                           >
-                            <ArrowCounterClockwise
+                            <ArrowCounterClockwiseIcon
                               className="size-3.5 text-muted-foreground"
                               aria-hidden="true"
                             />
@@ -560,7 +566,7 @@ function DeploymentsPageContent({
               title="No active preview environments"
               description="Ephemeral preview environments are created automatically when a Pull Request is opened in GitHub."
               icon={
-                <Globe
+                <GlobeIcon
                   className="size-6 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -601,7 +607,7 @@ function DeploymentsPageContent({
 
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-muted-foreground">
                           <div className="flex items-center gap-1.5">
-                            <GitBranch
+                            <GitBranchIcon
                               className="size-3.5"
                               aria-hidden="true"
                             />
@@ -614,7 +620,10 @@ function DeploymentsPageContent({
                           />
 
                           <div className="flex items-center gap-1.5 font-sans">
-                            <Clock className="size-3.5" aria-hidden="true" />
+                            <ClockIcon
+                              className="size-3.5"
+                              aria-hidden="true"
+                            />
                             <span>
                               {formatRelativeTime(
                                 preview.updated_at || preview.created_at
@@ -635,7 +644,7 @@ function DeploymentsPageContent({
                           className="cursor-pointer gap-1.5 text-xs"
                         >
                           <span>Open Preview</span>
-                          <ArrowSquareOut
+                          <ArrowSquareOutIcon
                             className="size-3.5 text-muted-foreground"
                             aria-hidden="true"
                           />
@@ -648,7 +657,7 @@ function DeploymentsPageContent({
                         onClick={() => setPreviewToDelete(preview)}
                         className="cursor-pointer gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                       >
-                        <Trash className="size-3.5" aria-hidden="true" />
+                        <TrashIcon className="size-3.5" aria-hidden="true" />
                         <span>Destroy</span>
                       </Button>
                     </div>
@@ -739,7 +748,10 @@ function DeploymentsPageContent({
                   aria-hidden="true"
                 />
               ) : (
-                <ArrowCounterClockwise className="size-4" aria-hidden="true" />
+                <ArrowCounterClockwiseIcon
+                  className="size-4"
+                  aria-hidden="true"
+                />
               )}
               <span>Rollback Image</span>
             </Button>
@@ -788,7 +800,7 @@ function DeploymentsPageContent({
                   aria-hidden="true"
                 />
               ) : (
-                <Trash className="size-4" aria-hidden="true" />
+                <TrashIcon className="size-4" aria-hidden="true" />
               )}
               <span>Destroy Preview</span>
             </Button>

@@ -5,21 +5,21 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   ArrowLeftIcon,
-  Plus,
-  GearSix,
-  ArrowSquareOut,
-  GitBranch,
-  HardDrives,
-  ArrowClockwise,
+  PlusIcon,
+  GearSixIcon,
+  ArrowSquareOutIcon,
+  GitBranchIcon,
+  HardDrivesIcon,
+  ArrowClockwiseIcon,
   StopCircleIcon,
-  PlayCircle,
+  PlayCircleIcon,
   CircleNotchIcon,
-  Check,
-  Warning,
-  X,
-  Database,
-  Lock,
-  Trash,
+  CheckIcon,
+  WarningIcon,
+  XIcon,
+  DatabaseIcon,
+  LockIcon,
+  TrashIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
@@ -249,9 +249,9 @@ export default function ProjectDetailPage({
           >
             <div className="flex items-center gap-2">
               {toast.type === "success" ? (
-                <Check className="size-4 text-emerald-500" />
+                <CheckIcon className="size-4 text-emerald-500" />
               ) : (
-                <Warning className="size-4 text-destructive" />
+                <WarningIcon className="size-4 text-destructive" />
               )}
               <span>{toast.message}</span>
             </div>
@@ -260,7 +260,7 @@ export default function ProjectDetailPage({
               className="rounded p-0.5 text-muted-foreground hover:text-foreground"
               aria-label="Dismiss notification"
             >
-              <X className="size-3.5" />
+              <XIcon className="size-3.5" />
             </button>
           </div>
         ))}
@@ -305,7 +305,7 @@ export default function ProjectDetailPage({
               </p>
               <div className="flex items-center gap-4 pt-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <HardDrives className="size-3.5" />
+                  <HardDrivesIcon className="size-3.5" />
                   <span>
                     {services.length}{" "}
                     {services.length === 1 ? "service" : "services"}
@@ -329,7 +329,7 @@ export default function ProjectDetailPage({
                 className="gap-2"
                 aria-label="Project Settings"
               >
-                <GearSix className="size-4" />
+                <GearSixIcon className="size-4" />
                 <span>Settings</span>
               </Button>
               <Button
@@ -337,7 +337,7 @@ export default function ProjectDetailPage({
                 className="gap-2"
                 aria-label="Create New Service"
               >
-                <Plus className="size-4" />
+                <PlusIcon className="size-4" />
                 <span>New Service</span>
               </Button>
             </div>
@@ -356,7 +356,7 @@ export default function ProjectDetailPage({
 
             {services.length === 0 ? (
               <EmptyState
-                icon={<HardDrives className="size-6 text-foreground" />}
+                icon={<HardDrivesIcon className="size-6 text-foreground" />}
                 title="No services in this project"
                 description="Deploy your first web application, API, or worker service to this project workspace."
                 action={{
@@ -403,7 +403,7 @@ export default function ProjectDetailPage({
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               {service.service_type === "database" ? (
-                                <Database
+                                <DatabaseIcon
                                   className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
                                   aria-label="Database Service"
                                 />
@@ -434,7 +434,7 @@ export default function ProjectDetailPage({
                           <td className="px-4 py-3">
                             {service.service_type === "database" ? (
                               <span className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground">
-                                <Lock className="size-3 text-muted-foreground" />
+                                <LockIcon className="size-3 text-muted-foreground" />
                                 <span>
                                   tako_network:{service.internal_port || 5432}
                                 </span>
@@ -447,7 +447,7 @@ export default function ProjectDetailPage({
                                 className="inline-flex items-center gap-1 font-mono text-xs text-foreground hover:underline"
                               >
                                 <span>{service.primary_domain}</span>
-                                <ArrowSquareOut className="size-3 text-muted-foreground" />
+                                <ArrowSquareOutIcon className="size-3 text-muted-foreground" />
                               </a>
                             ) : (
                               <span className="font-mono text-xs text-muted-foreground">
@@ -469,7 +469,7 @@ export default function ProjectDetailPage({
                               </div>
                             ) : (
                               <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-                                <GitBranch className="size-3.5 shrink-0" />
+                                <GitBranchIcon className="size-3.5 shrink-0" />
                                 <span className="max-w-32.5 truncate">
                                   {service.branch}
                                 </span>
@@ -495,7 +495,7 @@ export default function ProjectDetailPage({
                                   {currentAction === "rebuild" ? (
                                     <CircleNotchIcon className="size-3.5 animate-spin" />
                                   ) : (
-                                    <ArrowClockwise className="size-3.5" />
+                                    <ArrowClockwiseIcon className="size-3.5" />
                                   )}
                                 </Button>
                               )}
@@ -515,7 +515,7 @@ export default function ProjectDetailPage({
                                   {currentAction === "start" ? (
                                     <CircleNotchIcon className="size-3.5 animate-spin" />
                                   ) : (
-                                    <PlayCircle className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                                    <PlayCircleIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" />
                                   )}
                                 </Button>
                               ) : (
@@ -547,7 +547,7 @@ export default function ProjectDetailPage({
                                 aria-label={`Delete ${service.name}`}
                                 className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               >
-                                <Trash className="size-3.5" />
+                                <TrashIcon className="size-3.5" />
                               </Button>
                             </div>
                           </td>

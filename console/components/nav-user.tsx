@@ -17,8 +17,8 @@ import {
   GearIcon,
   BookOpenIcon,
   SignOutIcon,
-  Sun,
-  Moon,
+  SunIcon,
+  MoonIcon,
   UserIcon,
 } from "@phosphor-icons/react"
 import { api } from "@/lib/api"
@@ -158,9 +158,9 @@ export function NavUser({ user = defaultUser }: NavUserProps = {}) {
             data-testid="theme-toggle-menu-item"
           >
             {resolvedTheme === "dark" ? (
-              <Sun className="size-4" aria-hidden="true" />
+              <SunIcon className="size-4" aria-hidden="true" />
             ) : (
-              <Moon className="size-4" aria-hidden="true" />
+              <MoonIcon className="size-4" aria-hidden="true" />
             )}
             <span>{resolvedTheme === "dark" ? "Light Mode" : "Dark Mode"}</span>
           </DropdownMenuItem>

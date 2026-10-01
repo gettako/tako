@@ -2,17 +2,17 @@
 
 import * as React from "react"
 import {
-  Cpu,
-  Clock,
-  Plus,
-  TerminalWindow,
-  Play,
-  Stop,
+  CpuIcon,
+  ClockIcon,
+  PlusIcon,
+  TerminalWindowIcon,
+  PlayIcon,
+  StopIcon,
   ArrowsClockwiseIcon,
-  Trash,
+  TrashIcon,
   CircleNotchIcon,
-  Code,
-  Info,
+  CodeIcon,
+  InfoIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/status-badge"
@@ -162,7 +162,7 @@ export default function ServiceAuxiliaryPage() {
 
         {service && (
           <Button onClick={() => setIsAddOpen(true)} className="shrink-0 gap-2">
-            <Plus className="size-4" aria-hidden="true" />
+            <PlusIcon className="size-4" aria-hidden="true" />
             Add Auxiliary Service
           </Button>
         )}
@@ -178,7 +178,7 @@ export default function ServiceAuxiliaryPage() {
         <ErrorCard error={error} onRetry={loadAuxServices} />
       ) : auxServices.length === 0 ? (
         <EmptyState
-          icon={Cpu}
+          icon={CpuIcon}
           title="No Auxiliary Services"
           description="You have not configured any background workers or scheduled cron tasks for this service yet."
           action={{
@@ -192,7 +192,7 @@ export default function ServiceAuxiliaryPage() {
           {workers.length > 0 && (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <Cpu className="size-5 text-primary" aria-hidden="true" />
+                <CpuIcon className="size-5 text-primary" aria-hidden="true" />
                 <h3 className="text-base font-semibold text-foreground">
                   Worker Processes ({workers.length})
                 </h3>
@@ -219,7 +219,7 @@ export default function ServiceAuxiliaryPage() {
                         </div>
 
                         <div className="flex items-center gap-2 overflow-x-auto rounded border border-border bg-muted/60 px-3 py-1.5 font-mono text-xs text-foreground">
-                          <Code
+                          <CodeIcon
                             className="size-3.5 shrink-0 text-muted-foreground"
                             aria-hidden="true"
                           />
@@ -238,7 +238,7 @@ export default function ServiceAuxiliaryPage() {
                           className="gap-1.5 text-xs"
                           title="View runtime logs"
                         >
-                          <TerminalWindow
+                          <TerminalWindowIcon
                             className="size-4"
                             aria-hidden="true"
                           />
@@ -276,7 +276,10 @@ export default function ServiceAuxiliaryPage() {
                               className="gap-1.5 text-xs text-destructive hover:text-destructive"
                               title="Stop worker"
                             >
-                              <Stop className="size-3.5" aria-hidden="true" />
+                              <StopIcon
+                                className="size-3.5"
+                                aria-hidden="true"
+                              />
                               Stop
                             </Button>
                           </>
@@ -289,7 +292,7 @@ export default function ServiceAuxiliaryPage() {
                             className="gap-1.5 text-xs"
                             title="Start worker"
                           >
-                            <Play className="size-3.5" aria-hidden="true" />
+                            <PlayIcon className="size-3.5" aria-hidden="true" />
                             Start
                           </Button>
                         )}
@@ -302,7 +305,7 @@ export default function ServiceAuxiliaryPage() {
                           className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           title="Delete worker"
                         >
-                          <Trash className="size-4" aria-hidden="true" />
+                          <TrashIcon className="size-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -316,7 +319,7 @@ export default function ServiceAuxiliaryPage() {
           {cronJobs.length > 0 && (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <Clock className="size-5 text-primary" aria-hidden="true" />
+                <ClockIcon className="size-5 text-primary" aria-hidden="true" />
                 <h3 className="text-base font-semibold text-foreground">
                   Scheduled Cron Jobs ({cronJobs.length})
                 </h3>
@@ -343,7 +346,7 @@ export default function ServiceAuxiliaryPage() {
                         </div>
 
                         <div className="flex items-center gap-2 overflow-x-auto rounded border border-border bg-muted/60 px-3 py-1.5 font-mono text-xs text-foreground">
-                          <Code
+                          <CodeIcon
                             className="size-3.5 shrink-0 text-muted-foreground"
                             aria-hidden="true"
                           />
@@ -362,7 +365,7 @@ export default function ServiceAuxiliaryPage() {
                           className="gap-1.5 text-xs"
                           title="View runtime logs"
                         >
-                          <TerminalWindow
+                          <TerminalWindowIcon
                             className="size-4"
                             aria-hidden="true"
                           />
@@ -383,7 +386,7 @@ export default function ServiceAuxiliaryPage() {
                               aria-hidden="true"
                             />
                           ) : (
-                            <Play className="size-3.5" aria-hidden="true" />
+                            <PlayIcon className="size-3.5" aria-hidden="true" />
                           )}
                           Run Now
                         </Button>
@@ -396,7 +399,7 @@ export default function ServiceAuxiliaryPage() {
                           className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           title="Delete cron job"
                         >
-                          <Trash className="size-4" aria-hidden="true" />
+                          <TrashIcon className="size-4" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>

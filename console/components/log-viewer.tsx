@@ -2,14 +2,14 @@
 
 import * as React from "react"
 import {
-  MagnifyingGlass,
-  Pause,
-  Play,
-  Copy,
-  Check,
-  Trash,
-  X,
-  TerminalWindow,
+  MagnifyingGlassIcon,
+  PauseIcon,
+  PlayIcon,
+  CopyIcon,
+  CheckIcon,
+  TrashIcon,
+  XIcon,
+  TerminalWindowIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { cn } from "cn"
@@ -440,7 +440,7 @@ export function LogViewer({
           <div className="relative flex items-center gap-1.5">
             <div className="relative flex flex-col">
               <div className="relative flex items-center">
-                <MagnifyingGlass
+                <MagnifyingGlassIcon
                   className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground"
                   aria-hidden="true"
                 />
@@ -483,7 +483,7 @@ export function LogViewer({
                     className="absolute right-1.5 p-0.5 text-muted-foreground hover:text-foreground"
                     aria-label="Clear filter"
                   >
-                    <X className="size-3" />
+                    <XIcon className="size-3" />
                   </button>
                 )}
               </div>
@@ -530,12 +530,12 @@ export function LogViewer({
           >
             {isFollowing ? (
               <>
-                <Pause className="size-3" />
+                <PauseIcon className="size-3" />
                 <span>Pause</span>
               </>
             ) : (
               <>
-                <Play className="size-3" />
+                <PlayIcon className="size-3" />
                 <span>Follow</span>
               </>
             )}
@@ -552,14 +552,14 @@ export function LogViewer({
           >
             {copied ? (
               <>
-                <Check className="size-3 text-emerald-500" />
+                <CheckIcon className="size-3 text-emerald-500" />
                 <span className="text-emerald-600 dark:text-emerald-400">
                   Copied!
                 </span>
               </>
             ) : (
               <>
-                <Copy className="size-3" />
+                <CopyIcon className="size-3" />
                 <span>Copy</span>
               </>
             )}
@@ -574,7 +574,7 @@ export function LogViewer({
             disabled={entries.length === 0}
             className="h-7 gap-1 border-border bg-transparent text-foreground hover:bg-muted"
           >
-            <Trash className="size-3" />
+            <TrashIcon className="size-3" />
             <span>Clear</span>
           </Button>
         </div>
@@ -596,7 +596,7 @@ export function LogViewer({
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
-            <TerminalWindow className="mb-2 size-8 text-muted-foreground" />
+            <TerminalWindowIcon className="mb-2 size-8 text-muted-foreground" />
             <p className="text-sm font-medium text-foreground">
               {searchQuery ? "No matching log lines found" : emptyMessage}
             </p>

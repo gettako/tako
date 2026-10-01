@@ -4,8 +4,8 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-  AppWindow,
-  Lock,
+  AppWindowIcon,
+  LockIcon,
   CircleNotchIcon,
   UserIcon,
   EnvelopeSimpleIcon,
@@ -141,7 +141,7 @@ function RegisterForm() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <div className="flex aspect-square size-9 items-center justify-center rounded-md border border-border bg-foreground text-background">
-            <AppWindow className="size-5" weight="bold" />
+            <AppWindowIcon className="size-5" weight="bold" />
           </div>
           <div>
             <h1 className="font-heading text-lg font-bold tracking-tight text-foreground">
@@ -293,7 +293,7 @@ function RegisterForm() {
                 minLength={8}
                 className="pr-9"
               />
-              <Lock
+              <LockIcon
                 className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
               />
@@ -321,7 +321,7 @@ function RegisterForm() {
                 minLength={8}
                 className="pr-9"
               />
-              <Lock
+              <LockIcon
                 className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground"
                 aria-hidden="true"
               />

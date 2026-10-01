@@ -2,13 +2,13 @@
 
 import * as React from "react"
 import {
-  HardDrives,
-  Plus,
-  MagnifyingGlass,
+  HardDrivesIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
   ArrowsClockwiseIcon,
   CheckCircleIcon,
-  Cube,
-  Cpu,
+  CubeIcon,
+  CpuIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -115,7 +115,7 @@ export default function ServersPage() {
           </Button>
 
           <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-            <Plus className="size-4" />
+            <PlusIcon className="size-4" />
             <span>Add Server</span>
           </Button>
         </div>
@@ -132,7 +132,7 @@ export default function ServersPage() {
               </span>
             </div>
             <div className="flex size-9 items-center justify-center rounded-md border border-border bg-muted/50 text-foreground">
-              <HardDrives className="size-4" />
+              <HardDrivesIcon className="size-4" />
             </div>
           </div>
 
@@ -160,7 +160,7 @@ export default function ServersPage() {
               </span>
             </div>
             <div className="flex size-9 items-center justify-center rounded-md border border-border bg-muted/50 text-foreground">
-              <Cube className="size-4" />
+              <CubeIcon className="size-4" />
             </div>
           </div>
 
@@ -174,7 +174,7 @@ export default function ServersPage() {
               </span>
             </div>
             <div className="flex size-9 items-center justify-center rounded-md border border-border bg-muted/50 text-foreground">
-              <Cpu className="size-4" />
+              <CpuIcon className="size-4" />
             </div>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function ServersPage() {
       {/* Search Filter Bar */}
       {!isLoading && !error && servers.length > 0 && (
         <div className="relative max-w-md">
-          <MagnifyingGlass className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlassIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Filter by server nickname or IP..."
             value={searchQuery}
@@ -204,7 +204,7 @@ export default function ServersPage() {
         />
       ) : servers.length === 0 ? (
         <EmptyState
-          icon={HardDrives}
+          icon={HardDrivesIcon}
           title="No servers connected"
           description="Connect your first remote host node or worker instance to start deploying web services."
           action={{
@@ -214,7 +214,7 @@ export default function ServersPage() {
         />
       ) : filteredServers.length === 0 ? (
         <EmptyState
-          icon={MagnifyingGlass}
+          icon={MagnifyingGlassIcon}
           title="No matching servers found"
           description={`No host nodes match the filter query "${searchQuery}".`}
           action={{

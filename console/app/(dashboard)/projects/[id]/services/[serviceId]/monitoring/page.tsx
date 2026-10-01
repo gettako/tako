@@ -2,12 +2,12 @@
 
 import * as React from "react"
 import {
-  Cpu,
+  CpuIcon,
   ArrowsClockwiseIcon,
-  Clock,
-  HardDrives,
+  ClockIcon,
+  HardDrivesIcon,
   CheckCircleIcon,
-  WifiHigh,
+  WifiHighIcon,
 } from "@phosphor-icons/react"
 import { StatusBadge } from "@/components/status-badge"
 import { LoadingSkeleton } from "@/components/states/loading-skeleton"
@@ -245,7 +245,7 @@ export default function ServiceMonitoringPage() {
             <span className="text-xs font-medium text-muted-foreground">
               Uptime
             </span>
-            <Clock
+            <ClockIcon
               className="size-4 text-muted-foreground"
               aria-hidden="true"
             />
@@ -290,7 +290,10 @@ export default function ServiceMonitoringPage() {
             <span className="text-xs font-medium text-muted-foreground">
               Resource Usage
             </span>
-            <Cpu className="size-4 text-muted-foreground" aria-hidden="true" />
+            <CpuIcon
+              className="size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-xs">

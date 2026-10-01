@@ -4,14 +4,14 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  Gauge,
-  RocketLaunch,
-  Globe,
-  TerminalWindow,
-  Terminal,
-  SlidersHorizontal,
-  Cpu,
-  Archive,
+  GaugeIcon,
+  RocketLaunchIcon,
+  GlobeIcon,
+  TerminalWindowIcon,
+  TerminalIcon,
+  SlidersHorizontalIcon,
+  CpuIcon,
+  ArchiveIcon,
 } from "@phosphor-icons/react"
 import { useService } from "./service-context"
 import { cn } from "@/lib/utils"
@@ -35,49 +35,49 @@ export function ServiceTabs() {
       id: "overview",
       label: "Overview",
       href: baseUrl,
-      icon: Gauge,
+      icon: GaugeIcon,
     },
     {
       id: "deployments",
       label: "Deployments",
       href: `${baseUrl}/deployments`,
-      icon: RocketLaunch,
+      icon: RocketLaunchIcon,
     },
     {
       id: "auxiliary",
       label: "Auxiliary",
       href: `${baseUrl}/auxiliary`,
-      icon: Cpu,
+      icon: CpuIcon,
     },
     {
       id: "domains",
       label: "Domains",
       href: `${baseUrl}/domains`,
-      icon: Globe,
+      icon: GlobeIcon,
     },
     {
       id: "monitoring",
       label: "Monitoring",
       href: `${baseUrl}/monitoring`,
-      icon: TerminalWindow,
+      icon: TerminalWindowIcon,
     },
     {
       id: "terminal",
       label: "Terminal",
       href: `${baseUrl}/terminal`,
-      icon: Terminal,
+      icon: TerminalIcon,
     },
     {
       id: "backups",
       label: "Backups",
       href: `${baseUrl}/backups`,
-      icon: Archive,
+      icon: ArchiveIcon,
     },
     {
       id: "environment",
       label: "Environment",
       href: `${baseUrl}/environment`,
-      icon: SlidersHorizontal,
+      icon: SlidersHorizontalIcon,
     },
   ]
 

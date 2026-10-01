@@ -3,14 +3,14 @@
 import * as React from "react"
 import Link from "next/link"
 import {
-  FolderSimple,
-  Plus,
-  MagnifyingGlass,
-  ArrowRight,
-  Clock,
-  HardDrives,
+  FolderSimpleIcon,
+  PlusIcon,
+  MagnifyingGlassIcon,
+  ArrowRightIcon,
+  ClockIcon,
+  HardDrivesIcon,
   CheckCircleIcon,
-  WarningCircle,
+  WarningCircleIcon,
   CircleNotchIcon,
   StopCircleIcon,
 } from "@phosphor-icons/react"
@@ -124,7 +124,7 @@ export default function ProjectsPage() {
           onClick={() => setCreateDialogOpen(true)}
           className="self-start sm:self-auto"
         >
-          <Plus className="size-4" />
+          <PlusIcon className="size-4" />
           <span>New Project</span>
         </Button>
       </div>
@@ -132,7 +132,7 @@ export default function ProjectsPage() {
       {/* Filter and Search Bar */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 sm:max-w-xs">
-          <MagnifyingGlass className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          <MagnifyingGlassIcon className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Search projects..."
@@ -165,7 +165,7 @@ export default function ProjectsPage() {
         />
       ) : projects.length === 0 ? (
         <EmptyState
-          icon={<FolderSimple className="size-6 text-foreground" />}
+          icon={<FolderSimpleIcon className="size-6 text-foreground" />}
           title="No projects created yet"
           description="Get started by creating your first project workspace to deploy services."
           action={{
@@ -175,7 +175,9 @@ export default function ProjectsPage() {
         />
       ) : filteredProjects.length === 0 ? (
         <EmptyState
-          icon={<MagnifyingGlass className="size-6 text-muted-foreground" />}
+          icon={
+            <MagnifyingGlassIcon className="size-6 text-muted-foreground" />
+          }
           title="No matching projects"
           description={`No project found matching "${searchQuery}". Check the spelling or clear the search.`}
           action={{
@@ -205,9 +207,9 @@ export default function ProjectsPage() {
                 <div>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex size-9 items-center justify-center rounded-md border border-border bg-muted/40 text-foreground transition-colors group-hover:border-foreground/20">
-                      <FolderSimple className="size-5" />
+                      <FolderSimpleIcon className="size-5" />
                     </div>
-                    <ArrowRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                    <ArrowRightIcon className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
                   </div>
 
                   <h2 className="mt-3 truncate font-heading text-base font-semibold tracking-tight text-foreground transition-colors group-hover:text-primary">
@@ -223,7 +225,7 @@ export default function ProjectsPage() {
                   {/* Service status indicators */}
                   <div className="flex items-center justify-between text-xs">
                     <span className="flex items-center gap-1.5 font-medium text-foreground">
-                      <HardDrives className="size-3.5 text-muted-foreground" />
+                      <HardDrivesIcon className="size-3.5 text-muted-foreground" />
                       <span>
                         {serviceCount}{" "}
                         {serviceCount === 1 ? "service" : "services"}
@@ -245,7 +247,7 @@ export default function ProjectsPage() {
                       )}
                       {statusSummary.failed > 0 && (
                         <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
-                          <WarningCircle className="size-3" />
+                          <WarningCircleIcon className="size-3" />
                           <span>{statusSummary.failed}</span>
                         </span>
                       )}
@@ -260,7 +262,7 @@ export default function ProjectsPage() {
 
                   {/* Timestamp */}
                   <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
-                    <Clock className="size-3" />
+                    <ClockIcon className="size-3" />
                     <span>Updated {formatDate(project.updated_at)}</span>
                   </div>
                 </div>
