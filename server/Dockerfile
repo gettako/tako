@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-s -w" -o
 
 # Stage 2: Minimal runtime image
 FROM alpine:3.20 AS runner
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata sqlite
 
 # Run as non-root user
 RUN addgroup -S -g 10001 tako && \

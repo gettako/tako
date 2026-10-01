@@ -1,3 +1,4 @@
+import { clearSessionCookie } from "../auth"
 import {
   ApiError,
   type ApiClient,
@@ -121,6 +122,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       if (errorJson.details) details = errorJson.details
     } catch {
       // Non-JSON response payload
+    }
+
+    if (
+      response.status === 401 &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/login")
+    ) {
+      clearSessionCookie()
+      window.location.href = "/login"
     }
 
     throw new ApiError(response.status, code, message, details)

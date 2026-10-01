@@ -25,7 +25,7 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: admin@example.com
+      email: admin@octopy.dev
       storage: /etc/traefik/acme/acme.json
       httpChallenge:
         entryPoint: web

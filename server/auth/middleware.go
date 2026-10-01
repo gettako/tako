@@ -34,6 +34,7 @@ func RequireAuth(db *sql.DB) func(next http.Handler) http.Handler {
 
 			user, err := GetSession(db, sessionID)
 			if err != nil || user == nil {
+				ClearSessionCookie(w, "")
 				sendUnauthorized(w, "Invalid or expired session")
 				return
 			}

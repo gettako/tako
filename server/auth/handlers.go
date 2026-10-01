@@ -140,6 +140,7 @@ type LoginResponse struct {
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	// Public routes
 	r.Post("/login", h.Login)
+	r.Post("/logout", h.Logout)
 	r.Post("/passkey/login/options", h.BeginPasskeyLogin)
 	r.Post("/passkey/login/begin", h.BeginPasskeyLogin)
 	r.Post("/passkey/login/verify", h.FinishPasskeyLogin)
@@ -148,7 +149,6 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	// Protected routes
 	r.Group(func(protected chi.Router) {
 		protected.Use(RequireAuth(h.db))
-		protected.Post("/logout", h.Logout)
 		protected.Get("/me", h.Me)
 		protected.Patch("/profile", h.UpdateProfile)
 		protected.Post("/password", h.ChangePassword)
