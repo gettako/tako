@@ -14,6 +14,7 @@ import (
 
 	"gettako.dev/tako/internal/crypto"
 	"gettako.dev/tako/server/audit"
+	"gettako.dev/tako/server/auth"
 	"gettako.dev/tako/server/backup"
 	"gettako.dev/tako/server/config"
 	"gettako.dev/tako/server/db"
@@ -72,6 +73,8 @@ func main() {
 	auditMgr := audit.NewManager(database)
 	audit.SetDefaultManager(auditMgr)
 	go auditMgr.StartPruner(ctx, 24*time.Hour)
+
+	auth.StartSessionCleanup(ctx, database, 1*time.Hour)
 
 	r := buildRouter(cfg, database, masterKey, nodeManager, orchestrator)
 

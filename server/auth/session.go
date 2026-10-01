@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -12,7 +13,7 @@ import (
 )
 
 const SessionCookieName = "tako_session"
-const SessionDuration = 7 * 24 * time.Hour
+const SessionDuration = 30 * 24 * time.Hour
 
 type User struct {
 	ID               string    `json:"id"`
@@ -49,8 +50,8 @@ func CreateSession(db *sql.DB, userID string) (*Session, error) {
 		return nil, fmt.Errorf("generate session id: %w", err)
 	}
 
-	expiresAt := time.Now().Add(SessionDuration)
-	_, err = db.Exec(`INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)`, sessionID, userID, expiresAt)
+	expiresAt := time.Now().UTC().Add(SessionDuration)
+	_, err = db.Exec(`INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)`, sessionID, userID, expiresAt.Format("2006-01-02 15:04:05"))
 	if err != nil {
 		return nil, fmt.Errorf("insert session: %w", err)
 	}
@@ -59,13 +60,35 @@ func CreateSession(db *sql.DB, userID string) (*Session, error) {
 		ID:        sessionID,
 		UserID:    userID,
 		ExpiresAt: expiresAt,
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().UTC(),
 	}, nil
 }
 
 func DeleteSession(db *sql.DB, sessionID string) error {
 	_, err := db.Exec(`DELETE FROM sessions WHERE id = ?`, sessionID)
 	return err
+}
+
+// CleanupExpiredSessions deletes all sessions that have expired.
+func CleanupExpiredSessions(db *sql.DB) error {
+	_, err := db.Exec(`DELETE FROM sessions WHERE expires_at < datetime('now') OR datetime(expires_at) < datetime('now')`)
+	return err
+}
+
+// StartSessionCleanup runs a background cleanup worker that periodically removes expired sessions.
+func StartSessionCleanup(ctx context.Context, db *sql.DB, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				_ = CleanupExpiredSessions(db)
+			}
+		}
+	}()
 }
 
 func isSecureCookie(domain string) bool {
@@ -109,14 +132,18 @@ func ClearSessionCookie(w http.ResponseWriter, domain string) {
 	})
 }
 
-func GetUserBySessionID(db *sql.DB, sessionID string) (*User, error) {
+// GetSession validates a session ID and returns the corresponding User if valid and not expired.
+// Expired sessions are lazily cleaned up.
+func GetSession(db *sql.DB, sessionID string) (*User, error) {
+	_ = CleanupExpiredSessions(db)
+
 	query := `
 		SELECT u.id, u.email, u.name, COALESCE(u.role, 'member'), u.password_hash, u.two_factor_enabled, 
 		       COALESCE(u.two_factor_secret, ''), COALESCE(u.recovery_codes, ''),
 		       u.passkeys_enabled, u.created_at, u.updated_at
 		FROM users u
 		JOIN sessions s ON u.id = s.user_id
-		WHERE s.id = ? AND s.expires_at > CURRENT_TIMESTAMP
+		WHERE s.id = ? AND s.expires_at > datetime('now') AND datetime(s.expires_at) > datetime('now')
 	`
 	row := db.QueryRow(query, sessionID)
 
@@ -141,4 +168,9 @@ func GetUserBySessionID(db *sql.DB, sessionID string) (*User, error) {
 	}
 
 	return &u, nil
+}
+
+// GetUserBySessionID retrieves the user for a session ID. It is an alias for GetSession.
+func GetUserBySessionID(db *sql.DB, sessionID string) (*User, error) {
+	return GetSession(db, sessionID)
 }
