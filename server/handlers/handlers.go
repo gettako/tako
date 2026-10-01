@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"gettako.dev/tako/server/audit"
 	"gettako.dev/tako/server/auth"
 	"gettako.dev/tako/server/backup"
 	"gettako.dev/tako/server/deploy"
@@ -13,7 +14,6 @@ import (
 	"gettako.dev/tako/server/github"
 	"gettako.dev/tako/server/monitoring"
 	"gettako.dev/tako/server/nodes"
-	"gettako.dev/tako/server/audit"
 	"gettako.dev/tako/server/notifications"
 )
 
@@ -174,6 +174,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 
 			// Server Management
 			admin.Post("/servers", h.CreateServer)
+			admin.Patch("/servers/{id}", h.UpdateServer)
 			admin.Delete("/servers/{id}", h.DeleteServer)
 			admin.Post("/servers/{id}/prune", h.PruneServer)
 			admin.Get("/servers/{id}/traefik/config", h.GetServerTraefikConfig)

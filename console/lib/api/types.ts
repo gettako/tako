@@ -2091,6 +2091,10 @@ export interface components {
             compose_snippet: string;
         };
         UpdateServerRequest: {
+            /** @example Primary Server */
+            name?: string;
+            /** @example 198.51.100.22 */
+            host?: string;
             /**
              * @description Maximum number of concurrent deployment builds allowed on this server
              * @example 2

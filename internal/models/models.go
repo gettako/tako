@@ -70,6 +70,12 @@ type CreateServerResponse struct {
 	ComposeSnippet  string  `json:"compose_snippet"`
 }
 
+type UpdateServerRequest struct {
+	Name                *string `json:"name,omitempty"`
+	Host                *string `json:"host,omitempty"`
+	MaxConcurrentBuilds *int    `json:"max_concurrent_builds,omitempty"`
+}
+
 type ServiceStatus string
 
 const (

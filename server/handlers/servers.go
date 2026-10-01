@@ -260,6 +260,60 @@ func (h *Handler) GetServer(w http.ResponseWriter, r *http.Request) {
 	sendJSON(w, http.StatusOK, detail)
 }
 
+func (h *Handler) UpdateServer(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var req models.UpdateServerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	if req.MaxConcurrentBuilds != nil {
+		if *req.MaxConcurrentBuilds < 1 || *req.MaxConcurrentBuilds > 8 {
+			sendError(w, http.StatusBadRequest, "max_concurrent_builds must be between 1 and 8")
+			return
+		}
+	}
+
+	var exists bool
+	_ = h.db.QueryRowContext(r.Context(), "SELECT 1 FROM servers WHERE id = ?", id).Scan(&exists)
+	if !exists {
+		sendError(w, http.StatusNotFound, "Server not found")
+		return
+	}
+
+	if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
+		_, err := h.db.ExecContext(r.Context(), "UPDATE servers SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", strings.TrimSpace(*req.Name), id)
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "Failed to update server name")
+			return
+		}
+	}
+
+	if req.Host != nil {
+		hostVal := strings.TrimSpace(*req.Host)
+		var err error
+		if hostVal != "" {
+			_, err = h.db.ExecContext(r.Context(), "UPDATE servers SET host = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", hostVal, id)
+		} else {
+			_, err = h.db.ExecContext(r.Context(), "UPDATE servers SET host = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?", id)
+		}
+		if err != nil {
+			sendError(w, http.StatusInternalServerError, "Failed to update server host")
+			return
+		}
+	}
+
+	audit.Record(r.Context(), "server.update", "server", id, map[string]any{
+		"name":                  req.Name,
+		"host":                  req.Host,
+		"max_concurrent_builds": req.MaxConcurrentBuilds,
+	})
+
+	h.GetServer(w, r)
+}
+
 func (h *Handler) DeleteServer(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 

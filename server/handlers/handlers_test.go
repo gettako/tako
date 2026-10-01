@@ -232,6 +232,26 @@ func TestServerAndServiceCascadeCRUD(t *testing.T) {
 		t.Fatalf("expected 1 service assigned to server, got %d", len(srvDetail.Services))
 	}
 
+	// 4b. Update Server Name and Host
+	newSrvName := "Primary Production Edge"
+	newHost := "203.0.113.88"
+	patchBody, _ := json.Marshal(models.UpdateServerRequest{
+		Name: &newSrvName,
+		Host: &newHost,
+	})
+	patchReq := httptest.NewRequest(http.MethodPatch, "/api/servers/"+srvResp.Server.ID, bytes.NewReader(patchBody))
+	patchReq.AddCookie(cookie)
+	patchRec := httptest.NewRecorder()
+	r.ServeHTTP(patchRec, patchReq)
+	if patchRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK updating server, got %d: %s", patchRec.Code, patchRec.Body.String())
+	}
+	var updatedDetail models.ServerDetail
+	_ = json.Unmarshal(patchRec.Body.Bytes(), &updatedDetail)
+	if updatedDetail.Name != newSrvName || updatedDetail.Host == nil || *updatedDetail.Host != newHost {
+		t.Fatalf("expected server name %s and host %s, got name=%s host=%v", newSrvName, newHost, updatedDetail.Name, updatedDetail.Host)
+	}
+
 	// 5. Deleting server while service exists should fail
 	delSrvReq := httptest.NewRequest(http.MethodDelete, "/api/servers/"+srvResp.Server.ID, nil)
 	delSrvReq.AddCookie(cookie)

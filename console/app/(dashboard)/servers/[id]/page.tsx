@@ -22,6 +22,7 @@ import {
   ArrowRightIcon,
   GaugeIcon,
   ShieldCheckIcon,
+  PencilSimpleIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import {
@@ -39,6 +40,7 @@ import { cn } from "@/lib/utils"
 import { ResourceChart } from "@/components/charts/resource-chart"
 import { generateTelemetryHistory } from "@/components/charts/telemetry-utils"
 import { TraefikProxyTab } from "@/components/servers/traefik-proxy-tab"
+import { EditServerDialog } from "@/components/servers/edit-server-dialog"
 
 interface ToastNotification {
   id: string
@@ -324,6 +326,7 @@ export default function ServerDetailPage({
   const [isPruning, setIsPruning] = React.useState(false)
   const [unregisterDialogOpen, setUnregisterDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false)
 
   // Toasts
   const [toasts, setToasts] = React.useState<ToastNotification[]>([])
@@ -580,8 +583,17 @@ export default function ServerDetailPage({
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
+            onClick={() => setEditDialogOpen(true)}
+            className="cursor-pointer gap-2"
+          >
+            <PencilSimpleIcon className="size-4" />
+            <span>Edit Server</span>
+          </Button>
+
+          <Button
+            variant="outline"
             onClick={() => setPruneDialogOpen(true)}
-            className="gap-2"
+            className="cursor-pointer gap-2"
           >
             <BroomIcon className="size-4" />
             <span>Prune Resources</span>
@@ -1112,6 +1124,17 @@ export default function ServerDetailPage({
         serverName={server.name}
         onConfirm={handleUnregister}
         isDeleting={isDeleting}
+      />
+
+      {/* Edit Server Dialog */}
+      <EditServerDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        server={server}
+        onServerUpdated={(updated) => {
+          setServer(updated)
+          showToast("success", "Server configuration updated successfully.")
+        }}
       />
 
       {/* Toast Notifications */}

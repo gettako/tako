@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -22,6 +25,37 @@ import (
 	"gettako.dev/tako/server/monitoring"
 	"gettako.dev/tako/server/nodes"
 )
+
+func resolveLocalHost(configuredDomain string) string {
+	domain := strings.TrimSpace(configuredDomain)
+	if domain != "" && !strings.EqualFold(domain, "localhost") && domain != "127.0.0.1" {
+		return domain
+	}
+
+	// Try detecting public IP with a short timeout
+	client := &http.Client{Timeout: 2 * time.Second}
+	for _, endpoint := range []string{"https://api.ipify.org", "https://icanhazip.com"} {
+		resp, err := client.Get(endpoint)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			body, readErr := io.ReadAll(io.LimitReader(resp.Body, 64))
+			_ = resp.Body.Close()
+			if readErr == nil {
+				ipStr := strings.TrimSpace(string(body))
+				if net.ParseIP(ipStr) != nil {
+					return ipStr
+				}
+			}
+		}
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
+	}
+
+	if domain != "" {
+		return domain
+	}
+	return "localhost"
+}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -48,14 +82,29 @@ func main() {
 	nodeManager := nodes.NewNodeManager(database)
 	go nodeManager.StartLivenessCheck(ctx, 30*time.Second)
 
+	localHost := resolveLocalHost(cfg.Domain)
+
 	if cfg.LocalEnrollmentToken != "" {
 		var srvCount int
 		if err := database.QueryRowContext(ctx, "SELECT count(*) FROM servers WHERE id = 'srv_local' OR enrollment_token = ?", cfg.LocalEnrollmentToken).Scan(&srvCount); err == nil && srvCount == 0 {
 			_, _ = database.ExecContext(ctx, `
 				INSERT OR IGNORE INTO servers (id, name, host, status, enrollment_token, token_expires_at, created_at, updated_at)
-				VALUES ('srv_local', 'Local Server', 'localhost', 'pending', ?, datetime('now', '+365 days'), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-			`, cfg.LocalEnrollmentToken)
-			slog.Info("provisioned local server enrollment token", slog.String("server_id", "srv_local"))
+				VALUES ('srv_local', 'Local Server', ?, 'pending', ?, datetime('now', '+365 days'), CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+			`, localHost, cfg.LocalEnrollmentToken)
+			slog.Info("provisioned local server enrollment token", slog.String("server_id", "srv_local"), slog.String("host", localHost))
+		}
+	}
+
+	// If srv_local already exists and is stuck with localhost/127.0.0.1, auto-update it to the resolved host if valid
+	if localHost != "localhost" && localHost != "127.0.0.1" {
+		res, err := database.ExecContext(ctx, `
+			UPDATE servers SET host = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE id = 'srv_local' AND (host = 'localhost' OR host = '127.0.0.1' OR host IS NULL OR host = '')
+		`, localHost)
+		if err == nil {
+			if count, _ := res.RowsAffected(); count > 0 {
+				slog.Info("updated local server host address from localhost to public IP/domain", slog.String("host", localHost))
+			}
 		}
 	}
 

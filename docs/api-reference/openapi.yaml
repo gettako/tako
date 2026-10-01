@@ -3447,6 +3447,12 @@ components:
     UpdateServerRequest:
       type: object
       properties:
+        name:
+          type: string
+          example: Primary Server
+        host:
+          type: string
+          example: 198.51.100.22
         max_concurrent_builds:
           type: integer
           minimum: 1

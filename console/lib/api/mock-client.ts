@@ -599,8 +599,16 @@ providers:
         }
         detail.max_concurrent_builds = request.max_concurrent_builds
       }
-      detail.updated_at = new Date().toISOString()
       const serverSummary = this._servers.find((s) => s.id === id)
+      if (request.name !== undefined) {
+        detail.name = request.name
+        if (serverSummary) serverSummary.name = request.name
+      }
+      if (request.host !== undefined) {
+        detail.host = request.host
+        if (serverSummary) serverSummary.host = request.host
+      }
+      detail.updated_at = new Date().toISOString()
       if (serverSummary) {
         serverSummary.updated_at = detail.updated_at
       }

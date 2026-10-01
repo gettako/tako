@@ -284,4 +284,40 @@ describe("ServerDetailPage (M5-003)", () => {
       })
     }).toThrow()
   })
+
+  it("updates server name and host IP via api.servers.update and persists", async () => {
+    resetApiClient()
+
+    const initial = await api.servers.get("srv_local")
+    expect(initial.name).toBe("Primary Control Node (Local)")
+
+    const updated = await api.servers.update("srv_local", {
+      name: "Primary Production Node",
+      host: "203.0.113.50",
+    })
+    expect(updated.name).toBe("Primary Production Node")
+    expect(updated.host).toBe("203.0.113.50")
+
+    const refetched = await api.servers.get("srv_local")
+    expect(refetched.name).toBe("Primary Production Node")
+    expect(refetched.host).toBe("203.0.113.50")
+
+    // Check that server list also reflects updated values
+    const list = await api.servers.list()
+    const found = list.find((s) => s.id === "srv_local")
+    expect(found?.name).toBe("Primary Production Node")
+    expect(found?.host).toBe("203.0.113.50")
+  })
+
+  it("renders Edit Server action button without em dashes", () => {
+    const html = renderToString(
+      <ServerDetailPage
+        params={{ id: "srv_local" }}
+        initialServer={mockServerDetails["srv_local"]}
+      />
+    )
+
+    expect(html).toContain("Edit Server")
+    expect(html).not.toContain("—")
+  })
 })
