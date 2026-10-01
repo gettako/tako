@@ -97,3 +97,33 @@ func TestBackupManager_MissingS3Config(t *testing.T) {
 		t.Fatal("expected error for missing S3 config, got nil")
 	}
 }
+
+func TestBackupManager_ExecuteRestore_RedisUnsupported(t *testing.T) {
+	ctx := context.Background()
+	mock := &mockBackupExecClient{
+		containers: []container.Summary{
+			{
+				ID:    "c_redis_1",
+				State: "running",
+				Labels: map[string]string{
+					"tako.service_id": "srv_redis",
+				},
+			},
+		},
+	}
+	bm := NewBackupManager(mock)
+
+	err := bm.ExecuteRestore(ctx, &protocol.RestoreCommand{
+		ServiceId:      "srv_redis",
+		BackupType:     "database",
+		DatabaseEngine: "redis",
+	})
+	if err == nil {
+		t.Fatal("expected error executing restore for redis, got nil")
+	}
+	expectedMsg := "automatic restore is unsupported for redis: restore must be performed manually by placing the RDB file into the redis data directory"
+	if err.Error() != expectedMsg {
+		t.Fatalf("expected error message %q, got %q", expectedMsg, err.Error())
+	}
+}
+

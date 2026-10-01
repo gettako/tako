@@ -140,3 +140,93 @@ func TestMasterKeyGenerationAndPermissions(t *testing.T) {
 		t.Fatal("derived key did not match secretKey key")
 	}
 }
+
+func TestKeyVersioningAndLegacyCompatibility(t *testing.T) {
+	masterKey := DeriveKey("secure-passphrase-for-testing")
+	plaintext := []byte("top-secret-environment-variable-value")
+
+	// 1. Versioned encryption should have v1: prefix
+	ciphertext, nonce, err := Encrypt(plaintext, masterKey)
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+	if !bytes.HasPrefix(ciphertext, []byte("v1:")) {
+		t.Fatalf("expected ciphertext to have 'v1:' prefix, got: %x", ciphertext[:3])
+	}
+
+	// 2. Decrypt versioned ciphertext
+	decrypted, err := Decrypt(ciphertext, nonce, masterKey)
+	if err != nil {
+		t.Fatalf("Decrypt failed: %v", err)
+	}
+	if !bytes.Equal(plaintext, decrypted) {
+		t.Fatalf("decrypted text mismatch: got %s, want %s", string(decrypted), string(plaintext))
+	}
+
+	// 3. Legacy compatibility: ciphertext without v1: prefix
+	legacyCiphertext := ciphertext[3:] // strip v1: prefix
+	decryptedLegacy, err := Decrypt(legacyCiphertext, nonce, masterKey)
+	if err != nil {
+		t.Fatalf("Decrypt legacy ciphertext failed: %v", err)
+	}
+	if !bytes.Equal(plaintext, decryptedLegacy) {
+		t.Fatalf("decrypted legacy text mismatch: got %s, want %s", string(decryptedLegacy), string(plaintext))
+	}
+
+	// 4. Unsupported future version: v2:
+	unsupportedCiphertext := append([]byte("v2:"), legacyCiphertext...)
+	_, err = Decrypt(unsupportedCiphertext, nonce, masterKey)
+	if err == nil {
+		t.Fatal("expected error decrypting unsupported v2 version, got nil")
+	}
+
+	// 5. Test EncryptVersioned and DecryptVersioned
+	payload, err := EncryptVersioned(plaintext, masterKey)
+	if err != nil {
+		t.Fatalf("EncryptVersioned failed: %v", err)
+	}
+	decryptedPayload, err := DecryptVersioned(payload, masterKey)
+	if err != nil {
+		t.Fatalf("DecryptVersioned failed: %v", err)
+	}
+	if !bytes.Equal(plaintext, decryptedPayload) {
+		t.Fatalf("decrypted payload mismatch: got %s, want %s", string(decryptedPayload), string(plaintext))
+	}
+}
+
+func TestRejectTruncatedKeysAndCiphertexts(t *testing.T) {
+	validKey := DeriveKey("valid-32-byte-master-key-seed")
+	plaintext := []byte("some-confidential-secret")
+
+	// 1. Truncated key (e.g. 16 or 31 bytes)
+	shortKey := validKey[:16]
+	_, _, err := Encrypt(plaintext, shortKey)
+	if err != ErrInvalidKeySize {
+		t.Fatalf("expected ErrInvalidKeySize on Encrypt, got: %v", err)
+	}
+
+	ciphertext, nonce, err := Encrypt(plaintext, validKey)
+	if err != nil {
+		t.Fatalf("Encrypt failed: %v", err)
+	}
+
+	_, err = Decrypt(ciphertext, nonce, shortKey)
+	if err != ErrInvalidKeySize {
+		t.Fatalf("expected ErrInvalidKeySize on Decrypt, got: %v", err)
+	}
+
+	// 2. Truncated nonce
+	shortNonce := nonce[:8]
+	_, err = Decrypt(ciphertext, shortNonce, validKey)
+	if err != ErrInvalidNonceSize {
+		t.Fatalf("expected ErrInvalidNonceSize, got: %v", err)
+	}
+
+	// 3. Truncated ciphertext (< 16 bytes auth tag)
+	truncatedCiphertext := []byte("v1:short")
+	_, err = Decrypt(truncatedCiphertext, nonce, validKey)
+	if err != ErrCiphertextTruncated {
+		t.Fatalf("expected ErrCiphertextTruncated, got: %v", err)
+	}
+}
+

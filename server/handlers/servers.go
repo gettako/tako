@@ -283,6 +283,10 @@ func (h *Handler) DeleteServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.nodeManager != nil {
+		h.nodeManager.DisconnectNode(id)
+	}
+
 	audit.Record(r.Context(), "server.delete", "server", id, nil)
 	sendJSON(w, http.StatusOK, map[string]any{
 		"success": true,

@@ -240,7 +240,7 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 	// If auxiliary service, inherit parent service's environment variables first
 	if s.ParentServiceID != nil && *s.ParentServiceID != "" {
 		pRows, pErr := o.db.QueryContext(ctx, `
-			SELECT type, key, value_encrypted, nonce
+			SELECT type, key, value_encrypted, nonce, is_secret
 			FROM env_vars WHERE service_id = ?
 		`, *s.ParentServiceID)
 		if pErr == nil {
@@ -248,7 +248,12 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 			for pRows.Next() {
 				var varType, key string
 				var valEncrypted, nonce []byte
-				if err := pRows.Scan(&varType, &key, &valEncrypted, &nonce); err == nil {
+				var isSecret bool
+				if err := pRows.Scan(&varType, &key, &valEncrypted, &nonce, &isSecret); err == nil {
+					// TASK-06: Isolate Preview Secrets - do not inherit production secrets into preview environments
+					if s.IsPreview && isSecret {
+						continue
+					}
 					decrypted, decErr := crypto.Decrypt(valEncrypted, nonce, o.masterKey)
 					if decErr == nil {
 						if varType == "build" {

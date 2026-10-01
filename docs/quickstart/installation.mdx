@@ -66,7 +66,7 @@ TAKO_DOMAIN=gettako.yourdomain.com
 TAKO_ADMIN_EMAIL=admin@yourdomain.com
 TAKO_SECRET_KEY=replace-with-your-generated-32-byte-hex-key
 TAKO_LOCAL_ENROLLMENT_TOKEN=tok_local_bootstrap_token
-TAKO_WEB_PORT=3000
+TAKO_CONSOLE_PORT=3000
 TAKO_PORT=8080
 TAKO_GRPC_PORT=50051
 ```
@@ -161,20 +161,21 @@ services:
     container_name: tako-console
     restart: unless-stopped
     ports:
-      - "${TAKO_WEB_PORT:-3000}:3000"
+      - "${TAKO_CONSOLE_PORT:-3000}:3000"
     environment:
       - TAKO_BACKEND_URL=http://server:8080
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_API_MODE=live
     networks:
       - tako_network
     depends_on:
       - server
 
-  agent-local:
+  agent:
     image: ghcr.io/gettako/agent:latest
-    container_name: tako-agent-local
+    container_name: tako-agent
     restart: unless-stopped
     environment:
       - TAKO_SERVER_URL=http://server:50051

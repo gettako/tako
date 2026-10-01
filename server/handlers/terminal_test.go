@@ -139,3 +139,64 @@ func TestHandleServiceTerminal_WebSocketSession(t *testing.T) {
 
 	_ = sql.ErrNoRows
 }
+
+func TestHandleServiceTerminal_OriginValidation(t *testing.T) {
+	database, _, sessionCookie, _, serviceID := setupDeployTestRouter(t)
+
+	serverID := "srv_worker_1"
+	mockStream := &mockStreamServer{}
+
+	nodeManager := nodes.NewNodeManager(database)
+	_, _ = nodeManager.RegisterSession(context.Background(), serverID, mockStream)
+
+	masterKey := crypto.DeriveKey("test-secret-key-32-bytes-long!")
+	h := NewHandler(database, masterKey, "gettako.dev")
+	h.SetNodeManager(nodeManager)
+
+	mux := chi.NewRouter()
+	mux.Use(auth.RequireAuth(database))
+	mux.Get("/api/services/{id}/terminal", h.HandleServiceTerminal)
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	wsURL := "ws" + server.URL[4:] + "/api/services/" + serviceID + "/terminal"
+
+	// 1. Untrusted third-party origin should be rejected
+	cfgMalicious, err := websocket.NewConfig(wsURL, "https://malicious.com")
+	if err != nil {
+		t.Fatalf("failed to create ws config: %v", err)
+	}
+	cfgMalicious.Header.Add("Cookie", sessionCookie.String())
+
+	_, err = websocket.DialConfig(cfgMalicious)
+	if err == nil {
+		t.Fatal("expected handshake to fail for untrusted origin https://malicious.com")
+	}
+
+	// 2. Untrusted preview subdomain should be rejected when domain is gettako.dev
+	cfgPreview, err := websocket.NewConfig(wsURL, "https://pr-42.gettako.dev")
+	if err != nil {
+		t.Fatalf("failed to create ws config: %v", err)
+	}
+	cfgPreview.Header.Add("Cookie", sessionCookie.String())
+
+	_, err = websocket.DialConfig(cfgPreview)
+	if err == nil {
+		t.Fatal("expected handshake to fail for subdomain https://pr-42.gettako.dev")
+	}
+
+	// 3. Trusted origin (gettako.dev) should succeed
+	cfgAllowed, err := websocket.NewConfig(wsURL, "https://gettako.dev")
+	if err != nil {
+		t.Fatalf("failed to create ws config: %v", err)
+	}
+	cfgAllowed.Header.Add("Cookie", sessionCookie.String())
+
+	ws, err := websocket.DialConfig(cfgAllowed)
+	if err != nil {
+		t.Fatalf("expected handshake to succeed for configured domain https://gettako.dev, got: %v", err)
+	}
+	ws.Close()
+}
+

@@ -68,6 +68,6 @@ Tako includes native streaming backup support for managed databases:
 
 - **PostgreSQL:** Generates compressed custom-format dumps using `pg_dump -Fc`.
 - **MySQL:** Creates atomic consistent database dumps using `mysqldump --single-transaction`.
-- **Redis:** Triggers an atomic background save (`BGSAVE`) and archives the resulting `dump.rdb` file.
+- **Redis:** Uses `redis-cli --rdb -` to stream an RDB snapshot over the Redis protocol to stdout. Note: automatic database restore is **not supported** for Redis — restoration must be performed manually via the RDB file.
 
 Dumps stream directly into your configured S3-compatible storage destination without writing massive uncompressed archive files to the local host disk. You can schedule automated backups or trigger on-demand snapshots from the service **Backups** tab.

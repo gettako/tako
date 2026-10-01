@@ -345,9 +345,19 @@ func (m *ComposeManager) Execute(ctx context.Context, job *protocol.DeployJob, s
 			}
 		}
 
-		// Prepare volumes
+		// Prepare volumes with defense-in-depth checks against forbidden host bind mounts
 		var binds []string
 		for _, v := range spec.Volumes {
+			parts := strings.Split(v, ":")
+			if len(parts) > 1 {
+				hostPath := parts[0]
+				if strings.HasPrefix(hostPath, "/") || strings.HasPrefix(hostPath, "~") || strings.Contains(hostPath, "..") {
+					return fmt.Errorf("host directory bind mounts are forbidden: %s", v)
+				}
+			}
+			if strings.Contains(v, "/var/run/docker.sock") || strings.Contains(v, "/etc/tako") || strings.Contains(v, "/proc") || strings.Contains(v, "/sys") {
+				return fmt.Errorf("host directory bind mounts are forbidden: %s", v)
+			}
 			binds = append(binds, v)
 		}
 

@@ -365,8 +365,8 @@ func TestDomainsAndEncryptedEnvironment(t *testing.T) {
 		t.Fatal("SECURITY ERROR: secret value was found in plaintext in database!")
 	}
 
-	// 5. Get Environment Variables via API (decrypted for authorized session)
-	getEnvReq := httptest.NewRequest(http.MethodGet, "/api/services/"+svc.ID+"/env", nil)
+	// 5. Get Environment Variables via API (decrypted for authorized admin session with ?reveal=true)
+	getEnvReq := httptest.NewRequest(http.MethodGet, "/api/services/"+svc.ID+"/env?reveal=true", nil)
 	getEnvReq.AddCookie(cookie)
 	getEnvRec := httptest.NewRecorder()
 	r.ServeHTTP(getEnvRec, getEnvReq)
@@ -742,7 +742,7 @@ func TestDatabaseServiceProvisioningAndInjection(t *testing.T) {
 	}
 
 	// Verify env var exists on web service
-	envListReq := httptest.NewRequest(http.MethodGet, "/api/services/"+webService.ID+"/env", nil)
+	envListReq := httptest.NewRequest(http.MethodGet, "/api/services/"+webService.ID+"/env?reveal=true", nil)
 	envListReq.AddCookie(sessionCookie)
 	envListRec := httptest.NewRecorder()
 	r.ServeHTTP(envListRec, envListReq)

@@ -24,11 +24,19 @@ type PullRequestWebhookPayload struct {
 			Login string `json:"login"`
 		} `json:"user"`
 		Head struct {
-			Ref string `json:"ref"`
-			SHA string `json:"sha"`
+			Ref  string `json:"ref"`
+			SHA  string `json:"sha"`
+			Repo struct {
+				FullName string `json:"full_name"`
+				Fork     bool   `json:"fork"`
+			} `json:"repo"`
 		} `json:"head"`
 		Base struct {
-			Ref string `json:"ref"`
+			Ref  string `json:"ref"`
+			Repo struct {
+				FullName string `json:"full_name"`
+				Fork     bool   `json:"fork"`
+			} `json:"repo"`
 		} `json:"base"`
 	} `json:"pull_request"`
 	Repository struct {
@@ -152,6 +160,24 @@ func (h *Handler) handlePullRequestWebhook(w http.ResponseWriter, r *http.Reques
 	if action != "opened" && action != "synchronize" && action != "reopened" {
 		f := false
 		sendJSON(w, http.StatusOK, models.WebhookResponse{Received: true, DeploymentTriggered: &f})
+		return
+	}
+
+	// Deny Automatic Builds on Fork PRs (TASK-06)
+	headRepo := payload.PullRequest.Head.Repo
+	baseRepo := payload.PullRequest.Base.Repo
+	isFork := headRepo.Fork || (headRepo.FullName != "" && baseRepo.FullName != "" && !strings.EqualFold(headRepo.FullName, baseRepo.FullName))
+	if isFork {
+		slog.Warn("skipping automatic preview build for fork PR",
+			slog.Int("pr", prNum),
+			slog.String("fork_repo", headRepo.FullName),
+		)
+		f := false
+		sendJSON(w, http.StatusOK, models.WebhookResponse{
+			Received:            true,
+			DeploymentTriggered: &f,
+			Message:             "Preview build skipped for fork pull requests (manual approval required)",
+		})
 		return
 	}
 

@@ -3,26 +3,35 @@ package agentgrpc
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
+	"gettako.dev/tako/internal/protocol"
 	"gettako.dev/tako/server/deploy"
 	"gettako.dev/tako/server/monitoring"
 	"gettako.dev/tako/server/nodes"
 	"gettako.dev/tako/server/notifications"
-	"gettako.dev/tako/internal/protocol"
 )
+
+type enrollAttempt struct {
+	count       int
+	windowStart time.Time
+}
 
 type AgentServer struct {
 	protocol.UnimplementedAgentServiceServer
@@ -31,6 +40,8 @@ type AgentServer struct {
 	NodeManager    *nodes.NodeManager
 	Orchestrator   *deploy.Orchestrator
 	MetricsManager *monitoring.MetricsManager
+	enrollMu       sync.Mutex
+	enrollAttempts map[string]*enrollAttempt
 }
 
 func NewAgentServer(db *sql.DB, domain string, nm *nodes.NodeManager) *AgentServer {
@@ -45,6 +56,7 @@ func NewAgentServer(db *sql.DB, domain string, nm *nodes.NodeManager) *AgentServ
 		Domain:         domain,
 		NodeManager:    nm,
 		MetricsManager: mm,
+		enrollAttempts: make(map[string]*enrollAttempt),
 	}
 }
 
@@ -57,6 +69,30 @@ func (s *AgentServer) SetMetricsManager(mm *monitoring.MetricsManager) {
 }
 
 func (s *AgentServer) Enroll(ctx context.Context, req *protocol.EnrollRequest) (*protocol.EnrollResponse, error) {
+	// Rate limit: max 5 enroll attempts per minute per peer IP
+	peerIP := "unknown"
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		if host, _, err := net.SplitHostPort(p.Addr.String()); err == nil {
+			peerIP = host
+		} else {
+			peerIP = p.Addr.String()
+		}
+	}
+
+	s.enrollMu.Lock()
+	now := time.Now()
+	attempt, exists := s.enrollAttempts[peerIP]
+	if !exists || now.Sub(attempt.windowStart) > time.Minute {
+		s.enrollAttempts[peerIP] = &enrollAttempt{count: 1, windowStart: now}
+	} else {
+		attempt.count++
+		if attempt.count > 5 {
+			s.enrollMu.Unlock()
+			return nil, status.Error(codes.ResourceExhausted, "too many enrollment attempts, please try again later")
+		}
+	}
+	s.enrollMu.Unlock()
+
 	token := strings.TrimSpace(req.GetToken())
 	if token == "" {
 		return nil, status.Error(codes.InvalidArgument, "enrollment token is required")
@@ -85,6 +121,8 @@ func (s *AgentServer) Enroll(ctx context.Context, req *protocol.EnrollRequest) (
 		return nil, status.Errorf(codes.Internal, "failed to generate secret: %v", err)
 	}
 	nodeSecret := hex.EncodeToString(secretBytes)
+	hash := sha256.Sum256([]byte(nodeSecret))
+	nodeSecretHash := hex.EncodeToString(hash[:])
 
 	dockerVersion := req.GetDockerVersion()
 	osInfo := req.GetOsInfo()
@@ -92,7 +130,8 @@ func (s *AgentServer) Enroll(ctx context.Context, req *protocol.EnrollRequest) (
 
 	_, err = s.DB.ExecContext(ctx, `
 		UPDATE servers SET
-			node_secret = ?,
+			node_secret_hash = ?,
+			node_secret = NULL,
 			status = 'online',
 			agent_version = ?,
 			docker_version = ?,
@@ -102,7 +141,7 @@ func (s *AgentServer) Enroll(ctx context.Context, req *protocol.EnrollRequest) (
 			last_heartbeat_at = CURRENT_TIMESTAMP,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, nodeSecret, agentVersion, dockerVersion, osInfo, serverID)
+	`, nodeSecretHash, agentVersion, dockerVersion, osInfo, serverID)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to update server enrollment: %v", err)
 	}
@@ -141,11 +180,18 @@ func (s *AgentServer) StreamNodeSession(stream protocol.AgentService_StreamNodeS
 	nodeID := nodeIDs[0]
 	nodeSecret := nodeSecrets[0]
 
-	var exists bool
+	var storedHash sql.NullString
 	err := s.DB.QueryRowContext(ctx, `
-		SELECT 1 FROM servers WHERE id = ? AND node_secret = ?
-	`, nodeID, nodeSecret).Scan(&exists)
-	if err != nil || !exists {
+		SELECT COALESCE(node_secret_hash, '') FROM servers WHERE id = ?
+	`, nodeID).Scan(&storedHash)
+	if err != nil || !storedHash.Valid || storedHash.String == "" {
+		return status.Error(codes.Unauthenticated, "invalid node credentials")
+	}
+
+	incomingHash := sha256.Sum256([]byte(nodeSecret))
+	incomingHashHex := hex.EncodeToString(incomingHash[:])
+
+	if subtle.ConstantTimeCompare([]byte(storedHash.String), []byte(incomingHashHex)) != 1 {
 		return status.Error(codes.Unauthenticated, "invalid node credentials")
 	}
 

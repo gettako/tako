@@ -254,3 +254,82 @@ func TestGitHubPRWebhook_ConcurrencySafeguard(t *testing.T) {
 		t.Errorf("expected PR #3 to exist")
 	}
 }
+
+func TestGitHubPRWebhook_ForkPRBlocked(t *testing.T) {
+	h, orc, _, _ := setupTestDB(t)
+	h.SetOrchestrator(orc)
+	db := h.db
+
+	ctx := context.Background()
+
+	_, _ = db.ExecContext(ctx, `INSERT INTO servers (id, name, host) VALUES ('srv_fork', 'Node 1', '127.0.0.1')`)
+	_, _ = db.ExecContext(ctx, `INSERT INTO projects (id, name) VALUES ('proj_fork', 'Fork Test')`)
+	_, _ = db.ExecContext(ctx, `
+		INSERT INTO services (
+			id, project_id, server_id, name, repository, branch,
+			dockerfile_path, internal_port, health_check_path, status,
+			primary_domain, is_preview, preview_enabled, max_previews
+		) VALUES (
+			'svc_parent_fork', 'proj_fork', 'srv_fork', 'ParentFork', 'https://github.com/upstream/repo.git', 'main',
+			'Dockerfile', 3000, '/healthz', 'stopped',
+			'', 0, 1, 5
+		)
+	`)
+
+	// Simulate PR from an external fork
+	forkPayload := map[string]any{
+		"action": "opened",
+		"number": 99,
+		"pull_request": map[string]any{
+			"number": 99,
+			"title":  "malicious pr from fork",
+			"user":   map[string]any{"login": "attacker"},
+			"head": map[string]any{
+				"ref": "patch-1",
+				"sha": "badsha123",
+				"repo": map[string]any{
+					"full_name": "attacker/repo",
+					"fork":      true,
+				},
+			},
+			"base": map[string]any{
+				"ref": "main",
+				"repo": map[string]any{
+					"full_name": "upstream/repo",
+					"fork":      false,
+				},
+			},
+		},
+		"repository": map[string]any{
+			"full_name": "upstream/repo",
+			"clone_url": "https://github.com/upstream/repo.git",
+		},
+	}
+	b, _ := json.Marshal(forkPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/github/webhook", bytes.NewReader(b))
+	req.Header.Set("X-GitHub-Event", "pull_request")
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	h.HandleGitHubWebhook(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp models.WebhookResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.DeploymentTriggered != nil && *resp.DeploymentTriggered {
+		t.Fatalf("expected deployment_triggered = false for fork PR, got true")
+	}
+
+	// Verify no preview service was created for this fork PR
+	var count int
+	_ = db.QueryRowContext(ctx, `SELECT count(*) FROM services WHERE parent_service_id = 'svc_parent_fork' AND pr_number = 99`).Scan(&count)
+	if count != 0 {
+		t.Fatalf("expected 0 preview services for fork PR, got %d", count)
+	}
+}
+

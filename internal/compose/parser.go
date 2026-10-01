@@ -106,15 +106,23 @@ type rawCompose struct {
 }
 
 type rawServiceNode struct {
-	Image       string            `yaml:"image"`
-	Build       yaml.Node         `yaml:"build"`
-	Ports       []any             `yaml:"ports"`
-	Environment yaml.Node         `yaml:"environment"`
-	Volumes     []string          `yaml:"volumes"`
-	Command     yaml.Node         `yaml:"command"`
-	Restart     string            `yaml:"restart"`
-	DependsOn   yaml.Node         `yaml:"depends_on"`
-	Labels      map[string]string `yaml:"labels"`
+	Image        string            `yaml:"image"`
+	Build        yaml.Node         `yaml:"build"`
+	Ports        []any             `yaml:"ports"`
+	Environment  yaml.Node         `yaml:"environment"`
+	Volumes      []string          `yaml:"volumes"`
+	Command      yaml.Node         `yaml:"command"`
+	Restart      string            `yaml:"restart"`
+	DependsOn    yaml.Node         `yaml:"depends_on"`
+	Labels       map[string]string `yaml:"labels"`
+	Privileged   bool              `yaml:"privileged"`
+	CapAdd       yaml.Node         `yaml:"cap_add"`
+	Devices      yaml.Node         `yaml:"devices"`
+	Pid          string            `yaml:"pid"`
+	NetworkMode  string            `yaml:"network_mode"`
+	Ipc          string            `yaml:"ipc"`
+	UsernsMode   string            `yaml:"userns_mode"`
+	SecurityOpt  yaml.Node         `yaml:"security_opt"`
 }
 
 // ParseAndValidate parses the Compose YAML content and validates schema rules.
@@ -158,6 +166,47 @@ func ParseAndValidate(yamlContent string) (*ComposeFile, ValidationResult) {
 			Volumes:     node.Volumes,
 			Labels:      node.Labels,
 			Environment: make(map[string]string),
+		}
+
+		// Security validations: reject dangerous host execution modes
+		if node.Privileged {
+			errs = append(errs, fmt.Sprintf("Service %q: privileged mode is forbidden", svcName))
+		}
+		if node.CapAdd.Kind != 0 {
+			errs = append(errs, fmt.Sprintf("Service %q: cap_add is forbidden", svcName))
+		}
+		if node.Devices.Kind != 0 {
+			errs = append(errs, fmt.Sprintf("Service %q: devices configuration is forbidden", svcName))
+		}
+		if strings.EqualFold(node.Pid, "host") {
+			errs = append(errs, fmt.Sprintf("Service %q: host PID mode is forbidden", svcName))
+		}
+		if strings.EqualFold(node.NetworkMode, "host") {
+			errs = append(errs, fmt.Sprintf("Service %q: host network mode is forbidden", svcName))
+		}
+		if strings.EqualFold(node.Ipc, "host") {
+			errs = append(errs, fmt.Sprintf("Service %q: host IPC mode is forbidden", svcName))
+		}
+		if strings.EqualFold(node.UsernsMode, "host") {
+			errs = append(errs, fmt.Sprintf("Service %q: host user namespace mode is forbidden", svcName))
+		}
+		if node.SecurityOpt.Kind != 0 {
+			errs = append(errs, fmt.Sprintf("Service %q: security_opt is forbidden", svcName))
+		}
+
+		// Security validations: reject dangerous host volume bind mounts
+		for _, v := range node.Volumes {
+			parts := strings.Split(v, ":")
+			if len(parts) > 1 {
+				hostPath := parts[0]
+				if strings.HasPrefix(hostPath, "/") || strings.HasPrefix(hostPath, "~") || strings.Contains(hostPath, "..") {
+					errs = append(errs, fmt.Sprintf("Service %q invalid volume %q: Host directory bind mounts are forbidden", svcName, v))
+					continue
+				}
+			}
+			if strings.Contains(v, "/var/run/docker.sock") || strings.Contains(v, "/etc/tako") || strings.Contains(v, "/proc") || strings.Contains(v, "/sys") {
+				errs = append(errs, fmt.Sprintf("Service %q invalid volume %q: Host directory bind mounts are forbidden", svcName, v))
+			}
 		}
 
 		// Handle build

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -85,6 +86,11 @@ func (h *Handler) AddDomain(w http.ResponseWriter, r *http.Request) {
 	domainName := strings.ToLower(strings.TrimSpace(req.Domain))
 	if domainName == "" || strings.Contains(domainName, " ") || !strings.Contains(domainName, ".") {
 		sendError(w, http.StatusBadRequest, "Invalid domain name format")
+		return
+	}
+
+	if h.isReservedDomain(r.Context(), domainName) {
+		sendError(w, http.StatusBadRequest, "Cannot attach reserved control plane console domain")
 		return
 	}
 
@@ -536,4 +542,35 @@ func (h *Handler) syncServiceIngress(ctx context.Context, serviceID string) {
 			},
 		},
 	})
+}
+
+func (h *Handler) isReservedDomain(ctx context.Context, domainName string) bool {
+	domainName = strings.ToLower(strings.TrimSpace(domainName))
+	if host, _, err := net.SplitHostPort(domainName); err == nil {
+		domainName = host
+	}
+
+	if domainName == "localhost" || domainName == "127.0.0.1" {
+		return true
+	}
+
+	if h.domain != "" && !strings.EqualFold(h.domain, "localhost") && !strings.EqualFold(h.domain, "127.0.0.1") {
+		configured := strings.ToLower(strings.TrimSpace(h.domain))
+		if domainName == configured || strings.HasSuffix(domainName, "."+configured) {
+			return true
+		}
+	}
+
+	var dbConsoleDomain string
+	err := h.db.QueryRowContext(ctx, `SELECT domain FROM console_settings WHERE id = 'default'`).Scan(&dbConsoleDomain)
+	if err == nil && dbConsoleDomain != "" {
+		dbDomain := strings.ToLower(strings.TrimSpace(dbConsoleDomain))
+		if dbDomain != "localhost" && dbDomain != "127.0.0.1" {
+			if domainName == dbDomain || strings.HasSuffix(domainName, "."+dbDomain) {
+				return true
+			}
+		}
+	}
+
+	return false
 }

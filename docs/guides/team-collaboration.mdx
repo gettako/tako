@@ -60,7 +60,7 @@ Administrators can manage accounts under **Settings > Users**:
 
 ## Actor Attribution in Audit Logs
 
-When multiple team members collaborate in Tako, accountability is maintained through the tamper-evident **Audit Log**:
+When multiple team members collaborate in Tako, accountability is maintained through the chronological **Audit Log** (ULID-ordered, mutable SQLite storage):
 - Every API mutation (such as triggering a deployment, editing an environment variable, adding a custom domain, or restarting a container) records the acting user ID and name.
 - Audit records use monotonic ULID identifiers and record client IP addresses.
 - Sensitive environment variable values are excluded from audit records, recording only key names and modification counts.

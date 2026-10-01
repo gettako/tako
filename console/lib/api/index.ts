@@ -16,13 +16,13 @@ export function resetApiClient(): void {
 }
 
 export function getApiClient(explicitMode?: "mock" | "live"): ApiClient {
-  const mode = explicitMode ?? process.env.NEXT_PUBLIC_API_MODE
+  const mode = explicitMode ?? process.env.NEXT_PUBLIC_API_MODE ?? "live"
   if (!clientInstance || currentMode !== mode) {
     currentMode = mode
-    if (mode === "live") {
-      clientInstance = new LiveApiClient()
-    } else {
+    if (mode === "mock") {
       clientInstance = new MockApiClient()
+    } else {
+      clientInstance = new LiveApiClient()
     }
   }
   return clientInstance

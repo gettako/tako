@@ -31,7 +31,7 @@ SERVER_URL="${TAKO_SERVER_URL:-${TAKO_SERVER:-}}"
 TOKEN="${TAKO_ENROLLMENT_TOKEN:-${TAKO_TOKEN:-}}"
 
 if [ -z "${SERVER_URL}" ]; then
-    printf "${BOLD}Enter Tako Control Plane gRPC URL (e.g. http://103.23.198.96:50051): ${NC}"
+    printf "${BOLD}Enter Tako Control Plane gRPC URL (e.g. http://203.0.113.10:50051): ${NC}"
     read -r SERVER_URL
 fi
 

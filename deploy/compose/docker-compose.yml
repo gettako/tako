@@ -24,12 +24,13 @@ services:
     container_name: tako-console
     restart: unless-stopped
     ports:
-      - "${TAKO_CONSOLE_PORT:-${TAKO_WEB_PORT:-3000}}:3000"
+      - "127.0.0.1:${TAKO_CONSOLE_PORT:-3000}:3000"
     environment:
       - TAKO_BACKEND_URL=http://server:8080
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_API_MODE=live
     networks:
       - tako_network
     depends_on:
@@ -43,7 +44,7 @@ services:
     container_name: tako-server
     restart: unless-stopped
     ports:
-      - "${TAKO_PORT:-8080}:8080"
+      - "127.0.0.1:${TAKO_PORT:-8080}:8080"
       - "${TAKO_GRPC_PORT:-50051}:50051"
     environment:
       - TAKO_PORT=8080
@@ -62,12 +63,12 @@ services:
     networks:
       - tako_network
 
-  agent-local:
+  agent:
     build:
       context: ../..
       dockerfile: agent/Dockerfile
     image: ghcr.io/gettako/agent:latest
-    container_name: tako-agent-local
+    container_name: tako-agent
     restart: unless-stopped
     environment:
       - TAKO_SERVER_URL=http://server:50051

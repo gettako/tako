@@ -1,7 +1,11 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -9,25 +13,113 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"gettako.dev/tako/internal/crypto"
 	"gettako.dev/tako/server/audit"
 )
 
 type Handler struct {
-	db     *sql.DB
-	domain string
-	wa     *WebAuthnService
+	db        *sql.DB
+	domain    string
+	wa        *WebAuthnService
+	masterKey []byte
 }
 
-func NewHandler(db *sql.DB, domain string) (*Handler, error) {
+func NewHandler(db *sql.DB, domain string, masterKey ...[]byte) (*Handler, error) {
 	wa, err := NewWebAuthnService(db, domain)
 	if err != nil {
 		return nil, err
 	}
+	var mk []byte
+	if len(masterKey) > 0 && len(masterKey[0]) == 32 {
+		mk = masterKey[0]
+	}
 	return &Handler{
-		db:     db,
-		domain: domain,
-		wa:     wa,
+		db:        db,
+		domain:    domain,
+		wa:        wa,
+		masterKey: mk,
 	}, nil
+}
+
+func (h *Handler) SetMasterKey(k []byte) {
+	if len(k) == 32 {
+		h.masterKey = k
+	}
+}
+
+func (h *Handler) getMasterKey() []byte {
+	if len(h.masterKey) == 32 {
+		return h.masterKey
+	}
+	return crypto.DeriveKey("tako-auth-master-key-seed")
+}
+
+func (h *Handler) encryptSecret(secret string) (string, error) {
+	if secret == "" {
+		return "", nil
+	}
+	key := h.getMasterKey()
+	payload, err := crypto.EncryptVersioned([]byte(secret), key)
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(payload), nil
+}
+
+func (h *Handler) decryptSecret(stored string) (string, error) {
+	if stored == "" {
+		return "", nil
+	}
+	key := h.getMasterKey()
+	data, err := base64.StdEncoding.DecodeString(stored)
+	if err != nil {
+		// Fallback for legacy unencrypted Base32 TOTP secrets
+		return stored, nil
+	}
+	decrypted, err := crypto.DecryptVersioned(data, key)
+	if err != nil {
+		// Fallback if decode succeeded on plaintext string but decrypt failed
+		return stored, nil
+	}
+	return string(decrypted), nil
+}
+
+// HashRecoveryCode returns a SHA-256 hex string of the normalized recovery code.
+func HashRecoveryCode(code string) string {
+	clean := strings.ToLower(strings.TrimSpace(code))
+	clean = strings.ReplaceAll(clean, "-", "")
+	hash := sha256.Sum256([]byte(clean))
+	return hex.EncodeToString(hash[:])
+}
+
+func (h *Handler) verifyAndConsumeRecoveryCode(userID string, rawStoredCodes string, inputCode string) (bool, error) {
+	if rawStoredCodes == "" {
+		return false, nil
+	}
+
+	var recoveryCodes []string
+	if err := json.Unmarshal([]byte(rawStoredCodes), &recoveryCodes); err != nil {
+		return false, err
+	}
+
+	inputHash := HashRecoveryCode(inputCode)
+	inputClean := strings.ToLower(strings.TrimSpace(inputCode))
+
+	for i, rc := range recoveryCodes {
+		isMatch := subtle.ConstantTimeCompare([]byte(rc), []byte(inputHash)) == 1
+		if !isMatch && subtle.ConstantTimeCompare([]byte(strings.ToLower(rc)), []byte(inputClean)) == 1 {
+			isMatch = true
+		}
+
+		if isMatch {
+			recoveryCodes = append(recoveryCodes[:i], recoveryCodes[i+1:]...)
+			updatedRC, _ := json.Marshal(recoveryCodes)
+			_, err := h.db.Exec("UPDATE users SET recovery_codes = ? WHERE id = ?", string(updatedRC), userID)
+			return true, err
+		}
+	}
+
+	return false, nil
 }
 
 type LoginRequest struct {
@@ -172,21 +264,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		code := strings.TrimSpace(*req.TwoFactorCode)
-		validCode := ValidateTwoFactorCode(code, u.TwoFactorSecret)
+		plainSecret, _ := h.decryptSecret(u.TwoFactorSecret)
+		validCode := ValidateTwoFactorCode(code, plainSecret)
 		if !validCode {
 			// Check recovery codes
-			var recoveryCodes []string
-			if err := json.Unmarshal([]byte(u.RecoveryCodes), &recoveryCodes); err == nil {
-				for i, rc := range recoveryCodes {
-					if strings.EqualFold(rc, code) {
-						validCode = true
-						// Remove used recovery code
-						recoveryCodes = append(recoveryCodes[:i], recoveryCodes[i+1:]...)
-						updatedRC, _ := json.Marshal(recoveryCodes)
-						_, _ = h.db.Exec("UPDATE users SET recovery_codes = ? WHERE id = ?", string(updatedRC), u.ID)
-						break
-					}
-				}
+			consumed, recErr := h.verifyAndConsumeRecoveryCode(u.ID, u.RecoveryCodes, code)
+			if recErr == nil && consumed {
+				validCode = true
 			}
 		}
 
@@ -314,8 +398,23 @@ func (h *Handler) Setup2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rcJSON, _ := json.Marshal(setup.RecoveryCodes)
-	_, _ = h.db.Exec(`UPDATE users SET two_factor_secret = ?, recovery_codes = ? WHERE id = ?`, setup.Secret, string(rcJSON), user.ID)
+	encryptedSecret, err := h.encryptSecret(setup.Secret)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to encrypt 2FA secret")
+		return
+	}
+
+	hashedCodes := make([]string, len(setup.RecoveryCodes))
+	for i, code := range setup.RecoveryCodes {
+		hashedCodes[i] = HashRecoveryCode(code)
+	}
+	rcJSON, _ := json.Marshal(hashedCodes)
+
+	_, err = h.db.Exec(`UPDATE users SET two_factor_secret = ?, recovery_codes = ? WHERE id = ?`, encryptedSecret, string(rcJSON), user.ID)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, "Failed to save 2FA credentials")
+		return
+	}
 
 	sendJSON(w, http.StatusOK, setup)
 }
@@ -332,10 +431,16 @@ func (h *Handler) Verify2FA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var secret string
-	err := h.db.QueryRow(`SELECT COALESCE(two_factor_secret, '') FROM users WHERE id = ?`, user.ID).Scan(&secret)
-	if err != nil || secret == "" {
+	var storedSecret string
+	err := h.db.QueryRow(`SELECT COALESCE(two_factor_secret, '') FROM users WHERE id = ?`, user.ID).Scan(&storedSecret)
+	if err != nil || storedSecret == "" {
 		sendError(w, http.StatusBadRequest, "2FA setup has not been initiated")
+		return
+	}
+
+	secret, err := h.decryptSecret(storedSecret)
+	if err != nil || secret == "" {
+		sendError(w, http.StatusInternalServerError, "Failed to decrypt 2FA secret")
 		return
 	}
 

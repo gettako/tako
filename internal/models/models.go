@@ -446,6 +446,7 @@ type WebhookResponse struct {
 	Received            bool    `json:"received"`
 	DeploymentTriggered *bool   `json:"deployment_triggered,omitempty"`
 	ServiceID           *string `json:"service_id,omitempty"`
+	Message             string  `json:"message,omitempty"`
 }
 
 type RebuildRequest struct {

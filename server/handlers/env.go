@@ -3,12 +3,14 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
 	"gettako.dev/tako/internal/crypto"
 	"gettako.dev/tako/internal/models"
 	"gettako.dev/tako/server/audit"
+	"gettako.dev/tako/server/auth"
 )
 
 func (h *Handler) GetServiceEnv(w http.ResponseWriter, r *http.Request) {
@@ -19,6 +21,15 @@ func (h *Handler) GetServiceEnv(w http.ResponseWriter, r *http.Request) {
 	if !sExists {
 		sendError(w, http.StatusNotFound, "Service not found")
 		return
+	}
+
+	revealSecrets := r.URL.Query().Get("reveal") == "true"
+	if revealSecrets {
+		user := auth.GetUserFromContext(r.Context())
+		if user == nil || user.Role != "admin" {
+			sendError(w, http.StatusForbidden, "Administrator access required to reveal secrets")
+			return
+		}
 	}
 
 	rows, err := h.db.Query(`
@@ -34,6 +45,7 @@ func (h *Handler) GetServiceEnv(w http.ResponseWriter, r *http.Request) {
 
 	envVars := make([]models.EnvVar, 0)
 	buildArgs := make([]models.EnvVar, 0)
+	var revealedKeys []string
 
 	for rows.Next() {
 		var varType, key string
@@ -45,10 +57,17 @@ func (h *Handler) GetServiceEnv(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		decryptedBytes, err := crypto.Decrypt(valEncrypted, nonce, h.masterKey)
 		val := ""
-		if err == nil {
-			val = string(decryptedBytes)
+		if isSecret && !revealSecrets {
+			val = "••••••••"
+		} else {
+			decryptedBytes, err := crypto.Decrypt(valEncrypted, nonce, h.masterKey)
+			if err == nil {
+				val = string(decryptedBytes)
+			}
+			if isSecret && revealSecrets {
+				revealedKeys = append(revealedKeys, key)
+			}
 		}
 
 		item := models.EnvVar{
@@ -62,6 +81,12 @@ func (h *Handler) GetServiceEnv(w http.ResponseWriter, r *http.Request) {
 		} else {
 			envVars = append(envVars, item)
 		}
+	}
+
+	if revealSecrets && len(revealedKeys) > 0 {
+		audit.Record(r.Context(), "service.env_reveal", "service", serviceID, map[string]any{
+			"keys": strings.Join(revealedKeys, ","),
+		})
 	}
 
 	sendJSON(w, http.StatusOK, models.ServiceEnv{

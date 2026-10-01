@@ -5,16 +5,20 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/websocket"
 
-	"gettako.dev/tako/server/auth"
 	"gettako.dev/tako/internal/protocol"
+	"gettako.dev/tako/server/audit"
+	"gettako.dev/tako/server/auth"
 )
 
 type terminalResizePayload struct {
@@ -54,6 +58,22 @@ func (h *Handler) HandleServiceTerminal(w http.ResponseWriter, r *http.Request) 
 
 	server := websocket.Server{
 		Handshake: func(cfg *websocket.Config, req *http.Request) error {
+			origin := req.Header.Get("Origin")
+			if origin == "" {
+				return errors.New("missing origin header")
+			}
+			u, err := url.Parse(origin)
+			if err != nil {
+				return errors.New("invalid origin header")
+			}
+			originHost := u.Hostname()
+			allowed := false
+			if strings.EqualFold(originHost, h.domain) || originHost == "localhost" || originHost == "127.0.0.1" {
+				allowed = true
+			}
+			if !allowed {
+				return fmt.Errorf("forbidden origin: %s", u.Host)
+			}
 			return nil
 		},
 		Handler: func(ws *websocket.Conn) {
@@ -62,6 +82,12 @@ func (h *Handler) HandleServiceTerminal(w http.ResponseWriter, r *http.Request) 
 			randBytes := make([]byte, 8)
 			_, _ = rand.Read(randBytes)
 			sessionID := fmt.Sprintf("term_%d_%s", time.Now().UnixNano(), hex.EncodeToString(randBytes))
+
+			audit.Record(r.Context(), "service.terminal_start", "service", id, map[string]any{
+				"session_id": sessionID,
+				"server_id":  serverID,
+				"user_id":    user.ID,
+			})
 
 			closeCh := make(chan struct{})
 			var closeOnce sync.Once
@@ -78,6 +104,9 @@ func (h *Handler) HandleServiceTerminal(w http.ResponseWriter, r *http.Request) 
 			})
 
 			defer func() {
+				audit.Record(r.Context(), "service.terminal_end", "service", id, map[string]any{
+					"session_id": sessionID,
+				})
 				h.nodeManager.UnregisterTerminalSession(sessionID)
 				_ = h.nodeManager.SendTerminalClose(serverID, sessionID, "client disconnected")
 			}()

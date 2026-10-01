@@ -189,49 +189,51 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 			admin.Post("/invites", h.CreateInvite)
 			admin.Get("/invites", h.ListInvites)
 			admin.Delete("/invites/{id}", h.RevokeInvite)
+
+			// Console Domain & SSL Configuration
+			admin.Get("/settings/console-domain", h.GetConsoleDomainConfig)
+			admin.Put("/settings/console-domain", h.UpdateConsoleDomainConfig)
+			admin.Post("/settings/console-domain/verify", h.VerifyConsoleDomainDNS)
+
+			// S3 Backup Configuration & Control Plane SQLite Backups
+			admin.Get("/settings/backup", h.GetBackupConfig)
+			admin.Put("/settings/backup", h.UpdateBackupConfig)
+			admin.Post("/settings/backup/test", h.TestBackupStorage)
+			admin.Get("/settings/backup/records", h.ListControlPlaneBackups)
+			admin.Post("/settings/backup/trigger", h.TriggerControlPlaneBackup)
+			admin.Get("/settings/backup/records/{id}/download", h.DownloadControlPlaneBackup)
+			admin.Delete("/settings/backup/records/{id}", h.DeleteControlPlaneBackup)
+
+			// Notification Channels
+			admin.Get("/settings/notifications", h.ListNotificationChannels)
+			admin.Post("/settings/notifications", h.CreateNotificationChannel)
+			admin.Patch("/settings/notifications/{id}", h.UpdateNotificationChannel)
+			admin.Delete("/settings/notifications/{id}", h.DeleteNotificationChannel)
+			admin.Post("/settings/notifications/{id}/test", h.TestNotificationChannel)
+
+			// S3 Storage Destinations
+			admin.Get("/storage/s3", h.ListS3Destinations)
+			admin.Post("/storage/s3", h.CreateS3Destination)
+			admin.Patch("/storage/s3/{id}", h.UpdateS3Destination)
+			admin.Delete("/storage/s3/{id}", h.DeleteS3Destination)
+			admin.Post("/storage/s3/{id}/test", h.TestS3Destination)
+			admin.Post("/storage/s3/test", h.TestS3DestinationRaw)
+
+			// GitHub Connection Mutations
+			admin.Post("/github/manifest/exchange", h.ExchangeGitHubManifest)
+			admin.Post("/github/sync-installations", h.SyncGitHubInstallations)
+			admin.Post("/github/connections", h.CreateGitHubConnection)
+			admin.Delete("/github/connections/{id}", h.DeleteGitHubConnection)
 		})
 
-		// Console Domain & SSL Configuration
-		protected.Get("/settings/console-domain", h.GetConsoleDomainConfig)
-		protected.Put("/settings/console-domain", h.UpdateConsoleDomainConfig)
-		protected.Post("/settings/console-domain/verify", h.VerifyConsoleDomainDNS)
-
-		// S3 Backup Configuration & Control Plane SQLite Backups
-		protected.Get("/settings/backup", h.GetBackupConfig)
-		protected.Put("/settings/backup", h.UpdateBackupConfig)
-		protected.Post("/settings/backup/test", h.TestBackupStorage)
-		protected.Get("/settings/backup/records", h.ListControlPlaneBackups)
-		protected.Post("/settings/backup/trigger", h.TriggerControlPlaneBackup)
-		protected.Get("/settings/backup/records/{id}/download", h.DownloadControlPlaneBackup)
-		protected.Delete("/settings/backup/records/{id}", h.DeleteControlPlaneBackup)
-
-		// GitHub
+		// GitHub (Read operations accessible to all authenticated users)
 		protected.Get("/github/status", h.GetGitHubStatus)
 		protected.Get("/github/repos", h.ListGitHubRepos)
 		protected.Get("/github/repos/{owner}/{repo}/branches", h.ListGitHubBranches)
 		protected.Get("/github/manifest", h.GetGitHubManifest)
-		protected.Post("/github/manifest/exchange", h.ExchangeGitHubManifest)
-		protected.Post("/github/sync-installations", h.SyncGitHubInstallations)
 		protected.Get("/github/connections", h.ListGitHubConnections)
-		protected.Post("/github/connections", h.CreateGitHubConnection)
-		protected.Delete("/github/connections/{id}", h.DeleteGitHubConnection)
 		protected.Get("/github/connections/{id}/repos", h.ListConnectionRepos)
 		protected.Get("/github/connections/{id}/repos/{owner}/{repo}/branches", h.ListConnectionBranches)
-
-		// Notification Channels
-		protected.Get("/settings/notifications", h.ListNotificationChannels)
-		protected.Post("/settings/notifications", h.CreateNotificationChannel)
-		protected.Patch("/settings/notifications/{id}", h.UpdateNotificationChannel)
-		protected.Delete("/settings/notifications/{id}", h.DeleteNotificationChannel)
-		protected.Post("/settings/notifications/{id}/test", h.TestNotificationChannel)
-
-		// S3 Storage Destinations
-		protected.Get("/storage/s3", h.ListS3Destinations)
-		protected.Post("/storage/s3", h.CreateS3Destination)
-		protected.Patch("/storage/s3/{id}", h.UpdateS3Destination)
-		protected.Delete("/storage/s3/{id}", h.DeleteS3Destination)
-		protected.Post("/storage/s3/{id}/test", h.TestS3Destination)
-		protected.Post("/storage/s3/test", h.TestS3DestinationRaw)
 
 		// Audit Log
 		protected.Get("/audit-log", h.GetAuditLog)

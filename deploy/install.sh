@@ -264,12 +264,13 @@ services:
     container_name: tako-console
     restart: unless-stopped
     ports:
-      - "\${TAKO_CONSOLE_PORT:-\${TAKO_WEB_PORT:-3000}}:3000"
+      - "127.0.0.1:\${TAKO_CONSOLE_PORT:-3000}:3000"
     environment:
       - TAKO_BACKEND_URL=http://server:8080
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_API_MODE=live
     networks:
       - tako_network
     depends_on:
@@ -280,7 +281,7 @@ services:
     container_name: tako-server
     restart: unless-stopped
     ports:
-      - "\${TAKO_PORT:-8080}:8080"
+      - "127.0.0.1:\${TAKO_PORT:-8080}:8080"
       - "\${TAKO_GRPC_PORT:-50051}:50051"
     environment:
       - TAKO_PORT=8080
@@ -299,9 +300,9 @@ services:
     networks:
       - tako_network
 
-  agent-local:
+  agent:
     image: ghcr.io/gettako/agent:latest
-    container_name: tako-agent-local
+    container_name: tako-agent
     restart: unless-stopped
     environment:
       - TAKO_SERVER_URL=http://server:50051
@@ -341,9 +342,9 @@ cd "${TAKO_DIR}"
 docker compose -f "${COMPOSE_FILE}" --env-file "${ENV_FILE}" up -d
 
 # 12. Display Success Banner
-DASHBOARD_URL="http://${DOMAIN}:3000"
+CONSOLE_URL="http://${DOMAIN}:3000"
 if [ "${DOMAIN}" != "localhost" ] && [ "${DOMAIN}" != "127.0.0.1" ] && [[ ! "${DOMAIN}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    DASHBOARD_URL="https://${DOMAIN}"
+    CONSOLE_URL="https://${DOMAIN}"
 fi
 
 printf "\n"
@@ -351,8 +352,8 @@ printf "${GREEN}================================================================
 printf "${BOLD}         🎉 Tako Control Plane Successfully Installed! 🎉${NC}\n"
 printf "${GREEN}================================================================${NC}\n"
 printf "\n"
-printf "  ${BOLD}Dashboard URL :${NC} ${CYAN}%s${NC}\n" "${DASHBOARD_URL}"
-printf "  ${BOLD}Direct Web    :${NC} ${CYAN}http://%s:3000${NC}\n" "${DETECTED_IP}"
+printf "  ${BOLD}Console URL   :${NC} ${CYAN}%s${NC}\n" "${CONSOLE_URL}"
+printf "  ${BOLD}Direct Console:${NC} ${CYAN}http://%s:3000${NC}\n" "${DETECTED_IP}"
 printf "  ${BOLD}Admin Email   :${NC} %s\n" "${ADMIN_EMAIL}"
 printf "  ${BOLD}Admin Password:${NC} %s\n" "${ADMIN_PASSWORD}"
 printf "  ${BOLD}Config Dir    :${NC} %s\n" "${TAKO_DIR}"

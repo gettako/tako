@@ -107,6 +107,19 @@ func (m *NodeManager) UnregisterSession(ctx context.Context, nodeID string) {
 	slog.Info("node session stream closed", slog.String("node_id", nodeID))
 }
 
+func (m *NodeManager) DisconnectNode(nodeID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if session, exists := m.sessions[nodeID]; exists {
+		session.mu.Lock()
+		session.Stream = nil
+		session.Online = false
+		session.mu.Unlock()
+		delete(m.sessions, nodeID)
+	}
+	slog.Info("node disconnected and removed from manager", slog.String("node_id", nodeID))
+}
+
 func (m *NodeManager) RecordHeartbeat(ctx context.Context, nodeID string, hb *protocol.Heartbeat) error {
 	now := time.Now()
 	telemetry := &NodeTelemetry{

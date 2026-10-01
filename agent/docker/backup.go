@@ -218,6 +218,11 @@ func (bm *BackupManager) ExecuteBackup(ctx context.Context, cmd *protocol.Backup
 
 // ExecuteRestore downloads the backup from S3 and feeds it into the restore tool inside the container.
 func (bm *BackupManager) ExecuteRestore(ctx context.Context, cmd *protocol.RestoreCommand) error {
+	// Reject Redis immediately — automatic restore is not supported regardless of S3 config.
+	if strings.ToLower(cmd.GetDatabaseEngine()) == "redis" {
+		return fmt.Errorf("automatic restore is unsupported for redis: restore must be performed manually by placing the RDB file into the redis data directory")
+	}
+
 	if cmd.GetS3Config() == nil || cmd.GetS3Config().GetBucket() == "" {
 		return fmt.Errorf("missing S3 configuration in restore command")
 	}
@@ -273,6 +278,9 @@ func (bm *BackupManager) ExecuteRestore(ctx context.Context, cmd *protocol.Resto
 			}
 			args = append(args, dbName)
 			restoreCmd = args
+
+		case "redis":
+			return fmt.Errorf("automatic restore is unsupported for redis: restore must be performed manually by placing the RDB file into the redis data directory")
 
 		default:
 			return fmt.Errorf("unsupported database engine for restore: %s", engine)

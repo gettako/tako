@@ -297,3 +297,103 @@ func TestAdvancedIngressHandlers(t *testing.T) {
 		t.Fatalf("expected 200 OK deleting domain, got %d", delRec.Code)
 	}
 }
+
+func TestAddDomain_RejectsConsoleDomain(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "console_domain_reject_test.db")
+
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("failed to open test db: %v", err)
+	}
+	defer database.Close()
+
+	masterKey := crypto.DeriveKey("test-secret-key-32-bytes-long!")
+	authHandler, _ := auth.NewHandler(database, "console.example.com")
+	h := NewHandler(database, masterKey, "console.example.com")
+
+	r := chi.NewRouter()
+	r.Route("/api/auth", func(authRouter chi.Router) {
+		authHandler.RegisterRoutes(authRouter)
+	})
+	r.Route("/api", func(apiRouter chi.Router) {
+		h.RegisterRoutes(apiRouter)
+	})
+
+	// Login
+	loginBody, _ := json.Marshal(auth.LoginRequest{Password: "AdminPassword123!"})
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", bytes.NewReader(loginBody))
+	loginRec := httptest.NewRecorder()
+	r.ServeHTTP(loginRec, loginReq)
+	cookie := loginRec.Result().Cookies()[0]
+
+	_, err = database.Exec(`
+		INSERT INTO servers (id, name, host, status, created_at)
+		VALUES ('srv_node1', 'Worker 1', '203.0.113.10', 'online', CURRENT_TIMESTAMP);
+		INSERT INTO projects (id, name, created_at)
+		VALUES ('prj_1', 'Test Project', CURRENT_TIMESTAMP);
+		INSERT INTO services (id, project_id, server_id, name, repository, branch, dockerfile_path, status, created_at)
+		VALUES ('svc_1', 'prj_1', 'srv_node1', 'Web App', 'org/repo', 'main', 'Dockerfile', 'healthy', CURRENT_TIMESTAMP);
+		UPDATE console_settings SET domain = 'custom-console.internal' WHERE id = 'default';
+	`)
+	if err != nil {
+		t.Fatalf("failed to seed test data: %v", err)
+	}
+
+	testCases := []struct {
+		name       string
+		domain     string
+		expectCode int
+	}{
+		{
+			name:       "Exact match with h.domain",
+			domain:     "console.example.com",
+			expectCode: http.StatusBadRequest,
+		},
+		{
+			name:       "Subdomain of h.domain",
+			domain:     "api.console.example.com",
+			expectCode: http.StatusBadRequest,
+		},
+		{
+			name:       "Localhost domain",
+			domain:     "localhost",
+			expectCode: http.StatusBadRequest,
+		},
+		{
+			name:       "Exact match with console_settings domain",
+			domain:     "custom-console.internal",
+			expectCode: http.StatusBadRequest,
+		},
+		{
+			name:       "Subdomain of console_settings domain",
+			domain:     "dash.custom-console.internal",
+			expectCode: http.StatusBadRequest,
+		},
+		{
+			name:       "Allowed custom domain",
+			domain:     "app.myuserdomain.com",
+			expectCode: http.StatusCreated,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			body, _ := json.Marshal(models.AddDomainRequest{
+				Domain: tc.domain,
+			})
+			req := httptest.NewRequest(http.MethodPost, "/api/services/svc_1/domains", bytes.NewReader(body))
+			req.AddCookie(cookie)
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
+
+			if rec.Code != tc.expectCode {
+				t.Errorf("[%s] expected status %d for domain %s, got %d: %s", tc.name, tc.expectCode, tc.domain, rec.Code, rec.Body.String())
+			}
+			if tc.expectCode == http.StatusBadRequest && !strings.Contains(rec.Body.String(), "Cannot attach reserved control plane console domain") && tc.domain != "localhost" {
+				t.Errorf("[%s] expected reserved domain error message, got: %s", tc.name, rec.Body.String())
+			}
+		})
+	}
+}
+

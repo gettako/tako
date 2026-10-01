@@ -15,6 +15,7 @@ WORKDIR /app/console
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV TAKO_BACKEND_URL=http://server:8080
+ENV NEXT_PUBLIC_API_MODE=live
 RUN bun run build
 
 # Stage 2: Production runner

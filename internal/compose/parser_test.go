@@ -1,6 +1,7 @@
 package compose
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -138,3 +139,97 @@ services:
 		t.Errorf("expected error for circular dependency")
 	}
 }
+
+func TestParseAndValidate_SecurityRestrictions(t *testing.T) {
+	// Forbidden volume binds
+	forbiddenVolumes := []string{
+		"/:/host",
+		"/var/run/docker.sock:/var/run/docker.sock",
+		"/etc/tako:/etc/tako",
+		"../secret:/app/secret",
+	}
+
+	for _, fv := range forbiddenVolumes {
+		yamlStr := `
+version: '3.8'
+services:
+  exploit:
+    image: alpine:latest
+    volumes:
+      - "` + fv + `"
+`
+		_, res := ParseAndValidate(yamlStr)
+		if res.Valid {
+			t.Errorf("expected ParseAndValidate to reject forbidden volume %q, but got Valid: true", fv)
+		}
+		var foundErr bool
+		for _, e := range res.Errors {
+			if strings.Contains(e, "Host directory bind mounts are forbidden") {
+				foundErr = true
+				break
+			}
+		}
+		if !foundErr {
+			t.Errorf("expected 'Host directory bind mounts are forbidden' error for volume %q, got: %v", fv, res.Errors)
+		}
+	}
+
+	// Forbidden dangerous modes
+	dangerousModes := []struct {
+		name    string
+		yaml    string
+		errFrag string
+	}{
+		{
+			name: "privileged",
+			yaml: `
+version: '3.8'
+services:
+  bad:
+    image: alpine
+    privileged: true
+`,
+			errFrag: "privileged mode is forbidden",
+		},
+		{
+			name: "host pid",
+			yaml: `
+version: '3.8'
+services:
+  bad:
+    image: alpine
+    pid: host
+`,
+			errFrag: "host PID mode is forbidden",
+		},
+		{
+			name: "host network",
+			yaml: `
+version: '3.8'
+services:
+  bad:
+    image: alpine
+    network_mode: host
+`,
+			errFrag: "host network mode is forbidden",
+		},
+	}
+
+	for _, dm := range dangerousModes {
+		_, res := ParseAndValidate(dm.yaml)
+		if res.Valid {
+			t.Errorf("expected rejection for %s mode, got valid", dm.name)
+		}
+		var foundErr bool
+		for _, e := range res.Errors {
+			if strings.Contains(e, dm.errFrag) {
+				foundErr = true
+				break
+			}
+		}
+		if !foundErr {
+			t.Errorf("expected error containing %q for %s, got %v", dm.errFrag, dm.name, res.Errors)
+		}
+	}
+}
+

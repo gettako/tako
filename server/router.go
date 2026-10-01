@@ -45,7 +45,7 @@ func buildRouter(cfg *config.Config, database *sql.DB, masterKey []byte, nodeMan
 	r.Get("/api/healthz", healthzHandler)
 
 	if database != nil {
-		authHandler, err := auth.NewHandler(database, cfg.Domain)
+		authHandler, err := auth.NewHandler(database, cfg.Domain, masterKey)
 		if err != nil {
 			slog.Error("failed to initialize auth handler", slog.String("error", err.Error()))
 		} else {

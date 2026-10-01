@@ -490,8 +490,17 @@ export default function ServiceBackupsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => setRestoringBackup(rec)}
-                          disabled={rec.status !== "completed"}
-                          title="Restore into container"
+                          disabled={
+                            rec.status !== "completed" ||
+                            rec.database_engine === "redis" ||
+                            service?.database_engine === "redis"
+                          }
+                          title={
+                            rec.database_engine === "redis" ||
+                            service?.database_engine === "redis"
+                              ? "Redis restore must be performed manually via RDB file"
+                              : "Restore into container"
+                          }
                           className="h-8 gap-1 px-2.5 text-xs text-amber-600 hover:bg-amber-500/10 dark:text-amber-400"
                         >
                           <ArrowCounterClockwise className="size-3.5" />
