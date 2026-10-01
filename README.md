@@ -20,8 +20,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/gettako/tako/releases">
-    <img src="https://img.shields.io/github/v/release/gettako/tako?style=for-the-badge&logo=github&label=Release" alt="Release" />
+  <a href="https://github.com/gettako/tako">
+    <img src="https://img.shields.io/badge/status-active%20development-orange?style=for-the-badge" alt="Status: Active Development" />
   </a>
   <a href="https://github.com/gettako/tako/actions/workflows/ci.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/gettako/tako/ci.yml?style=for-the-badge&logo=github&label=CI" alt="CI" />
@@ -39,6 +39,9 @@
     <img src="https://img.shields.io/badge/Docker-24%2B-2496ED?style=for-the-badge&logo=docker" alt="Docker" />
   </a>
 </p>
+
+> [!WARNING]
+> **Active Heavy Development**: Tako is under rapid, continuous development and is currently in early preview. Features, database schemas, and configuration structures may change abruptly, and bugs are to be expected. It is not yet recommended for mission-critical production workloads.
 
 ---
 
