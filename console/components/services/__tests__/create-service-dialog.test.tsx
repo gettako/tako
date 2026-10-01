@@ -1,8 +1,11 @@
 import { describe, it, expect, mock } from "bun:test"
 import * as React from "react"
 import { renderToString } from "react-dom/server"
-import { CreateServiceWizard } from "../create-service-dialog"
-import { api, resetApiClient } from "@/lib/api"
+import {
+  CreateServiceWizard,
+  formatConnectionLabel,
+} from "../create-service-dialog"
+import { api, resetApiClient, type GitHubConnection } from "@/lib/api"
 
 // Mock next/navigation
 mock.module("next/navigation", () => ({
@@ -227,5 +230,60 @@ describe("CreateServiceWizard & CreateServiceDialog", () => {
     expect(stackOverview.sub_services.length).toBeGreaterThanOrEqual(1)
     expect(stackOverview.sub_services[0].name).toBeDefined()
     expect(stackOverview.sub_services[0].status).toBe("running")
+  })
+
+  describe("formatConnectionLabel", () => {
+    it("formats GitHub App user installation as @handle", () => {
+      const conn: GitHubConnection = {
+        id: "ghc_a5c1a87d5fa1",
+        name: "supianidz (User)",
+        auth_type: "app",
+        account_name: "supianidz",
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      }
+      expect(formatConnectionLabel(conn)).toBe("@supianidz")
+    })
+
+    it("formats GitHub App org installation as @org", () => {
+      const conn: GitHubConnection = {
+        id: "ghc_org_123",
+        name: "octopy (Organization)",
+        auth_type: "app",
+        account_name: "octopy",
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      }
+      expect(formatConnectionLabel(conn)).toBe("@octopy")
+    })
+
+    it("preserves real display name when different from handle", () => {
+      const conn: GitHubConnection = {
+        id: "ghc_custom",
+        name: "Supian M",
+        auth_type: "pat",
+        account_name: "supianidz",
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      }
+      expect(formatConnectionLabel(conn)).toBe("Supian M")
+    })
+
+    it("handles connection with handle only", () => {
+      const conn: GitHubConnection = {
+        id: "ghc_handle",
+        name: "supianidz",
+        auth_type: "pat",
+        account_name: "",
+        created_at: "2026-10-01T00:00:00Z",
+        updated_at: "2026-10-01T00:00:00Z",
+      }
+      expect(formatConnectionLabel(conn)).toBe("@supianidz")
+    })
+
+    it("returns empty string when null or undefined", () => {
+      expect(formatConnectionLabel(null)).toBe("")
+      expect(formatConnectionLabel(undefined)).toBe("")
+    })
   })
 })

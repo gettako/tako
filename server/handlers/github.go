@@ -605,7 +605,7 @@ func (h *Handler) syncInstallationsForApp(ctx context.Context, client *github.Cl
 	for _, inst := range installs {
 		instIDStr := fmt.Sprintf("%d", inst.ID)
 		accountName := inst.AccountName
-		connName := fmt.Sprintf("%s (%s)", accountName, inst.AccountType)
+		connName := accountName
 
 		var existingID string
 		err := h.db.QueryRowContext(ctx, `

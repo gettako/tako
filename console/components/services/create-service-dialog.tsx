@@ -56,6 +56,41 @@ function generateRandomPassword(): string {
   return pass
 }
 
+export function formatConnectionLabel(c?: GitHubConnection | null): string {
+  if (!c) return ""
+
+  const cleanName = c.name
+    ? c.name.replace(/\s*\((User|Organization|org)\)$/i, "").trim()
+    : ""
+  const account = c.account_name ? c.account_name.trim() : ""
+
+  if (
+    cleanName &&
+    account &&
+    cleanName.toLowerCase() !== account.toLowerCase()
+  ) {
+    return cleanName
+  }
+
+  if (account) {
+    return account.startsWith("@") ? account : `@${account}`
+  }
+
+  if (cleanName) {
+    if (!cleanName.includes(" ") && !cleanName.startsWith("@")) {
+      return `@${cleanName}`
+    }
+    return cleanName
+  }
+
+  return c.name || c.id
+}
+
+export function formatServerLabel(s?: Server | null): string {
+  if (!s) return ""
+  return `${s.name} (${s.host || "Local"}) [${s.status}]`
+}
+
 export interface CreateServiceWizardProps {
   projectId: string
   initialTab?: "app" | "database" | "compose"
@@ -92,6 +127,15 @@ export function CreateServiceWizard({
   const [customGitUrl, setCustomGitUrl] = React.useState("")
   const [useCustomGit, setUseCustomGit] = React.useState(false)
 
+  const accountItems = React.useMemo(
+    () =>
+      connections.map((c) => ({
+        value: c.id,
+        label: formatConnectionLabel(c),
+      })),
+    [connections]
+  )
+
   // Step 2: Build config
   const [branches, setBranches] = React.useState<GitHubBranch[]>([])
   const [isLoadingBranches, setIsLoadingBranches] = React.useState(false)
@@ -103,6 +147,15 @@ export function CreateServiceWizard({
   const [servers, setServers] = React.useState<Server[]>([])
   const [isLoadingServers, setIsLoadingServers] = React.useState(true)
   const [selectedServerId, setSelectedServerId] = React.useState<string>("")
+
+  const serverItems = React.useMemo(
+    () =>
+      servers.map((s) => ({
+        value: s.id,
+        label: formatServerLabel(s),
+      })),
+    [servers]
+  )
 
   // Step 4: Metadata (App)
   const [serviceName, setServiceName] = React.useState("")
@@ -767,6 +820,7 @@ services:
                         })()}
                       </div>
                       <Select
+                        items={accountItems}
                         value={selectedConnectionId}
                         onValueChange={(val) => {
                           if (val) handleConnectionChange(val)
@@ -776,16 +830,22 @@ services:
                           id="github-account-select"
                           className="w-full text-xs"
                         >
-                          <SelectValue placeholder="Select GitHub Account" />
+                          <SelectValue placeholder="Select GitHub Account">
+                            {(value: string | null) => {
+                              if (!value) return "Select GitHub Account"
+                              const selected = connections.find(
+                                (c) => c.id === value
+                              )
+                              return selected
+                                ? formatConnectionLabel(selected)
+                                : value
+                            }}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {connections.map((c) => (
                             <SelectItem key={c.id} value={c.id}>
-                              {c.name} (
-                              {c.account_name
-                                ? `@${c.account_name}`
-                                : c.auth_type.toUpperCase()}
-                              )
+                              {formatConnectionLabel(c)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1451,16 +1511,23 @@ services:
               Target Server Node <span className="text-destructive">*</span>
             </label>
             <Select
+              items={serverItems}
               value={selectedServerId}
               onValueChange={(v) => v && setSelectedServerId(v)}
             >
               <SelectTrigger id="db-target-server" className="w-full">
-                <SelectValue placeholder="Select a server" />
+                <SelectValue placeholder="Select a server">
+                  {(value: string | null) => {
+                    if (!value) return "Select a server"
+                    const selected = servers.find((s) => s.id === value)
+                    return selected ? formatServerLabel(selected) : value
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {servers.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
-                    {s.name} ({s.host || "Local"}) [{s.status}]
+                    {formatServerLabel(s)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1656,18 +1723,25 @@ services:
               <div className="h-10 animate-pulse rounded-md border border-border bg-muted" />
             ) : (
               <Select
+                items={serverItems}
                 value={selectedServerId}
                 onValueChange={(val) => {
                   if (val) setSelectedServerId(val)
                 }}
               >
                 <SelectTrigger id="compose-server-select" className="w-full">
-                  <SelectValue placeholder="Select target server node" />
+                  <SelectValue placeholder="Select target server node">
+                    {(value: string | null) => {
+                      if (!value) return "Select target server node"
+                      const selected = servers.find((s) => s.id === value)
+                      return selected ? formatServerLabel(selected) : value
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {servers.map((srv) => (
                     <SelectItem key={srv.id} value={srv.id}>
-                      {srv.name} ({srv.host}) - {srv.status}
+                      {formatServerLabel(srv)}
                     </SelectItem>
                   ))}
                 </SelectContent>

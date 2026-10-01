@@ -107,6 +107,15 @@ export function AddDomainForm({
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
+  const availableServiceItems = React.useMemo(
+    () =>
+      availableServices.map((svc) => ({
+        value: svc.id,
+        label: `${svc.name} (${svc.service_type})`,
+      })),
+    [availableServices]
+  )
+
   // Fetch project services for target picker if projectId is available
   React.useEffect(() => {
     if (!projectId) return
@@ -271,6 +280,7 @@ export function AddDomainForm({
             </label>
             {availableServices.length > 0 ? (
               <Select
+                items={availableServiceItems}
                 value={targetServiceId}
                 onValueChange={(val) => {
                   if (val) {
@@ -284,7 +294,13 @@ export function AddDomainForm({
                 disabled={isSubmitting}
               >
                 <SelectTrigger id="target-service" className="w-full text-xs">
-                  <SelectValue placeholder="Select target service" />
+                  <SelectValue placeholder="Select target service">
+                    {(val: string | null) => {
+                      if (!val) return "Select target service"
+                      const svc = availableServices.find((s) => s.id === val)
+                      return svc ? `${svc.name} (${svc.service_type})` : val
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {availableServices.map((svc) => (
