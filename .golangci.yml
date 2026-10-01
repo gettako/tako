@@ -1,0 +1,80 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # Correctness
+    - errcheck        # no silently ignored errors
+    - govet           # go vet checks (shadow, printf, etc.)
+    - staticcheck     # comprehensive static analysis (SA, S1, ST)
+    - ineffassign     # detect unused assignments
+    - unused          # detect unused code
+
+    # Security
+    - gosec           # common security pitfalls (G-prefixed rules)
+
+    # Code quality / clarity
+    - bodyclose       # HTTP response body must be closed
+    - misspell        # common English spelling mistakes in comments/strings
+    - nilerr          # detect `if err != nil { return nil }` anti-patterns
+    - unconvert       # remove unnecessary type conversions
+    - unparam         # detect unused function parameters
+
+    # Imports / formatting
+    - goimports       # enforce goimports style (includes gofmt)
+
+linters-settings:
+  errcheck:
+    # Ignore common fire-and-forget patterns (e.g., fmt.Fprint in HTTP handlers)
+    exclude-functions:
+      - fmt.Fprint
+      - fmt.Fprintln
+      - fmt.Fprintf
+      - (io.Closer).Close
+      - (*os.File).Close
+
+  gosec:
+    excludes:
+      - G104  # errors unhandled (already covered by errcheck)
+      - G304  # file inclusion via variable (too many false positives on config paths)
+      - G115  # integer overflow on conversion (too noisy for uint→int in proto code)
+
+  staticcheck:
+    checks:
+      - "all"
+      - "-ST1000" # package comment on every package — too pedantic
+      - "-ST1003" # naming conventions — conflicts with proto-generated names
+      - "-SA1019" # deprecated usage — allow until we upgrade deps intentionally
+
+  misspell:
+    locale: US
+
+  goimports:
+    local-prefixes: gettako.dev/tako
+
+issues:
+  # Don't fail on generated files
+  exclude-files:
+    - ".*\\.pb\\.go$"
+    - ".*\\.pb\\.gw\\.go$"
+
+  # Paths to exclude entirely
+  exclude-dirs:
+    - vendor
+    - node_modules
+
+  exclude-rules:
+    # Test files: allow unused params, unhandled errors on test setup calls
+    - path: "_test\\.go"
+      linters:
+        - errcheck
+        - unparam
+        - gosec
+
+    # Allow unused params in handler functions matching net/http signature
+    - source: "func.*\\(w http\\.ResponseWriter, r \\*http\\.Request\\)"
+      linters:
+        - unparam
+
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -70,5 +70,10 @@ jobs:
       - name: Go Vet
         run: go vet ./...
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
       - name: Go Tests
         run: go test -v -race ./server/... ./agent/... ./internal/...
