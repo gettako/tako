@@ -15,6 +15,8 @@ import {
   WarningCircleIcon,
   LightningIcon,
   LinkSimpleIcon,
+  GithubLogoIcon,
+  CaretDownIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -514,6 +516,22 @@ export default function ServiceSettingsPage() {
             </div>
 
             <div className="flex flex-col gap-4">
+              {/* GitHub App Automatic Sync Banner */}
+              <div className="flex items-start gap-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3.5">
+                <GithubLogoIcon className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <div className="flex flex-1 flex-col gap-0.5">
+                  <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                    GitHub App Auto-Deploy Active
+                  </span>
+                  <p className="text-2xs leading-relaxed text-muted-foreground">
+                    Once your GitHub App is connected in Settings &gt; GitHub,
+                    commits and tags pushed to GitHub trigger deployments
+                    automatically. No manual repository webhook configuration in
+                    GitHub is required.
+                  </p>
+                </div>
+              </div>
+
               {/* Trigger on Push */}
               <div className="flex items-start gap-3 rounded-md border border-border bg-muted/20 p-3.5">
                 <Checkbox
@@ -607,9 +625,10 @@ export default function ServiceSettingsPage() {
                   </span>
                 </div>
                 <p className="text-2xs leading-relaxed text-muted-foreground">
-                  If this repository is not connected via Tako&apos;s GitHub
-                  App, configure a webhook in your GitHub repository to trigger
-                  automatic builds on push or tag:
+                  With Tako&apos;s GitHub App connected, deployments trigger
+                  automatically without any repository setup. If you are using a
+                  generic repository or manual webhooks instead, use this
+                  payload endpoint:
                 </p>
 
                 <div className="flex flex-col gap-1.5 pt-1">

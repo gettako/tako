@@ -91,6 +91,9 @@ func buildRouter(cfg *config.Config, database *sql.DB, masterKey []byte, nodeMan
 		r.Route("/api", func(apiRouter chi.Router) {
 			apiHandler.RegisterRoutes(apiRouter)
 		})
+		r.Post("/github/webhook", apiHandler.HandleGitHubWebhook)
+		r.Post("/github/webhook/{connection_id}", apiHandler.HandleGitHubWebhookByConnection)
+		r.Post("/services/{id}/webhook", apiHandler.HandleServiceWebhook)
 	}
 
 	return r

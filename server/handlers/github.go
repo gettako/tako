@@ -849,50 +849,119 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	secretToVerify := h.webhookSecret
+	// Try extracting installation ID from payload if present (GitHub App sends this in every webhook)
+	var instIDStr string
+	var partialPayload struct {
+		Installation struct {
+			ID int64 `json:"id"`
+		} `json:"installation"`
+	}
+	if err := json.Unmarshal(bodyBytes, &partialPayload); err == nil && partialPayload.Installation.ID > 0 {
+		instIDStr = fmt.Sprintf("%d", partialPayload.Installation.ID)
+	}
+
+	var candidateSecrets []string
+	if h.webhookSecret != "" {
+		candidateSecrets = append(candidateSecrets, h.webhookSecret)
+	}
+
 	var connFound bool
-	if secretToVerify == "" && h.db != nil {
-		var whEnc []byte
+	if h.db != nil {
 		if connectionID != "" {
-			err := h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections WHERE id = ?", connectionID).Scan(&whEnc)
-			if err == nil {
+			var cnt int
+			_ = h.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM github_connections WHERE id = ?", connectionID).Scan(&cnt)
+			if cnt > 0 {
 				connFound = true
 			}
 		} else {
-			err := h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections ORDER BY created_at ASC LIMIT 1").Scan(&whEnc)
-			if err == nil {
+			var cnt int
+			_ = h.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM github_connections").Scan(&cnt)
+			if cnt > 0 {
 				connFound = true
 			}
 		}
-		if len(whEnc) >= 12 {
-			nonce := whEnc[:12]
-			ciphertext := whEnc[12:]
-			dec, err := crypto.Decrypt(ciphertext, nonce, h.masterKey)
-			if err == nil {
-				secretToVerify = string(dec)
+
+		// 1. If explicit connection ID in URL
+		if connectionID != "" {
+			var whEnc []byte
+			_ = h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections WHERE id = ?", connectionID).Scan(&whEnc)
+			if len(whEnc) >= 12 {
+				dec, err := crypto.Decrypt(whEnc[12:], whEnc[:12], h.masterKey)
+				if err == nil && len(dec) > 0 {
+					candidateSecrets = append(candidateSecrets, string(dec))
+				}
 			}
 		}
-		if (connFound || connectionID != "") && secretToVerify == "" {
-			sendError(w, http.StatusBadRequest, "webhook secret not configured for this connection")
-			return
+
+		// 2. If installation ID in webhook payload
+		if instIDStr != "" {
+			var whEnc []byte
+			_ = h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections WHERE installation_id = ? AND webhook_secret_enc IS NOT NULL LIMIT 1", instIDStr).Scan(&whEnc)
+			if len(whEnc) >= 12 {
+				dec, err := crypto.Decrypt(whEnc[12:], whEnc[:12], h.masterKey)
+				if err == nil && len(dec) > 0 {
+					candidateSecrets = append(candidateSecrets, string(dec))
+				}
+			}
+		}
+
+		// 3. Fallback: all valid encrypted secrets from any registered app connection
+		rows, err := h.db.QueryContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections WHERE webhook_secret_enc IS NOT NULL AND length(webhook_secret_enc) >= 12")
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var whEnc []byte
+				if err := rows.Scan(&whEnc); err == nil && len(whEnc) >= 12 {
+					dec, err := crypto.Decrypt(whEnc[12:], whEnc[:12], h.masterKey)
+					if err == nil && len(dec) > 0 {
+						secretStr := string(dec)
+						alreadyHas := false
+						for _, s := range candidateSecrets {
+							if s == secretStr {
+								alreadyHas = true
+								break
+							}
+						}
+						if !alreadyHas {
+							candidateSecrets = append(candidateSecrets, secretStr)
+						}
+					}
+				}
+			}
 		}
 	}
 
-	if secretToVerify != "" {
-		sigHeader := r.Header.Get("X-Hub-Signature-256")
+	if (connFound || connectionID != "") && len(candidateSecrets) == 0 {
+		sendError(w, http.StatusBadRequest, "webhook secret not configured for this connection")
+		return
+	}
+
+	sigHeader := r.Header.Get("X-Hub-Signature-256")
+	if len(candidateSecrets) > 0 {
 		if sigHeader == "" {
 			sendError(w, http.StatusUnauthorized, "missing webhook signature")
 			return
 		}
 
-		mac := hmac.New(sha256.New, []byte(secretToVerify))
-		mac.Write(bodyBytes)
-		expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+		verified := false
+		for _, secret := range candidateSecrets {
+			mac := hmac.New(sha256.New, []byte(secret))
+			mac.Write(bodyBytes)
+			expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
-		if !hmac.Equal([]byte(sigHeader), []byte(expected)) {
+			if hmac.Equal([]byte(sigHeader), []byte(expected)) {
+				verified = true
+				break
+			}
+		}
+
+		if !verified {
 			sendError(w, http.StatusUnauthorized, "Invalid webhook signature")
 			return
 		}
+	} else if connectionID != "" {
+		sendError(w, http.StatusBadRequest, "webhook secret not configured for this connection")
+		return
 	}
 
 	event := r.Header.Get("X-GitHub-Event")
@@ -977,6 +1046,10 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 			CloneURL string `json:"clone_url"`
 			SSHURL   string `json:"ssh_url"`
 			HTMLURL  string `json:"html_url"`
+			Owner    struct {
+				Name  string `json:"name"`
+				Login string `json:"login"`
+			} `json:"owner"`
 		} `json:"repository"`
 		HeadCommit struct {
 			ID      string `json:"id"`
@@ -1039,6 +1112,31 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 	if pushedRepo == "" {
 		pushedRepo = NormalizeRepo(payload.Repository.CloneURL)
 	}
+	if pushedRepo == "" {
+		pushedRepo = NormalizeRepo(payload.Repository.HTMLURL)
+	}
+	if pushedRepo == "" {
+		pushedRepo = NormalizeRepo(payload.Repository.SSHURL)
+	}
+	if pushedRepo == "" && payload.Repository.Name != "" {
+		owner := payload.Repository.Owner.Login
+		if owner == "" {
+			owner = payload.Repository.Owner.Name
+		}
+		if owner != "" {
+			pushedRepo = NormalizeRepo(owner + "/" + payload.Repository.Name)
+		} else {
+			pushedRepo = NormalizeRepo(payload.Repository.Name)
+		}
+	}
+
+	slog.Info("received github webhook push event",
+		slog.String("repo", pushedRepo),
+		slog.String("ref", ref),
+		slog.String("branch", branch),
+		slog.String("commit", commitSHA),
+		slog.Bool("is_tag", isTag),
+	)
 
 	var matchedServiceIDs []string
 
@@ -1079,13 +1177,16 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 			if connectionID != "" {
 				query = `
 					SELECT id, repository FROM services
-					WHERE branch = ? AND (trigger_on_push = 1 OR auto_deploy = 1) AND (github_connection_id = ? OR github_connection_id IS NULL OR github_connection_id = '')
+					WHERE (LOWER(TRIM(branch)) = LOWER(?) OR branch = '' OR branch IS NULL)
+					  AND (trigger_on_push = 1 OR auto_deploy = 1)
+					  AND (github_connection_id = ? OR github_connection_id IS NULL OR github_connection_id = '')
 				`
 				args = []any{branch, connectionID}
 			} else {
 				query = `
 					SELECT id, repository FROM services
-					WHERE branch = ? AND (trigger_on_push = 1 OR auto_deploy = 1)
+					WHERE (LOWER(TRIM(branch)) = LOWER(?) OR branch = '' OR branch IS NULL)
+					  AND (trigger_on_push = 1 OR auto_deploy = 1)
 				`
 				args = []any{branch}
 			}
@@ -1104,6 +1205,12 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 			}
 		}
 	}
+
+	slog.Info("github webhook matched services for deployment",
+		slog.String("repo", pushedRepo),
+		slog.String("branch", branch),
+		slog.Int("matched_count", len(matchedServiceIDs)),
+	)
 
 	triggerType := "webhook"
 	if isTag {
@@ -1125,7 +1232,18 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 					slog.String("service_id", sID),
 					slog.String("error", depErr.Error()),
 				)
+			} else {
+				slog.Info("successfully triggered auto-deployment for service",
+					slog.String("service_id", sID),
+					slog.String("trigger_type", triggerType),
+				)
 			}
+		} else if h.db != nil {
+			depID := generateID("dep")
+			_, _ = h.db.ExecContext(r.Context(), `
+				INSERT INTO deployments (id, service_id, status, branch, commit_sha, commit_message, commit_author, trigger_type, created_at)
+				VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+			`, depID, sID, branch, commitSHA, commitMsg, commitAuthor, triggerType)
 		}
 	}
 
