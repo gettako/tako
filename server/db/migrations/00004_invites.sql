@@ -1,15 +1,10 @@
 -- +goose Up
 -- SQL in section 'Up' is executed when this migration is applied
 
-ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'member';
-
--- Ensure existing setup administrator has role = 'admin'
-UPDATE users SET role = 'admin' WHERE id = 'usr_admin' OR id = (SELECT id FROM users ORDER BY created_at ASC LIMIT 1);
-
 CREATE TABLE IF NOT EXISTS invites (
     id TEXT PRIMARY KEY,
     token_hash TEXT NOT NULL UNIQUE,
-    role TEXT NOT NULL DEFAULT 'member',
+    role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
     created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at DATETIME NOT NULL,
     used_at DATETIME,
@@ -25,4 +20,3 @@ CREATE INDEX IF NOT EXISTS idx_invites_created_by ON invites(created_by);
 DROP INDEX IF EXISTS idx_invites_created_by;
 DROP INDEX IF EXISTS idx_invites_token_hash;
 DROP TABLE IF EXISTS invites;
-ALTER TABLE users DROP COLUMN role;

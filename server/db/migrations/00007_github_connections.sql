@@ -9,20 +9,17 @@ CREATE TABLE IF NOT EXISTS github_connections (
     avatar_url TEXT,
     token_enc BLOB,
     app_id TEXT,
+    app_slug TEXT,
     installation_id TEXT,
+    webhook_secret_enc BLOB,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_github_connections_created_at ON github_connections(created_at);
 
-ALTER TABLE services ADD COLUMN github_connection_id TEXT REFERENCES github_connections(id) ON DELETE RESTRICT;
-
-CREATE INDEX IF NOT EXISTS idx_services_github_connection_id ON services(github_connection_id);
-
 -- +goose Down
 -- SQL in section 'Down' is executed when this migration is rolled back
 
-DROP INDEX IF EXISTS idx_services_github_connection_id;
-ALTER TABLE services DROP COLUMN github_connection_id;
+DROP INDEX IF EXISTS idx_github_connections_created_at;
 DROP TABLE IF EXISTS github_connections;

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0-beta.2] - 2026-10-01
 
+### Changed
+- **Database Architecture**:
+  - Restructured SQLite migrations into 19 dedicated table-per-file schemas (`00001_users.sql` through `00019_console_settings.sql`) in `server/db/migrations` to improve discoverability and maintainability.
+  - Added composite index `idx_deployments_service_created` on `deployments(service_id, created_at DESC)` for optimized deployment list and pagination queries.
+  - Standardized table constraints, foreign key indexes, and unified schema definitions across all 19 entities.
+- **CI / Quality Checks**:
+  - Migrated `.golangci.yml` configuration to official golangci-lint version 2 schema specifications (`linters.settings`, `linters.exclusions`, `formatters`).
+
 ### Security
 - **Auth & Authorization**:
   - Enforce `RequireAdmin` middleware across cluster settings (`/api/settings/console-domain`), S3 storage management (`/api/storage/s3`), database backups (`/api/settings/backup`), notification webhooks (`/api/settings/notifications`), and GitHub App connections (`/api/github/connections`), preventing members from modifying cluster-wide configuration or downloading database snapshots.

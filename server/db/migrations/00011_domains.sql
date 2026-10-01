@@ -1,5 +1,7 @@
 -- +goose Up
-CREATE TABLE IF NOT EXISTS domains_new (
+-- SQL in section 'Up' is executed when this migration is applied
+
+CREATE TABLE IF NOT EXISTS domains (
     id TEXT PRIMARY KEY,
     service_id TEXT NOT NULL REFERENCES services(id) ON DELETE CASCADE,
     domain TEXT NOT NULL,
@@ -18,15 +20,14 @@ CREATE TABLE IF NOT EXISTS domains_new (
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO domains_new (id, service_id, domain, port, ssl_status, ssl_error, created_at)
-SELECT id, service_id, domain, port, ssl_status, ssl_error, created_at FROM domains;
-
-DROP TABLE domains;
-ALTER TABLE domains_new RENAME TO domains;
-
 CREATE INDEX IF NOT EXISTS idx_domains_service_id ON domains(service_id);
 CREATE INDEX IF NOT EXISTS idx_domains_domain ON domains(domain);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_domains_domain_path ON domains(domain, path_prefix);
 
 -- +goose Down
+-- SQL in section 'Down' is executed when this migration is rolled back
+
+DROP INDEX IF EXISTS idx_domains_domain_path;
+DROP INDEX IF EXISTS idx_domains_domain;
+DROP INDEX IF EXISTS idx_domains_service_id;
 DROP TABLE IF EXISTS domains;

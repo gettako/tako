@@ -27,12 +27,22 @@ func TestOpenAndMigrations(t *testing.T) {
 		"users",
 		"sessions",
 		"passkeys",
+		"invites",
 		"servers",
 		"projects",
+		"github_connections",
+		"s3_destinations",
 		"services",
 		"deployments",
 		"domains",
 		"env_vars",
+		"backup_configs",
+		"backup_records",
+		"service_metrics",
+		"service_metrics_rollups",
+		"notification_channels",
+		"audit_log",
+		"console_settings",
 	}
 
 	for _, table := range tables {
