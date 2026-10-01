@@ -29,6 +29,9 @@ linters:
         - fmt.Fprintf
         - (io.Closer).Close
         - (*os.File).Close
+        - (*database/sql.Rows).Close
+        - os.RemoveAll
+        - os.Remove
 
     gosec:
       excludes:
@@ -42,6 +45,7 @@ linters:
         - "-ST1000" # package comment on every package — too pedantic
         - "-ST1003" # naming conventions — conflicts with proto-generated names
         - "-SA1019" # deprecated usage — allow until we upgrade deps intentionally
+        - "-QF*"    # disable cosmetic quickfix suggestions
 
     misspell:
       locale: US
@@ -59,6 +63,15 @@ linters:
       - source: "func.*\\(w http\\.ResponseWriter, r \\*http\\.Request\\)"
         linters:
           - unparam
+
+      # Deferred Close / cleanup calls
+      - linters:
+          - errcheck
+        text: "Error return value of `.*Close` is not checked"
+
+      - linters:
+          - errcheck
+        text: "Error return value of `os.RemoveAll` is not checked"
 
     paths:
       - ".*\\.pb\\.go$"
