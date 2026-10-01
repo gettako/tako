@@ -203,7 +203,7 @@ TRAEFIK_DYNAMIC_DIR="/etc/tako/traefik/dynamic"
 mkdir -p "${TAKO_DIR}"
 mkdir -p "${TRAEFIK_DYNAMIC_DIR}"
 chmod 700 "${TAKO_DIR}"
-chmod 755 "/etc/tako/traefik" "${TRAEFIK_DYNAMIC_DIR}"
+chmod 777 "/etc/tako/traefik" "${TRAEFIK_DYNAMIC_DIR}"
 
 # 8. Write Production .env (with 0600 permissions)
 ENV_FILE="${TAKO_DIR}/.env"
@@ -276,7 +276,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
-      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
       - tako_traefik_acme:/etc/traefik/acme
     networks:
       - tako_network
@@ -316,9 +316,11 @@ services:
       - TAKO_GITHUB_APP_PRIVATE_KEY=\${TAKO_GITHUB_APP_PRIVATE_KEY:-}
       - TAKO_GITHUB_WEBHOOK_SECRET=\${TAKO_GITHUB_WEBHOOK_SECRET:-}
       - TAKO_GITHUB_PAT=\${TAKO_GITHUB_PAT:-}
+      - TAKO_CONSOLE_PORT=\${TAKO_CONSOLE_PORT:-3000}
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/traefik/dynamic
     volumes:
       - tako_server_data:/etc/tako
-      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
     networks:
       - tako_network
 
@@ -335,7 +337,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - tako_agent_data:/etc/tako
-      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
       - tako_traefik_acme:/etc/traefik/acme:ro
     networks:
       - tako_network
@@ -347,8 +349,6 @@ volumes:
     name: tako_server_data
   tako_agent_data:
     name: tako_agent_data
-  tako_traefik_dynamic:
-    name: tako_traefik_dynamic
   tako_traefik_acme:
     name: tako_traefik_acme
 

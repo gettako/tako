@@ -11,7 +11,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
-      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - ${TAKO_TRAEFIK_DYNAMIC_DIR:-/etc/tako/traefik/dynamic}:/etc/traefik/dynamic
       - tako_traefik_acme:/etc/traefik/acme
     networks:
       - tako_network
@@ -53,13 +53,15 @@ services:
       - TAKO_DB_PATH=/etc/tako/tako.db
       - TAKO_SECRET_KEY=${TAKO_SECRET_KEY:-tako-default-super-secret-key-32b}
       - TAKO_LOCAL_ENROLLMENT_TOKEN=${TAKO_LOCAL_ENROLLMENT_TOKEN:-tako-local-bootstrap-token}
+      - TAKO_CONSOLE_PORT=${TAKO_CONSOLE_PORT:-3000}
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/traefik/dynamic
       - TAKO_GITHUB_APP_ID=${TAKO_GITHUB_APP_ID:-}
       - TAKO_GITHUB_APP_PRIVATE_KEY=${TAKO_GITHUB_APP_PRIVATE_KEY:-}
       - TAKO_GITHUB_WEBHOOK_SECRET=${TAKO_GITHUB_WEBHOOK_SECRET:-}
       - TAKO_GITHUB_PAT=${TAKO_GITHUB_PAT:-}
     volumes:
       - tako_server_data:/etc/tako
-      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - ${TAKO_TRAEFIK_DYNAMIC_DIR:-/etc/tako/traefik/dynamic}:/etc/traefik/dynamic
     networks:
       - tako_network
 
@@ -79,7 +81,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - tako_agent_data:/etc/tako
-      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - ${TAKO_TRAEFIK_DYNAMIC_DIR:-/etc/tako/traefik/dynamic}:/etc/traefik/dynamic
       - tako_traefik_acme:/etc/traefik/acme:ro
     networks:
       - tako_network
@@ -91,8 +93,6 @@ volumes:
     name: tako_server_data
   tako_agent_data:
     name: tako_agent_data
-  tako_traefik_dynamic:
-    name: tako_traefik_dynamic
   tako_traefik_acme:
     name: tako_traefik_acme
 

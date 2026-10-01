@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log/slog"
 	"net/http"
@@ -81,6 +82,8 @@ func buildRouter(cfg *config.Config, database *sql.DB, masterKey []byte, nodeMan
 		if am := audit.GetDefaultManager(); am != nil {
 			apiHandler.SetAuditManager(am)
 		}
+
+		_ = apiHandler.InitConsoleRoute(context.Background())
 
 		r.Route("/api", func(apiRouter chi.Router) {
 			apiHandler.RegisterRoutes(apiRouter)
