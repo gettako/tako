@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,10 +19,11 @@ import (
 )
 
 type Handler struct {
-	db        *sql.DB
-	domain    string
-	wa        *WebAuthnService
-	masterKey []byte
+	db           *sql.DB
+	domain       string
+	wa           *WebAuthnService
+	masterKey    []byte
+	loginLimiter *loginRateLimiter
 }
 
 func NewHandler(db *sql.DB, domain string, masterKey ...[]byte) (*Handler, error) {
@@ -34,10 +36,11 @@ func NewHandler(db *sql.DB, domain string, masterKey ...[]byte) (*Handler, error
 		mk = masterKey[0]
 	}
 	return &Handler{
-		db:        db,
-		domain:    domain,
-		wa:        wa,
-		masterKey: mk,
+		db:           db,
+		domain:       domain,
+		wa:           wa,
+		masterKey:    mk,
+		loginLimiter: newLoginRateLimiter(),
 	}, nil
 }
 
@@ -160,6 +163,15 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	ip := clientIP(r)
+
+	// Check rate limit before doing any work.
+	if ok, retryAfter := h.loginLimiter.allow(ip); !ok {
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+		sendError(w, http.StatusTooManyRequests, "Too many failed login attempts, please try again later")
+		return
+	}
+
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		sendError(w, http.StatusBadRequest, "Invalid request body")
@@ -173,7 +185,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// First boot: auto-create the single admin user
+	// First boot: auto-create the single admin user (not counted as a failure).
 	if userCount == 0 {
 		hash, err := HashPassword(req.Password)
 		if err != nil {
@@ -208,6 +220,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		h.loginLimiter.resetIP(ip)
 		SetSessionCookie(w, session.ID, h.domain, session.ExpiresAt)
 		loginCtx := audit.ContextWithActor(r.Context(), user.Email)
 		audit.Record(loginCtx, "session.login", "session", session.ID, map[string]string{"method": "first_boot"})
@@ -219,7 +232,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Existing user login
+	// Existing user login.
 	var u User
 	var createdAtStr, updatedAtStr string
 	var row *sql.Row
@@ -244,18 +257,22 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		&u.PasskeysEnabled, &createdAtStr, &updatedAtStr,
 	)
 	if err != nil {
+		// User not found counts as a failed attempt.
+		h.loginLimiter.recordFailure(ip)
 		sendError(w, http.StatusInternalServerError, "Failed to query user")
 		return
 	}
 
 	valid, err := VerifyPassword(req.Password, u.PasswordHash)
 	if err != nil || !valid {
+		h.loginLimiter.recordFailure(ip)
 		sendError(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
 
 	if u.TwoFactorEnabled {
 		if req.TwoFactorCode == nil || strings.TrimSpace(*req.TwoFactorCode) == "" {
+			// 2FA prompt — not a failure, do not increment counter.
 			sendJSON(w, http.StatusOK, LoginResponse{
 				User:        &u,
 				Requires2FA: true,
@@ -267,7 +284,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		plainSecret, _ := h.decryptSecret(u.TwoFactorSecret)
 		validCode := ValidateTwoFactorCode(code, plainSecret)
 		if !validCode {
-			// Check recovery codes
+			// Check recovery codes.
 			consumed, recErr := h.verifyAndConsumeRecoveryCode(u.ID, u.RecoveryCodes, code)
 			if recErr == nil && consumed {
 				validCode = true
@@ -275,6 +292,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !validCode {
+			h.loginLimiter.recordFailure(ip)
 			sendError(w, http.StatusUnauthorized, "Invalid verification code")
 			return
 		}
@@ -286,6 +304,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Successful login: clear failure counter.
+	h.loginLimiter.resetIP(ip)
 	SetSessionCookie(w, session.ID, h.domain, session.ExpiresAt)
 	loginCtx := audit.ContextWithActor(r.Context(), u.Email)
 	audit.Record(loginCtx, "session.login", "session", session.ID, map[string]string{"method": "password"})
