@@ -243,4 +243,5 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	// Public Webhooks
 	r.Post("/github/webhook", h.HandleGitHubWebhook)
 	r.Post("/github/webhook/{connection_id}", h.HandleGitHubWebhookByConnection)
+	r.Post("/services/{id}/webhook", h.HandleServiceWebhook)
 }

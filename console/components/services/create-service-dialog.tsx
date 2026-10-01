@@ -19,6 +19,7 @@ import {
   ArrowSquareOutIcon,
   CaretDownIcon,
   TerminalWindowIcon,
+  LightningIcon,
 } from "@phosphor-icons/react"
 import {
   Dialog,
@@ -30,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/ui/copy-button"
 import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "@/components/ui/toast"
 import {
   Select,
@@ -194,6 +196,11 @@ export function CreateServiceWizard({
 
   // Step 3: Worker mode toggle
   const [isWorker, setIsWorker] = React.useState(false)
+
+  // Step 3: Deployment Triggers
+  const [triggerOnPush, setTriggerOnPush] = React.useState(true)
+  const [triggerOnTag, setTriggerOnTag] = React.useState(false)
+  const [tagPattern, setTagPattern] = React.useState("*")
 
   // Step 3: Env vars (app category only)
   const [envVarsText, setEnvVarsText] = React.useState("")
@@ -536,6 +543,9 @@ services:
         dockerfile_path: "Dockerfile",
         internal_port: 80,
         health_check_path: "/healthz",
+        trigger_on_push: triggerOnPush,
+        trigger_on_tag: triggerOnTag,
+        tag_pattern: triggerOnTag ? tagPattern.trim() || "*" : undefined,
       })
 
       // Trigger initial deployment
@@ -609,6 +619,9 @@ services:
         github_connection_id: useCustomGit
           ? undefined
           : selectedConnectionId || undefined,
+        trigger_on_push: triggerOnPush,
+        trigger_on_tag: triggerOnTag,
+        tag_pattern: triggerOnTag ? tagPattern.trim() || "*" : undefined,
       })
 
       // 2. Save env vars if provided (before first deployment so build args are available)
@@ -1322,6 +1335,71 @@ services:
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Deployment Triggers Section */}
+              <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/20 p-3">
+                <div className="flex items-center gap-2">
+                  <LightningIcon className="size-3.5 text-foreground" />
+                  <span className="text-xs font-semibold text-foreground">
+                    Deployment Triggers
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="create-trigger-on-push"
+                      checked={triggerOnPush}
+                      onCheckedChange={(checked) =>
+                        setTriggerOnPush(checked === true)
+                      }
+                    />
+                    <label
+                      htmlFor="create-trigger-on-push"
+                      className="cursor-pointer text-xs font-medium text-foreground select-none"
+                    >
+                      Trigger on git push to{" "}
+                      <span className="font-mono font-semibold">
+                        {selectedBranch.trim() || "main"}
+                      </span>
+                    </label>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="create-trigger-on-tag"
+                      checked={triggerOnTag}
+                      onCheckedChange={(checked) =>
+                        setTriggerOnTag(checked === true)
+                      }
+                      className="mt-0.5"
+                    />
+                    <div className="flex flex-1 flex-col gap-1.5">
+                      <label
+                        htmlFor="create-trigger-on-tag"
+                        className="cursor-pointer text-xs font-medium text-foreground select-none"
+                      >
+                        Trigger on git tag push
+                      </label>
+                      {triggerOnTag && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <label
+                            htmlFor="create-tag-pattern"
+                            className="text-2xs font-medium whitespace-nowrap text-muted-foreground"
+                          >
+                            Tag Pattern:
+                          </label>
+                          <Input
+                            id="create-tag-pattern"
+                            placeholder="e.g. v* or *"
+                            value={tagPattern}
+                            onChange={(e) => setTagPattern(e.target.value)}
+                            className="h-7 w-36 font-mono text-xs"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

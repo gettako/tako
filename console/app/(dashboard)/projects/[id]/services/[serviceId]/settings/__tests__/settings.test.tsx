@@ -32,6 +32,31 @@ describe("ServiceSettingsPage", () => {
     expect(html).not.toContain("shadow-sm")
   })
 
+  it("renders deployment triggers and webhook setup when service is loaded", async () => {
+    resetApiClient()
+    const service = await api.services.get("srv_web_prod")
+    const html = renderToString(
+      <ServiceProvider
+        serviceId="srv_web_prod"
+        projectId="prj_acme"
+        initialService={service}
+      >
+        <ServiceSettingsPage />
+      </ServiceProvider>
+    )
+
+    expect(html).toBeDefined()
+    expect(html).not.toContain("—")
+    expect(html).not.toContain("shadow-lg")
+    expect(html).not.toContain("shadow-md")
+    expect(html).not.toContain("shadow-sm")
+    expect(html).toContain("Deployment Triggers")
+    expect(html).toContain("Trigger on git push")
+    expect(html).toContain("Trigger on git tag")
+    expect(html).toContain("Webhook Setup for GitHub")
+    expect(html).toContain("/api/services/srv_web_prod/webhook")
+  })
+
   it("updates service configuration via MockApiClient", async () => {
     resetApiClient()
 
@@ -82,6 +107,27 @@ describe("ServiceSettingsPage", () => {
     const fetched = await api.services.get("srv_web_prod")
     expect(fetched.service_type).toBe("worker")
     expect(fetched.command).toBe("python worker.py")
+  })
+
+  it("updates push and tag triggers via MockApiClient", async () => {
+    resetApiClient()
+
+    const updated = await api.services.update("srv_web_prod", {
+      trigger_on_push: false,
+      trigger_on_tag: true,
+      tag_pattern: "v*",
+    })
+
+    expect(updated.trigger_on_push).toBe(false)
+    expect(updated.auto_deploy).toBe(false)
+    expect(updated.trigger_on_tag).toBe(true)
+    expect(updated.tag_pattern).toBe("v*")
+
+    const fetched = await api.services.get("srv_web_prod")
+    expect(fetched.trigger_on_push).toBe(false)
+    expect(fetched.auto_deploy).toBe(false)
+    expect(fetched.trigger_on_tag).toBe(true)
+    expect(fetched.tag_pattern).toBe("v*")
   })
 
   it("renders database service settings cleanly", () => {

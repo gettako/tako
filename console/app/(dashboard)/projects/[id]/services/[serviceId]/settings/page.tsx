@@ -13,10 +13,13 @@ import {
   TerminalIcon,
   HardDrivesIcon,
   WarningCircleIcon,
+  LightningIcon,
+  LinkSimpleIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
+import { CopyButton } from "@/components/ui/copy-button"
 import { LoadingSkeleton } from "@/components/states/loading-skeleton"
 import { ErrorCard } from "@/components/states/error-card"
 import { useService } from "@/components/services/service-context"
@@ -49,6 +52,9 @@ export default function ServiceSettingsPage() {
   const [preDeployCommand, setPreDeployCommand] = React.useState("")
   const [postDeployCommand, setPostDeployCommand] = React.useState("")
   const [autoDeploy, setAutoDeploy] = React.useState(false)
+  const [triggerOnPush, setTriggerOnPush] = React.useState(true)
+  const [triggerOnTag, setTriggerOnTag] = React.useState(false)
+  const [tagPattern, setTagPattern] = React.useState("*")
   const [volumeName, setVolumeName] = React.useState("")
   const [volumeMountPath, setVolumeMountPath] = React.useState("")
 
@@ -56,6 +62,7 @@ export default function ServiceSettingsPage() {
   const [isSaving, setIsSaving] = React.useState(false)
   const [triggerDeployOnSave, setTriggerDeployOnSave] = React.useState(true)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [webhookUrl, setWebhookUrl] = React.useState("")
 
   // Sync form with service state
   React.useEffect(() => {
@@ -74,11 +81,23 @@ export default function ServiceSettingsPage() {
       setCommand(service.command || "")
       setPreDeployCommand(service.pre_deploy_command || "")
       setPostDeployCommand(service.post_deploy_command || "")
-      setAutoDeploy(service.auto_deploy ?? false)
+      const pushEnabled = service.trigger_on_push ?? service.auto_deploy ?? true
+      setAutoDeploy(pushEnabled)
+      setTriggerOnPush(pushEnabled)
+      setTriggerOnTag(service.trigger_on_tag ?? false)
+      setTagPattern(service.tag_pattern || "*")
       setVolumeName(service.volume_name || "")
       setVolumeMountPath(service.volume_mount_path || "")
     }
   }, [service])
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && serviceId) {
+      setWebhookUrl(
+        `${window.location.origin}/api/services/${serviceId}/webhook`
+      )
+    }
+  }, [serviceId])
 
   const isDatabase = service?.service_type === "database"
   const isCompose = service?.service_type === "compose"
@@ -126,7 +145,10 @@ export default function ServiceSettingsPage() {
       return true
     if (postDeployCommand.trim() !== (service.post_deploy_command || "").trim())
       return true
-    if (autoDeploy !== (service.auto_deploy ?? false)) return true
+    const currentPush = service.trigger_on_push ?? service.auto_deploy ?? true
+    if (triggerOnPush !== currentPush) return true
+    if (triggerOnTag !== (service.trigger_on_tag ?? false)) return true
+    if (tagPattern.trim() !== (service.tag_pattern || "*").trim()) return true
     if (volumeName.trim() !== (service.volume_name || "").trim()) return true
     if (volumeMountPath.trim() !== (service.volume_mount_path || "").trim())
       return true
@@ -143,7 +165,9 @@ export default function ServiceSettingsPage() {
     command,
     preDeployCommand,
     postDeployCommand,
-    autoDeploy,
+    triggerOnPush,
+    triggerOnTag,
+    tagPattern,
     volumeName,
     volumeMountPath,
   ])
@@ -162,7 +186,11 @@ export default function ServiceSettingsPage() {
     setCommand(service.command || "")
     setPreDeployCommand(service.pre_deploy_command || "")
     setPostDeployCommand(service.post_deploy_command || "")
-    setAutoDeploy(service.auto_deploy ?? false)
+    const pushEnabled = service.trigger_on_push ?? service.auto_deploy ?? true
+    setAutoDeploy(pushEnabled)
+    setTriggerOnPush(pushEnabled)
+    setTriggerOnTag(service.trigger_on_tag ?? false)
+    setTagPattern(service.tag_pattern || "*")
     setVolumeName(service.volume_name || "")
     setVolumeMountPath(service.volume_mount_path || "")
     showToast("success", "Changes discarded.")
@@ -178,7 +206,10 @@ export default function ServiceSettingsPage() {
         name: name.trim(),
         branch: branch.trim() || undefined,
         dockerfile_path: dockerfilePath.trim() || undefined,
-        auto_deploy: autoDeploy,
+        auto_deploy: triggerOnPush,
+        trigger_on_push: triggerOnPush,
+        trigger_on_tag: triggerOnTag,
+        tag_pattern: tagPattern.trim() || "*",
         command: command.trim() || undefined,
         pre_deploy_command: preDeployCommand.trim() || undefined,
         post_deploy_command: postDeployCommand.trim() || undefined,
@@ -402,20 +433,6 @@ export default function ServiceSettingsPage() {
                 </div>
               </div>
             )}
-
-            <div className="flex items-center gap-2 pt-1">
-              <Checkbox
-                id="auto-deploy"
-                checked={autoDeploy}
-                onCheckedChange={(checked) => setAutoDeploy(checked === true)}
-              />
-              <label
-                htmlFor="auto-deploy"
-                className="cursor-pointer text-xs font-medium text-foreground select-none"
-              >
-                Enable Auto Deploy on git push to the selected branch
-              </label>
-            </div>
           </div>
         </div>
 
@@ -472,6 +489,184 @@ export default function ServiceSettingsPage() {
                 <p className="text-2xs text-muted-foreground">
                   Relative path to the Dockerfile inside the repository root.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Section: Deployment Triggers */}
+        {!isDatabase && !isCompose && (
+          <div className="flex flex-col gap-4 rounded-md border border-border bg-card p-5">
+            <div className="flex items-center gap-2 border-b border-border pb-3">
+              <LightningIcon
+                className="size-4 text-foreground"
+                aria-hidden="true"
+              />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Deployment Triggers
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Automate deployments when code or tags are pushed to your
+                  repository.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              {/* Trigger on Push */}
+              <div className="flex items-start gap-3 rounded-md border border-border bg-muted/20 p-3.5">
+                <Checkbox
+                  id="auto-deploy"
+                  checked={triggerOnPush}
+                  onCheckedChange={(checked) => {
+                    setTriggerOnPush(checked === true)
+                    setAutoDeploy(checked === true)
+                  }}
+                  className="mt-0.5"
+                />
+                <div className="flex flex-1 flex-col gap-1">
+                  <label
+                    htmlFor="auto-deploy"
+                    className="cursor-pointer text-xs font-semibold text-foreground select-none"
+                  >
+                    Trigger on git push
+                  </label>
+                  <p className="text-2xs text-muted-foreground">
+                    Automatically build and deploy when new commits are pushed
+                    to{" "}
+                    <code className="rounded bg-muted px-1.5 py-0.5 font-mono font-medium text-foreground">
+                      {branch.trim() || "main"}
+                    </code>
+                    .
+                  </p>
+                </div>
+              </div>
+
+              {/* Trigger on Tag */}
+              <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/20 p-3.5">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="trigger-on-tag"
+                    checked={triggerOnTag}
+                    onCheckedChange={(checked) =>
+                      setTriggerOnTag(checked === true)
+                    }
+                    className="mt-0.5"
+                  />
+                  <div className="flex flex-1 flex-col gap-1">
+                    <label
+                      htmlFor="trigger-on-tag"
+                      className="cursor-pointer text-xs font-semibold text-foreground select-none"
+                    >
+                      Trigger on git tag
+                    </label>
+                    <p className="text-2xs text-muted-foreground">
+                      Automatically build and deploy when a git tag matching the
+                      pattern is pushed.
+                    </p>
+                  </div>
+                </div>
+
+                {triggerOnTag && (
+                  <div className="ml-7 flex flex-col gap-1.5 border-t border-border/60 pt-3">
+                    <label
+                      htmlFor="tag-pattern"
+                      className="text-xs font-medium text-foreground"
+                    >
+                      Tag Pattern
+                    </label>
+                    <div className="flex flex-col gap-1 sm:max-w-xs">
+                      <Input
+                        id="tag-pattern"
+                        value={tagPattern}
+                        onChange={(e) => setTagPattern(e.target.value)}
+                        placeholder="e.g. v* or *"
+                        className="h-8 font-mono text-xs"
+                      />
+                      <p className="text-3xs text-muted-foreground">
+                        Supports wildcards:{" "}
+                        <code className="font-mono">v*</code> for releases (e.g.
+                        v1.0.0), or <code className="font-mono">*</code> for all
+                        tags.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Service Webhook Configuration */}
+              <div className="flex flex-col gap-2.5 rounded-md border border-border bg-muted/30 p-3.5">
+                <div className="flex items-center gap-2">
+                  <LinkSimpleIcon
+                    className="size-4 text-foreground"
+                    aria-hidden="true"
+                  />
+                  <span className="text-xs font-semibold text-foreground">
+                    Webhook Setup for GitHub
+                  </span>
+                </div>
+                <p className="text-2xs leading-relaxed text-muted-foreground">
+                  If this repository is not connected via Tako&apos;s GitHub
+                  App, configure a webhook in your GitHub repository to trigger
+                  automatic builds on push or tag:
+                </p>
+
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <span className="text-3xs font-medium tracking-wider text-muted-foreground uppercase">
+                    Payload URL
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-1 items-center overflow-x-auto rounded-md border border-border bg-card px-3 py-1.5">
+                      <span className="font-mono text-xs text-foreground select-all">
+                        {webhookUrl ||
+                          (service?.id
+                            ? `https://gettako.dev/api/services/${service.id}/webhook`
+                            : "")}
+                      </span>
+                    </div>
+                    <CopyButton
+                      text={
+                        webhookUrl ||
+                        (service?.id
+                          ? `https://gettako.dev/api/services/${service.id}/webhook`
+                          : "")
+                      }
+                      label="Copy"
+                      variant="outline"
+                      size="default"
+                      aria-label="Copy service webhook URL"
+                      className="h-8 shrink-0 gap-1 px-2.5 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-md border border-border/80 bg-background/80 p-2.5 text-2xs text-muted-foreground">
+                  <p className="font-medium text-foreground">
+                    Setup instructions:
+                  </p>
+                  <ol className="mt-1 list-decimal space-y-1 pl-4">
+                    <li>
+                      In GitHub, go to your repository <strong>Settings</strong>{" "}
+                      &gt; <strong>Webhooks</strong> &gt;{" "}
+                      <strong>Add webhook</strong>.
+                    </li>
+                    <li>
+                      Paste the <strong>Payload URL</strong> above.
+                    </li>
+                    <li>
+                      Set <strong>Content type</strong> to{" "}
+                      <code className="font-mono text-foreground">
+                        application/json
+                      </code>
+                      .
+                    </li>
+                    <li>
+                      Under events, select <strong>Just the push event</strong>{" "}
+                      (delivers both branch pushes and tag pushes).
+                    </li>
+                  </ol>
+                </div>
               </div>
             </div>
           </div>

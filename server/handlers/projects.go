@@ -129,7 +129,7 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 	sRows, err := h.db.Query(`
 		SELECT id, project_id, server_id, name, service_type, parent_service_id, command, cron_expression,
 		       repository, branch, dockerfile_path, internal_port, published_port, health_check_path, status,
-		       primary_domain, active_deployment_id, auto_deploy, deploy_key_public,
+		       primary_domain, active_deployment_id, auto_deploy, trigger_on_push, trigger_on_tag, tag_pattern, deploy_key_public,
 		       database_engine, database_version, database_name, database_user,
 		       volume_name, volume_mount_path, connection_uri,
 		       created_at, updated_at
@@ -143,18 +143,21 @@ func (h *Handler) GetProject(w http.ResponseWriter, r *http.Request) {
 			var s models.Service
 			var sType string
 			var pPubPort sql.NullInt64
-			var pParentID, pCmd, pCronExpr, pDom, actDep, pPubKey sql.NullString
+			var pParentID, pCmd, pCronExpr, pDom, actDep, pPubKey, pTagPattern sql.NullString
 			var pDBEngine, pDBVersion, pDBName, pDBUser, pVolName, pVolMount, pConnURI sql.NullString
 			var sCreatedStr, sUpdatedStr string
 
 			if err := sRows.Scan(
 				&s.ID, &s.ProjectID, &s.ServerID, &s.Name, &sType, &pParentID, &pCmd, &pCronExpr,
 				&s.Repository, &s.Branch, &s.DockerfilePath, &s.InternalPort, &pPubPort, &s.HealthCheckPath, &s.Status,
-				&pDom, &actDep, &s.AutoDeploy, &pPubKey,
+				&pDom, &actDep, &s.AutoDeploy, &s.TriggerOnPush, &s.TriggerOnTag, &pTagPattern, &pPubKey,
 				&pDBEngine, &pDBVersion, &pDBName, &pDBUser,
 				&pVolName, &pVolMount, &pConnURI,
 				&sCreatedStr, &sUpdatedStr,
 			); err == nil {
+				if pTagPattern.Valid {
+					s.TagPattern = &pTagPattern.String
+				}
 				if sType == "" {
 					s.ServiceType = models.ServiceTypeWeb
 				} else {

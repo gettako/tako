@@ -42,13 +42,24 @@ import {
 import { cn } from "@/lib/utils"
 
 export function WebhookConfigCard({
-  payloadUrl = "https://gettako.dev/api/github/webhook",
+  payloadUrl,
   secret = "whsec_9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d",
 }: {
   payloadUrl?: string
   secret?: string
 }) {
   const [showSecret, setShowSecret] = React.useState(false)
+  const [currentUrl, setCurrentUrl] = React.useState(
+    payloadUrl || "https://gettako.dev/api/github/webhook"
+  )
+
+  React.useEffect(() => {
+    if (payloadUrl) {
+      setCurrentUrl(payloadUrl)
+    } else if (typeof window !== "undefined") {
+      setCurrentUrl(`${window.location.origin}/api/github/webhook`)
+    }
+  }, [payloadUrl])
 
   return (
     <div className="rounded-lg border border-border bg-card p-6">
@@ -69,11 +80,11 @@ export function WebhookConfigCard({
           <div className="flex items-center gap-2">
             <div className="flex flex-1 items-center rounded-md border border-border bg-muted/50 px-3 py-2">
               <span className="font-mono text-xs text-foreground">
-                {payloadUrl}
+                {currentUrl}
               </span>
             </div>
             <CopyButton
-              text={payloadUrl}
+              text={currentUrl}
               label="Copy"
               variant="outline"
               size="default"

@@ -892,6 +892,10 @@ providers:
         github_connection_id: request.github_connection_id ?? null,
         pre_deploy_command: request.pre_deploy_command ?? null,
         post_deploy_command: request.post_deploy_command ?? null,
+        auto_deploy: request.trigger_on_push ?? request.auto_deploy ?? true,
+        trigger_on_push: request.trigger_on_push ?? request.auto_deploy ?? true,
+        trigger_on_tag: request.trigger_on_tag ?? false,
+        tag_pattern: request.tag_pattern ?? "*",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -982,8 +986,17 @@ providers:
         service.post_deploy_command = request.post_deploy_command
       if (request.github_connection_id !== undefined)
         service.github_connection_id = request.github_connection_id
-      if (request.auto_deploy !== undefined)
+      if (request.trigger_on_push !== undefined) {
+        service.trigger_on_push = request.trigger_on_push
+        service.auto_deploy = request.trigger_on_push
+      } else if (request.auto_deploy !== undefined) {
         service.auto_deploy = request.auto_deploy
+        service.trigger_on_push = request.auto_deploy
+      }
+      if (request.trigger_on_tag !== undefined)
+        service.trigger_on_tag = request.trigger_on_tag
+      if (request.tag_pattern !== undefined)
+        service.tag_pattern = request.tag_pattern
       service.updated_at = new Date().toISOString()
 
       return structuredClone(service)

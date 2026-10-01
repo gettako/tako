@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -37,7 +39,7 @@ func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 	query := `
 		SELECT id, project_id, server_id, name, service_type, parent_service_id, command, cron_expression,
 		       repository, branch, dockerfile_path, internal_port, published_port, health_check_path, status,
-		       primary_domain, active_deployment_id, auto_deploy, deploy_key_public,
+		       primary_domain, active_deployment_id, auto_deploy, trigger_on_push, trigger_on_tag, tag_pattern, deploy_key_public,
 		       database_engine, database_version, database_name, database_user,
 		       volume_name, volume_mount_path, connection_uri,
 		       pre_deploy_command, post_deploy_command,
@@ -77,7 +79,7 @@ func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 		var s models.Service
 		var sType string
 		var pPubPort sql.NullInt64
-		var pParentID, pCmd, pCronExpr, pDom, actDep, pPubKey sql.NullString
+		var pParentID, pCmd, pCronExpr, pDom, actDep, pPubKey, pTagPattern sql.NullString
 		var pDBEngine, pDBVersion, pDBName, pDBUser, pVolName, pVolMount, pConnURI sql.NullString
 		var pPreDeploy, pPostDeploy sql.NullString
 		var pComposeContent, pComposePath, pGHConnID sql.NullString
@@ -86,7 +88,7 @@ func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(
 			&s.ID, &s.ProjectID, &s.ServerID, &s.Name, &sType, &pParentID, &pCmd, &pCronExpr,
 			&s.Repository, &s.Branch, &s.DockerfilePath, &s.InternalPort, &pPubPort, &s.HealthCheckPath, &s.Status,
-			&pDom, &actDep, &s.AutoDeploy, &pPubKey,
+			&pDom, &actDep, &s.AutoDeploy, &s.TriggerOnPush, &s.TriggerOnTag, &pTagPattern, &pPubKey,
 			&pDBEngine, &pDBVersion, &pDBName, &pDBUser,
 			&pVolName, &pVolMount, &pConnURI,
 			&pPreDeploy, &pPostDeploy,
@@ -97,6 +99,10 @@ func (h *Handler) ListServices(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			sendError(w, http.StatusInternalServerError, "Failed to read service row")
 			return
+		}
+
+		if pTagPattern.Valid {
+			s.TagPattern = &pTagPattern.String
 		}
 
 		if sType == "" {
@@ -464,6 +470,19 @@ func (h *Handler) CreateService(w http.ResponseWriter, r *http.Request) {
 	if req.AutoDeploy != nil {
 		autoDeploy = *req.AutoDeploy
 	}
+	triggerOnPush := autoDeploy
+	if req.TriggerOnPush != nil {
+		triggerOnPush = *req.TriggerOnPush
+		autoDeploy = triggerOnPush
+	}
+	triggerOnTag := false
+	if req.TriggerOnTag != nil {
+		triggerOnTag = *req.TriggerOnTag
+	}
+	tagPattern := "*"
+	if req.TagPattern != nil && strings.TrimSpace(*req.TagPattern) != "" {
+		tagPattern = strings.TrimSpace(*req.TagPattern)
+	}
 
 	var pubKey string
 	var encPrivKey, nonce []byte
@@ -490,7 +509,8 @@ func (h *Handler) CreateService(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO services (
 			id, project_id, server_id, name, service_type, parent_service_id, command, cron_expression,
 			repository, branch, dockerfile_path, internal_port, published_port, health_check_path, status,
-			auto_deploy, deploy_key_public, deploy_key_private_encrypted, deploy_key_nonce,
+			auto_deploy, trigger_on_push, trigger_on_tag, tag_pattern,
+			deploy_key_public, deploy_key_private_encrypted, deploy_key_nonce,
 			database_engine, database_version, database_name, database_user,
 			database_password_encrypted, database_password_nonce,
 			volume_name, volume_mount_path, connection_uri,
@@ -498,10 +518,10 @@ func (h *Handler) CreateService(w http.ResponseWriter, r *http.Request) {
 			compose_file_content, compose_file_path,
 			github_connection_id,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'stopped', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'stopped', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`, id, req.ProjectID, req.ServerID, req.Name, string(serviceType), parentIDPtr, cmdPtr, cronExprPtr,
 		req.Repository, req.Branch, req.DockerfilePath, req.InternalPort, publishedPortPtr, req.HealthCheckPath,
-		autoDeploy, pubKeyPtr, encPrivKey, nonce,
+		autoDeploy, triggerOnPush, triggerOnTag, tagPattern, pubKeyPtr, encPrivKey, nonce,
 		pDBEnginePtr, pDBVersionPtr, pDBNamePtr, pDBUserPtr,
 		dbPassEnc, dbPassNonce,
 		pVolNamePtr, pVolMountPtr, pConnURIPtr,
@@ -585,6 +605,9 @@ func (h *Handler) CreateService(w http.ResponseWriter, r *http.Request) {
 		HealthCheckPath:    req.HealthCheckPath,
 		Status:             models.ServiceStopped,
 		AutoDeploy:         autoDeploy,
+		TriggerOnPush:      triggerOnPush,
+		TriggerOnTag:       triggerOnTag,
+		TagPattern:         &tagPattern,
 		DeployKeyPublic:    pubKeyPtr,
 		CreatedAt:          now,
 		UpdatedAt:          now,
@@ -620,10 +643,11 @@ func (h *Handler) GetService(w http.ResponseWriter, r *http.Request) {
 	var pComposeContent, pComposePath, pGHConnID sql.NullString
 	var dbPassEnc, dbPassNonce []byte
 
+	var pTagPattern sql.NullString
 	err := h.db.QueryRow(`
 		SELECT id, project_id, server_id, name, service_type, parent_service_id, command, cron_expression,
 		       repository, branch, dockerfile_path, internal_port, published_port, health_check_path, status,
-		       primary_domain, active_deployment_id, auto_deploy, deploy_key_public,
+		       primary_domain, active_deployment_id, auto_deploy, trigger_on_push, trigger_on_tag, tag_pattern, deploy_key_public,
 		       database_engine, database_version, database_name, database_user,
 		       database_password_encrypted, database_password_nonce,
 		       volume_name, volume_mount_path, connection_uri,
@@ -635,7 +659,7 @@ func (h *Handler) GetService(w http.ResponseWriter, r *http.Request) {
 	`, id).Scan(
 		&s.ID, &s.ProjectID, &s.ServerID, &s.Name, &sType, &pParentID, &pCmd, &pCronExpr,
 		&s.Repository, &s.Branch, &s.DockerfilePath, &s.InternalPort, &pPubPort, &s.HealthCheckPath, &s.Status,
-		&pDom, &actDep, &s.AutoDeploy, &pPubKey,
+		&pDom, &actDep, &s.AutoDeploy, &s.TriggerOnPush, &s.TriggerOnTag, &pTagPattern, &pPubKey,
 		&pDBEngine, &pDBVersion, &pDBName, &pDBUser,
 		&dbPassEnc, &dbPassNonce,
 		&pVolName, &pVolMount, &pConnURI,
@@ -651,6 +675,10 @@ func (h *Handler) GetService(w http.ResponseWriter, r *http.Request) {
 		}
 		sendError(w, http.StatusInternalServerError, "Database error")
 		return
+	}
+
+	if pTagPattern.Valid {
+		s.TagPattern = &pTagPattern.String
 	}
 
 	if sType == "" {
@@ -846,7 +874,7 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 
 	var s models.Service
 	var sType string
-	var pParentID, pCmd, pCronExpr, pDom, actDep, pPubKey sql.NullString
+	var pParentID, pCmd, pCronExpr, pDom, actDep, pPubKey, pTagPattern sql.NullString
 	var pPreDeploy, pPostDeploy sql.NullString
 	var pComposeContent, pComposePath, pGHConnID sql.NullString
 	var createdAtStr, updatedAtStr string
@@ -854,7 +882,7 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	err := h.db.QueryRow(`
 		SELECT id, project_id, server_id, name, service_type, parent_service_id, command, cron_expression,
 		       repository, branch, dockerfile_path, internal_port, health_check_path, status,
-		       primary_domain, active_deployment_id, auto_deploy, deploy_key_public,
+		       primary_domain, active_deployment_id, auto_deploy, trigger_on_push, trigger_on_tag, tag_pattern, deploy_key_public,
 		       pre_deploy_command, post_deploy_command,
 		       compose_file_content, compose_file_path,
 		       github_connection_id,
@@ -863,7 +891,7 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	`, id).Scan(
 		&s.ID, &s.ProjectID, &s.ServerID, &s.Name, &sType, &pParentID, &pCmd, &pCronExpr,
 		&s.Repository, &s.Branch, &s.DockerfilePath, &s.InternalPort, &s.HealthCheckPath, &s.Status,
-		&pDom, &actDep, &s.AutoDeploy, &pPubKey,
+		&pDom, &actDep, &s.AutoDeploy, &s.TriggerOnPush, &s.TriggerOnTag, &pTagPattern, &pPubKey,
 		&pPreDeploy, &pPostDeploy,
 		&pComposeContent, &pComposePath,
 		&pGHConnID,
@@ -876,6 +904,10 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		}
 		sendError(w, http.StatusInternalServerError, "Database error")
 		return
+	}
+
+	if pTagPattern.Valid {
+		s.TagPattern = &pTagPattern.String
 	}
 
 	if sType == "" {
@@ -938,8 +970,22 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	if req.ServerID != nil && strings.TrimSpace(*req.ServerID) != "" {
 		s.ServerID = strings.TrimSpace(*req.ServerID)
 	}
-	if req.AutoDeploy != nil {
+	if req.TriggerOnPush != nil {
+		s.TriggerOnPush = *req.TriggerOnPush
+		s.AutoDeploy = s.TriggerOnPush
+	} else if req.AutoDeploy != nil {
 		s.AutoDeploy = *req.AutoDeploy
+		s.TriggerOnPush = s.AutoDeploy
+	}
+	if req.TriggerOnTag != nil {
+		s.TriggerOnTag = *req.TriggerOnTag
+	}
+	if req.TagPattern != nil {
+		tp := strings.TrimSpace(*req.TagPattern)
+		if tp == "" {
+			tp = "*"
+		}
+		s.TagPattern = &tp
 	}
 	if req.Command != nil {
 		c := strings.TrimSpace(*req.Command)
@@ -997,15 +1043,21 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 		s.GitHubConnectionID = req.GitHubConnectionID
 	}
 
+	tagPatternVal := "*"
+	if s.TagPattern != nil && *s.TagPattern != "" {
+		tagPatternVal = *s.TagPattern
+	}
+
 	_, err = h.db.Exec(`
 		UPDATE services SET
 			name = ?, service_type = ?, branch = ?, dockerfile_path = ?, internal_port = ?, published_port = ?,
-			health_check_path = ?, server_id = ?, auto_deploy = ?,
+			health_check_path = ?, server_id = ?, auto_deploy = ?, trigger_on_push = ?, trigger_on_tag = ?, tag_pattern = ?,
 			command = ?, cron_expression = ?, pre_deploy_command = ?, post_deploy_command = ?,
 			volume_name = ?, volume_mount_path = ?, compose_file_content = ?, compose_file_path = ?,
 			github_connection_id = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
 	`, s.Name, s.ServiceType, s.Branch, s.DockerfilePath, s.InternalPort, s.PublishedPort, s.HealthCheckPath, s.ServerID, s.AutoDeploy,
+		s.TriggerOnPush, s.TriggerOnTag, tagPatternVal,
 		s.Command, s.CronExpression, s.PreDeployCommand, s.PostDeployCommand,
 		s.VolumeName, s.VolumeMountPath, s.ComposeFileContent, s.ComposeFilePath,
 		s.GitHubConnectionID, id)
@@ -1072,10 +1124,11 @@ func (h *Handler) getServiceByID(id string) (*models.Service, error) {
 	var dbPassEnc, dbPassNonce []byte
 	var createdAtStr, updatedAtStr string
 
+	var pTagPattern sql.NullString
 	err := h.db.QueryRow(`
 		SELECT id, project_id, server_id, name, service_type, parent_service_id, command, cron_expression,
 		       repository, branch, dockerfile_path, internal_port, published_port, health_check_path, status,
-		       primary_domain, active_deployment_id, auto_deploy, deploy_key_public,
+		       primary_domain, active_deployment_id, auto_deploy, trigger_on_push, trigger_on_tag, tag_pattern, deploy_key_public,
 		       database_engine, database_version, database_name, database_user,
 		       database_password_encrypted, database_password_nonce,
 		       volume_name, volume_mount_path, connection_uri,
@@ -1087,7 +1140,7 @@ func (h *Handler) getServiceByID(id string) (*models.Service, error) {
 	`, id).Scan(
 		&s.ID, &s.ProjectID, &s.ServerID, &s.Name, &sType, &pParentID, &pCmd, &pCronExpr,
 		&s.Repository, &s.Branch, &s.DockerfilePath, &s.InternalPort, &pPubPort, &s.HealthCheckPath, &s.Status,
-		&pDom, &actDep, &s.AutoDeploy, &pPubKey,
+		&pDom, &actDep, &s.AutoDeploy, &s.TriggerOnPush, &s.TriggerOnTag, &pTagPattern, &pPubKey,
 		&pDBEngine, &pDBVersion, &pDBName, &pDBUser,
 		&dbPassEnc, &dbPassNonce,
 		&pVolName, &pVolMount, &pConnURI,
@@ -1098,6 +1151,10 @@ func (h *Handler) getServiceByID(id string) (*models.Service, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if pTagPattern.Valid {
+		s.TagPattern = &pTagPattern.String
 	}
 
 	if sType == "" {
@@ -1783,5 +1840,168 @@ func (h *Handler) GetStackOverview(w http.ResponseWriter, r *http.Request) {
 		ComposeContent: composeContent,
 		ComposePath:    composePath,
 		SubServices:    subServices,
+	})
+}
+
+func (h *Handler) HandleServiceWebhook(w http.ResponseWriter, r *http.Request) {
+	serviceID := chi.URLParam(r, "id")
+	s, err := h.getServiceByID(serviceID)
+	if err != nil || s == nil {
+		sendError(w, http.StatusNotFound, "Service not found")
+		return
+	}
+
+	event := r.Header.Get("X-GitHub-Event")
+	if event == "ping" {
+		sendJSON(w, http.StatusOK, models.WebhookResponse{Received: true})
+		return
+	}
+
+	bodyBytes, _ := io.ReadAll(r.Body)
+
+	var commitSHA, commitMsg, commitAuthor string
+	targetRef := s.Branch
+	triggerType := "webhook"
+
+	if len(bodyBytes) > 0 {
+		var payload struct {
+			Ref        string `json:"ref"`
+			After      string `json:"after"`
+			Deleted    bool   `json:"deleted"`
+			HeadCommit struct {
+				ID      string `json:"id"`
+				Message string `json:"message"`
+				Author  struct {
+					Name string `json:"name"`
+				} `json:"author"`
+			} `json:"head_commit"`
+		}
+
+		if err := json.Unmarshal(bodyBytes, &payload); err == nil && payload.Ref != "" {
+			if payload.Deleted {
+				f := false
+				sendJSON(w, http.StatusOK, models.WebhookResponse{
+					Received:            true,
+					DeploymentTriggered: &f,
+				})
+				return
+			}
+
+			commitSHA = payload.HeadCommit.ID
+			if commitSHA == "" {
+				commitSHA = payload.After
+			}
+			commitMsg = payload.HeadCommit.Message
+			commitAuthor = payload.HeadCommit.Author.Name
+
+			if strings.Contains(commitMsg, "[skip deploy]") || strings.Contains(commitMsg, "[skip ci]") {
+				slog.Info("skipping deployment due to commit message flag",
+					slog.String("service_id", s.ID),
+					slog.String("commit_sha", commitSHA),
+					slog.String("message", commitMsg),
+				)
+				f := false
+				sendJSON(w, http.StatusOK, models.WebhookResponse{
+					Received:            true,
+					DeploymentTriggered: &f,
+				})
+				return
+			}
+
+			ref := payload.Ref
+			if strings.HasPrefix(ref, "refs/tags/") {
+				tagName := strings.TrimPrefix(ref, "refs/tags/")
+				if !s.TriggerOnTag {
+					slog.Info("ignoring tag push: trigger_on_tag is disabled for service",
+						slog.String("service_id", s.ID),
+						slog.String("tag", tagName),
+					)
+					f := false
+					sendJSON(w, http.StatusOK, models.WebhookResponse{
+						Received:            true,
+						DeploymentTriggered: &f,
+					})
+					return
+				}
+
+				pattern := "*"
+				if s.TagPattern != nil && *s.TagPattern != "" {
+					pattern = *s.TagPattern
+				}
+				if !matchTag(pattern, tagName) {
+					slog.Info("ignoring tag push: tag does not match configured tag_pattern",
+						slog.String("service_id", s.ID),
+						slog.String("tag", tagName),
+						slog.String("pattern", pattern),
+					)
+					f := false
+					sendJSON(w, http.StatusOK, models.WebhookResponse{
+						Received:            true,
+						DeploymentTriggered: &f,
+					})
+					return
+				}
+
+				targetRef = tagName
+				triggerType = "tag"
+			} else {
+				branch := strings.TrimPrefix(ref, "refs/heads/")
+				if !s.TriggerOnPush && !s.AutoDeploy {
+					slog.Info("ignoring branch push: trigger_on_push is disabled for service",
+						slog.String("service_id", s.ID),
+						slog.String("branch", branch),
+					)
+					f := false
+					sendJSON(w, http.StatusOK, models.WebhookResponse{
+						Received:            true,
+						DeploymentTriggered: &f,
+					})
+					return
+				}
+
+				if s.Branch != "" && branch != s.Branch {
+					slog.Info("ignoring branch push: pushed branch does not match service configured branch",
+						slog.String("service_id", s.ID),
+						slog.String("pushed_branch", branch),
+						slog.String("service_branch", s.Branch),
+					)
+					f := false
+					sendJSON(w, http.StatusOK, models.WebhookResponse{
+						Received:            true,
+						DeploymentTriggered: &f,
+					})
+					return
+				}
+
+				targetRef = branch
+				triggerType = "push"
+			}
+		}
+	}
+
+	if h.orchestrator != nil {
+		req := &models.CreateDeploymentRequest{
+			Branch:        &targetRef,
+			CommitSHA:     &commitSHA,
+			CommitMessage: &commitMsg,
+			CommitAuthor:  &commitAuthor,
+			TriggerType:   &triggerType,
+		}
+		_, depErr := h.orchestrator.TriggerDeployment(r.Context(), s.ID, req)
+		if depErr != nil {
+			slog.Error("failed to trigger service webhook deployment",
+				slog.String("service_id", s.ID),
+				slog.String("error", depErr.Error()),
+			)
+			sendError(w, http.StatusInternalServerError, "Failed to trigger deployment: "+depErr.Error())
+			return
+		}
+	}
+
+	t := true
+	sendJSON(w, http.StatusOK, models.WebhookResponse{
+		Received:            true,
+		DeploymentTriggered: &t,
+		ServiceID:           &s.ID,
 	})
 }

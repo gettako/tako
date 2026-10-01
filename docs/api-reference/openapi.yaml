@@ -1086,6 +1086,27 @@ paths:
         '404':
           $ref: '#/components/responses/NotFoundError'
 
+  /api/services/{id}/webhook:
+    post:
+      summary: Service webhook trigger
+      description: Webhook endpoint dedicated to a single service. Receives push and tag events from GitHub, GitLab, or generic webhooks to trigger automated deployments.
+      operationId: triggerServiceWebhook
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Webhook received and processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
   /api/services/{id}/pull-update:
     post:
       summary: Pull latest image and recreate container
@@ -3769,6 +3790,17 @@ components:
         auto_deploy:
           type: boolean
           example: true
+        trigger_on_push:
+          type: boolean
+          example: true
+        trigger_on_tag:
+          type: boolean
+          example: false
+        tag_pattern:
+          type:
+            - string
+            - 'null'
+          example: '*'
         created_at:
           type: string
           format: date-time
@@ -3888,6 +3920,17 @@ components:
         auto_deploy:
           type: boolean
           example: true
+        trigger_on_push:
+          type: boolean
+          example: true
+        trigger_on_tag:
+          type: boolean
+          example: false
+        tag_pattern:
+          type:
+            - string
+            - 'null'
+          example: '*'
 
     UpdateServiceRequest:
       type: object
@@ -3949,6 +3992,17 @@ components:
         auto_deploy:
           type: boolean
           example: true
+        trigger_on_push:
+          type: boolean
+          example: true
+        trigger_on_tag:
+          type: boolean
+          example: false
+        tag_pattern:
+          type:
+            - string
+            - 'null'
+          example: '*'
 
     RebuildRequest:
       type: object

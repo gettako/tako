@@ -128,6 +128,9 @@ type Service struct {
 	PublishedPort         *int          `json:"published_port,omitempty"`
 	ActiveDeploymentID    *string       `json:"active_deployment_id"`
 	AutoDeploy            bool          `json:"auto_deploy"`
+	TriggerOnPush         bool          `json:"trigger_on_push"`
+	TriggerOnTag          bool          `json:"trigger_on_tag"`
+	TagPattern            *string       `json:"tag_pattern,omitempty"`
 	DeployKeyPublic       *string       `json:"deploy_key_public,omitempty"`
 	IsPreview             bool          `json:"is_preview,omitempty"`
 	PRNumber              *int          `json:"pr_number,omitempty"`
@@ -172,6 +175,9 @@ type CreateServiceRequest struct {
 	PublishedPort      *int         `json:"published_port,omitempty"`
 	HealthCheckPath    string       `json:"health_check_path"`
 	AutoDeploy         *bool        `json:"auto_deploy,omitempty"`
+	TriggerOnPush      *bool        `json:"trigger_on_push,omitempty"`
+	TriggerOnTag       *bool        `json:"trigger_on_tag,omitempty"`
+	TagPattern         *string      `json:"tag_pattern,omitempty"`
 	ServiceType        *ServiceType `json:"service_type,omitempty"`
 	ParentServiceID    *string      `json:"parent_service_id,omitempty"`
 	Command            *string      `json:"command,omitempty"`
@@ -205,6 +211,9 @@ type UpdateServiceRequest struct {
 	HealthCheckPath    *string      `json:"health_check_path,omitempty"`
 	ServerID           *string      `json:"server_id,omitempty"`
 	AutoDeploy         *bool        `json:"auto_deploy,omitempty"`
+	TriggerOnPush      *bool        `json:"trigger_on_push,omitempty"`
+	TriggerOnTag       *bool        `json:"trigger_on_tag,omitempty"`
+	TagPattern         *string      `json:"tag_pattern,omitempty"`
 	Command            *string      `json:"command,omitempty"`
 	CronExpression     *string      `json:"cron_expression,omitempty"`
 	PreDeployCommand   *string      `json:"pre_deploy_command,omitempty"`

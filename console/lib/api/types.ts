@@ -708,6 +708,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/services/{id}/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Service webhook trigger
+         * @description Webhook endpoint dedicated to a single service. Receives push and tag events from GitHub, GitLab, or generic webhooks to trigger automated deployments.
+         */
+        post: operations["triggerServiceWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/services/{id}/pull-update": {
         parameters: {
             query?: never;
@@ -2256,6 +2276,12 @@ export interface components {
             github_connection_id?: string | null;
             /** @example true */
             auto_deploy?: boolean;
+            /** @example true */
+            trigger_on_push?: boolean;
+            /** @example false */
+            trigger_on_tag?: boolean;
+            /** @example * */
+            tag_pattern?: string | null;
             /**
              * Format: date-time
              * @example 2026-09-28T12:00:00Z
@@ -2342,6 +2368,12 @@ export interface components {
             github_connection_id?: string | null;
             /** @example true */
             auto_deploy?: boolean;
+            /** @example true */
+            trigger_on_push?: boolean;
+            /** @example false */
+            trigger_on_tag?: boolean;
+            /** @example * */
+            tag_pattern?: string | null;
         };
         UpdateServiceRequest: {
             /** @example acme-web */
@@ -2384,6 +2416,12 @@ export interface components {
             github_connection_id?: string | null;
             /** @example true */
             auto_deploy?: boolean;
+            /** @example true */
+            trigger_on_push?: boolean;
+            /** @example false */
+            trigger_on_tag?: boolean;
+            /** @example * */
+            tag_pattern?: string | null;
         };
         RebuildRequest: {
             /** @example main */
@@ -4644,6 +4682,31 @@ export interface operations {
             };
             400: components["responses"]["BadRequestError"];
             401: components["responses"]["UnauthorizedError"];
+            404: components["responses"]["NotFoundError"];
+        };
+    };
+    triggerServiceWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique identifier of the service */
+                id: components["parameters"]["ServiceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook received and processed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookResponse"];
+                };
+            };
+            400: components["responses"]["BadRequestError"];
             404: components["responses"]["NotFoundError"];
         };
     };

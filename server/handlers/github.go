@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -966,7 +967,10 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 
 	type PushPayload struct {
 		Ref        string `json:"ref"`
+		Before     string `json:"before"`
 		After      string `json:"after"`
+		Created    bool   `json:"created"`
+		Deleted    bool   `json:"deleted"`
 		Repository struct {
 			Name     string `json:"name"`
 			FullName string `json:"full_name"`
@@ -990,9 +994,25 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	branch := payload.Ref
-	if strings.HasPrefix(branch, "refs/heads/") {
-		branch = strings.TrimPrefix(branch, "refs/heads/")
+	if payload.Deleted {
+		f := false
+		sendJSON(w, http.StatusOK, models.WebhookResponse{
+			Received:            true,
+			DeploymentTriggered: &f,
+		})
+		return
+	}
+
+	ref := payload.Ref
+	isTag := false
+	var tagName string
+	branch := ref
+	if strings.HasPrefix(ref, "refs/tags/") {
+		isTag = true
+		tagName = strings.TrimPrefix(ref, "refs/tags/")
+		branch = tagName
+	} else if strings.HasPrefix(ref, "refs/heads/") {
+		branch = strings.TrimPrefix(ref, "refs/heads/")
 	}
 
 	commitSHA := payload.HeadCommit.ID
@@ -1023,30 +1043,62 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 	var matchedServiceIDs []string
 
 	if h.db != nil {
-		var query string
-		var args []any
-		if connectionID != "" {
-			query = `
-				SELECT id, repository FROM services
-				WHERE branch = ? AND auto_deploy = 1 AND github_connection_id = ?
-			`
-			args = []any{branch, connectionID}
-		} else {
-			query = `
-				SELECT id, repository FROM services
-				WHERE branch = ? AND auto_deploy = 1
-			`
-			args = []any{branch}
-		}
+		if isTag {
+			var query string
+			var args []any
+			if connectionID != "" {
+				query = `
+					SELECT id, repository, tag_pattern FROM services
+					WHERE trigger_on_tag = 1 AND (github_connection_id = ? OR github_connection_id IS NULL OR github_connection_id = '')
+				`
+				args = []any{connectionID}
+			} else {
+				query = `
+					SELECT id, repository, tag_pattern FROM services
+					WHERE trigger_on_tag = 1
+				`
+			}
 
-		rows, err := h.db.Query(query, args...)
-		if err == nil {
-			defer rows.Close()
-			for rows.Next() {
-				var sID, sRepo string
-				if err := rows.Scan(&sID, &sRepo); err == nil {
-					if NormalizeRepo(sRepo) == pushedRepo {
-						matchedServiceIDs = append(matchedServiceIDs, sID)
+			rows, err := h.db.Query(query, args...)
+			if err == nil {
+				defer rows.Close()
+				for rows.Next() {
+					var sID, sRepo, sTagPattern string
+					if err := rows.Scan(&sID, &sRepo, &sTagPattern); err == nil {
+						if NormalizeRepo(sRepo) == pushedRepo {
+							if matchTag(sTagPattern, tagName) {
+								matchedServiceIDs = append(matchedServiceIDs, sID)
+							}
+						}
+					}
+				}
+			}
+		} else {
+			var query string
+			var args []any
+			if connectionID != "" {
+				query = `
+					SELECT id, repository FROM services
+					WHERE branch = ? AND (trigger_on_push = 1 OR auto_deploy = 1) AND (github_connection_id = ? OR github_connection_id IS NULL OR github_connection_id = '')
+				`
+				args = []any{branch, connectionID}
+			} else {
+				query = `
+					SELECT id, repository FROM services
+					WHERE branch = ? AND (trigger_on_push = 1 OR auto_deploy = 1)
+				`
+				args = []any{branch}
+			}
+
+			rows, err := h.db.Query(query, args...)
+			if err == nil {
+				defer rows.Close()
+				for rows.Next() {
+					var sID, sRepo string
+					if err := rows.Scan(&sID, &sRepo); err == nil {
+						if NormalizeRepo(sRepo) == pushedRepo {
+							matchedServiceIDs = append(matchedServiceIDs, sID)
+						}
 					}
 				}
 			}
@@ -1054,6 +1106,9 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 	}
 
 	triggerType := "webhook"
+	if isTag {
+		triggerType = "tag"
+	}
 	req := &models.CreateDeploymentRequest{
 		Branch:        &branch,
 		CommitSHA:     &commitSHA,
@@ -1090,4 +1145,16 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 		Received:            true,
 		DeploymentTriggered: &f,
 	})
+}
+
+func matchTag(pattern, tagName string) bool {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" || pattern == "*" {
+		return true
+	}
+	matched, err := path.Match(pattern, tagName)
+	if err != nil {
+		return pattern == tagName
+	}
+	return matched
 }
