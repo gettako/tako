@@ -192,6 +192,9 @@ export function CreateServiceWizard({
   const [preDeployCommand, setPreDeployCommand] = React.useState("")
   const [postDeployCommand, setPostDeployCommand] = React.useState("")
 
+  // Step 3: Worker mode toggle
+  const [isWorker, setIsWorker] = React.useState(false)
+
   // Step 3: Env vars (app category only)
   const [envVarsText, setEnvVarsText] = React.useState("")
   const [envVarsExpanded, setEnvVarsExpanded] = React.useState(false)
@@ -379,9 +382,10 @@ services:
 
   const canGoNextFromStep3 =
     serviceName.trim().length >= 2 &&
-    !isNaN(Number(internalPort)) &&
-    Number(internalPort) >= 1 &&
-    Number(internalPort) <= 65535
+    (isWorker ||
+      (!isNaN(Number(internalPort)) &&
+        Number(internalPort) >= 1 &&
+        Number(internalPort) <= 65535))
 
   const canSubmit = canGoNextFromStep3 && selectedServerId.trim().length > 0
 
@@ -595,8 +599,9 @@ services:
         repository: repoString,
         branch: selectedBranch.trim(),
         dockerfile_path: dockerfilePath.trim(),
-        internal_port: parseInt(internalPort, 10),
-        health_check_path: healthCheckPath.trim() || "/healthz",
+        service_type: isWorker ? "worker" : "web",
+        internal_port: isWorker ? 0 : parseInt(internalPort, 10),
+        health_check_path: isWorker ? "" : healthCheckPath.trim() || "/healthz",
         volume_name: appVolumeName.trim() || undefined,
         volume_mount_path: appVolumeMount.trim() || undefined,
         pre_deploy_command: preDeployCommand.trim() || undefined,
@@ -1092,56 +1097,92 @@ services:
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="internal-port"
-                    className="text-xs font-medium text-foreground"
-                  >
-                    Internal Port <span className="text-destructive">*</span>
-                  </label>
-                  <Input
-                    id="internal-port"
-                    type="number"
-                    placeholder="3000"
-                    value={internalPort}
-                    onChange={(e) => setInternalPort(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        if (canGoNextFromStep3) handleNext()
-                      }
-                    }}
-                  />
-                  <p className="text-2xs text-muted-foreground">
-                    Container port (e.g. 3000, 8080).
-                  </p>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="health-check"
-                    className="text-xs font-medium text-foreground"
-                  >
-                    Health Check Path
-                  </label>
-                  <Input
-                    id="health-check"
-                    placeholder="/healthz"
-                    value={healthCheckPath}
-                    onChange={(e) => setHealthCheckPath(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        if (canGoNextFromStep3) handleNext()
-                      }
-                    }}
-                  />
-                  <p className="text-2xs text-muted-foreground">
-                    HTTP endpoint for health checks.
-                  </p>
-                </div>
+              {/* Service Type Toggle */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsWorker(false)}
+                  className={cn(
+                    "flex min-h-10 cursor-pointer flex-col items-start rounded-md border p-3 text-left transition-colors",
+                    !isWorker
+                      ? "border-ring bg-muted/40 ring-1 ring-ring"
+                      : "border-input bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                  )}
+                >
+                  <span className="text-xs font-semibold">Web / API</span>
+                  <span className="text-2xs text-muted-foreground">
+                    HTTP app with port and health check
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsWorker(true)}
+                  className={cn(
+                    "flex min-h-10 cursor-pointer flex-col items-start rounded-md border p-3 text-left transition-colors",
+                    isWorker
+                      ? "border-ring bg-muted/40 ring-1 ring-ring"
+                      : "border-input bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                  )}
+                >
+                  <span className="text-xs font-semibold">Worker</span>
+                  <span className="text-2xs text-muted-foreground">
+                    Background job, no HTTP or port needed
+                  </span>
+                </button>
               </div>
+
+              {!isWorker && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="internal-port"
+                      className="text-xs font-medium text-foreground"
+                    >
+                      Internal Port <span className="text-destructive">*</span>
+                    </label>
+                    <Input
+                      id="internal-port"
+                      type="number"
+                      placeholder="3000"
+                      value={internalPort}
+                      onChange={(e) => setInternalPort(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          if (canGoNextFromStep3) handleNext()
+                        }
+                      }}
+                    />
+                    <p className="text-2xs text-muted-foreground">
+                      Port your app listens on inside the container.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label
+                      htmlFor="health-check"
+                      className="text-xs font-medium text-foreground"
+                    >
+                      Health Check Path
+                    </label>
+                    <Input
+                      id="health-check"
+                      placeholder="/healthz"
+                      value={healthCheckPath}
+                      onChange={(e) => setHealthCheckPath(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          if (canGoNextFromStep3) handleNext()
+                        }
+                      }}
+                    />
+                    <p className="text-2xs text-muted-foreground">
+                      HTTP endpoint for health checks.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* SQLite Persistent Volume Section (ADR-008) */}
               <div className="flex flex-col gap-2 rounded-md border border-border bg-muted/20 p-3">
