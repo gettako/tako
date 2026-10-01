@@ -226,13 +226,16 @@ func (r *Runner) LaunchAndVerify(ctx context.Context, job *protocol.DeployJob, i
 	containerID := createResp.ID
 
 	if publishedPort > 0 {
-		// Stop previous running containers of this service so host port is released
+		// Stop and remove previous containers of this service BEFORE starting the new one.
+		// The port binding is only released once the old container is fully removed; merely
+		// stopping it is not enough — Docker still holds the NAT rule until removal.
 		containers, listErr := r.cli.ContainerList(ctx, container.ListOptions{})
 		if listErr == nil {
 			for _, c := range containers {
 				if c.Labels["tako.service_id"] == serviceID && c.ID != containerID {
-					timeout := 2
-					_ = r.cli.ContainerStop(ctx, c.ID, container.StopOptions{Timeout: &timeout})
+					stopTimeout := 10
+					_ = r.cli.ContainerStop(ctx, c.ID, container.StopOptions{Timeout: &stopTimeout})
+					_ = r.cli.ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
 				}
 			}
 		}
