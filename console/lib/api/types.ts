@@ -4865,7 +4865,10 @@ export interface operations {
     };
     getServiceEnv: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description When true, decrypts and returns actual secret values. Requires administrator privileges. */
+                reveal?: boolean;
+            };
             header?: never;
             path: {
                 /** @description Unique identifier of the service */
@@ -4885,6 +4888,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["UnauthorizedError"];
+            403: components["responses"]["ForbiddenError"];
             404: components["responses"]["NotFoundError"];
         };
     };

@@ -117,7 +117,34 @@ func TestGetServiceEnv_MaskingAndReveal(t *testing.T) {
 		t.Fatalf("expected 403 Forbidden when member requests ?reveal=true, got %d: %s", rec.Code, rec.Body.String())
 	}
 
-	// 6. Query with ?reveal=true by admin: returns plaintext and creates audit log
+	// 6. Query without ?reveal=true by admin: secrets must still be masked
+	req = httptest.NewRequest(http.MethodGet, "/api/services/svc_env_test/env", nil)
+	req.AddCookie(adminCookie)
+	rec = httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK when admin requests env without ?reveal=true, got %d", rec.Code)
+	}
+
+	var adminMaskedResp models.ServiceEnv
+	_ = json.NewDecoder(rec.Body).Decode(&adminMaskedResp)
+
+	for _, v := range adminMaskedResp.EnvVars {
+		if v.Key == "PUBLIC_KEY" && v.Value != "public_value_123" {
+			t.Errorf("expected public env var to be readable for admin, got %s", v.Value)
+		}
+		if v.Key == "STRIPE_SECRET_KEY" && v.Value != "••••••••" {
+			t.Errorf("expected secret env var to be masked for admin without reveal, got %s", v.Value)
+		}
+	}
+	for _, b := range adminMaskedResp.BuildArgs {
+		if b.Key == "SECRET_BUILD_ARG" && b.Value != "••••••••" {
+			t.Errorf("expected secret build arg to be masked for admin without reveal, got %s", b.Value)
+		}
+	}
+
+	// 7. Query with ?reveal=true by admin: returns plaintext and creates audit log
 	req = httptest.NewRequest(http.MethodGet, "/api/services/svc_env_test/env?reveal=true", nil)
 	req.AddCookie(adminCookie)
 	rec = httptest.NewRecorder()
@@ -134,18 +161,48 @@ func TestGetServiceEnv_MaskingAndReveal(t *testing.T) {
 		if v.Key == "STRIPE_SECRET_KEY" && v.Value != "sk_live_secret_456" {
 			t.Errorf("expected admin reveal to show plaintext secret, got %s", v.Value)
 		}
+		if v.Key == "PUBLIC_KEY" && v.Value != "public_value_123" {
+			t.Errorf("expected admin reveal to show plaintext public var, got %s", v.Value)
+		}
+	}
+	for _, b := range adminEnvResp.BuildArgs {
+		if b.Key == "SECRET_BUILD_ARG" && b.Value != "top_secret_arg_789" {
+			t.Errorf("expected admin reveal to show plaintext build arg, got %s", b.Value)
+		}
 	}
 
-	// Verify audit log entry was recorded (written in async goroutine)
+	// Verify audit log entry was recorded (written in async goroutine) with action env.reveal and actor userID
+	var adminUserID string
+	if err := database.QueryRow(`SELECT id FROM users WHERE role = 'admin' LIMIT 1`).Scan(&adminUserID); err != nil {
+		t.Fatalf("failed to query admin user ID: %v", err)
+	}
+
 	var auditCount int
+	var recordedActor, recordedAction, recordedResType, recordedResID string
 	for i := 0; i < 20; i++ {
-		err := database.QueryRow(`SELECT count(*) FROM audit_log WHERE action = 'service.env_reveal' AND resource_id = 'svc_env_test'`).Scan(&auditCount)
+		err := database.QueryRow(`
+			SELECT count(*), COALESCE(max(actor), ''), COALESCE(max(action), ''), COALESCE(max(resource_type), ''), COALESCE(max(resource_id), '')
+			FROM audit_log
+			WHERE action = 'env.reveal' AND resource_id = 'svc_env_test'
+		`).Scan(&auditCount, &recordedActor, &recordedAction, &recordedResType, &recordedResID)
 		if err == nil && auditCount == 1 {
 			break
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 	if auditCount != 1 {
-		t.Errorf("expected 1 audit log entry for env_reveal, got %d", auditCount)
+		t.Errorf("expected 1 audit log entry for env.reveal, got %d", auditCount)
+	}
+	if recordedActor != adminUserID {
+		t.Errorf("expected audit actor to be admin user ID %q, got %q", adminUserID, recordedActor)
+	}
+	if recordedAction != "env.reveal" {
+		t.Errorf("expected audit action to be 'env.reveal', got %q", recordedAction)
+	}
+	if recordedResType != "service" {
+		t.Errorf("expected audit resource_type to be 'service', got %q", recordedResType)
+	}
+	if recordedResID != "svc_env_test" {
+		t.Errorf("expected audit resource_id to be 'svc_env_test', got %q", recordedResID)
 	}
 }

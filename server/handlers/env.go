@@ -24,9 +24,10 @@ func (h *Handler) GetServiceEnv(w http.ResponseWriter, r *http.Request) {
 	}
 
 	revealSecrets := r.URL.Query().Get("reveal") == "true"
+	var currentUser *auth.User
 	if revealSecrets {
-		user := auth.GetUserFromContext(r.Context())
-		if user == nil || user.Role != "admin" {
+		currentUser = auth.GetUserFromContext(r.Context())
+		if currentUser == nil || currentUser.Role != "admin" {
 			sendError(w, http.StatusForbidden, "Administrator access required to reveal secrets")
 			return
 		}
@@ -83,10 +84,18 @@ func (h *Handler) GetServiceEnv(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if revealSecrets && len(revealedKeys) > 0 {
-		audit.Record(r.Context(), "service.env_reveal", "service", serviceID, map[string]any{
-			"keys": strings.Join(revealedKeys, ","),
-		})
+	if revealSecrets {
+		auditCtx := r.Context()
+		if currentUser != nil && currentUser.ID != "" {
+			auditCtx = audit.ContextWithActor(auditCtx, currentUser.ID)
+		}
+		var meta any
+		if len(revealedKeys) > 0 {
+			meta = map[string]any{
+				"keys": strings.Join(revealedKeys, ","),
+			}
+		}
+		audit.Record(auditCtx, "env.reveal", "service", serviceID, meta)
 	}
 
 	sendJSON(w, http.StatusOK, models.ServiceEnv{

@@ -1324,6 +1324,13 @@ paths:
         - Environment
       parameters:
         - $ref: '#/components/parameters/ServiceId'
+        - name: reveal
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, decrypts and returns actual secret values. Requires administrator privileges.
       responses:
         '200':
           description: Environment variables and build arguments
@@ -1333,6 +1340,8 @@ paths:
                 $ref: '#/components/schemas/ServiceEnv'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
         '404':
           $ref: '#/components/responses/NotFoundError'
     put:

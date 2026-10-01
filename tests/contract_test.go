@@ -732,6 +732,14 @@ func TestCompleteOpenAPIContract(t *testing.T) {
 		assertValidate(t, tc, req, rec, http.StatusOK)
 	})
 
+	t.Run("GET /api/services/{id}/env?reveal=true", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/services/"+tc.serviceID+"/env?reveal=true", nil)
+		req.AddCookie(tc.cookie)
+		rec := httptest.NewRecorder()
+		tc.router.ServeHTTP(rec, req)
+		assertValidate(t, tc, req, rec, http.StatusOK)
+	})
+
 	t.Run("PUT /api/services/{id}/env", func(t *testing.T) {
 		body, _ := json.Marshal(models.UpdateServiceEnvRequest{
 			EnvVars: []models.EnvVar{
