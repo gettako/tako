@@ -404,6 +404,21 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Invalidate all other active sessions so that stolen cookies cannot be
+	// used after a password change (SEC-10).
+	currentSessionID := ""
+	if cookie, err := r.Cookie(SessionCookieName); err == nil {
+		currentSessionID = cookie.Value
+	}
+	if currentSessionID != "" {
+		_, _ = h.db.Exec(`DELETE FROM sessions WHERE user_id = ? AND id != ?`, user.ID, currentSessionID)
+	} else {
+		_, _ = h.db.Exec(`DELETE FROM sessions WHERE user_id = ?`, user.ID)
+	}
+
+	// Audit the password-change event.
+	audit.Record(r.Context(), "user.password_changed", "user", user.ID, nil)
+
 	sendJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Password updated successfully",
