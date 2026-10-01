@@ -13,6 +13,8 @@ services:
       - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
       - ${TAKO_TRAEFIK_DYNAMIC_DIR:-/etc/tako/traefik/dynamic}:/etc/traefik/dynamic
       - tako_traefik_acme:/etc/traefik/acme
+    environment:
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${TAKO_ADMIN_EMAIL:-admin@octopy.dev}
     networks:
       - tako_network
 

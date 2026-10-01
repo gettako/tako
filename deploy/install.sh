@@ -200,10 +200,9 @@ fi
 # 7. Create Directory Structure
 TAKO_DIR="/etc/tako"
 TRAEFIK_DYNAMIC_DIR="/etc/tako/traefik/dynamic"
-mkdir -p "${TAKO_DIR}"
-mkdir -p "${TRAEFIK_DYNAMIC_DIR}"
-chmod 700 "${TAKO_DIR}"
-chmod 777 "/etc/tako/traefik" "${TRAEFIK_DYNAMIC_DIR}"
+mkdir -p "${TAKO_DIR}" "${TRAEFIK_DYNAMIC_DIR}"
+chmod 755 "${TAKO_DIR}"
+chmod -R 777 "${TAKO_DIR}/traefik" "${TRAEFIK_DYNAMIC_DIR}"
 
 # 8. Write Production .env (with 0600 permissions)
 ENV_FILE="${TAKO_DIR}/.env"
