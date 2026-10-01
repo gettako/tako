@@ -5,16 +5,19 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
-	"gettako.dev/tako/server/nodes"
 	"gettako.dev/tako/internal/crypto"
 	"gettako.dev/tako/internal/models"
 	"gettako.dev/tako/internal/protocol"
+	"gettako.dev/tako/server/github"
+	"gettako.dev/tako/server/nodes"
 )
 
 type LogBuffer struct {
@@ -88,10 +91,11 @@ func (b *RuntimeLogBuffer) GetAll() []*models.ContainerLogEvent {
 }
 
 type Orchestrator struct {
-	db          *sql.DB
-	nodeManager *nodes.NodeManager
-	masterKey   []byte
-	notifyHook  func(models.NotificationPayload)
+	db           *sql.DB
+	nodeManager  *nodes.NodeManager
+	masterKey    []byte
+	notifyHook   func(models.NotificationPayload)
+	githubClient *github.Client
 
 	mu                 sync.RWMutex
 	buffers            map[string]*LogBuffer
@@ -112,9 +116,137 @@ func NewOrchestrator(db *sql.DB, nm *nodes.NodeManager, masterKey []byte) *Orche
 	}
 }
 
+// SetGitHubClient configures the global GitHub client fallback for the orchestrator.
+func (o *Orchestrator) SetGitHubClient(client *github.Client) {
+	o.githubClient = client
+}
+
 // SetNotifyHook registers a callback invoked asynchronously on deploy_success or deploy_failed.
 func (o *Orchestrator) SetNotifyHook(fn func(models.NotificationPayload)) {
 	o.notifyHook = fn
+}
+
+func (o *Orchestrator) getClientForConnection(ctx context.Context, connectionID string) (*github.Client, error) {
+	var authType, accountName string
+	var appID, installationID sql.NullString
+	var tokenEnc []byte
+	err := o.db.QueryRowContext(ctx, `
+		SELECT auth_type, account_name, token_enc, app_id, installation_id
+		FROM github_connections WHERE id = ?
+	`, connectionID).Scan(&authType, &accountName, &tokenEnc, &appID, &installationID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tokenEnc) < 12 {
+		return nil, errors.New("invalid encrypted token data")
+	}
+
+	nonce := tokenEnc[:12]
+	ciphertext := tokenEnc[12:]
+	tokenBytes, err := crypto.Decrypt(ciphertext, nonce, o.masterKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt credentials: %w", err)
+	}
+
+	cfg := github.ClientConfig{
+		BaseURL: func() string {
+			if o.githubClient != nil {
+				return o.githubClient.BaseURL()
+			}
+			return ""
+		}(),
+		HTTPClient: func() *http.Client {
+			if o.githubClient != nil {
+				return o.githubClient.HTTPClient()
+			}
+			return nil
+		}(),
+	}
+
+	if authType == "pat" {
+		cfg.PAT = string(tokenBytes)
+	} else if authType == "app" {
+		if appID.Valid {
+			cfg.AppID = appID.String
+		}
+		if installationID.Valid {
+			cfg.InstallationID = installationID.String
+		}
+		if strings.Contains(string(tokenBytes), "-----BEGIN") {
+			cfg.PrivateKeyPEM = tokenBytes
+		} else {
+			cfg.PAT = string(tokenBytes)
+		}
+	}
+
+	return github.NewClient(cfg)
+}
+
+func (o *Orchestrator) resolveGitToken(ctx context.Context, connID sql.NullString, repo string) string {
+	if o.db == nil {
+		if o.githubClient != nil {
+			tok, _ := o.githubClient.GetAuthToken(ctx)
+			return tok
+		}
+		return ""
+	}
+
+	// 1. If connection ID is explicitly associated with service
+	if connID.Valid && strings.TrimSpace(connID.String) != "" {
+		if client, err := o.getClientForConnection(ctx, connID.String); err == nil && client != nil {
+			if tok, err := client.GetAuthToken(ctx); err == nil && tok != "" {
+				return tok
+			}
+		}
+	}
+
+	// 2. Try to match by repository owner
+	normRepo := strings.TrimSpace(strings.ToLower(repo))
+	normRepo = strings.TrimSuffix(normRepo, ".git")
+	normRepo = strings.TrimPrefix(normRepo, "https://github.com/")
+	normRepo = strings.TrimPrefix(normRepo, "http://github.com/")
+	normRepo = strings.TrimPrefix(normRepo, "git@github.com:")
+	normRepo = strings.TrimPrefix(normRepo, "github.com/")
+	normRepo = strings.Trim(normRepo, "/")
+	parts := strings.Split(normRepo, "/")
+
+	if len(parts) >= 1 && parts[0] != "" {
+		owner := parts[0]
+		var foundConnID string
+		_ = o.db.QueryRowContext(ctx, `
+			SELECT id FROM github_connections
+			WHERE LOWER(account_name) = LOWER(?)
+			ORDER BY updated_at DESC LIMIT 1
+		`, owner).Scan(&foundConnID)
+		if foundConnID != "" {
+			if client, err := o.getClientForConnection(ctx, foundConnID); err == nil && client != nil {
+				if tok, err := client.GetAuthToken(ctx); err == nil && tok != "" {
+					return tok
+				}
+			}
+		}
+	}
+
+	// 3. If there is a single active connection, use it
+	var singleConnID string
+	var totalConns int
+	_ = o.db.QueryRowContext(ctx, `SELECT count(*), max(id) FROM github_connections`).Scan(&totalConns, &singleConnID)
+	if totalConns == 1 && singleConnID != "" {
+		if client, err := o.getClientForConnection(ctx, singleConnID); err == nil && client != nil {
+			if tok, err := client.GetAuthToken(ctx); err == nil && tok != "" {
+				return tok
+			}
+		}
+	}
+
+	// 4. Global GitHub client fallback
+	if o.githubClient != nil {
+		tok, _ := o.githubClient.GetAuthToken(ctx)
+		return tok
+	}
+
+	return ""
 }
 
 func generateID(prefix string) string {
@@ -132,6 +264,7 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 	var pParentID, pCmd, pCronExpr sql.NullString
 	var pDBEngine, pDBVersion, pDBName, pDBUser, pVolName, pVolMount, pConnURI sql.NullString
 	var pPreDeploy, pPostDeploy sql.NullString
+	var pGitHubConnID sql.NullString
 
 	var pPubPort sql.NullInt64
 	err := o.db.QueryRowContext(ctx, `
@@ -141,7 +274,8 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 		       deploy_key_private_encrypted, deploy_key_nonce,
 		       database_engine, database_version, database_name, database_user,
 		       volume_name, volume_mount_path, connection_uri,
-		       pre_deploy_command, post_deploy_command
+		       pre_deploy_command, post_deploy_command,
+		       github_connection_id
 		FROM services WHERE id = ?
 	`, serviceID).Scan(
 		&s.ID, &s.ProjectID, &s.ServerID, &s.Name, &sType, &pParentID, &pCmd, &pCronExpr,
@@ -151,6 +285,7 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 		&pDBEngine, &pDBVersion, &pDBName, &pDBUser,
 		&pVolName, &pVolMount, &pConnURI,
 		&pPreDeploy, &pPostDeploy,
+		&pGitHubConnID,
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -233,6 +368,26 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 			sshPrivateKey = string(decrypted)
 		}
 	}
+
+	if !pGitHubConnID.Valid && s.ParentServiceID != nil && *s.ParentServiceID != "" {
+		var parentConnID sql.NullString
+		_ = o.db.QueryRowContext(ctx, `SELECT github_connection_id FROM services WHERE id = ?`, *s.ParentServiceID).Scan(&parentConnID)
+		if parentConnID.Valid {
+			pGitHubConnID = parentConnID
+		}
+	}
+	if sshPrivateKey == "" && s.ParentServiceID != nil && *s.ParentServiceID != "" {
+		var pKeyEnc, pKeyNonce []byte
+		_ = o.db.QueryRowContext(ctx, `SELECT deploy_key_private_encrypted, deploy_key_nonce FROM services WHERE id = ?`, *s.ParentServiceID).Scan(&pKeyEnc, &pKeyNonce)
+		if len(pKeyEnc) > 0 && len(pKeyNonce) > 0 {
+			decrypted, decErr := crypto.Decrypt(pKeyEnc, pKeyNonce, o.masterKey)
+			if decErr == nil {
+				sshPrivateKey = string(decrypted)
+			}
+		}
+	}
+
+	gitToken := o.resolveGitToken(ctx, pGitHubConnID, s.Repository)
 
 	envVars := make(map[string]string)
 	buildArgs := make(map[string]string)
@@ -431,29 +586,29 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 		}
 
 		deployJob := &protocol.DeployJob{
-			DeploymentId:      depID,
-			ServiceId:         serviceID,
-			Repository:        s.Repository,
-			Branch:            branch,
-			CommitSha:         commitSHA,
-			DockerfilePath:    s.DockerfilePath,
-			InternalPort:      int32(s.InternalPort),
-			PublishedPort:     publishedPort,
-			HealthCheckPath:   s.HealthCheckPath,
-			EnvVars:           envVars,
-			BuildArgs:         buildArgs,
-			Domain:            primaryDomain,
-			IngressRules:      ingressRules,
-			SshPrivateKey:     sshPrivateKey,
-			IsRollback:        isRollback,
-			RollbackImageTag:  rollbackTag,
-			ServiceType:       string(s.ServiceType),
-			Command:           cmdStr,
-			CronExpression:    cronStr,
-			ParentServiceId:   parentIDStr,
-			VolumeName:        volNameStr,
-			VolumeMountPath:   volMountStr,
-			Image:             imageStr,
+			DeploymentId:     depID,
+			ServiceId:        serviceID,
+			Repository:       s.Repository,
+			Branch:           branch,
+			CommitSha:        commitSHA,
+			DockerfilePath:   s.DockerfilePath,
+			InternalPort:     int32(s.InternalPort),
+			PublishedPort:    publishedPort,
+			HealthCheckPath:  s.HealthCheckPath,
+			EnvVars:          envVars,
+			BuildArgs:        buildArgs,
+			Domain:           primaryDomain,
+			IngressRules:     ingressRules,
+			SshPrivateKey:    sshPrivateKey,
+			IsRollback:       isRollback,
+			RollbackImageTag: rollbackTag,
+			ServiceType:      string(s.ServiceType),
+			Command:          cmdStr,
+			CronExpression:   cronStr,
+			ParentServiceId:  parentIDStr,
+			VolumeName:       volNameStr,
+			VolumeMountPath:  volMountStr,
+			Image:            imageStr,
 			PreDeployCommand: func() string {
 				if s.PreDeployCommand != nil {
 					return *s.PreDeployCommand
@@ -479,6 +634,7 @@ func (o *Orchestrator) TriggerDeployment(ctx context.Context, serviceID string, 
 				}
 				return ""
 			}(),
+			GitToken: gitToken,
 		}
 
 		err = o.nodeManager.SendCommand(ctx, s.ServerID, &protocol.ServerMessage{

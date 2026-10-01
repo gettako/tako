@@ -20,12 +20,12 @@ import (
 )
 
 type ClientConfig struct {
-	AppID                  string
-	PrivateKeyPEM          []byte
-	InstallationID         string
-	PAT                    string
-	BaseURL                string
-	HTTPClient             *http.Client
+	AppID          string
+	PrivateKeyPEM  []byte
+	InstallationID string
+	PAT            string
+	BaseURL        string
+	HTTPClient     *http.Client
 }
 
 type Client struct {
@@ -192,7 +192,7 @@ func (c *Client) GetInstallationToken(ctx context.Context) (string, error) {
 	return c.cachedToken, nil
 }
 
-func (c *Client) getAuthToken(ctx context.Context) (string, error) {
+func (c *Client) GetAuthToken(ctx context.Context) (string, error) {
 	if c.IsApp() {
 		return c.GetInstallationToken(ctx)
 	}
@@ -200,6 +200,10 @@ func (c *Client) getAuthToken(ctx context.Context) (string, error) {
 		return c.cfg.PAT, nil
 	}
 	return "", errors.New("GitHub is not configured")
+}
+
+func (c *Client) getAuthToken(ctx context.Context) (string, error) {
+	return c.GetAuthToken(ctx)
 }
 
 func (c *Client) GetStatus(ctx context.Context) (*models.GitHubStatus, error) {
@@ -664,4 +668,3 @@ func (c *Client) ListInstallations(ctx context.Context) ([]models.GitHubAppInsta
 
 	return result, nil
 }
-

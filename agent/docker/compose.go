@@ -109,9 +109,12 @@ func (m *ComposeManager) Execute(ctx context.Context, job *protocol.DeployJob, s
 			Timestamp:    time.Now().UnixNano(),
 		})
 
-		_, err := m.builder.CloneRepository(ctx, job.GetRepository(), job.GetBranch(), job.GetCommitSha(), workDir, job.GetSshPrivateKey())
+		_, err := m.builder.CloneRepository(ctx, job.GetRepository(), job.GetBranch(), job.GetCommitSha(), workDir, job.GetSshPrivateKey(), job.GetGitToken())
 		if err != nil {
 			errReason := fmt.Sprintf("Failed to clone repository: %v", err)
+			if job.GetGitToken() != "" {
+				errReason = strings.ReplaceAll(errReason, job.GetGitToken(), "[REDACTED]")
+			}
 			_ = sender.SendBuildLog(&protocol.BuildLogChunk{
 				DeploymentId: depID,
 				LogLine:      errReason,

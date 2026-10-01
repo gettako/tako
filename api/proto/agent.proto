@@ -152,6 +152,7 @@ message DeployJob {
   string project_id = 26;
   string compose_file_content = 27;
   string compose_file_path = 28;
+  string git_token = 29;
 }
 
 message IngressRule {

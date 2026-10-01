@@ -1209,6 +1209,7 @@ type DeployJob struct {
 	ProjectId          string                 `protobuf:"bytes,26,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	ComposeFileContent string                 `protobuf:"bytes,27,opt,name=compose_file_content,json=composeFileContent,proto3" json:"compose_file_content,omitempty"`
 	ComposeFilePath    string                 `protobuf:"bytes,28,opt,name=compose_file_path,json=composeFilePath,proto3" json:"compose_file_path,omitempty"`
+	GitToken           string                 `protobuf:"bytes,29,opt,name=git_token,json=gitToken,proto3" json:"git_token,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1435,6 +1436,13 @@ func (x *DeployJob) GetComposeFileContent() string {
 func (x *DeployJob) GetComposeFilePath() string {
 	if x != nil {
 		return x.ComposeFilePath
+	}
+	return ""
+}
+
+func (x *DeployJob) GetGitToken() string {
+	if x != nil {
+		return x.GitToken
 	}
 	return ""
 }
@@ -2997,7 +3005,8 @@ const file_agent_proto_rawDesc = "" +
 	"\x16service_metrics_report\x18\v \x01(\v2#.tako.agent.v1.ServiceMetricsReportH\x00R\x14serviceMetricsReportB\t\n" +
 	"\apayload\",\n" +
 	"\fHeartbeatAck\x12\x1c\n" +
-	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\"\xeb\t\n" +
+	"\ttimestamp\x18\x01 \x01(\x03R\ttimestamp\"\x88\n" +
+	"\n" +
 	"\tDeployJob\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12\x1d\n" +
 	"\n" +
@@ -3035,7 +3044,8 @@ const file_agent_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x1a \x01(\tR\tprojectId\x120\n" +
 	"\x14compose_file_content\x18\x1b \x01(\tR\x12composeFileContent\x12*\n" +
-	"\x11compose_file_path\x18\x1c \x01(\tR\x0fcomposeFilePath\x1a:\n" +
+	"\x11compose_file_path\x18\x1c \x01(\tR\x0fcomposeFilePath\x12\x1b\n" +
+	"\tgit_token\x18\x1d \x01(\tR\bgitToken\x1a:\n" +
 	"\fEnvVarsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a<\n" +

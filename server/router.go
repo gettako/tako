@@ -75,6 +75,9 @@ func buildRouter(cfg *config.Config, database *sql.DB, masterKey []byte, nodeMan
 		})
 		if ghClient != nil {
 			apiHandler.SetGitHubClient(ghClient)
+			if len(orcs) > 0 && orcs[0] != nil {
+				orcs[0].SetGitHubClient(ghClient)
+			}
 		}
 		if cfg.GitHubWebhookSecret != "" {
 			apiHandler.SetWebhookSecret(cfg.GitHubWebhookSecret)

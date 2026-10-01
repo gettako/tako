@@ -9,11 +9,11 @@ import (
 
 	"google.golang.org/grpc/metadata"
 
-	"gettako.dev/tako/server/db"
-	"gettako.dev/tako/server/nodes"
 	"gettako.dev/tako/internal/crypto"
 	"gettako.dev/tako/internal/models"
 	"gettako.dev/tako/internal/protocol"
+	"gettako.dev/tako/server/db"
+	"gettako.dev/tako/server/nodes"
 )
 
 func setupTestDB(t *testing.T) *sql.DB {
@@ -360,5 +360,59 @@ func TestCancelDeployment(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for cancellation event on SSE subscriber")
+	}
+}
+
+func TestTriggerDeployment_ResolvesGitHubToken(t *testing.T) {
+	database := setupTestDB(t)
+	_, serviceID := insertTestServerAndService(t, database)
+	masterKey := crypto.DeriveKey("test-secret-key-32-bytes-long!")
+	orc := NewOrchestrator(database, nil, masterKey)
+
+	// Encrypt a test token
+	rawToken := "ghp_testgithubpat999"
+	ciphertext, nonce, err := crypto.Encrypt([]byte(rawToken), masterKey)
+	if err != nil {
+		t.Fatalf("failed to encrypt token: %v", err)
+	}
+	tokenEnc := append(nonce, ciphertext...)
+
+	connID := "ghc_test_owner"
+	_, err = database.Exec(`
+		INSERT INTO github_connections (id, name, auth_type, account_name, token_enc, created_at, updated_at)
+		VALUES (?, 'Test Conn', 'pat', 'supianidz', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, connID, tokenEnc)
+	if err != nil {
+		t.Fatalf("failed to insert test connection: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// 1. Explicit connection ID on service
+	tok1 := orc.resolveGitToken(ctx, sql.NullString{String: connID, Valid: true}, "supianidz/tako-demo-hello")
+	if tok1 != rawToken {
+		t.Errorf("expected resolved token %q, got %q", rawToken, tok1)
+	}
+
+	// 2. Fallback matching repository owner
+	tok2 := orc.resolveGitToken(ctx, sql.NullString{Valid: false}, "supianidz/tako-demo-hello")
+	if tok2 != rawToken {
+		t.Errorf("expected fallback token matching owner %q, got %q", rawToken, tok2)
+	}
+
+	// 3. Fallback matching full https url
+	tok3 := orc.resolveGitToken(ctx, sql.NullString{Valid: false}, "https://github.com/supianidz/tako-demo-hello.git")
+	if tok3 != rawToken {
+		t.Errorf("expected fallback token matching full url %q, got %q", rawToken, tok3)
+	}
+
+	// 4. Update service with github_connection_id and trigger deployment
+	_, _ = database.Exec(`UPDATE services SET repository = 'supianidz/tako-demo-hello', github_connection_id = ? WHERE id = ?`, connID, serviceID)
+	dep, err := orc.TriggerDeployment(ctx, serviceID, nil)
+	if err != nil {
+		t.Fatalf("TriggerDeployment failed: %v", err)
+	}
+	if dep.Status != models.DeploymentBuilding {
+		t.Errorf("expected deployment status %s, got %s", models.DeploymentBuilding, dep.Status)
 	}
 }

@@ -3,6 +3,7 @@ package docker
 import (
 	"archive/tar"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,20 +59,58 @@ func NewBuilder(dockerCli DockerImageBuilder, buildsDir string) *Builder {
 	}
 }
 
-func (b *Builder) CloneRepository(ctx context.Context, repo, branch, commitSHA, targetDir string, sshPrivateKey ...string) (*GitMetadata, error) {
+// NormalizeGitCloneURL converts shorthand repository references (e.g. "owner/repo" or "github.com/owner/repo")
+// into complete, valid git clone URLs (e.g. "https://github.com/owner/repo.git").
+// Full URLs (https://, git@, ssh://) and local filesystem paths are preserved as-is.
+func NormalizeGitCloneURL(repo string) string {
+	repo = strings.TrimSpace(repo)
+	if repo == "" {
+		return ""
+	}
+	if strings.HasPrefix(repo, "git@") || strings.HasPrefix(repo, "ssh://") ||
+		strings.HasPrefix(repo, "http://") || strings.HasPrefix(repo, "https://") ||
+		strings.HasPrefix(repo, "file://") || strings.HasPrefix(repo, "/") ||
+		strings.HasPrefix(repo, "./") || strings.HasPrefix(repo, "../") {
+		return repo
+	}
+	if strings.HasPrefix(repo, "github.com/") {
+		if !strings.HasSuffix(repo, ".git") {
+			return "https://" + repo + ".git"
+		}
+		return "https://" + repo
+	}
+	parts := strings.Split(repo, "/")
+	if len(parts) == 2 && !strings.Contains(parts[0], ".") && !strings.Contains(parts[0], ":") {
+		if !strings.HasSuffix(repo, ".git") {
+			return "https://github.com/" + repo + ".git"
+		}
+		return "https://github.com/" + repo
+	}
+	return repo
+}
+
+func (b *Builder) CloneRepository(ctx context.Context, repo, branch, commitSHA, targetDir string, auth ...string) (*GitMetadata, error) {
 	if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
 		return nil, fmt.Errorf("failed to create parent build directory: %w", err)
 	}
 
+	var sshKey, gitToken string
+	if len(auth) > 0 {
+		sshKey = strings.TrimSpace(auth[0])
+	}
+	if len(auth) > 1 {
+		gitToken = strings.TrimSpace(auth[1])
+	}
+
 	gitEnv := append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 
-	if len(sshPrivateKey) > 0 && strings.TrimSpace(sshPrivateKey[0]) != "" {
+	if sshKey != "" {
 		keyDir := filepath.Join(os.TempDir(), "tako-builds", filepath.Base(targetDir))
 		if err := os.MkdirAll(keyDir, 0700); err != nil {
 			return nil, fmt.Errorf("failed to create ssh key directory: %w", err)
 		}
 		keyPath := filepath.Join(keyDir, "id_ed25519")
-		if err := os.WriteFile(keyPath, []byte(sshPrivateKey[0]), 0600); err != nil {
+		if err := os.WriteFile(keyPath, []byte(sshKey), 0600); err != nil {
 			return nil, fmt.Errorf("failed to write ssh private key: %w", err)
 		}
 		defer func() {
@@ -87,16 +126,34 @@ func (b *Builder) CloneRepository(ctx context.Context, repo, branch, commitSHA, 
 		gitEnv = append(gitEnv, "GIT_SSH_COMMAND="+sshCmd)
 	}
 
-	cloneArgs := []string{"clone", "--depth", "1"}
+	cloneURL := NormalizeGitCloneURL(repo)
+
+	var cloneArgs []string
+	if gitToken != "" {
+		basicAuth := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + gitToken))
+		authHeader := "AUTHORIZATION: basic " + basicAuth
+		gitEnv = append(gitEnv,
+			"GIT_CONFIG_COUNT=1",
+			"GIT_CONFIG_KEY_0=http.extraheader",
+			"GIT_CONFIG_VALUE_0="+authHeader,
+		)
+		cloneArgs = append(cloneArgs, "-c", "http.extraheader="+authHeader)
+	}
+
+	cloneArgs = append(cloneArgs, "clone", "--depth", "1")
 	if branch != "" {
 		cloneArgs = append(cloneArgs, "--branch", branch)
 	}
-	cloneArgs = append(cloneArgs, repo, targetDir)
+	cloneArgs = append(cloneArgs, cloneURL, targetDir)
 
 	cmd := exec.CommandContext(ctx, "git", cloneArgs...)
 	cmd.Env = gitEnv
 	if out, err := cmd.CombinedOutput(); err != nil {
-		return nil, fmt.Errorf("git clone failed: %s (%w)", string(out), err)
+		outStr := string(out)
+		if gitToken != "" {
+			outStr = strings.ReplaceAll(outStr, gitToken, "[REDACTED]")
+		}
+		return nil, fmt.Errorf("git clone failed: %s (%w)", outStr, err)
 	}
 
 	if commitSHA != "" {
@@ -105,10 +162,21 @@ func (b *Builder) CloneRepository(ctx context.Context, repo, branch, commitSHA, 
 		checkoutCmd.Env = gitEnv
 		if _, err := checkoutCmd.CombinedOutput(); err != nil {
 			// If shallow clone didn't include it, fetch it
-			fetchCmd := exec.CommandContext(ctx, "git", "-C", targetDir, "fetch", "--depth", "1", "origin", commitSHA)
+			var fetchArgs []string
+			fetchArgs = append(fetchArgs, "-C", targetDir)
+			if gitToken != "" {
+				basicAuth := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + gitToken))
+				fetchArgs = append(fetchArgs, "-c", "http.extraheader=AUTHORIZATION: basic "+basicAuth)
+			}
+			fetchArgs = append(fetchArgs, "fetch", "--depth", "1", "origin", commitSHA)
+			fetchCmd := exec.CommandContext(ctx, "git", fetchArgs...)
 			fetchCmd.Env = gitEnv
 			if fOut, fErr := fetchCmd.CombinedOutput(); fErr != nil {
-				slog.Warn("git fetch commit failed", slog.String("commit", commitSHA), slog.String("error", string(fOut)))
+				fOutStr := string(fOut)
+				if gitToken != "" {
+					fOutStr = strings.ReplaceAll(fOutStr, gitToken, "[REDACTED]")
+				}
+				slog.Warn("git fetch commit failed", slog.String("commit", commitSHA), slog.String("error", fOutStr))
 			} else {
 				_ = exec.CommandContext(ctx, "git", "-C", targetDir, "checkout", commitSHA).Run()
 			}
@@ -300,9 +368,12 @@ func (b *Builder) Build(ctx context.Context, job *protocol.DeployJob, sender Log
 		Timestamp:    time.Now().UnixNano(),
 	})
 
-	meta, err := b.CloneRepository(ctx, job.GetRepository(), job.GetBranch(), job.GetCommitSha(), targetDir, job.GetSshPrivateKey())
+	meta, err := b.CloneRepository(ctx, job.GetRepository(), job.GetBranch(), job.GetCommitSha(), targetDir, job.GetSshPrivateKey(), job.GetGitToken())
 	if err != nil {
 		errReason := fmt.Sprintf("Failed to clone repository: %v", err)
+		if job.GetGitToken() != "" {
+			errReason = strings.ReplaceAll(errReason, job.GetGitToken(), "[REDACTED]")
+		}
 		_ = sender.SendBuildLog(&protocol.BuildLogChunk{
 			DeploymentId: depID,
 			LogLine:      errReason,

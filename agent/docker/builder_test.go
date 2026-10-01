@@ -264,3 +264,72 @@ func TestCloneRepository_WithSSHPrivateKey(t *testing.T) {
 		t.Errorf("expected private key file to be removed, but still exists: %s", expectedKeyPath)
 	}
 }
+
+func TestNormalizeGitCloneURL(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"supianidz/tako-demo-hello", "https://github.com/supianidz/tako-demo-hello.git"},
+		{"supianidz/tako-demo-hello.git", "https://github.com/supianidz/tako-demo-hello.git"},
+		{"github.com/supianidz/tako-demo-hello", "https://github.com/supianidz/tako-demo-hello.git"},
+		{"github.com/supianidz/tako-demo-hello.git", "https://github.com/supianidz/tako-demo-hello.git"},
+		{"https://github.com/supianidz/tako-demo-hello", "https://github.com/supianidz/tako-demo-hello"},
+		{"https://github.com/supianidz/tako-demo-hello.git", "https://github.com/supianidz/tako-demo-hello.git"},
+		{"git@github.com:supianidz/tako-demo-hello.git", "git@github.com:supianidz/tako-demo-hello.git"},
+		{"ssh://git@gitlab.com/group/repo.git", "ssh://git@gitlab.com/group/repo.git"},
+		{"/tmp/local-path", "/tmp/local-path"},
+		{"./relative/path", "./relative/path"},
+		{"", ""},
+	}
+
+	for _, tc := range tests {
+		actual := NormalizeGitCloneURL(tc.input)
+		if actual != tc.expected {
+			t.Errorf("NormalizeGitCloneURL(%q) = %q; expected %q", tc.input, actual, tc.expected)
+		}
+	}
+}
+
+func TestCloneRepository_WithGitToken(t *testing.T) {
+	srcRepo := t.TempDir()
+	initCmd := exec.Command("git", "init", srcRepo)
+	if err := initCmd.Run(); err != nil {
+		t.Fatalf("failed to git init: %v", err)
+	}
+
+	testFile := filepath.Join(srcRepo, "app.txt")
+	_ = os.WriteFile(testFile, []byte("token clone test"), 0644)
+	_ = exec.Command("git", "-C", srcRepo, "config", "user.name", "Token User").Run()
+	_ = exec.Command("git", "-C", srcRepo, "config", "user.email", "token@example.com").Run()
+	_ = exec.Command("git", "-C", srcRepo, "add", ".").Run()
+	_ = exec.Command("git", "-C", srcRepo, "commit", "-m", "token test commit").Run()
+
+	targetDir := filepath.Join(t.TempDir(), "target")
+	builder := NewBuilder(&mockDockerBuilder{}, t.TempDir())
+
+	meta, err := builder.CloneRepository(context.Background(), srcRepo, "", "", targetDir, "", "ghs_testtoken123")
+	if err != nil {
+		t.Fatalf("CloneRepository with token failed: %v", err)
+	}
+
+	if meta.CommitMessage != "token test commit" {
+		t.Errorf("expected commit message 'token test commit', got %q", meta.CommitMessage)
+	}
+}
+
+func TestCloneRepository_RedactsTokenOnError(t *testing.T) {
+	builder := NewBuilder(&mockDockerBuilder{}, t.TempDir())
+	targetDir := filepath.Join(t.TempDir(), "target")
+	secretToken := "ghs_supersecrettoken999"
+
+	_, err := builder.CloneRepository(context.Background(), "https://invalid.example.com/not/real/repo.git", "", "", targetDir, "", secretToken)
+	if err == nil {
+		t.Fatalf("expected clone to fail for non-existent repo")
+	}
+
+	errMsg := err.Error()
+	if strings.Contains(errMsg, secretToken) {
+		t.Errorf("CloneRepository error leaked secret token: %s", errMsg)
+	}
+}
