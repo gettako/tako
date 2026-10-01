@@ -297,13 +297,28 @@ services:
   const canGoNextFromStep2 =
     selectedBranch.trim().length > 0 && dockerfilePath.trim().length > 0
 
-  const canGoNextFromStep3 = selectedServerId.trim().length > 0
-
-  const canSubmit =
+  const canGoNextFromStep3 =
     serviceName.trim().length >= 2 &&
     !isNaN(Number(internalPort)) &&
     Number(internalPort) >= 1 &&
     Number(internalPort) <= 65535
+
+  const canSubmit =
+    canGoNextFromStep3 && selectedServerId.trim().length > 0
+
+  const selectedServer = React.useMemo(
+    () => servers.find((s) => s.id === selectedServerId),
+    [servers, selectedServerId]
+  )
+
+  const canJumpToStep = (targetStep: number) => {
+    if (targetStep === currentStep) return true
+    if (targetStep === 1) return true
+    if (targetStep === 2) return canGoNextFromStep1
+    if (targetStep === 3) return canGoNextFromStep1 && canGoNextFromStep2
+    if (targetStep === 4) return canGoNextFromStep1 && canGoNextFromStep2 && canGoNextFromStep3
+    return false
+  }
 
   const handleNext = () => {
     setGeneralError(null)
@@ -473,6 +488,11 @@ services:
       return
     }
 
+    if (category === "app" && currentStep < 4) {
+      handleNext()
+      return
+    }
+
     if (!canSubmit) return
 
     setIsSubmitting(true)
@@ -544,8 +564,8 @@ services:
   const stepLabels = [
     { num: 1, title: "Source" },
     { num: 2, title: "Build" },
-    { num: 3, title: "Server" },
-    { num: 4, title: "Details" },
+    { num: 3, title: "Details" },
+    { num: 4, title: "Server" },
   ]
 
   const calculatedURI = React.useMemo(() => {
@@ -630,24 +650,36 @@ services:
           {stepLabels.map((s) => {
             const isActive = currentStep === s.num
             const isCompleted = currentStep > s.num
+            const isClickable = canJumpToStep(s.num)
             return (
-              <div
+              <button
                 key={s.num}
+                type="button"
+                disabled={!isClickable || isSubmitting}
+                onClick={() => {
+                  if (isClickable && !isSubmitting) {
+                    setGeneralError(null)
+                    setCurrentStep(s.num as WizardStep)
+                  }
+                }}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                  "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors select-none",
                   isActive
-                    ? "border-foreground bg-foreground font-semibold text-background"
+                    ? "border-foreground bg-foreground font-semibold text-background cursor-default"
                     : isCompleted
-                      ? "border-border bg-muted/60 text-foreground"
-                      : "border-border/60 bg-transparent text-muted-foreground"
+                      ? "border-border bg-muted/60 text-foreground hover:bg-muted hover:border-foreground/40 cursor-pointer"
+                      : isClickable
+                        ? "border-border/60 bg-transparent text-muted-foreground hover:text-foreground hover:border-border cursor-pointer"
+                        : "border-border/30 bg-transparent text-muted-foreground/40 cursor-not-allowed"
                 )}
+                aria-current={isActive ? "step" : undefined}
               >
                 <span>{s.num}.</span>
                 <span>{s.title}</span>
                 {isCompleted && (
                   <CheckIcon className="size-3 text-emerald-600" />
                 )}
-              </div>
+              </button>
             )
           })}
         </div>
@@ -695,6 +727,12 @@ services:
                     placeholder="https://github.com/organization/repository.git"
                     value={customGitUrl}
                     onChange={(e) => setCustomGitUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        if (canGoNextFromStep1) handleNext()
+                      }
+                    }}
                     autoFocus
                   />
                   <p className="text-2xs text-muted-foreground">
@@ -874,6 +912,12 @@ services:
                   placeholder="Dockerfile"
                   value={dockerfilePath}
                   onChange={(e) => setDockerfilePath(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (canGoNextFromStep2) handleNext()
+                    }
+                  }}
                 />
                 <p className="text-2xs text-muted-foreground">
                   Relative path to the Dockerfile in the repository root.
@@ -892,6 +936,12 @@ services:
                   placeholder="."
                   value={buildContext}
                   onChange={(e) => setBuildContext(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (canGoNextFromStep2) handleNext()
+                    }
+                  }}
                 />
                 <p className="text-2xs text-muted-foreground">
                   Docker build directory context (default is repository root
@@ -901,76 +951,8 @@ services:
             </div>
           )}
 
-          {/* STEP 3: SERVER SELECTION */}
+          {/* STEP 3: SERVICE METADATA & CONFIGURATION */}
           {currentStep === 3 && (
-            <div className="flex flex-col gap-3">
-              <span className="text-xs font-medium text-muted-foreground">
-                Select a target node running Tako Agent to host this service
-                container
-              </span>
-
-              {isLoadingServers ? (
-                <div className="flex items-center justify-center p-6 text-xs text-muted-foreground">
-                  <CircleNotchIcon className="mr-2 size-4 animate-spin" />
-                  <span>Discovering servers...</span>
-                </div>
-              ) : servers.length === 0 ? (
-                <div className="rounded-md border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                  No registered servers available. Please register a server node
-                  in Servers settings.
-                </div>
-              ) : (
-                <div className="flex max-h-60 flex-col gap-2 overflow-y-auto">
-                  {servers.map((srv) => {
-                    const isSelected = selectedServerId === srv.id
-                    return (
-                      <button
-                        key={srv.id}
-                        type="button"
-                        onClick={() => setSelectedServerId(srv.id)}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg border p-3 text-left transition-colors",
-                          isSelected
-                            ? "border-foreground bg-muted/50"
-                            : "border-border hover:bg-muted/30"
-                        )}
-                        aria-pressed={isSelected}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted/60 text-foreground">
-                            <HardDrivesIcon className="size-4" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-foreground">
-                                {srv.name}
-                              </span>
-                              <span className="font-mono text-3xs text-muted-foreground">
-                                {srv.host}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 pt-1 font-mono text-2xs text-muted-foreground">
-                              <span>CPU: {srv.cpu_percent}%</span>
-                              <span>RAM: {srv.ram_percent}%</span>
-                              <span>Disk: {srv.disk_percent}%</span>
-                            </div>
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <div className="flex size-5 items-center justify-center rounded-full bg-foreground text-background">
-                            <CheckIcon className="size-3" />
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* STEP 4: SERVICE METADATA */}
-          {currentStep === 4 && (
             <div className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
                 <label
@@ -984,6 +966,12 @@ services:
                   placeholder="e.g. web-frontend"
                   value={serviceName}
                   onChange={(e) => setServiceName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      if (canGoNextFromStep3) handleNext()
+                    }
+                  }}
                   autoFocus
                 />
                 <p className="text-2xs text-muted-foreground">
@@ -1005,6 +993,12 @@ services:
                     placeholder="3000"
                     value={internalPort}
                     onChange={(e) => setInternalPort(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        if (canGoNextFromStep3) handleNext()
+                      }
+                    }}
                   />
                   <p className="text-2xs text-muted-foreground">
                     Container port (e.g. 3000, 8080).
@@ -1023,6 +1017,12 @@ services:
                     placeholder="/healthz"
                     value={healthCheckPath}
                     onChange={(e) => setHealthCheckPath(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        if (canGoNextFromStep3) handleNext()
+                      }
+                    }}
                   />
                   <p className="text-2xs text-muted-foreground">
                     HTTP endpoint for health checks.
@@ -1118,6 +1118,115 @@ services:
             </div>
           )}
 
+          {/* STEP 4: TARGET SERVER & PRE-DEPLOYMENT SUMMARY */}
+          {currentStep === 4 && (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-foreground">
+                  Target Server Node <span className="text-destructive">*</span>
+                </span>
+                <p className="text-2xs text-muted-foreground">
+                  Select a target node running Tako Agent to host this service container.
+                </p>
+              </div>
+
+              {isLoadingServers ? (
+                <div className="flex items-center justify-center p-6 text-xs text-muted-foreground">
+                  <CircleNotchIcon className="mr-2 size-4 animate-spin" />
+                  <span>Discovering servers...</span>
+                </div>
+              ) : servers.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+                  No registered servers available. Please register a server node in Servers settings.
+                </div>
+              ) : (
+                <div className="flex max-h-52 flex-col gap-2 overflow-y-auto pr-1">
+                  {servers.map((srv) => {
+                    const isSelected = selectedServerId === srv.id
+                    return (
+                      <button
+                        key={srv.id}
+                        type="button"
+                        onClick={() => setSelectedServerId(srv.id)}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg border p-3 text-left transition-colors",
+                          isSelected
+                            ? "border-foreground bg-muted/50"
+                            : "border-border hover:bg-muted/30"
+                        )}
+                        aria-pressed={isSelected}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 items-center justify-center rounded-md border border-border bg-muted/60 text-foreground">
+                            <HardDrivesIcon className="size-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-foreground">
+                                {srv.name}
+                              </span>
+                              <span className="font-mono text-3xs text-muted-foreground">
+                                {srv.host}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 pt-1 font-mono text-2xs text-muted-foreground">
+                              <span>CPU: {srv.cpu_percent}%</span>
+                              <span>RAM: {srv.ram_percent}%</span>
+                              <span>Disk: {srv.disk_percent}%</span>
+                            </div>
+                          </div>
+                        </div>
+                        {isSelected && (
+                          <div className="flex size-5 items-center justify-center rounded-full bg-foreground text-background">
+                            <CheckIcon className="size-3" />
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Pre-deployment Summary Card */}
+              {selectedServer && (
+                <div className="flex flex-col gap-2.5 rounded-lg border border-border bg-muted/20 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Deployment Summary
+                    </span>
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-3xs font-medium text-emerald-600">
+                      Ready to deploy
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 text-xs">
+                    <div>
+                      <span className="text-3xs text-muted-foreground">Service Name</span>
+                      <p className="font-semibold text-foreground truncate">{serviceName}</p>
+                    </div>
+                    <div>
+                      <span className="text-3xs text-muted-foreground">Target Server</span>
+                      <p className="font-medium text-foreground truncate">
+                        {selectedServer.name} ({selectedServer.host})
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-3xs text-muted-foreground">Repository & Branch</span>
+                      <p className="font-mono text-2xs text-foreground truncate">
+                        {useCustomGit ? customGitUrl : selectedRepo?.full_name || "Custom"} ({selectedBranch})
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-3xs text-muted-foreground">Internal Port</span>
+                      <p className="font-mono text-2xs text-foreground truncate">
+                        :{internalPort} {healthCheckPath ? `(${healthCheckPath})` : ""}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Wizard Footer Navigation */}
           <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
             {currentStep > 1 ? (
@@ -1173,7 +1282,11 @@ services:
                     <span>Deploying...</span>
                   </>
                 ) : (
-                  <span>Create & Deploy</span>
+                  <span>
+                    {selectedServer
+                      ? `Deploy to ${selectedServer.name}`
+                      : "Create & Deploy"}
+                  </span>
                 )}
               </Button>
             )}
