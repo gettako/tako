@@ -677,7 +677,18 @@ services:
   }, [dbEngine, dbServiceName, dbUser, dbPassword, dbName])
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={(e) => {
+        // Prevent Enter keypress from accidentally advancing steps or triggering
+        // premature deployment. The deploy action must be explicitly confirmed
+        // by clicking the "Deploy" submit button.
+        if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+          e.preventDefault()
+        }
+      }}
+      className="flex flex-col gap-4"
+    >
       {/* Wizard Header */}
       <DialogHeader>
         <DialogTitle>Create New Service</DialogTitle>

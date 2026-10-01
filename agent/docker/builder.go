@@ -132,12 +132,12 @@ func (b *Builder) CloneRepository(ctx context.Context, repo, branch, commitSHA, 
 	if gitToken != "" {
 		basicAuth := base64.StdEncoding.EncodeToString([]byte("x-access-token:" + gitToken))
 		authHeader := "AUTHORIZATION: basic " + basicAuth
+		// Set via env only; passing both -c and GIT_CONFIG_* causes duplicate Authorization headers (HTTP 400).
 		gitEnv = append(gitEnv,
 			"GIT_CONFIG_COUNT=1",
 			"GIT_CONFIG_KEY_0=http.extraheader",
 			"GIT_CONFIG_VALUE_0="+authHeader,
 		)
-		cloneArgs = append(cloneArgs, "-c", "http.extraheader="+authHeader)
 	}
 
 	cloneArgs = append(cloneArgs, "clone", "--depth", "1")
