@@ -78,7 +78,7 @@ func TestTOTPSecretEncryptionAndRecoveryCodeHashing(t *testing.T) {
 
 	// 3. Inspect database directly: ensure secrets are NOT stored in plaintext
 	var dbSecret, dbRecoveryCodes string
-	err = database.QueryRow(`SELECT two_factor_secret, recovery_codes FROM users WHERE email = 'admin@gettako.dev'`).Scan(&dbSecret, &dbRecoveryCodes)
+	err = database.QueryRow(`SELECT two_factor_secret, recovery_codes FROM users WHERE email = 'admin@example.com'`).Scan(&dbSecret, &dbRecoveryCodes)
 	if err != nil {
 		t.Fatalf("failed to query user from database: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestTOTPSecretEncryptionAndRecoveryCodeHashing(t *testing.T) {
 	}
 
 	// 6. Verify that the first recovery code was consumed (removed from DB)
-	err = database.QueryRow(`SELECT recovery_codes FROM users WHERE email = 'admin@gettako.dev'`).Scan(&dbRecoveryCodes)
+	err = database.QueryRow(`SELECT recovery_codes FROM users WHERE email = 'admin@example.com'`).Scan(&dbRecoveryCodes)
 	if err != nil {
 		t.Fatalf("failed to query updated recovery codes: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestTOTPSecretEncryptionAndRecoveryCodeHashing(t *testing.T) {
 		t.Fatalf("expected 200 OK logging in with recovery code 2, got %d: %s", loginRec2Rec.Code, loginRec2Rec.Body.String())
 	}
 
-	_ = database.QueryRow(`SELECT recovery_codes FROM users WHERE email = 'admin@gettako.dev'`).Scan(&dbRecoveryCodes)
+	_ = database.QueryRow(`SELECT recovery_codes FROM users WHERE email = 'admin@example.com'`).Scan(&dbRecoveryCodes)
 	_ = json.Unmarshal([]byte(dbRecoveryCodes), &remainingHashes)
 	if len(remainingHashes) != 6 {
 		t.Fatalf("expected 6 remaining recovery code hashes, got %d", len(remainingHashes))

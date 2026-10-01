@@ -9,7 +9,7 @@ import {
   Cpu,
   Check,
   ArrowRight,
-  ArrowLeft,
+  ArrowLeftIcon,
   CircleNotchIcon,
   MagnifyingGlass,
   FileCode,
@@ -1127,7 +1127,7 @@ services:
                 disabled={isSubmitting}
                 className="gap-1"
               >
-                <ArrowLeft className="size-3.5" />
+                <ArrowLeftIcon className="size-3.5" />
                 <span>Back</span>
               </Button>
             ) : onCancel ? (

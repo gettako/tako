@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  ArrowLeft,
+  ArrowLeftIcon,
   ArrowSquareOut,
   HardDrives,
   ArrowClockwise,
@@ -60,7 +60,7 @@ export function ServiceHeader() {
           href={`/projects/${projectId}`}
           className="inline-flex items-center gap-1.5 self-start text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
           <span>Back to Project</span>
         </Link>
         <div className="h-4 w-28 rounded bg-muted" />
@@ -210,7 +210,7 @@ export function ServiceHeader() {
         href={`/projects/${projectId}`}
         className="inline-flex items-center gap-1.5 self-start text-xs text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="size-3.5" aria-hidden="true" />
+        <ArrowLeftIcon className="size-3.5" aria-hidden="true" />
         <span>Back to Project</span>
       </Link>
 

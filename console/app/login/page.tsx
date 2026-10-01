@@ -8,7 +8,7 @@ import {
   Fingerprint,
   Lock,
   CircleNotchIcon,
-  ArrowLeft,
+  ArrowLeftIcon,
   ShieldCheck,
   EnvelopeSimpleIcon,
 } from "@phosphor-icons/react"
@@ -261,7 +261,7 @@ export default function LoginPage() {
                   name="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="admin@gettako.dev"
+                  placeholder="admin@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading || passkeyLoading}
@@ -418,7 +418,7 @@ export default function LoginPage() {
               }}
               className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
-              <ArrowLeft className="size-3.5" />
+              <ArrowLeftIcon className="size-3.5" />
               <span>Back to password</span>
             </Button>
           </form>

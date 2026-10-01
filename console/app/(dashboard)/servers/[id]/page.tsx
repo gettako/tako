@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
-  ArrowLeft,
+  ArrowLeftIcon,
   HardDrives,
   Broom,
   Trash,
@@ -486,7 +486,7 @@ export default function ServerDetailPage({
           href="/servers"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" />
+          <ArrowLeftIcon className="size-3.5" />
           <span>Back to Servers</span>
         </Link>
         <ErrorCard
@@ -519,7 +519,7 @@ export default function ServerDetailPage({
           href="/servers"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
-          <ArrowLeft className="size-3.5" />
+          <ArrowLeftIcon className="size-3.5" />
           <span>Back to Servers</span>
         </Link>
       </div>

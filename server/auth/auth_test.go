@@ -129,8 +129,8 @@ func TestMiddlewareProtectionAndMe(t *testing.T) {
 	if err := json.Unmarshal(meRec.Body.Bytes(), &user); err != nil {
 		t.Fatalf("failed to decode user json: %v", err)
 	}
-	if user.Email != "admin@gettako.dev" {
-		t.Errorf("expected email 'admin@gettako.dev', got %s", user.Email)
+	if user.Email != "admin@example.com" {
+		t.Errorf("expected email 'admin@example.com', got %s", user.Email)
 	}
 
 	// 4. Logout terminates session

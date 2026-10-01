@@ -137,15 +137,15 @@ fi
 ADMIN_EMAIL="${TAKO_ADMIN_EMAIL:-}"
 if [ -z "${ADMIN_EMAIL}" ]; then
     if [ "${AUTO_MODE}" = "true" ]; then
-        ADMIN_EMAIL="admin@gettako.dev"
+        ADMIN_EMAIL="admin@example.com"
     else
-        printf "${BOLD}Enter administrator email [admin@gettako.dev]: ${NC}"
+        printf "${BOLD}Enter administrator email [admin@example.com]: ${NC}"
         if [ -c /dev/tty ]; then
             read -r input_email < /dev/tty || true
         else
             read -r input_email || true
         fi
-        ADMIN_EMAIL="${input_email:-admin@gettako.dev}"
+        ADMIN_EMAIL="${input_email:-admin@example.com}"
     fi
 fi
 

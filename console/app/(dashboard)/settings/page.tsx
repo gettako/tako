@@ -141,7 +141,7 @@ export function AdminProfileCard({
               if (feedback) setFeedback(null)
             }}
             disabled={isSaving}
-            placeholder="admin@gettako.dev"
+            placeholder="admin@example.com"
             className="h-9 text-xs"
           />
         </div>

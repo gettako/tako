@@ -193,9 +193,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		adminEmail := "admin@example.com"
+		if req.Email != nil && *req.Email != "" {
+			adminEmail = *req.Email
+		}
+
 		user := &User{
 			ID:               "usr_admin",
-			Email:            "admin@gettako.dev",
+			Email:            adminEmail,
 			Name:             "Admin Owner",
 			Role:             "admin",
 			PasswordHash:     hash,
