@@ -286,7 +286,7 @@ export interface GitHubApiClient {
     request: CreateGitHubConnectionRequest
   ): Promise<GitHubConnection>
   deleteConnection(id: string): Promise<void>
-  getManifest(): Promise<GitHubManifestResponse>
+  getManifest(params?: { origin?: string }): Promise<GitHubManifestResponse>
   exchangeManifest(
     request: GitHubAppExchangeRequest
   ): Promise<GitHubAppExchangeResponse>

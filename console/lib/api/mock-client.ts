@@ -1986,19 +1986,20 @@ providers:
       this._githubConnections.splice(idx, 1)
     },
 
-    getManifest: async (): Promise<GitHubManifestResponse> => {
+    getManifest: async (params?: { origin?: string }): Promise<GitHubManifestResponse> => {
       checkSimulatedError()
       await delay(100)
+      const baseOrigin = params?.origin || "http://localhost:3000"
       return {
         action_url: "https://github.com/settings/apps/new",
         manifest: {
           name: "tako-mock-app",
-          url: "http://localhost:3000",
+          url: baseOrigin,
           hook_attributes: {
-            url: "http://localhost:3000/api/github/webhook",
+            url: `${baseOrigin}/api/github/webhook`,
             active: true,
           },
-          redirect_url: "http://localhost:3000/settings/github/callback",
+          redirect_url: `${baseOrigin}/settings/github/callback`,
           public: true,
           default_permissions: {
             contents: "read",

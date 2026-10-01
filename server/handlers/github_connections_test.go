@@ -461,6 +461,24 @@ func TestGitHubManifest_And_Exchange(t *testing.T) {
 		t.Fatalf("expected manifest.public to be true")
 	}
 
+	// 1b. Test GetGitHubManifest with query param origin containing IP and custom port
+	reqWithOrigin := httptest.NewRequest(http.MethodGet, "/api/github/manifest?origin=http://43.156.243.241:3000", nil)
+	recWithOrigin := httptest.NewRecorder()
+	r.ServeHTTP(recWithOrigin, reqWithOrigin)
+	if recWithOrigin.Code != http.StatusOK {
+		t.Fatalf("expected 200 with origin query param, got %d", recWithOrigin.Code)
+	}
+	var manifestWithOrigin models.GitHubManifestResponse
+	if err := json.NewDecoder(recWithOrigin.Body).Decode(&manifestWithOrigin); err != nil {
+		t.Fatalf("failed to decode manifest response: %v", err)
+	}
+	if manifestWithOrigin.Manifest["redirect_url"] != "http://43.156.243.241:3000/settings/github/callback" {
+		t.Fatalf("expected redirect_url to include custom port, got %v", manifestWithOrigin.Manifest["redirect_url"])
+	}
+	if manifestWithOrigin.Manifest["url"] != "http://43.156.243.241:3000" {
+		t.Fatalf("expected url to include custom port, got %v", manifestWithOrigin.Manifest["url"])
+	}
+
 	// 2. Test ExchangeGitHubManifest
 	exchangeReq := models.GitHubAppExchangeRequest{
 		Code: "valid_code_123",

@@ -605,7 +605,12 @@ export class LiveApiClient implements ApiClient {
         method: "DELETE",
       }),
 
-    getManifest: () => request<GitHubManifestResponse>("/api/github/manifest"),
+    getManifest: (params?: { origin?: string }) => {
+      const url = params?.origin
+        ? `/api/github/manifest?origin=${encodeURIComponent(params.origin)}`
+        : "/api/github/manifest"
+      return request<GitHubManifestResponse>(url)
+    },
 
     exchangeManifest: (body: GitHubAppExchangeRequest) =>
       request<GitHubAppExchangeResponse>("/api/github/manifest/exchange", {

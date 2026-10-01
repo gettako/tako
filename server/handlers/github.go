@@ -12,6 +12,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -365,18 +366,38 @@ func (h *Handler) DeleteGitHubConnection(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) GetGitHubManifest(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
+	origin := strings.TrimSpace(r.URL.Query().Get("origin"))
+	if origin == "" {
+		origin = strings.TrimSpace(r.Header.Get("Origin"))
+	}
+	if origin == "" {
+		origin = strings.TrimSpace(r.Header.Get("X-Forwarded-Origin"))
+	}
 	if origin == "" {
 		proto := "http"
 		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 			proto = "https"
 		}
 		host := r.Host
-		if h.domain != "" && !strings.Contains(h.domain, "localhost") {
-			host = h.domain
+		if xfHost := r.Header.Get("X-Forwarded-Host"); xfHost != "" {
+			host = xfHost
+		}
+		if xfPort := r.Header.Get("X-Forwarded-Port"); xfPort != "" && !strings.Contains(host, ":") && xfPort != "80" && xfPort != "443" {
+			host = fmt.Sprintf("%s:%s", host, xfPort)
+		}
+		// If host is internal container address or localhost, consider configured domain + console port
+		if (host == "" || strings.HasPrefix(host, "server:") || strings.HasPrefix(host, "127.0.0.1:") || strings.HasPrefix(host, "localhost:")) && h.domain != "" && !strings.Contains(h.domain, "localhost") {
+			consolePort := os.Getenv("TAKO_CONSOLE_PORT")
+			if consolePort != "" && consolePort != "80" && consolePort != "443" && !strings.Contains(h.domain, ":") {
+				host = fmt.Sprintf("%s:%s", h.domain, consolePort)
+			} else {
+				host = h.domain
+			}
 		}
 		origin = fmt.Sprintf("%s://%s", proto, host)
 	}
+
+	origin = strings.TrimRight(origin, "/")
 
 	appSlugRandom := fmt.Sprintf("tako-%d", time.Now().Unix()%100000)
 	webhookURL := fmt.Sprintf("%s/api/github/webhook", origin)
