@@ -24,7 +24,7 @@ services:
     container_name: tako-console
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${TAKO_CONSOLE_PORT:-3000}:3000"
+      - "${TAKO_CONSOLE_PORT:-3000}:3000"
     environment:
       - TAKO_BACKEND_URL=http://server:8080
       - NODE_ENV=production

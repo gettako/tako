@@ -36,7 +36,12 @@ func TestComposePortsBindingLoopback(t *testing.T) {
 				continue
 			}
 
-			// Internal HTTP ports (console 3000, server 8080) MUST be bound to 127.0.0.1
+			// Console web UI port 3000 is public so users can access dashboard initially
+			if svcName == "console" || strings.Contains(portEntry, "3000") {
+				continue
+			}
+
+			// Internal HTTP ports (server 8080) MUST be bound to 127.0.0.1
 			if !strings.HasPrefix(portEntry, "127.0.0.1:") {
 				t.Errorf("service %q port entry %q is not bound to 127.0.0.1", svcName, portEntry)
 			}
@@ -51,16 +56,13 @@ func TestInstallScriptPortsBindingLoopback(t *testing.T) {
 	}
 
 	content := string(data)
-	if strings.Contains(content, `"\${TAKO_CONSOLE_PORT:-3000}:3000"`) {
-		t.Error("install.sh contains un-scoped TAKO_CONSOLE_PORT without 127.0.0.1 prefix")
-	}
 	if strings.Contains(content, `"\${TAKO_PORT:-8080}:8080"`) {
 		t.Error("install.sh contains un-scoped TAKO_PORT without 127.0.0.1 prefix")
 	}
-	if !strings.Contains(content, `"127.0.0.1:\${TAKO_CONSOLE_PORT:-3000}:3000"`) {
-		t.Error("install.sh missing 127.0.0.1 binding for console port")
-	}
 	if !strings.Contains(content, `"127.0.0.1:\${TAKO_PORT:-8080}:8080"`) {
 		t.Error("install.sh missing 127.0.0.1 binding for server port")
+	}
+	if !strings.Contains(content, `"\${TAKO_CONSOLE_PORT:-3000}:3000"`) {
+		t.Error("install.sh missing public port binding for console port")
 	}
 }
