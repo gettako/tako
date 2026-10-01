@@ -107,33 +107,51 @@ if [ -z "${DETECTED_IP}" ]; then
 fi
 
 # 5. Prompts / Interactive Configuration
-NON_INTERACTIVE="${TAKO_NON_INTERACTIVE:-false}"
+AUTO_MODE=false
+if [ "${TAKO_NON_INTERACTIVE:-false}" = "true" ] || [ "${TAKO_AUTO:-false}" = "true" ]; then
+    AUTO_MODE=true
+fi
+for arg in "$@"; do
+    case "${arg}" in
+        auto|--auto|-y|--yes)
+            AUTO_MODE=true
+            ;;
+    esac
+done
 
 DOMAIN="${TAKO_DOMAIN:-}"
 if [ -z "${DOMAIN}" ]; then
-    if [ "${NON_INTERACTIVE}" = "true" ]; then
+    if [ "${AUTO_MODE}" = "true" ]; then
         DOMAIN="${DETECTED_IP}"
     else
         printf "${BOLD}Enter domain or public IP for Tako (optional, default [${DETECTED_IP}]): ${NC}"
-        read -r input_domain
+        if [ -c /dev/tty ]; then
+            read -r input_domain < /dev/tty || true
+        else
+            read -r input_domain || true
+        fi
         DOMAIN="${input_domain:-${DETECTED_IP}}"
     fi
 fi
 
 ADMIN_EMAIL="${TAKO_ADMIN_EMAIL:-}"
 if [ -z "${ADMIN_EMAIL}" ]; then
-    if [ "${NON_INTERACTIVE}" = "true" ]; then
+    if [ "${AUTO_MODE}" = "true" ]; then
         ADMIN_EMAIL="admin@gettako.dev"
     else
         printf "${BOLD}Enter administrator email [admin@gettako.dev]: ${NC}"
-        read -r input_email
+        if [ -c /dev/tty ]; then
+            read -r input_email < /dev/tty || true
+        else
+            read -r input_email || true
+        fi
         ADMIN_EMAIL="${input_email:-admin@gettako.dev}"
     fi
 fi
 
 ADMIN_PASSWORD="${TAKO_ADMIN_PASSWORD:-}"
 if [ -z "${ADMIN_PASSWORD}" ]; then
-    if [ "${NON_INTERACTIVE}" = "true" ]; then
+    if [ "${AUTO_MODE}" = "true" ]; then
         if command -v openssl >/dev/null 2>&1; then
             ADMIN_PASSWORD=$(openssl rand -base64 12)
         else
@@ -141,7 +159,11 @@ if [ -z "${ADMIN_PASSWORD}" ]; then
         fi
     else
         printf "${BOLD}Enter initial admin password (leave empty to auto-generate): ${NC}"
-        read -rs input_pwd
+        if [ -c /dev/tty ]; then
+            read -rs input_pwd < /dev/tty || true
+        else
+            read -rs input_pwd || true
+        fi
         printf "\n"
         if [ -z "${input_pwd}" ]; then
             if command -v openssl >/dev/null 2>&1; then

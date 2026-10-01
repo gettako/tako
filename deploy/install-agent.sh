@@ -27,17 +27,25 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Variables
-SERVER_URL="${TAKO_SERVER_URL:-${TAKO_SERVER:-}}"
-TOKEN="${TAKO_ENROLLMENT_TOKEN:-${TAKO_TOKEN:-}}"
+SERVER_URL="${TAKO_SERVER_URL:-${TAKO_SERVER:-${1:-}}}"
+TOKEN="${TAKO_ENROLLMENT_TOKEN:-${TAKO_TOKEN:-${2:-}}}"
 
 if [ -z "${SERVER_URL}" ]; then
     printf "${BOLD}Enter Tako Control Plane gRPC URL (e.g. http://203.0.113.10:50051): ${NC}"
-    read -r SERVER_URL
+    if [ -c /dev/tty ]; then
+        read -r SERVER_URL < /dev/tty || true
+    else
+        read -r SERVER_URL || true
+    fi
 fi
 
 if [ -z "${TOKEN}" ]; then
     printf "${BOLD}Enter Enrollment Token: ${NC}"
-    read -r TOKEN
+    if [ -c /dev/tty ]; then
+        read -r TOKEN < /dev/tty || true
+    else
+        read -r TOKEN || true
+    fi
 fi
 
 [ -z "${SERVER_URL}" ] && error "Server URL is required."
