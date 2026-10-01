@@ -12,12 +12,32 @@ import {
   ShieldCheckIcon,
   EnvelopeSimpleIcon,
 } from "@phosphor-icons/react"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { FieldError } from "@/components/ui/field"
 import { ErrorCard } from "@/components/states/error-card"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useApi, ApiError } from "@/lib/api"
 import { setSessionCookie } from "@/lib/auth"
+import { validateWithZod, mapApiError } from "@/lib/validation"
+
+const loginSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Please enter your email address.")
+    .email("Please enter a valid email address."),
+  password: z.string().min(1, "Please enter your password."),
+})
+
+const twoFactorSchema = z.object({
+  twoFactorCode: z
+    .string()
+    .trim()
+    .min(6, "Please enter a valid 6-digit verification code.")
+    .regex(/^\d{6}$/, "Verification code must be 6 digits."),
+})
 
 type LoginStep = "password" | "2fa"
 
@@ -42,18 +62,30 @@ export default function LoginPage() {
   const [loading, setLoading] = React.useState(false)
   const [passkeyLoading, setPasskeyLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>(
+    {}
+  )
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
+  }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim()) {
-      setError("Please enter your email address.")
-      return
-    }
-    if (!password.trim()) {
-      setError("Please enter your password.")
+
+    const validation = validateWithZod(loginSchema, { email, password })
+    if (!validation.success) {
+      setFieldErrors(validation.errors)
       return
     }
 
+    setFieldErrors({})
     setError(null)
     setLoading(true)
 
@@ -69,12 +101,13 @@ export default function LoginPage() {
         router.push(getRedirectTarget())
       }
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else if (err instanceof Error) {
-        setError(err.message)
-      } else {
-        setError("Invalid credentials or server connection error.")
+      const { fieldErrors: apiFieldErrors, generalError: apiGeneralError } =
+        mapApiError(err)
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setFieldErrors(apiFieldErrors)
+      }
+      if (apiGeneralError) {
+        setError(apiGeneralError)
       }
     } finally {
       setLoading(false)
@@ -83,11 +116,14 @@ export default function LoginPage() {
 
   const handleTwoFactorSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!twoFactorCode.trim() || twoFactorCode.length < 6) {
-      setError("Please enter a valid 6-digit verification code.")
+
+    const validation = validateWithZod(twoFactorSchema, { twoFactorCode })
+    if (!validation.success) {
+      setFieldErrors(validation.errors)
       return
     }
 
+    setFieldErrors({})
     setError(null)
     setLoading(true)
 
@@ -98,18 +134,22 @@ export default function LoginPage() {
         two_factor_code: twoFactorCode,
       })
       if (response.requires_2fa) {
-        setError("Two-factor verification failed. Please try again.")
+        setFieldErrors({
+          twoFactorCode: "Two-factor verification failed. Please try again.",
+        })
       } else {
         setSessionCookie(response.session_id ?? undefined)
         router.push(getRedirectTarget())
       }
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else if (err instanceof Error) {
-        setError(err.message)
+      const { fieldErrors: apiFieldErrors, generalError: apiGeneralError } =
+        mapApiError(err)
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setFieldErrors(apiFieldErrors)
+      } else if (apiGeneralError) {
+        setFieldErrors({ twoFactorCode: apiGeneralError })
       } else {
-        setError("Invalid verification code.")
+        setFieldErrors({ twoFactorCode: "Invalid verification code." })
       }
     } finally {
       setLoading(false)
@@ -263,9 +303,12 @@ export default function LoginPage() {
                   autoComplete="email"
                   placeholder="admin@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    clearFieldError("email")
+                  }}
                   disabled={loading || passkeyLoading}
-                  required
+                  aria-invalid={!!fieldErrors.email}
                   autoFocus
                   className="pr-9"
                 />
@@ -274,6 +317,7 @@ export default function LoginPage() {
                   aria-hidden="true"
                 />
               </div>
+              <FieldError message={fieldErrors.email} />
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -291,9 +335,12 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    clearFieldError("password")
+                  }}
                   disabled={loading || passkeyLoading}
-                  required
+                  aria-invalid={!!fieldErrors.password}
                   className="pr-9"
                 />
                 <LockIcon
@@ -301,6 +348,7 @@ export default function LoginPage() {
                   aria-hidden="true"
                 />
               </div>
+              <FieldError message={fieldErrors.password} />
             </div>
 
             <Button
@@ -378,11 +426,12 @@ export default function LoginPage() {
                   maxLength={6}
                   placeholder="123456"
                   value={twoFactorCode}
-                  onChange={(e) =>
+                  onChange={(e) => {
                     setTwoFactorCode(e.target.value.replace(/\D/g, ""))
-                  }
+                    clearFieldError("twoFactorCode")
+                  }}
                   disabled={loading}
-                  required
+                  aria-invalid={!!fieldErrors.twoFactorCode}
                   autoFocus
                   className="text-center font-mono text-lg tracking-widest"
                 />
@@ -391,6 +440,7 @@ export default function LoginPage() {
                   aria-hidden="true"
                 />
               </div>
+              <FieldError message={fieldErrors.twoFactorCode} />
             </div>
 
             <Button type="submit" disabled={loading} className="mt-2 w-full">

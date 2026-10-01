@@ -14,6 +14,7 @@ import {
   ClockIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/toast"
 import {
   Dialog,
   DialogContent,
@@ -208,12 +209,13 @@ export default function ServiceBackupsPage() {
         type: "success",
         message: "Automated backup schedule updated successfully.",
       })
+      toast.success("Automated backup schedule updated successfully.")
     } catch (err) {
-      alert(
+      const msg =
         err instanceof ApiError
           ? err.message
           : "Failed to update backup schedule."
-      )
+      toast.error(msg)
     } finally {
       setIsSavingSchedule(false)
     }
@@ -226,11 +228,11 @@ export default function ServiceBackupsPage() {
         window.open(res.download_url, "_blank")
       }
     } catch (err) {
-      alert(
+      const msg =
         err instanceof ApiError
           ? err.message
           : "Failed to generate download URL."
-      )
+      toast.error(msg)
     }
   }
 
@@ -746,7 +748,7 @@ export default function ServiceBackupsPage() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={() => setIsScheduleDialogOpen(false)}
                 disabled={isSavingSchedule}
               >
@@ -754,7 +756,7 @@ export default function ServiceBackupsPage() {
               </Button>
               <Button
                 type="submit"
-                size="sm"
+                size="default"
                 disabled={isSavingSchedule}
                 className="gap-1.5"
               >

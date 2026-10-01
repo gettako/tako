@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/components/ui/toast"
 import { api, ApiError, type AdminUser } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { SettingsHeader } from "@/components/settings-header"
@@ -60,6 +61,7 @@ export function AdminProfileCard({
         type: "success",
         message: "Administrator profile updated successfully.",
       })
+      toast.success("Administrator profile updated successfully.")
       if (onProfileUpdated) {
         onProfileUpdated(updated)
       }
@@ -69,6 +71,7 @@ export function AdminProfileCard({
           ? err.message
           : "Failed to update profile email."
       setFeedback({ type: "error", message: msg })
+      toast.error(msg)
     } finally {
       setIsSaving(false)
     }
@@ -149,7 +152,7 @@ export function AdminProfileCard({
         <div className="flex items-center justify-end pt-2">
           <Button
             type="submit"
-            size="sm"
+            size="default"
             disabled={isSaving}
             className="gap-1.5 text-xs"
           >
@@ -209,7 +212,7 @@ export function ChangePasswordCard() {
     setFeedback(null)
 
     try {
-      const res = await api.auth.changePassword({
+      await api.auth.changePassword({
         current_password: currentPassword,
         new_password: newPassword,
       })
@@ -218,6 +221,7 @@ export function ChangePasswordCard() {
         type: "success",
         message: "Password updated successfully.",
       })
+      toast.success("Password updated successfully.")
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
@@ -227,6 +231,7 @@ export function ChangePasswordCard() {
           ? err.message
           : "Failed to update administrator password."
       setFeedback({ type: "error", message: msg })
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -332,7 +337,7 @@ export function ChangePasswordCard() {
         <div className="flex items-center justify-end pt-2">
           <Button
             type="submit"
-            size="sm"
+            size="default"
             disabled={isSubmitting}
             className="gap-1.5 text-xs"
           >
@@ -428,6 +433,7 @@ export function CleanupPolicyCard() {
   const handleSavePolicy = (e: React.FormEvent) => {
     e.preventDefault()
     setSavedFeedback(true)
+    toast.success("Cleanup retention policy saved successfully.")
     setTimeout(() => setSavedFeedback(false), 3000)
   }
 
@@ -503,7 +509,7 @@ export function CleanupPolicyCard() {
         </div>
 
         <div className="flex items-center justify-end pt-2">
-          <Button type="submit" size="sm" className="gap-1.5 text-xs">
+          <Button type="submit" size="default" className="gap-1.5 text-xs">
             <span>Save Retention Policy</span>
           </Button>
         </div>

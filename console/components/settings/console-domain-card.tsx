@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/components/ui/toast"
 import { api, ApiError, type ConsoleDomainConfig } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -157,6 +158,9 @@ export function ConsoleDomainCard({
         type: "success",
         message: `Console domain updated to ${trimmed}. Traefik dynamic routing reloaded successfully.`,
       })
+      toast.success(
+        `Console domain updated to ${trimmed}. Traefik routing reloaded.`
+      )
 
       if (onDomainUpdated) {
         onDomainUpdated(updated)
@@ -167,6 +171,7 @@ export function ConsoleDomainCard({
           ? err.message
           : "Failed to update console domain."
       setFeedback({ type: "error", message: msg })
+      toast.error(msg)
     } finally {
       setIsSaving(false)
     }
@@ -385,8 +390,8 @@ export function ConsoleDomainCard({
               className={cn(
                 "flex flex-col gap-1 rounded-md border p-2.5 text-left transition-colors",
                 sslProvider === "letsencrypt"
-                  ? "border-foreground bg-muted/60 text-foreground"
-                  : "border-border bg-card text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+                  ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                  : "border-input bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               )}
             >
               <div className="flex w-full items-center justify-between">
@@ -408,8 +413,8 @@ export function ConsoleDomainCard({
               className={cn(
                 "flex flex-col gap-1 rounded-md border p-2.5 text-left transition-colors",
                 sslProvider === "none"
-                  ? "border-foreground bg-muted/60 text-foreground"
-                  : "border-border bg-card text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+                  ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                  : "border-input bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               )}
             >
               <div className="flex w-full items-center justify-between">
@@ -430,8 +435,8 @@ export function ConsoleDomainCard({
               className={cn(
                 "flex flex-col gap-1 rounded-md border p-2.5 text-left transition-colors",
                 sslProvider === "custom"
-                  ? "border-foreground bg-muted/60 text-foreground"
-                  : "border-border bg-card text-muted-foreground hover:border-foreground/50 hover:text-foreground"
+                  ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                  : "border-input bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               )}
             >
               <div className="flex w-full items-center justify-between">
@@ -514,9 +519,9 @@ export function ConsoleDomainCard({
         <div className="flex items-center justify-end border-t border-border pt-3">
           <Button
             type="submit"
-            size="sm"
+            size="default"
             disabled={isSaving || isVerifying || !domainInput.trim()}
-            className="h-9 min-w-[120px] gap-1.5 text-xs"
+            className="gap-1.5 text-xs"
           >
             {isSaving ? (
               <>

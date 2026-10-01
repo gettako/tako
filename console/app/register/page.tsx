@@ -13,12 +13,31 @@ import {
   WarningCircleIcon,
   ArrowRightIcon,
 } from "@phosphor-icons/react"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { FieldError } from "@/components/ui/field"
 import { ErrorCard } from "@/components/states/error-card"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useApi, ApiError, type InviteValidationResponse } from "@/lib/api"
 import { setSessionCookie } from "@/lib/auth"
+import { validateWithZod, mapApiError } from "@/lib/validation"
+
+const registerSchema = z
+  .object({
+    name: z.string().trim().min(1, "Full name is required."),
+    email: z
+      .string()
+      .trim()
+      .min(1, "Email address is required.")
+      .email("A valid email address is required."),
+    password: z.string().min(8, "Password must be at least 8 characters long."),
+    confirmPassword: z.string().min(1, "Please confirm your password."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match.",
+    path: ["confirmPassword"],
+  })
 
 function RegisterForm() {
   const router = useRouter()
@@ -44,6 +63,19 @@ function RegisterForm() {
   // Submission State
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [formError, setFormError] = React.useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>(
+    {}
+  )
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
+  }
 
   // Validate token on mount
   React.useEffect(() => {
@@ -92,23 +124,18 @@ function RegisterForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!name.trim()) {
-      setFormError("Full name is required.")
-      return
-    }
-    if (!email.trim() || !email.includes("@")) {
-      setFormError("A valid email address is required.")
-      return
-    }
-    if (password.length < 8) {
-      setFormError("Password must be at least 8 characters long.")
-      return
-    }
-    if (password !== confirmPassword) {
-      setFormError("Passwords do not match.")
+    const validation = validateWithZod(registerSchema, {
+      name,
+      email,
+      password,
+      confirmPassword,
+    })
+    if (!validation.success) {
+      setFieldErrors(validation.errors)
       return
     }
 
+    setFieldErrors({})
     setFormError(null)
     setIsSubmitting(true)
 
@@ -125,11 +152,14 @@ function RegisterForm() {
       }
       router.push("/")
     } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.message
-          : "Failed to complete registration."
-      setFormError(msg)
+      const { fieldErrors: apiFieldErrors, generalError: apiGeneralError } =
+        mapApiError(err)
+      if (Object.keys(apiFieldErrors).length > 0) {
+        setFieldErrors(apiFieldErrors)
+      }
+      if (apiGeneralError) {
+        setFormError(apiGeneralError)
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -232,9 +262,12 @@ function RegisterForm() {
                 type="text"
                 placeholder="Alex Mercer"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  clearFieldError("name")
+                }}
                 disabled={isSubmitting}
-                required
+                aria-invalid={!!fieldErrors.name}
                 autoFocus
                 className="pr-9"
               />
@@ -243,6 +276,7 @@ function RegisterForm() {
                 aria-hidden="true"
               />
             </div>
+            <FieldError message={fieldErrors.name} />
           </div>
 
           {/* Email */}
@@ -260,9 +294,12 @@ function RegisterForm() {
                 type="email"
                 placeholder="alex@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  clearFieldError("email")
+                }}
                 disabled={isSubmitting}
-                required
+                aria-invalid={!!fieldErrors.email}
                 className="pr-9"
               />
               <EnvelopeSimpleIcon
@@ -270,6 +307,7 @@ function RegisterForm() {
                 aria-hidden="true"
               />
             </div>
+            <FieldError message={fieldErrors.email} />
           </div>
 
           {/* Password */}
@@ -287,10 +325,12 @@ function RegisterForm() {
                 type="password"
                 placeholder="At least 8 characters"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  clearFieldError("password")
+                }}
                 disabled={isSubmitting}
-                required
-                minLength={8}
+                aria-invalid={!!fieldErrors.password}
                 className="pr-9"
               />
               <LockIcon
@@ -298,6 +338,7 @@ function RegisterForm() {
                 aria-hidden="true"
               />
             </div>
+            <FieldError message={fieldErrors.password} />
           </div>
 
           {/* Confirm Password */}
@@ -315,10 +356,12 @@ function RegisterForm() {
                 type="password"
                 placeholder="Re-enter password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value)
+                  clearFieldError("confirmPassword")
+                }}
                 disabled={isSubmitting}
-                required
-                minLength={8}
+                aria-invalid={!!fieldErrors.confirmPassword}
                 className="pr-9"
               />
               <LockIcon
@@ -326,6 +369,7 @@ function RegisterForm() {
                 aria-hidden="true"
               />
             </div>
+            <FieldError message={fieldErrors.confirmPassword} />
           </div>
 
           <Button

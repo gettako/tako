@@ -3,22 +3,18 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import {
-  GitBranchIcon,
   GithubLogoIcon,
   HardDrivesIcon,
-  CpuIcon,
   CheckIcon,
   ArrowRightIcon,
   ArrowLeftIcon,
   CircleNotchIcon,
   MagnifyingGlassIcon,
   FileCodeIcon,
-  GlobeIcon,
   WarningCircleIcon,
   DatabaseIcon,
   EyeIcon,
   EyeSlashIcon,
-  CopyIcon,
   ArrowsClockwiseIcon,
   ArrowSquareOutIcon,
 } from "@phosphor-icons/react"
@@ -32,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { CopyButton } from "@/components/ui/copy-button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/components/ui/toast"
 import {
   Select,
   SelectContent,
@@ -303,8 +300,7 @@ services:
     Number(internalPort) >= 1 &&
     Number(internalPort) <= 65535
 
-  const canSubmit =
-    canGoNextFromStep3 && selectedServerId.trim().length > 0
+  const canSubmit = canGoNextFromStep3 && selectedServerId.trim().length > 0
 
   const selectedServer = React.useMemo(
     () => servers.find((s) => s.id === selectedServerId),
@@ -316,7 +312,8 @@ services:
     if (targetStep === 1) return true
     if (targetStep === 2) return canGoNextFromStep1
     if (targetStep === 3) return canGoNextFromStep1 && canGoNextFromStep2
-    if (targetStep === 4) return canGoNextFromStep1 && canGoNextFromStep2 && canGoNextFromStep3
+    if (targetStep === 4)
+      return canGoNextFromStep1 && canGoNextFromStep2 && canGoNextFromStep3
     return false
   }
 
@@ -401,15 +398,17 @@ services:
         onSuccess(createdService.id)
       }
 
+      toast.success(
+        `Database service "${createdService.name}" provisioned successfully.`
+      )
       router.push(`/projects/${projectId}/services/${createdService.id}`)
     } catch (err) {
-      if (err instanceof ApiError) {
-        setGeneralError(err.message)
-      } else if (err instanceof Error) {
-        setGeneralError(err.message)
-      } else {
-        setGeneralError("Failed to provision database service.")
-      }
+      const msg =
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : "Failed to provision database service."
+      setGeneralError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -463,15 +462,17 @@ services:
         onSuccess(createdService.id)
       }
 
+      toast.success(
+        `Compose stack "${createdService.name}" deployed successfully.`
+      )
       router.push(`/projects/${projectId}/services/${createdService.id}`)
     } catch (err) {
-      if (err instanceof ApiError) {
-        setGeneralError(err.message)
-      } else if (err instanceof Error) {
-        setGeneralError(err.message)
-      } else {
-        setGeneralError("Failed to deploy Docker Compose stack.")
-      }
+      const msg =
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : "Failed to deploy Docker Compose stack."
+      setGeneralError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -535,17 +536,15 @@ services:
         onSuccess(createdService.id)
       }
 
-      router.push(
-        `/projects/${projectId}/services/${createdService.id}/deployments`
-      )
+      toast.success(`Service "${createdService.name}" created successfully.`)
+      router.push(`/projects/${projectId}/services/${createdService.id}`)
     } catch (err) {
-      if (err instanceof ApiError) {
-        setGeneralError(err.message)
-      } else if (err instanceof Error) {
-        setGeneralError(err.message)
-      } else {
-        setGeneralError("Failed to create service. Please try again.")
-      }
+      const msg =
+        err instanceof ApiError || err instanceof Error
+          ? err.message
+          : "Failed to create service."
+      setGeneralError(msg)
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }
@@ -665,12 +664,12 @@ services:
                 className={cn(
                   "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors select-none",
                   isActive
-                    ? "border-foreground bg-foreground font-semibold text-background cursor-default"
+                    ? "cursor-default border-foreground bg-foreground font-semibold text-background"
                     : isCompleted
-                      ? "border-border bg-muted/60 text-foreground hover:bg-muted hover:border-foreground/40 cursor-pointer"
+                      ? "cursor-pointer border-border bg-muted/60 text-foreground hover:border-foreground/40 hover:bg-muted"
                       : isClickable
-                        ? "border-border/60 bg-transparent text-muted-foreground hover:text-foreground hover:border-border cursor-pointer"
-                        : "border-border/30 bg-transparent text-muted-foreground/40 cursor-not-allowed"
+                        ? "cursor-pointer border-border/60 bg-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                        : "cursor-not-allowed border-border/30 bg-transparent text-muted-foreground/40"
                 )}
                 aria-current={isActive ? "step" : undefined}
               >
@@ -1126,7 +1125,8 @@ services:
                   Target Server Node <span className="text-destructive">*</span>
                 </span>
                 <p className="text-2xs text-muted-foreground">
-                  Select a target node running Tako Agent to host this service container.
+                  Select a target node running Tako Agent to host this service
+                  container.
                 </p>
               </div>
 
@@ -1137,7 +1137,8 @@ services:
                 </div>
               ) : servers.length === 0 ? (
                 <div className="rounded-md border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                  No registered servers available. Please register a server node in Servers settings.
+                  No registered servers available. Please register a server node
+                  in Servers settings.
                 </div>
               ) : (
                 <div className="flex max-h-52 flex-col gap-2 overflow-y-auto pr-1">
@@ -1151,8 +1152,8 @@ services:
                         className={cn(
                           "flex items-center justify-between rounded-lg border p-3 text-left transition-colors",
                           isSelected
-                            ? "border-foreground bg-muted/50"
-                            : "border-border hover:bg-muted/30"
+                            ? "border-ring bg-muted/50 ring-1 ring-ring"
+                            : "border-input hover:bg-muted/30"
                         )}
                         aria-pressed={isSelected}
                       >
@@ -1191,7 +1192,7 @@ services:
               {selectedServer && (
                 <div className="flex flex-col gap-2.5 rounded-lg border border-border bg-muted/20 p-3.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <span className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
                       Deployment Summary
                     </span>
                     <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-3xs font-medium text-emerald-600">
@@ -1200,25 +1201,39 @@ services:
                   </div>
                   <div className="grid grid-cols-2 gap-2.5 text-xs">
                     <div>
-                      <span className="text-3xs text-muted-foreground">Service Name</span>
-                      <p className="font-semibold text-foreground truncate">{serviceName}</p>
+                      <span className="text-3xs text-muted-foreground">
+                        Service Name
+                      </span>
+                      <p className="truncate font-semibold text-foreground">
+                        {serviceName}
+                      </p>
                     </div>
                     <div>
-                      <span className="text-3xs text-muted-foreground">Target Server</span>
-                      <p className="font-medium text-foreground truncate">
+                      <span className="text-3xs text-muted-foreground">
+                        Target Server
+                      </span>
+                      <p className="truncate font-medium text-foreground">
                         {selectedServer.name} ({selectedServer.host})
                       </p>
                     </div>
                     <div>
-                      <span className="text-3xs text-muted-foreground">Repository & Branch</span>
-                      <p className="font-mono text-2xs text-foreground truncate">
-                        {useCustomGit ? customGitUrl : selectedRepo?.full_name || "Custom"} ({selectedBranch})
+                      <span className="text-3xs text-muted-foreground">
+                        Repository & Branch
+                      </span>
+                      <p className="truncate font-mono text-2xs text-foreground">
+                        {useCustomGit
+                          ? customGitUrl
+                          : selectedRepo?.full_name || "Custom"}{" "}
+                        ({selectedBranch})
                       </p>
                     </div>
                     <div>
-                      <span className="text-3xs text-muted-foreground">Internal Port</span>
-                      <p className="font-mono text-2xs text-foreground truncate">
-                        :{internalPort} {healthCheckPath ? `(${healthCheckPath})` : ""}
+                      <span className="text-3xs text-muted-foreground">
+                        Internal Port
+                      </span>
+                      <p className="truncate font-mono text-2xs text-foreground">
+                        :{internalPort}{" "}
+                        {healthCheckPath ? `(${healthCheckPath})` : ""}
                       </p>
                     </div>
                   </div>
@@ -1313,8 +1328,8 @@ services:
                 className={cn(
                   "flex min-h-10 cursor-pointer flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors",
                   dbEngine === "postgres"
-                    ? "border-foreground bg-muted/40 font-semibold"
-                    : "border-border bg-card hover:bg-muted/30"
+                    ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                    : "border-input bg-card hover:border-foreground/30 hover:bg-muted/30"
                 )}
               >
                 <div className="flex w-full items-center justify-between">
@@ -1338,8 +1353,8 @@ services:
                 className={cn(
                   "flex min-h-10 cursor-pointer flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors",
                   dbEngine === "mysql"
-                    ? "border-foreground bg-muted/40 font-semibold"
-                    : "border-border bg-card hover:bg-muted/30"
+                    ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                    : "border-input bg-card hover:border-foreground/30 hover:bg-muted/30"
                 )}
               >
                 <div className="flex w-full items-center justify-between">
@@ -1363,8 +1378,8 @@ services:
                 className={cn(
                   "flex min-h-10 cursor-pointer flex-col items-start gap-1 rounded-md border p-3 text-left transition-colors",
                   dbEngine === "redis"
-                    ? "border-foreground bg-muted/40 font-semibold"
-                    : "border-border bg-card hover:bg-muted/30"
+                    ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                    : "border-input bg-card hover:border-foreground/30 hover:bg-muted/30"
                 )}
               >
                 <div className="flex w-full items-center justify-between">
@@ -1691,8 +1706,8 @@ services:
                 className={cn(
                   "flex min-h-10 cursor-pointer flex-col items-start rounded-md border p-3 text-left transition-colors",
                   composeSourceMode === "inline"
-                    ? "border-foreground bg-muted/40 text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                    : "border-input bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                 )}
               >
                 <span className="text-xs font-semibold">
@@ -1708,8 +1723,8 @@ services:
                 className={cn(
                   "flex min-h-10 cursor-pointer flex-col items-start rounded-md border p-3 text-left transition-colors",
                   composeSourceMode === "git"
-                    ? "border-foreground bg-muted/40 text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    ? "border-ring bg-muted/40 font-semibold text-foreground ring-1 ring-ring"
+                    : "border-input bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
                 )}
               >
                 <span className="text-xs font-semibold">Git Repository</span>

@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { toast } from "@/components/ui/toast"
 import {
   Dialog,
   DialogContent,
@@ -151,14 +152,15 @@ export default function SettingsBackupsPage() {
         type: "success",
         message: "Automated backup configuration saved successfully.",
       })
+      toast.success("Automated backup configuration saved successfully.")
     } catch (err) {
+      const msg =
+        err instanceof ApiError ? err.message : "Failed to save configuration."
       setSaveFeedback({
         type: "error",
-        message:
-          err instanceof ApiError
-            ? err.message
-            : "Failed to save configuration.",
+        message: msg,
       })
+      toast.error(msg)
     } finally {
       setIsSaving(false)
     }
@@ -427,7 +429,7 @@ export default function SettingsBackupsPage() {
 
               <Button
                 type="submit"
-                size="sm"
+                size="default"
                 disabled={isSaving || destinations.length === 0}
                 className="gap-1.5 text-xs"
               >

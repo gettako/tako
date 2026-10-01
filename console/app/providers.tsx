@@ -3,6 +3,8 @@
 import * as React from "react"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 
+import { Toaster } from "@/components/ui/toast"
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <NextThemesProvider
@@ -12,6 +14,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       {children}
+      <Toaster />
     </NextThemesProvider>
   )
 }

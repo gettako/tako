@@ -1986,7 +1986,9 @@ providers:
       this._githubConnections.splice(idx, 1)
     },
 
-    getManifest: async (params?: { origin?: string }): Promise<GitHubManifestResponse> => {
+    getManifest: async (params?: {
+      origin?: string
+    }): Promise<GitHubManifestResponse> => {
       checkSimulatedError()
       await delay(100)
       const baseOrigin = params?.origin || "http://localhost:3000"

@@ -173,9 +173,7 @@ export function GitHubConnectionsCard({
         typeof window !== "undefined" && window.location.origin
           ? window.location.origin
           : undefined
-      const resp = await api.github.getManifest(
-        origin ? { origin } : undefined
-      )
+      const resp = await api.github.getManifest(origin ? { origin } : undefined)
       const form = document.createElement("form")
       form.method = "POST"
       form.action = resp.action_url
