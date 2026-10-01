@@ -278,19 +278,24 @@ func TestGitHubConnections_ReposAndBranches(t *testing.T) {
 }
 
 func TestGitHubWebhook_MultiplexedByConnection(t *testing.T) {
-	h, orc, _, _ := setupTestDB(t)
+	h, orc, _, masterKey := setupTestDB(t)
 	h.SetOrchestrator(orc)
 
 	r := chi.NewRouter()
 	r.Post("/api/github/webhook/{connection_id}", h.HandleGitHubWebhookByConnection)
 
+	secretA := "webhook-secret-conn-a"
+	secretB := "webhook-secret-conn-b"
+	whEncA := encryptWebhookSecret(t, secretA, masterKey)
+	whEncB := encryptWebhookSecret(t, secretB, masterKey)
+
 	_, err := h.db.Exec(`
 		INSERT INTO servers (id, name, host, status, created_at, updated_at) VALUES ('srv1', 'Server 1', '127.0.0.1', 'online', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 		INSERT INTO projects (id, name, created_at, updated_at) VALUES ('p1', 'Proj', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-		INSERT INTO github_connections (id, name, auth_type, account_name, created_at, updated_at)
-		VALUES ('ghc_conn_a', 'Conn A', 'pat', 'user-a', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-		       ('ghc_conn_b', 'Conn B', 'pat', 'user-b', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
-	`)
+		INSERT INTO github_connections (id, name, auth_type, account_name, webhook_secret_enc, created_at, updated_at)
+		VALUES ('ghc_conn_a', 'Conn A', 'pat', 'user-a', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+		       ('ghc_conn_b', 'Conn B', 'pat', 'user-b', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+	`, whEncA, whEncB)
 	if err != nil {
 		t.Fatalf("failed to insert server/project/connections: %v", err)
 	}
@@ -325,6 +330,7 @@ func TestGitHubWebhook_MultiplexedByConnection(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/github/webhook/ghc_conn_a", bytes.NewReader(payload))
 	req.Header.Set("X-GitHub-Event", "push")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hub-Signature-256", computeSignature(payload, secretA))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 
@@ -345,6 +351,7 @@ func TestGitHubWebhook_MultiplexedByConnection(t *testing.T) {
 	req = httptest.NewRequest(http.MethodPost, "/api/github/webhook/ghc_conn_b", bytes.NewReader(payload))
 	req.Header.Set("X-GitHub-Event", "push")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Hub-Signature-256", computeSignature(payload, secretB))
 	rec = httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 

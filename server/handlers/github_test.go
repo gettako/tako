@@ -14,12 +14,23 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"gettako.dev/tako/internal/crypto"
+	"gettako.dev/tako/internal/models"
 	"gettako.dev/tako/server/db"
 	"gettako.dev/tako/server/deploy"
 	"gettako.dev/tako/server/github"
 	"gettako.dev/tako/server/nodes"
-	"gettako.dev/tako/internal/models"
 )
+
+// encryptWebhookSecret returns the nonce||ciphertext blob used by github_connections.webhook_secret_enc.
+func encryptWebhookSecret(t *testing.T, secret string, masterKey []byte) []byte {
+	t.Helper()
+	ciphertext, nonce, err := crypto.Encrypt([]byte(secret), masterKey)
+	if err != nil {
+		t.Fatalf("encryptWebhookSecret: %v", err)
+	}
+	return append(nonce, ciphertext...)
+}
 
 func setupTestDB(t *testing.T) (*Handler, *deploy.Orchestrator, *nodes.NodeManager, []byte) {
 	t.Helper()
@@ -201,6 +212,11 @@ func TestGitHubWebhook_SignatureValidation(t *testing.T) {
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401 for missing signature, got %d", w.Code)
 	}
+	var errResp map[string]string
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp["message"] != "missing webhook signature" {
+		t.Errorf("expected 'missing webhook signature', got %q", errResp["message"])
+	}
 
 	// Tampered signature -> 401
 	req = httptest.NewRequest(http.MethodPost, "/api/github/webhook", bytes.NewReader(payload))
@@ -221,6 +237,108 @@ func TestGitHubWebhook_SignatureValidation(t *testing.T) {
 	h.HandleGitHubWebhook(w, req)
 	if w.Code != http.StatusOK {
 		t.Errorf("expected 200 for ping with valid signature, got %d", w.Code)
+	}
+}
+
+func TestGitHubWebhook_SecretConfigurationAndSignatureValidation(t *testing.T) {
+	h, _, _, masterKey := setupTestDB(t)
+
+	r := chi.NewRouter()
+	r.Post("/api/github/webhook", h.HandleGitHubWebhook)
+	r.Post("/api/github/webhook/{connection_id}", h.HandleGitHubWebhookByConnection)
+
+	payload := []byte(`{"ref":"refs/heads/main"}`)
+
+	// 1. Webhook tanpa secret dikonfigurasi -> 400 Bad Request
+	_, err := h.db.Exec(`
+		INSERT INTO github_connections (id, name, auth_type, account_name, webhook_secret_enc, created_at, updated_at)
+		VALUES ('ghc_unconfigured', 'Unconfigured Conn', 'app', 'octocat', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert connection: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/github/webhook/ghc_unconfigured", bytes.NewReader(payload))
+	req.Header.Set("X-GitHub-Event", "push")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for unconfigured secret, got %d: %s", w.Code, w.Body.String())
+	}
+	var errResp map[string]string
+	_ = json.NewDecoder(w.Body).Decode(&errResp)
+	if errResp["message"] != "webhook secret not configured for this connection" {
+		t.Errorf("expected 'webhook secret not configured for this connection', got %q", errResp["message"])
+	}
+
+	// Global webhook endpoint when connection without secret is found in DB -> 400 Bad Request
+	reqGlobal := httptest.NewRequest(http.MethodPost, "/api/github/webhook", bytes.NewReader(payload))
+	reqGlobal.Header.Set("X-GitHub-Event", "push")
+	wGlobal := httptest.NewRecorder()
+	r.ServeHTTP(wGlobal, reqGlobal)
+	if wGlobal.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for global webhook when connection has no secret, got %d: %s", wGlobal.Code, wGlobal.Body.String())
+	}
+
+	// 2. Webhook dengan secret tapi tanpa header -> 401 Unauthorized
+	connSecret := "my-very-secure-secret-456"
+	whEnc := encryptWebhookSecret(t, connSecret, masterKey)
+	_, err = h.db.Exec(`
+		INSERT INTO github_connections (id, name, auth_type, account_name, webhook_secret_enc, created_at, updated_at)
+		VALUES ('ghc_configured', 'Configured Conn', 'app', 'octocat', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, whEnc)
+	if err != nil {
+		t.Fatalf("failed to insert configured connection: %v", err)
+	}
+
+	reqMissingHeader := httptest.NewRequest(http.MethodPost, "/api/github/webhook/ghc_configured", bytes.NewReader(payload))
+	reqMissingHeader.Header.Set("X-GitHub-Event", "push")
+	wMissing := httptest.NewRecorder()
+	r.ServeHTTP(wMissing, reqMissingHeader)
+
+	if wMissing.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for missing signature header, got %d: %s", wMissing.Code, wMissing.Body.String())
+	}
+	errResp = nil
+	_ = json.NewDecoder(wMissing.Body).Decode(&errResp)
+	if errResp["message"] != "missing webhook signature" {
+		t.Errorf("expected 'missing webhook signature', got %q", errResp["message"])
+	}
+
+	// 3. Webhook dengan header yang salah -> 401 Unauthorized
+	reqWrongHeader := httptest.NewRequest(http.MethodPost, "/api/github/webhook/ghc_configured", bytes.NewReader(payload))
+	reqWrongHeader.Header.Set("X-GitHub-Event", "push")
+	reqWrongHeader.Header.Set("X-Hub-Signature-256", "sha256=badbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadbadb")
+	wWrong := httptest.NewRecorder()
+	r.ServeHTTP(wWrong, reqWrongHeader)
+
+	if wWrong.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 for wrong signature header, got %d: %s", wWrong.Code, wWrong.Body.String())
+	}
+	errResp = nil
+	_ = json.NewDecoder(wWrong.Body).Decode(&errResp)
+	if errResp["message"] != "Invalid webhook signature" {
+		t.Errorf("expected 'Invalid webhook signature', got %q", errResp["message"])
+	}
+
+	// 4. Webhook dengan HMAC yang benar -> diproses (200 OK)
+	validSig := computeSignature(payload, connSecret)
+	reqValid := httptest.NewRequest(http.MethodPost, "/api/github/webhook/ghc_configured", bytes.NewReader(payload))
+	reqValid.Header.Set("X-GitHub-Event", "ping")
+	reqValid.Header.Set("X-Hub-Signature-256", validSig)
+	wValid := httptest.NewRecorder()
+	r.ServeHTTP(wValid, reqValid)
+
+	if wValid.Code != http.StatusOK {
+		t.Errorf("expected 200 for valid HMAC signature, got %d: %s", wValid.Code, wValid.Body.String())
+	}
+	var okResp models.WebhookResponse
+	if err := json.NewDecoder(wValid.Body).Decode(&okResp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !okResp.Received {
+		t.Errorf("expected okResp.Received = true")
 	}
 }
 

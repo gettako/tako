@@ -828,12 +828,19 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 	}
 
 	secretToVerify := h.webhookSecret
+	var connFound bool
 	if secretToVerify == "" && h.db != nil {
 		var whEnc []byte
 		if connectionID != "" {
-			_ = h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections WHERE id = ?", connectionID).Scan(&whEnc)
+			err := h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections WHERE id = ?", connectionID).Scan(&whEnc)
+			if err == nil {
+				connFound = true
+			}
 		} else {
-			_ = h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections WHERE webhook_secret_enc IS NOT NULL LIMIT 1").Scan(&whEnc)
+			err := h.db.QueryRowContext(r.Context(), "SELECT webhook_secret_enc FROM github_connections ORDER BY created_at ASC LIMIT 1").Scan(&whEnc)
+			if err == nil {
+				connFound = true
+			}
 		}
 		if len(whEnc) >= 12 {
 			nonce := whEnc[:12]
@@ -843,12 +850,16 @@ func (h *Handler) handleGitHubWebhookInternal(w http.ResponseWriter, r *http.Req
 				secretToVerify = string(dec)
 			}
 		}
+		if (connFound || connectionID != "") && secretToVerify == "" {
+			sendError(w, http.StatusBadRequest, "webhook secret not configured for this connection")
+			return
+		}
 	}
 
 	if secretToVerify != "" {
 		sigHeader := r.Header.Get("X-Hub-Signature-256")
 		if sigHeader == "" {
-			sendError(w, http.StatusUnauthorized, "Missing signature header")
+			sendError(w, http.StatusUnauthorized, "missing webhook signature")
 			return
 		}
 
