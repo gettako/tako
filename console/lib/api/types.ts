@@ -2250,6 +2250,8 @@ export interface components {
             compose_file_path?: string | null;
             /** @example ghc-1234abcd */
             github_connection_id?: string | null;
+            /** @example true */
+            auto_deploy?: boolean;
             /**
              * Format: date-time
              * @example 2026-09-28T12:00:00Z
@@ -2334,10 +2336,13 @@ export interface components {
             compose_file_path?: string;
             /** @example ghc-1234abcd */
             github_connection_id?: string | null;
+            /** @example true */
+            auto_deploy?: boolean;
         };
         UpdateServiceRequest: {
             /** @example acme-web */
             name?: string;
+            service_type?: components["schemas"]["ServiceType"];
             /** @example main */
             branch?: string;
             /** @example Dockerfile */
@@ -2373,6 +2378,8 @@ export interface components {
             compose_file_path?: string;
             /** @example ghc-1234abcd */
             github_connection_id?: string | null;
+            /** @example true */
+            auto_deploy?: boolean;
         };
         RebuildRequest: {
             /** @example main */

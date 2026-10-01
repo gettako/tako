@@ -156,32 +156,32 @@ type ServiceSummary struct {
 }
 
 type CreateServiceRequest struct {
-	ProjectID         string       `json:"project_id"`
-	ServerID          string       `json:"server_id"`
-	Name              string       `json:"name"`
-	Repository        string       `json:"repository"`
-	Branch            string       `json:"branch"`
-	DockerfilePath    string       `json:"dockerfile_path"`
-	InternalPort      int          `json:"internal_port"`
-	PublishedPort     *int         `json:"published_port,omitempty"`
-	HealthCheckPath   string       `json:"health_check_path"`
-	AutoDeploy        *bool        `json:"auto_deploy,omitempty"`
-	ServiceType       *ServiceType `json:"service_type,omitempty"`
-	ParentServiceID   *string      `json:"parent_service_id,omitempty"`
-	Command           *string      `json:"command,omitempty"`
-	CronExpression    *string      `json:"cron_expression,omitempty"`
-	PreDeployCommand  *string      `json:"pre_deploy_command,omitempty"`
-	PostDeployCommand *string      `json:"post_deploy_command,omitempty"`
-	DatabaseEngine    *string      `json:"database_engine,omitempty"`
-	DatabaseVersion   *string      `json:"database_version,omitempty"`
-	DatabaseName      *string      `json:"database_name,omitempty"`
-	DatabaseUser      *string      `json:"database_user,omitempty"`
-	DatabasePassword  *string      `json:"database_password,omitempty"`
-	VolumeName        *string      `json:"volume_name,omitempty"`
-	VolumeMountPath   *string      `json:"volume_mount_path,omitempty"`
-	ComposeFileContent *string     `json:"compose_file_content,omitempty"`
-	ComposeFilePath    *string     `json:"compose_file_path,omitempty"`
-	GitHubConnectionID *string     `json:"github_connection_id,omitempty"`
+	ProjectID          string       `json:"project_id"`
+	ServerID           string       `json:"server_id"`
+	Name               string       `json:"name"`
+	Repository         string       `json:"repository"`
+	Branch             string       `json:"branch"`
+	DockerfilePath     string       `json:"dockerfile_path"`
+	InternalPort       int          `json:"internal_port"`
+	PublishedPort      *int         `json:"published_port,omitempty"`
+	HealthCheckPath    string       `json:"health_check_path"`
+	AutoDeploy         *bool        `json:"auto_deploy,omitempty"`
+	ServiceType        *ServiceType `json:"service_type,omitempty"`
+	ParentServiceID    *string      `json:"parent_service_id,omitempty"`
+	Command            *string      `json:"command,omitempty"`
+	CronExpression     *string      `json:"cron_expression,omitempty"`
+	PreDeployCommand   *string      `json:"pre_deploy_command,omitempty"`
+	PostDeployCommand  *string      `json:"post_deploy_command,omitempty"`
+	DatabaseEngine     *string      `json:"database_engine,omitempty"`
+	DatabaseVersion    *string      `json:"database_version,omitempty"`
+	DatabaseName       *string      `json:"database_name,omitempty"`
+	DatabaseUser       *string      `json:"database_user,omitempty"`
+	DatabasePassword   *string      `json:"database_password,omitempty"`
+	VolumeName         *string      `json:"volume_name,omitempty"`
+	VolumeMountPath    *string      `json:"volume_mount_path,omitempty"`
+	ComposeFileContent *string      `json:"compose_file_content,omitempty"`
+	ComposeFilePath    *string      `json:"compose_file_path,omitempty"`
+	GitHubConnectionID *string      `json:"github_connection_id,omitempty"`
 }
 
 type InjectConnectionStringRequest struct {
@@ -190,23 +190,24 @@ type InjectConnectionStringRequest struct {
 }
 
 type UpdateServiceRequest struct {
-	Name               *string `json:"name,omitempty"`
-	Branch             *string `json:"branch,omitempty"`
-	DockerfilePath     *string `json:"dockerfile_path,omitempty"`
-	InternalPort       *int    `json:"internal_port,omitempty"`
-	PublishedPort      *int    `json:"published_port,omitempty"`
-	HealthCheckPath    *string `json:"health_check_path,omitempty"`
-	ServerID           *string `json:"server_id,omitempty"`
-	AutoDeploy         *bool   `json:"auto_deploy,omitempty"`
-	Command            *string `json:"command,omitempty"`
-	CronExpression     *string `json:"cron_expression,omitempty"`
-	PreDeployCommand   *string `json:"pre_deploy_command,omitempty"`
-	PostDeployCommand  *string `json:"post_deploy_command,omitempty"`
-	VolumeName         *string `json:"volume_name,omitempty"`
-	VolumeMountPath    *string `json:"volume_mount_path,omitempty"`
-	ComposeFileContent *string `json:"compose_file_content,omitempty"`
-	ComposeFilePath    *string `json:"compose_file_path,omitempty"`
-	GitHubConnectionID *string `json:"github_connection_id,omitempty"`
+	Name               *string      `json:"name,omitempty"`
+	ServiceType        *ServiceType `json:"service_type,omitempty"`
+	Branch             *string      `json:"branch,omitempty"`
+	DockerfilePath     *string      `json:"dockerfile_path,omitempty"`
+	InternalPort       *int         `json:"internal_port,omitempty"`
+	PublishedPort      *int         `json:"published_port,omitempty"`
+	HealthCheckPath    *string      `json:"health_check_path,omitempty"`
+	ServerID           *string      `json:"server_id,omitempty"`
+	AutoDeploy         *bool        `json:"auto_deploy,omitempty"`
+	Command            *string      `json:"command,omitempty"`
+	CronExpression     *string      `json:"cron_expression,omitempty"`
+	PreDeployCommand   *string      `json:"pre_deploy_command,omitempty"`
+	PostDeployCommand  *string      `json:"post_deploy_command,omitempty"`
+	VolumeName         *string      `json:"volume_name,omitempty"`
+	VolumeMountPath    *string      `json:"volume_mount_path,omitempty"`
+	ComposeFileContent *string      `json:"compose_file_content,omitempty"`
+	ComposeFilePath    *string      `json:"compose_file_path,omitempty"`
+	GitHubConnectionID *string      `json:"github_connection_id,omitempty"`
 }
 
 type ServiceDetail struct {
@@ -741,5 +742,3 @@ type VerifyConsoleDomainResponse struct {
 	ResolvedIPs  []string `json:"resolved_ips"`
 	ErrorMessage *string  `json:"error_message,omitempty"`
 }
-
-

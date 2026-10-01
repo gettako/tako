@@ -12,6 +12,7 @@ import {
   SlidersHorizontalIcon,
   CpuIcon,
   ArchiveIcon,
+  GearIcon,
 } from "@phosphor-icons/react"
 import { useService } from "./service-context"
 import { cn } from "@/lib/utils"
@@ -79,6 +80,12 @@ export function ServiceTabs() {
       href: `${baseUrl}/environment`,
       icon: SlidersHorizontalIcon,
     },
+    {
+      id: "settings",
+      label: "Settings",
+      href: `${baseUrl}/settings`,
+      icon: GearIcon,
+    },
   ]
 
   const tabs = isDatabase
@@ -89,6 +96,7 @@ export function ServiceTabs() {
           "monitoring",
           "terminal",
           "environment",
+          "settings",
         ].includes(tab.id)
       )
     : allTabs

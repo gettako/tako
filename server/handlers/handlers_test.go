@@ -2,25 +2,25 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
-	"context"
 	"testing"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/grpc"
 
-	"gettako.dev/tako/server/auth"
-	"gettako.dev/tako/server/db"
-	"gettako.dev/tako/server/nodes"
 	"gettako.dev/tako/internal/crypto"
 	"gettako.dev/tako/internal/models"
 	"gettako.dev/tako/internal/protocol"
+	"gettako.dev/tako/server/auth"
+	"gettako.dev/tako/server/db"
+	"gettako.dev/tako/server/nodes"
 )
 
 func setupTestRouter(t *testing.T) (*sql.DB, chi.Router, *http.Cookie) {
@@ -913,3 +913,134 @@ func TestServiceContainerLifecycle(t *testing.T) {
 	}
 }
 
+func TestUpdateServiceConfiguration(t *testing.T) {
+	db, r, sessionCookie := setupTestRouter(t)
+
+	// 1. Create a project
+	prjBody, _ := json.Marshal(models.CreateProjectRequest{
+		Name: "Settings Test Project",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/projects", bytes.NewReader(prjBody))
+	req.AddCookie(sessionCookie)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("failed to create project: %d", rec.Code)
+	}
+	var prj models.Project
+	_ = json.Unmarshal(rec.Body.Bytes(), &prj)
+
+	// 2. Create a server
+	srvID := "srv_settings_test"
+	_, err := db.Exec(`INSERT INTO servers (id, name, host, status) VALUES (?, ?, ?, ?)`,
+		srvID, "Test Server", "127.0.0.1", "online")
+	if err != nil {
+		t.Fatalf("failed to seed server: %v", err)
+	}
+
+	// 3. Create Web Service with port 3000
+	createPayload := map[string]any{
+		"project_id":        prj.ID,
+		"server_id":         srvID,
+		"name":              "Initial Web Service",
+		"service_type":      "web",
+		"repository":        "octopy/initial",
+		"branch":            "main",
+		"dockerfile_path":   "Dockerfile",
+		"internal_port":     3000,
+		"health_check_path": "/healthz",
+	}
+	createBody, _ := json.Marshal(createPayload)
+	cReq := httptest.NewRequest(http.MethodPost, "/api/services", bytes.NewReader(createBody))
+	cReq.AddCookie(sessionCookie)
+	cReq.Header.Set("Content-Type", "application/json")
+	cRec := httptest.NewRecorder()
+	r.ServeHTTP(cRec, cReq)
+	if cRec.Code != http.StatusCreated {
+		t.Fatalf("failed to create service: %d (%s)", cRec.Code, cRec.Body.String())
+	}
+	var svc models.Service
+	_ = json.Unmarshal(cRec.Body.Bytes(), &svc)
+
+	// 4. Update service: change to worker type, port 0, clear health check, set commands
+	workerType := models.ServiceTypeWorker
+	newName := "Converted Worker"
+	newBranch := "feat/worker"
+	zeroPort := 0
+	emptyHealth := ""
+	newCmd := "python worker.py"
+	preCmd := "echo pre"
+	postCmd := "echo post"
+	autoDeploy := true
+
+	updateReq := models.UpdateServiceRequest{
+		Name:              &newName,
+		ServiceType:       &workerType,
+		Branch:            &newBranch,
+		InternalPort:      &zeroPort,
+		HealthCheckPath:   &emptyHealth,
+		Command:           &newCmd,
+		PreDeployCommand:  &preCmd,
+		PostDeployCommand: &postCmd,
+		AutoDeploy:        &autoDeploy,
+	}
+	upBody, _ := json.Marshal(updateReq)
+	pReq := httptest.NewRequest(http.MethodPatch, "/api/services/"+svc.ID, bytes.NewReader(upBody))
+	pReq.AddCookie(sessionCookie)
+	pReq.Header.Set("Content-Type", "application/json")
+	pRec := httptest.NewRecorder()
+	r.ServeHTTP(pRec, pReq)
+
+	if pRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on update, got %d (%s)", pRec.Code, pRec.Body.String())
+	}
+
+	var updated models.Service
+	_ = json.Unmarshal(pRec.Body.Bytes(), &updated)
+
+	if updated.Name != newName {
+		t.Errorf("expected name %q, got %q", newName, updated.Name)
+	}
+	if updated.ServiceType != models.ServiceTypeWorker {
+		t.Errorf("expected service_type worker, got %s", updated.ServiceType)
+	}
+	if updated.Branch != newBranch {
+		t.Errorf("expected branch %q, got %q", newBranch, updated.Branch)
+	}
+	if updated.InternalPort != 0 {
+		t.Errorf("expected internal_port 0, got %d", updated.InternalPort)
+	}
+	if updated.HealthCheckPath != "" {
+		t.Errorf("expected empty health_check_path, got %q", updated.HealthCheckPath)
+	}
+	if updated.Command == nil || *updated.Command != newCmd {
+		t.Errorf("expected command %q, got %v", newCmd, updated.Command)
+	}
+	if updated.PreDeployCommand == nil || *updated.PreDeployCommand != preCmd {
+		t.Errorf("expected pre_deploy_command %q, got %v", preCmd, updated.PreDeployCommand)
+	}
+	if updated.PostDeployCommand == nil || *updated.PostDeployCommand != postCmd {
+		t.Errorf("expected post_deploy_command %q, got %v", postCmd, updated.PostDeployCommand)
+	}
+	if !updated.AutoDeploy {
+		t.Errorf("expected auto_deploy true")
+	}
+
+	// 5. Verify persisted in DB via GetService
+	gReq := httptest.NewRequest(http.MethodGet, "/api/services/"+svc.ID, nil)
+	gReq.AddCookie(sessionCookie)
+	gRec := httptest.NewRecorder()
+	r.ServeHTTP(gRec, gReq)
+	if gRec.Code != http.StatusOK {
+		t.Fatalf("failed to get service: %d (%s)", gRec.Code, gRec.Body.String())
+	}
+	var fetched models.ServiceDetail
+	_ = json.Unmarshal(gRec.Body.Bytes(), &fetched)
+
+	if fetched.ServiceType != models.ServiceTypeWorker {
+		t.Errorf("expected persisted service_type worker, got %s", fetched.ServiceType)
+	}
+	if fetched.InternalPort != 0 {
+		t.Errorf("expected persisted internal_port 0, got %d", fetched.InternalPort)
+	}
+}

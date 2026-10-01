@@ -955,6 +955,8 @@ providers:
       }
 
       if (request.name !== undefined) service.name = request.name
+      if (request.service_type !== undefined)
+        service.service_type = request.service_type
       if (request.branch !== undefined) service.branch = request.branch
       if (request.dockerfile_path !== undefined)
         service.dockerfile_path = request.dockerfile_path
@@ -972,6 +974,8 @@ providers:
         service.post_deploy_command = request.post_deploy_command
       if (request.github_connection_id !== undefined)
         service.github_connection_id = request.github_connection_id
+      if (request.auto_deploy !== undefined)
+        service.auto_deploy = request.auto_deploy
       service.updated_at = new Date().toISOString()
 
       return structuredClone(service)

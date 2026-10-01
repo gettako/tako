@@ -1306,9 +1306,12 @@ services:
                   <div className="flex flex-col gap-2 p-3 pt-2">
                     <p className="text-2xs text-muted-foreground">
                       Paste your{" "}
-                      <code className="rounded bg-muted px-1 font-mono">.env</code>{" "}
+                      <code className="rounded bg-muted px-1 font-mono">
+                        .env
+                      </code>{" "}
                       file below. Variables are saved before the first build so
-                      they are available during image build and container startup.
+                      they are available during image build and container
+                      startup.
                     </p>
                     <EnvCodeEditor
                       value={envVarsText}

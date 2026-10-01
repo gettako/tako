@@ -920,16 +920,19 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 	if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
 		s.Name = strings.TrimSpace(*req.Name)
 	}
+	if req.ServiceType != nil && strings.TrimSpace(string(*req.ServiceType)) != "" {
+		s.ServiceType = *req.ServiceType
+	}
 	if req.Branch != nil && strings.TrimSpace(*req.Branch) != "" {
 		s.Branch = strings.TrimSpace(*req.Branch)
 	}
 	if req.DockerfilePath != nil && strings.TrimSpace(*req.DockerfilePath) != "" {
 		s.DockerfilePath = strings.TrimSpace(*req.DockerfilePath)
 	}
-	if req.InternalPort != nil && *req.InternalPort > 0 {
+	if req.InternalPort != nil && *req.InternalPort >= 0 {
 		s.InternalPort = *req.InternalPort
 	}
-	if req.HealthCheckPath != nil && strings.TrimSpace(*req.HealthCheckPath) != "" {
+	if req.HealthCheckPath != nil {
 		s.HealthCheckPath = strings.TrimSpace(*req.HealthCheckPath)
 	}
 	if req.ServerID != nil && strings.TrimSpace(*req.ServerID) != "" {
@@ -996,13 +999,13 @@ func (h *Handler) UpdateService(w http.ResponseWriter, r *http.Request) {
 
 	_, err = h.db.Exec(`
 		UPDATE services SET
-			name = ?, branch = ?, dockerfile_path = ?, internal_port = ?, published_port = ?,
+			name = ?, service_type = ?, branch = ?, dockerfile_path = ?, internal_port = ?, published_port = ?,
 			health_check_path = ?, server_id = ?, auto_deploy = ?,
 			command = ?, cron_expression = ?, pre_deploy_command = ?, post_deploy_command = ?,
 			volume_name = ?, volume_mount_path = ?, compose_file_content = ?, compose_file_path = ?,
 			github_connection_id = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, s.Name, s.Branch, s.DockerfilePath, s.InternalPort, s.PublishedPort, s.HealthCheckPath, s.ServerID, s.AutoDeploy,
+	`, s.Name, s.ServiceType, s.Branch, s.DockerfilePath, s.InternalPort, s.PublishedPort, s.HealthCheckPath, s.ServerID, s.AutoDeploy,
 		s.Command, s.CronExpression, s.PreDeployCommand, s.PostDeployCommand,
 		s.VolumeName, s.VolumeMountPath, s.ComposeFileContent, s.ComposeFilePath,
 		s.GitHubConnectionID, id)

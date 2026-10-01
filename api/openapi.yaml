@@ -3760,6 +3760,9 @@ components:
             - string
             - 'null'
           example: ghc-1234abcd
+        auto_deploy:
+          type: boolean
+          example: true
         created_at:
           type: string
           format: date-time
@@ -3876,6 +3879,9 @@ components:
             - string
             - 'null'
           example: ghc-1234abcd
+        auto_deploy:
+          type: boolean
+          example: true
 
     UpdateServiceRequest:
       type: object
@@ -3883,6 +3889,8 @@ components:
         name:
           type: string
           example: acme-web
+        service_type:
+          $ref: '#/components/schemas/ServiceType'
         branch:
           type: string
           example: main
@@ -3932,6 +3940,9 @@ components:
             - string
             - 'null'
           example: ghc-1234abcd
+        auto_deploy:
+          type: boolean
+          example: true
 
     RebuildRequest:
       type: object
