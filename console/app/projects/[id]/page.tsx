@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Layers, SearchX, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components
 import { ProjectDetailHeader } from '@/components/projects/project-detail-header';
 import { ServiceCard } from '@/components/projects/service-card';
 import { ServiceRow } from '@/components/projects/service-row';
+import { CreateServiceDialog } from '@/components/services/create-service-dialog';
 import { getProjectById } from '@/lib/api/projects';
 import { getServices } from '@/lib/api/services';
 
@@ -26,6 +27,13 @@ export default function ProjectDetailPage({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [createServiceOpen, setCreateServiceOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpen = () => setCreateServiceOpen(true);
+    window.addEventListener('open-create-service-dialog', handleOpen);
+    return () => window.removeEventListener('open-create-service-dialog', handleOpen);
+  }, []);
 
   const {
     data: project,
@@ -91,9 +99,7 @@ export default function ProjectDetailPage({
         <ProjectDetailHeader
           project={project}
           services={services}
-          onNewService={() => {
-            alert('New service creation dialog');
-          }}
+          onNewService={() => setCreateServiceOpen(true)}
         />
 
         {/* Services Controls Bar */}
@@ -140,9 +146,7 @@ export default function ProjectDetailPage({
               action={{
                 label: 'Deploy First Service',
                 icon: Plus,
-                onClick: () => {
-                  alert('Add service dialog');
-                },
+                onClick: () => setCreateServiceOpen(true),
               }}
             />
           )
@@ -174,6 +178,12 @@ export default function ProjectDetailPage({
           </div>
         )}
       </div>
-  </>
-);
+
+      <CreateServiceDialog
+        open={createServiceOpen}
+        onOpenChange={setCreateServiceOpen}
+        projectId={projectId}
+      />
+    </>
+  );
 }

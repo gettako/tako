@@ -61,6 +61,7 @@ export interface CreateServiceInput {
   branch?: string;
   dockerfile?: string;
   buildCommand?: string;
+  composeFile?: string;
   image?: string;
   databaseType?: 'postgresql' | 'mysql' | 'redis' | 'mongodb';
   ports?: number[];
