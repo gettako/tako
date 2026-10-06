@@ -281,17 +281,18 @@ export function CreateServiceDialog({
 
     if (sourceMode === 'account') {
       if (!selectedRepoId) {
-        setRepoError('Please select a GitHub repository');
+        setRepoError('Please select a repository');
         valid = false;
       } else {
         setRepoError('');
       }
     } else {
-      if (!customGitUrl.trim()) {
-        setUrlError('GitHub repository URL is required');
+      const trimmedUrl = customGitUrl.trim();
+      if (!trimmedUrl) {
+        setUrlError('Git repository URL is required');
         valid = false;
-      } else if (!customGitUrl.includes('github.com')) {
-        setUrlError('Please provide a valid GitHub repository URL (e.g. https://github.com/org/repo)');
+      } else if (!/^(https?:\/\/|git@|ssh:\/\/).+/.test(trimmedUrl)) {
+        setUrlError('Please provide a valid Git URL (e.g. https://... or git@...)');
         valid = false;
       } else {
         setUrlError('');
@@ -448,73 +449,58 @@ export function CreateServiceDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Wizard Stepper & Context Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border/60 pb-3 pt-1">
+        {/* Wizard Stepper */}
+        <div className="flex items-center gap-2 border-b border-border/60 py-2.5">
           {/* Stepper Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
+          <button
+            type="button"
+            onClick={() => setStep(1)}
+            className={cn(
+              'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer',
+              step === 1
+                ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span
               className={cn(
-                'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer',
+                'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors',
                 step === 1
-                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground border border-border/80'
               )}
             >
-              <span
-                className={cn(
-                  'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors',
-                  step === 1
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground border border-border/80'
-                )}
-              >
-                1
-              </span>
-              <span>Service & Source</span>
-            </button>
+              1
+            </span>
+            <span>Service & Source</span>
+          </button>
 
-            <span className="text-muted-foreground/60 text-xs font-mono">/</span>
+          <span className="text-muted-foreground/60 text-xs font-mono">/</span>
 
-            <button
-              type="button"
-              onClick={() => {
-                if (validateStep1()) setStep(2);
-              }}
+          <button
+            type="button"
+            onClick={() => {
+              if (validateStep1()) setStep(2);
+            }}
+            className={cn(
+              'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer',
+              step === 2
+                ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span
               className={cn(
-                'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer',
+                'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors',
                 step === 2
-                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground border border-border/80'
               )}
             >
-              <span
-                className={cn(
-                  'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors',
-                  step === 2
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground border border-border/80'
-                )}
-              >
-                2
-              </span>
-              <span>Node & Resources</span>
-            </button>
-          </div>
-
-          {/* Automatic Project Indicator */}
-          {currentProject && (
-            <div className="flex items-center gap-2 self-start sm:self-auto text-xs text-muted-foreground bg-muted/40 px-2.5 py-1 rounded-md border border-border/60">
-              <span className="text-[11px] font-medium">Target Project:</span>
-              <span className="font-semibold text-foreground font-sans">
-                {currentProject.name}
-              </span>
-              <Badge variant="outline" className="text-[10px] font-mono py-0 px-1 uppercase tracking-wider">
-                {currentProject.environment}
-              </Badge>
-            </div>
-          )}
+              2
+            </span>
+            <span>Node & Resources</span>
+          </button>
         </div>
 
         <form
@@ -526,17 +512,17 @@ export function CreateServiceDialog({
               handleSubmit(e);
             }
           }}
-          className="space-y-6 pt-1"
+          className="space-y-5 pt-1"
         >
           {/* ================= STEP 1: SERVICE & SOURCE ================= */}
           {step === 1 && (
             <div className="space-y-5">
               {/* 1. Service Type Selector (Application vs Compose) */}
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <Label className="text-xs font-semibold text-foreground">
                   Select Service Type <span className="text-status-danger">*</span>
                 </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* Application Card */}
                   <button
                     type="button"
@@ -615,15 +601,15 @@ export function CreateServiceDialog({
                 </div>
               </div>
 
-              {/* 2. GitHub Source Selection */}
-              <div className="rounded-xl border border-border/70 bg-card/60 p-4 space-y-4">
+              {/* 2. Git Source Selection */}
+              <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 space-y-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/60 pb-3">
                   <div className="flex items-center gap-2">
-                    <GitHubIcon className="size-4 text-foreground" />
-                    <span className="text-xs font-semibold text-foreground">GitHub Source Repository</span>
+                    <FolderGit2 className="size-4 text-foreground" />
+                    <span className="text-xs font-semibold text-foreground">Git Source Repository</span>
                   </div>
 
-                  {/* Toggle Mode: Select Account/Repo vs GitHub URL */}
+                  {/* Toggle Mode: Select Account/Repo vs Git URL */}
                   <div className="flex items-center p-0.5 rounded-lg border border-border/70 bg-muted/30 text-xs">
                     <button
                       type="button"
@@ -647,46 +633,49 @@ export function CreateServiceDialog({
                           : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
-                      Custom GitHub URL
+                      Custom Git URL
                     </button>
                   </div>
                 </div>
 
-                {sourceMode === 'account' ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Source Input Area (Exact 58px height in both modes) */}
+                <div className="min-h-[58px]">
+                  {sourceMode === 'account' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       {/* Select GitHub Account / Org */}
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-foreground">
                           GitHub Account / Organization
                         </Label>
-                        <Select
-                          value={selectedAccountId}
-                          onValueChange={(val) => {
-                            const accountId = String(val);
-                            setSelectedAccountId(accountId);
-                            setSelectedRepoId('');
-                          }}
-                        >
-                          <SelectTrigger className="h-9 w-full bg-card border-border/80 text-xs sm:text-sm">
-                            <SelectValue placeholder="Select account..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover dark:bg-[#131625] border border-border/80">
-                            {gitProviders.map((provider) => (
-                              <SelectItem key={provider.id} value={provider.id} className="py-2">
-                                <div className="flex items-center gap-2">
-                                  <GitHubIcon className="size-3.5 text-muted-foreground" />
-                                  <span className="font-semibold text-xs text-foreground">
-                                    {provider.username}
-                                  </span>
-                                  <span className="text-[11px] text-muted-foreground">
-                                    ({provider.name})
-                                  </span>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div>
+                          <Select
+                            value={selectedAccountId}
+                            onValueChange={(val) => {
+                              const accountId = String(val);
+                              setSelectedAccountId(accountId);
+                              setSelectedRepoId('');
+                            }}
+                          >
+                            <SelectTrigger className="h-9 w-full bg-card border-border/80 text-xs sm:text-sm">
+                              <SelectValue placeholder="Select account..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover dark:bg-[#131625] border border-border/80">
+                              {gitProviders.map((provider) => (
+                                <SelectItem key={provider.id} value={provider.id} className="py-2">
+                                  <div className="flex items-center gap-2">
+                                    <GitHubIcon className="size-3.5 text-muted-foreground" />
+                                    <span className="font-semibold text-xs text-foreground">
+                                      {provider.username}
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground">
+                                      ({provider.name})
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
 
                       {/* Select Repository */}
@@ -694,74 +683,54 @@ export function CreateServiceDialog({
                         <Label className="text-xs font-semibold text-foreground">
                           Repository <span className="text-status-danger">*</span>
                         </Label>
-                        <Select
-                          value={selectedRepoId}
-                          onValueChange={(val) => handleRepoChange(String(val))}
-                        >
-                          <SelectTrigger
-                            className={cn(
-                              'h-9 w-full bg-card border-border/80 text-xs sm:text-sm',
-                              repoError && 'border-status-danger ring-1 ring-status-danger/40'
-                            )}
+                        <div>
+                          <Select
+                            value={selectedRepoId}
+                            onValueChange={(val) => handleRepoChange(String(val))}
                           >
-                            <SelectValue placeholder="Select repository..." />
-                          </SelectTrigger>
-                          <SelectContent className="bg-popover dark:bg-[#131625] border border-border/80 max-h-56">
-                            {accountRepos.length === 0 ? (
-                              <div className="p-3 text-xs text-center text-muted-foreground">
-                                No repositories found for this account.
-                              </div>
-                            ) : (
-                              accountRepos.map((repo) => (
-                                <SelectItem key={repo.id} value={repo.id} className="py-2">
-                                  <div className="flex items-center justify-between w-full gap-2">
-                                    <span className="font-mono text-xs font-medium text-foreground truncate">
-                                      {repo.fullName}
-                                    </span>
-                                    {repo.private ? (
-                                      <Lock className="size-3 text-muted-foreground shrink-0" />
-                                    ) : (
-                                      <Globe className="size-3 text-muted-foreground shrink-0" />
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              ))
-                            )}
-                          </SelectContent>
-                        </Select>
+                            <SelectTrigger
+                              className={cn(
+                                'h-9 w-full bg-card border-border/80 text-xs sm:text-sm',
+                                repoError && 'border-status-danger ring-1 ring-status-danger/40'
+                              )}
+                            >
+                              <SelectValue placeholder="Select repository..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover dark:bg-[#131625] border border-border/80 max-h-56">
+                              {accountRepos.length === 0 ? (
+                                <div className="p-3 text-xs text-center text-muted-foreground">
+                                  No repositories found for this account.
+                                </div>
+                              ) : (
+                                accountRepos.map((repo) => (
+                                  <SelectItem key={repo.id} value={repo.id} className="py-2">
+                                    <div className="flex items-center justify-between w-full gap-2">
+                                      <span className="font-mono text-xs font-medium text-foreground truncate">
+                                        {repo.fullName}
+                                      </span>
+                                      {repo.private ? (
+                                        <Lock className="size-3 text-muted-foreground shrink-0" />
+                                      ) : (
+                                        <Globe className="size-3 text-muted-foreground shrink-0" />
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         {repoError && (
                           <p className="text-xs font-medium text-status-danger mt-1">{repoError}</p>
                         )}
                       </div>
                     </div>
-
-                    {/* Branch */}
+                  ) : (
+                    /* Custom Git URL */
                     <div className="space-y-1.5">
-                      <Label htmlFor="service-branch" className="text-xs font-semibold text-foreground">
-                        Git Branch
+                      <Label htmlFor="custom-git-url" className="text-xs font-semibold text-foreground">
+                        Git Repository URL <span className="text-status-danger">*</span>
                       </Label>
-                      <div className="relative">
-                        <GitBranch className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          id="service-branch"
-                          value={branch}
-                          onChange={(e) => setBranch(e.target.value)}
-                          placeholder="e.g. main or master"
-                          className="pl-8 h-9 text-xs sm:text-sm font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Custom GitHub URL */
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="custom-git-url" className="text-xs font-semibold text-foreground">
-                          GitHub Repository URL <span className="text-status-danger">*</span>
-                        </Label>
-                        <span className="text-[11px] text-muted-foreground font-mono">Public or HTTPS</span>
-                      </div>
                       <div className="relative">
                         <FolderGit2 className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
                         <Input
@@ -777,28 +746,29 @@ export function CreateServiceDialog({
                         <p className="text-xs font-medium text-status-danger mt-1">{urlError}</p>
                       )}
                     </div>
+                  )}
+                </div>
 
-                    <div className="space-y-1.5">
-                      <Label htmlFor="custom-git-branch" className="text-xs font-semibold text-foreground">
-                        Target Branch
-                      </Label>
-                      <div className="relative">
-                        <GitBranch className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          id="custom-git-branch"
-                          value={branch}
-                          onChange={(e) => setBranch(e.target.value)}
-                          placeholder="main"
-                          className="pl-8 h-9 text-xs sm:text-sm font-mono"
-                        />
-                      </div>
-                    </div>
+                {/* Git Branch (Shared & perfectly stationary in both modes) */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="service-branch" className="text-xs font-semibold text-foreground">
+                    Git Branch
+                  </Label>
+                  <div className="relative">
+                    <GitBranch className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="service-branch"
+                      value={branch}
+                      onChange={(e) => setBranch(e.target.value)}
+                      placeholder="e.g. main or master"
+                      className="pl-8 h-9 text-xs sm:text-sm font-mono"
+                    />
                   </div>
-                )}
+                </div>
               </div>
 
               {/* 3. Service Identity */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 {/* Service Name */}
                 <div className="space-y-1.5">
                   <Label htmlFor="service-name" className="text-xs font-semibold text-foreground">
@@ -843,9 +813,9 @@ export function CreateServiceDialog({
                 </div>
               </div>
 
-              {/* 4. Type Specific Settings */}
+              {/* 4. Type Specific Settings (Flat Grid matching Service Identity) */}
               {serviceType === 'app' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-xl border border-border/60 bg-muted/20">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* Internal Container Port */}
                   <div className="space-y-1.5">
                     <Label htmlFor="app-port" className="text-xs font-semibold text-foreground">
@@ -882,22 +852,20 @@ export function CreateServiceDialog({
                   </div>
                 </div>
               ) : (
-                <div className="p-3.5 rounded-xl border border-border/60 bg-muted/20 space-y-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="compose-file-path" className="text-xs font-semibold text-foreground">
-                      Compose File Path
-                    </Label>
-                    <Input
-                      id="compose-file-path"
-                      value={composeFilePath}
-                      onChange={(e) => setComposeFilePath(e.target.value)}
-                      placeholder="docker-compose.yml"
-                      className="h-9 text-xs sm:text-sm font-mono"
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Relative path to compose specification file (e.g. <code>docker-compose.yml</code> or <code>compose.yaml</code>).
-                    </p>
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="compose-file-path" className="text-xs font-semibold text-foreground">
+                    Compose File Path
+                  </Label>
+                  <Input
+                    id="compose-file-path"
+                    value={composeFilePath}
+                    onChange={(e) => setComposeFilePath(e.target.value)}
+                    placeholder="docker-compose.yml"
+                    className="h-9 text-xs sm:text-sm font-mono"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Relative path to compose specification file (e.g. <code>docker-compose.yml</code> or <code>compose.yaml</code>).
+                  </p>
                 </div>
               )}
             </div>
@@ -929,7 +897,7 @@ export function CreateServiceDialog({
                 )}
 
                 {/* Node Cards Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {nodes.map((node: Node) => {
                     const isSelected = selectedNodeId === node.id;
                     const isOffline = node.status === 'offline';
@@ -1025,7 +993,7 @@ export function CreateServiceDialog({
               </div>
 
               {/* Resource Allocation Quota - Option C: Hybrid Slider & Quick Presets */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <Cpu className="size-3 text-primary" />
@@ -1038,9 +1006,9 @@ export function CreateServiceDialog({
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* CPU Slider Card */}
-                  <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-2xs">
+                  <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -1146,7 +1114,7 @@ export function CreateServiceDialog({
                   </div>
 
                   {/* Memory Slider Card */}
-                  <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-2xs">
+                  <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-3 shadow-2xs">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -1256,12 +1224,12 @@ export function CreateServiceDialog({
               </div>
 
               {/* Deployment Confirmation Summary */}
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-1.5 text-xs">
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-2 text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
                   <CheckCircle2 className="size-3 text-status-success" />
                   Deployment Summary
                 </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1 text-xs">
                   <div>
                     <span className="text-[11px] text-muted-foreground block">Service Name</span>
                     <span className="font-semibold text-foreground truncate block">{name}</span>
@@ -1288,7 +1256,7 @@ export function CreateServiceDialog({
           )}
 
           {/* Dialog Footer with Wizard Navigation */}
-          <DialogFooter className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
+          <DialogFooter className="pt-3.5 border-t border-border/60 flex items-center justify-between gap-3">
             {step === 1 ? (
               <>
                 <Button
