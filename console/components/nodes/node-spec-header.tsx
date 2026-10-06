@@ -4,9 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Node } from '@/lib/types';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -16,13 +14,24 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
   Copy,
   Check,
   Clock,
-  HeartPulse,
   RotateCw,
   Terminal,
+  Cpu,
+  Layers,
+  HardDrive,
   Activity,
+  Server,
+  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,6 +42,8 @@ interface NodeSpecHeaderProps {
 
 export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
 
   const handleCopy = (field: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -41,143 +52,223 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const handleRefreshClick = () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      onRefresh();
+      toast.success('Refreshing node telemetry');
+      setTimeout(() => setIsRefreshing(false), 800);
+    }
+  };
+
+  const sshCommand = `ssh -p 22 admin@${node.ipAddress}`;
+
   return (
     <div className="space-y-4">
-      {/* Breadcrumbs */}
+      {/* 1. Breadcrumbs Navigation */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/nodes" className="text-sm">
-              Nodes
+            <BreadcrumbLink
+              href="/nodes"
+              className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
+            >
+              <ArrowLeft className="size-3" />
+              <span>Nodes</span>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage className="text-sm font-semibold">{node.name}</BreadcrumbPage>
+            <BreadcrumbPage className="text-xs sm:text-sm font-semibold text-foreground">
+              {node.name}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Main Header Card (AC-4) */}
-      <Card className="border-border/60 bg-card p-6">
-        <CardContent className="px-0 py-0 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-3xl font-bold tracking-tight text-foreground font-sans">
-                  {node.name}
-                </h1>
-                  <StatusBadge status={node.status} />
-                  <Badge
-                    variant="outline"
-                    className={`text-xs font-mono capitalize ${
-                      node.role === 'leader'
-                        ? 'border-primary/40 bg-primary/10 text-primary font-semibold'
-                        : 'border-border/60 bg-muted/60 text-muted-foreground'
-                    }`}
-                  >
-                    {node.role}
-                  </Badge>
-              </div>
-              <p className="text-sm text-muted-foreground mt-0.5 font-mono">
-                Node ID: {node.id}
-              </p>
+      {/* 2. Hero Gradient Glow Header Container (Base Vega Standard) */}
+      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
+                {node.name}
+              </h1>
+              <StatusBadge status={node.status} />
             </div>
 
-            <div className="flex items-center gap-2">
-              {onRefresh && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRefresh}
-                  className="text-sm gap-1.5 h-9"
-                >
-                  <RotateCw className="size-3.5" />
-                  Refresh
-                </Button>
-              )}
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-muted-foreground">
+              <span>Node ID: {node.id}</span>
+              <span>•</span>
+              <span>Docker v{node.dockerVersion}</span>
+              <span>•</span>
+              <span className="truncate">{node.os}</span>
             </div>
           </div>
 
-          {/* Hardware & OS Specifications Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 pt-4 border-t border-border/40 text-xs">
-            {/* Private IP */}
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground">Private IP</span>
-              <div className="flex items-center gap-1.5 font-mono text-foreground font-medium">
-                <span>{node.ipAddress}</span>
+          {/* Action CTAs */}
+          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTerminalOpen(true)}
+              className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              <Terminal className="size-3.5" />
+              <span>Connect SSH</span>
+            </Button>
+
+            {onRefresh && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshClick}
+                className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+              >
+                <RotateCw
+                  className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`}
+                />
+                <span>Refresh</span>
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* 3. Hardware & Network Telemetry Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 pt-6 border-t border-border/40 text-xs">
+          {/* Private IP */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground font-medium">Private IP</span>
+            <div className="flex items-center gap-1.5 font-mono text-foreground font-medium text-xs">
+              <span>{node.ipAddress}</span>
+              <button
+                type="button"
+                onClick={() => handleCopy('Private IP', node.ipAddress)}
+                className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors active:not-aria-[haspopup]:translate-y-px"
+                title="Copy Private IP"
+                aria-label="Copy Private IP"
+              >
+                {copiedField === 'Private IP' ? (
+                  <Check className="size-3 text-status-success" />
+                ) : (
+                  <Copy className="size-3" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Public IP */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground font-medium">Public IP</span>
+            <div className="flex items-center gap-1.5 font-mono text-foreground font-medium text-xs">
+              <span>{node.publicIp || 'None'}</span>
+              {node.publicIp && (
                 <button
                   type="button"
-                  onClick={() => handleCopy('Private IP', node.ipAddress)}
-                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => handleCopy('Public IP', node.publicIp!)}
+                  className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors active:not-aria-[haspopup]:translate-y-px"
+                  title="Copy Public IP"
+                  aria-label="Copy Public IP"
                 >
-                  {copiedField === 'Private IP' ? (
+                  {copiedField === 'Public IP' ? (
                     <Check className="size-3 text-status-success" />
                   ) : (
                     <Copy className="size-3" />
                   )}
                 </button>
-              </div>
-            </div>
-
-            {/* Public IP */}
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground">Public IP</span>
-              <div className="flex items-center gap-1.5 font-mono text-foreground font-medium">
-                <span>{node.publicIp || 'None'}</span>
-                {node.publicIp && (
-                  <button
-                    type="button"
-                    onClick={() => handleCopy('Public IP', node.publicIp!)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    {copiedField === 'Public IP' ? (
-                      <Check className="size-3 text-status-success" />
-                    ) : (
-                      <Copy className="size-3" />
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* OS Distribution */}
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground">OS Distribution</span>
-              <div className="font-medium text-foreground truncate" title={node.os}>
-                {node.os}
-              </div>
-            </div>
-
-            {/* Kernel Release */}
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground">Kernel Release</span>
-              <div className="font-mono text-foreground truncate" title={node.kernelVersion}>
-                {node.kernelVersion || 'Linux 6.8.0-generic'}
-              </div>
-            </div>
-
-            {/* Docker Daemon */}
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground">Docker Engine</span>
-              <div className="font-mono text-foreground">
-                v{node.dockerVersion}
-              </div>
-            </div>
-
-            {/* System Uptime */}
-            <div className="space-y-1">
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Clock className="size-3" />
-                Uptime
-              </span>
-              <div className="font-medium text-foreground">
-                {node.uptime}
-              </div>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* CPU Cores */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+              <Cpu className="size-3 text-primary" />
+              Compute Cores
+            </span>
+            <div className="font-mono text-foreground font-medium text-xs">
+              {node.cpuTotalCores} vCPU threads
+            </div>
+          </div>
+
+          {/* Host Memory */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+              <Layers className="size-3 text-status-success" />
+              Memory Limit
+            </span>
+            <div className="font-mono text-foreground font-medium text-xs">
+              {Math.round(node.memoryTotalMb / 1024)} GB host RAM
+            </div>
+          </div>
+
+          {/* Persistent Disk */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+              <HardDrive className="size-3 text-status-warning" />
+              Storage Volume
+            </span>
+            <div className="font-mono text-foreground font-medium text-xs">
+              {node.diskTotalGb} GB NVMe/SSD
+            </div>
+          </div>
+
+          {/* System Uptime */}
+          <div className="space-y-1">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
+              <Clock className="size-3" />
+              System Uptime
+            </span>
+            <div className="font-medium text-foreground text-xs truncate" title={node.uptime}>
+              {node.uptime}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SSH Connection Modal */}
+      <Dialog open={terminalOpen} onOpenChange={setTerminalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
+                <Terminal className="size-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-bold text-foreground">
+                  Connect to {node.name}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Establish a secure SSH session into this cluster node.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 pt-2">
+            <div className="relative rounded-xl border border-border/70 bg-[#0B0C14] p-3.5 font-mono text-xs text-slate-200">
+              <pre className="overflow-x-auto whitespace-pre-wrap break-all pr-8">
+                <code>{sshCommand}</code>
+              </pre>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(sshCommand);
+                  toast.success('SSH command copied to clipboard');
+                }}
+                className="absolute top-2.5 right-2.5 size-7 text-slate-400 hover:text-white hover:bg-white/10 active:not-aria-[haspopup]:translate-y-px"
+                title="Copy Command"
+              >
+                <Copy className="size-3.5" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Make sure your public SSH key is authorized in <code>/root/.ssh/authorized_keys</code> on this host.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

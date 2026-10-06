@@ -278,9 +278,6 @@ export function GlobalCommandPalette() {
                     <HardDrive className="size-4 text-muted-foreground" />
                     <span className="font-medium text-foreground">{node.name}</span>
                     <span className="text-xs font-mono text-muted-foreground">{node.ipAddress}</span>
-                    <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground capitalize">
-                      {node.role}
-                    </span>
                     <div className="ml-auto flex items-center gap-2">
                       <span className={cn('size-2 rounded-full', getStatusColor(node.status))} />
                     </div>

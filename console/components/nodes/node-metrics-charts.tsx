@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ResourceChart } from '@/components/dashboard/resource-chart';
 import { MetricPoint } from '@/lib/api/metrics';
-import { Activity, Cpu, Network, HardDrive } from 'lucide-react';
+import { Activity, Cpu, Network, HardDrive, Layers } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 
 interface NodeMetricsChartsProps {
@@ -12,6 +12,8 @@ interface NodeMetricsChartsProps {
 }
 
 export function NodeMetricsCharts({ metrics, nodeName }: NodeMetricsChartsProps) {
+  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h'>('1h');
+
   const latest = metrics[metrics.length - 1] || {
     cpu: 24,
     memory: 45,
@@ -22,56 +24,75 @@ export function NodeMetricsCharts({ metrics, nodeName }: NodeMetricsChartsProps)
 
   return (
     <div className="space-y-4">
+      {/* Section Header with squircle icon and time range selector */}
       <SectionHeader
         icon={Activity}
         title="Host Telemetry & Metrics"
         description={`Real-time resource utilization for ${nodeName} (sampled over the last hour)`}
+        action={
+          <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border/60 bg-muted/20">
+            {(['1h', '6h', '24h'] as const).map((range) => (
+              <button
+                key={range}
+                type="button"
+                onClick={() => setTimeRange(range)}
+                className={`px-2.5 py-1 text-xs font-mono rounded-md transition-all active:not-aria-[haspopup]:translate-y-px ${
+                  timeRange === range
+                    ? 'bg-background text-foreground shadow-2xs font-semibold'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {range}
+              </button>
+            ))}
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* CPU Chart (indigo-500) */}
+        {/* CPU Utilization Chart (var(--chart-cpu)) */}
         <ResourceChart
           title="CPU Utilization"
-          subtitle="Host processor activity"
+          subtitle="Host processor activity & thread load"
           data={metrics}
           dataKey="cpu"
-          color="#6366f1"
+          colorVar="var(--chart-cpu)"
           unit="%"
           currentValue={latest.cpu}
           icon={Cpu}
         />
 
-        {/* Memory Chart (emerald-500) */}
+        {/* RAM Memory Usage (var(--chart-ram)) */}
         <ResourceChart
           title="RAM Memory Usage"
           subtitle="Physical host memory allocation"
           data={metrics}
           dataKey="memory"
-          color="#10b981"
+          colorVar="var(--chart-ram)"
           unit="%"
           currentValue={latest.memory}
-          icon={Activity}
+          icon={Layers}
         />
 
-        {/* Disk I/O Chart (amber-500) */}
+        {/* Disk Storage & Throughput (var(--chart-disk)) */}
         <ResourceChart
           title="Disk Storage & I/O"
-          subtitle="Block storage allocation & throughput"
+          subtitle="Block storage volume throughput"
           data={metrics}
           dataKey="disk"
-          color="#f59e0b"
+          colorVar="var(--chart-disk)"
           unit="%"
           currentValue={latest.disk}
           icon={HardDrive}
         />
 
-        {/* Network Traffic Chart (blue-500) */}
+        {/* Network Ingress Rx (var(--chart-network)) */}
         <ResourceChart
           title="Network Ingress (Rx)"
-          subtitle="Inbound Ethernet bandwidth"
+          subtitle="Inbound Ethernet interface bandwidth"
           data={metrics}
           dataKey="networkRx"
-          color="#3b82f6"
+          colorVar="var(--chart-network)"
           unit="KB/s"
           currentValue={latest.networkRx}
           icon={Network}

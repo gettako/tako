@@ -7,7 +7,7 @@ export interface Node {
   id: string;
   name: string;
   ipAddress: string;
-  role: NodeRole;
+  role?: NodeRole;
   status: NodeStatus;
   cpuTotalCores: number;
   memoryTotalMb: number;

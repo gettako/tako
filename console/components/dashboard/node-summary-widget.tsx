@@ -2,8 +2,15 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Server, ShieldCheck, AlertCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { ArrowRight, Server, AlertCircle } from 'lucide-react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+} from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { ResourceBar } from '@/components/ui/resource-bar';
 import { Node } from '@/lib/types';
@@ -16,29 +23,29 @@ export function NodeSummaryWidget({ nodes }: NodeSummaryWidgetProps) {
   return (
     <Card className="rounded-xl border border-border bg-card shadow-xs transition-colors overflow-hidden">
       <CardHeader className="pb-3 border-b border-border/50">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-              <Server className="size-4 sm:size-5" />
-            </div>
-            <div className="min-w-0">
-              <CardTitle className="text-base font-semibold tracking-tight text-foreground truncate">
-                Cluster Nodes
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground truncate mt-0.5">
-                Physical hosts and virtual machines registered to Tako orchestrator
-              </CardDescription>
-            </div>
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
+            <Server className="size-4 sm:size-5" />
           </div>
+          <div className="min-w-0">
+            <CardTitle className="text-base font-semibold tracking-tight text-foreground truncate">
+              Cluster Nodes
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground truncate mt-0.5">
+              Physical hosts and virtual machines registered to Tako orchestrator
+            </CardDescription>
+          </div>
+        </div>
 
+        <CardAction>
           <Link
             href="/nodes"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline group shrink-0 self-start sm:self-auto"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline group shrink-0 active:not-aria-[haspopup]:translate-y-px"
           >
             <span>All Nodes ({nodes.length})</span>
             <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
-        </div>
+        </CardAction>
       </CardHeader>
 
       <CardContent className="pt-4">
@@ -74,9 +81,6 @@ export function NodeSummaryWidget({ nodes }: NodeSummaryWidgetProps) {
                       >
                         {node.name}
                       </Link>
-                      <span className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground uppercase font-medium shrink-0">
-                        {node.role}
-                      </span>
                       <span className="hidden sm:inline font-mono text-xs text-muted-foreground shrink-0">
                         {node.ipAddress}
                       </span>

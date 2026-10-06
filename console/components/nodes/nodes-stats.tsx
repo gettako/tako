@@ -26,16 +26,19 @@ export function NodesStats({ nodes }: NodesStatsProps) {
       : `${totalDiskGb} GB`;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       <StatCard
         title="Cluster Nodes"
         value={`${onlineNodes}/${totalNodes}`}
         subtext={
           offlineNodes > 0
             ? `${offlineNodes} offline, ${degradedNodes} degraded`
+            : degradedNodes > 0
+            ? `${degradedNodes} degraded, ${onlineNodes} online`
             : `${onlineNodes} online and healthy`
         }
         icon={Server}
+        statusAccent={offlineNodes > 0 ? 'danger' : degradedNodes > 0 ? 'warning' : 'healthy'}
       />
       <StatCard
         title="Compute Capacity"

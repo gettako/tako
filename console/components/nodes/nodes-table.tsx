@@ -1,147 +1,221 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Node } from '@/lib/types';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Server, ChevronRight, Boxes } from 'lucide-react';
+import { Server, ChevronRight, Boxes, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface NodesTableProps {
   nodes: Node[];
 }
 
 export function NodesTable({ nodes }: NodesTableProps) {
+  const [copiedIp, setCopiedIp] = useState<string | null>(null);
+
+  const handleCopyIp = (ip: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(ip);
+    setCopiedIp(ip);
+    toast.success(`IP address ${ip} copied`);
+    setTimeout(() => setCopiedIp(null), 2000);
+  };
+
+  const getMetricColor = (pct: number) => {
+    if (pct >= 90) return 'text-status-danger font-semibold';
+    if (pct >= 70) return 'text-status-warning font-semibold';
+    return 'text-foreground';
+  };
+
   return (
-    <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-muted/40 border-b border-border/60 text-[11px] font-semibold text-muted-foreground">
-            <tr className="h-12">
-              <th className="py-2 px-4">Node</th>
-              <th className="py-2 px-4">Status</th>
-              <th className="py-2 px-4">Role</th>
-              <th className="py-2 px-4">IP Address</th>
-              <th className="py-2 px-4">CPU Usage</th>
-              <th className="py-2 px-4">RAM Usage</th>
-              <th className="py-2 px-4">Disk Usage</th>
-              <th className="py-2 px-4">Services</th>
-              <th className="py-2 px-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/40">
-            {nodes.map((node) => {
-              const isOffline = node.status === 'offline';
-              const memPct = node.memoryTotalMb > 0
+    <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+      <Table>
+        <TableHeader className="bg-muted/40 border-b border-border/60">
+          <TableRow className="h-11 hover:bg-transparent">
+            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[26%]">
+              Node Hostname
+            </TableHead>
+            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[12%]">
+              Status
+            </TableHead>
+            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[18%]">
+              Network / IP Address
+            </TableHead>
+            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[16%]">
+              CPU Utilization
+            </TableHead>
+            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[16%]">
+              Memory & Disk
+            </TableHead>
+            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground text-right w-[12%]">
+              Workloads
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+
+        <TableBody className="divide-y divide-border/40">
+          {nodes.map((node) => {
+            const isOffline = node.status === 'offline';
+            const memPct =
+              node.memoryTotalMb > 0
                 ? Math.round((node.usage.memoryUsedMb / node.memoryTotalMb) * 100)
                 : 0;
-              const diskPct = node.diskTotalGb > 0
+            const diskPct =
+              node.diskTotalGb > 0
                 ? Math.round(((node.usage.diskUsedGb || 0) / node.diskTotalGb) * 100)
                 : 0;
 
-              return (
-                <tr
-                  key={node.id}
-                  className="h-14 hover:bg-muted/30 transition-colors group"
-                >
-                  {/* Hostname & OS */}
-                  <td className="py-3 px-4">
-                    <Link
-                      href={`/nodes/${node.id}`}
-                      className="flex items-center gap-2.5 font-semibold text-foreground hover:text-primary transition-colors"
-                    >
-                      <Server className="size-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                      <div>
-                        <div>{node.name}</div>
-                        <div className="text-[10px] text-muted-foreground font-normal truncate max-w-xs">
-                          {node.os}
-                        </div>
+            return (
+              <TableRow
+                key={node.id}
+                className="h-14 hover:bg-muted/30 transition-colors group cursor-pointer"
+                onClick={() => {
+                  window.location.href = `/nodes/${node.id}`;
+                }}
+              >
+                {/* 1. Node Hostname & OS */}
+                <TableCell className="py-3 px-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground group-hover:text-primary group-hover:border-primary/40 transition-colors shrink-0">
+                      <Server className="size-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <Link
+                        href={`/nodes/${node.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="font-semibold text-foreground group-hover:text-primary transition-colors truncate block text-sm"
+                      >
+                        {node.name}
+                      </Link>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {node.os}
                       </div>
-                    </Link>
-                  </td>
+                    </div>
+                  </div>
+                </TableCell>
 
-                  {/* Status Badge */}
-                  <td className="py-3 px-4">
-                    <StatusBadge status={node.status} size="sm" />
-                  </td>
+                {/* 2. Status Badge */}
+                <TableCell className="py-3 px-4">
+                  <StatusBadge status={node.status} size="sm" />
+                </TableCell>
 
-                  {/* Role */}
-                  <td className="py-3 px-4">
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-mono capitalize ${
-                        node.role === 'leader'
-                          ? 'border-primary/40 bg-primary/10 text-primary font-semibold'
-                          : 'border-border/60 bg-muted/60 text-muted-foreground'
-                      }`}
-                    >
-                      {node.role}
-                    </Badge>
-                  </td>
-
-                  {/* IP Address */}
-                  <td className="py-3 px-4 font-mono text-[11px] text-muted-foreground">
-                    <div>{node.ipAddress}</div>
+                {/* 3. Network / IP Address */}
+                <TableCell className="py-3 px-4">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-1.5 font-mono text-xs text-foreground font-medium">
+                      <span>{node.ipAddress}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleCopyIp(node.ipAddress, e)}
+                        className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors active:not-aria-[haspopup]:translate-y-px"
+                        title="Copy IP"
+                        aria-label="Copy IP"
+                      >
+                        {copiedIp === node.ipAddress ? (
+                          <Check className="size-3 text-status-success" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                      </button>
+                    </div>
                     {node.publicIp && (
-                      <div className="text-[10px] text-muted-foreground/60">{node.publicIp}</div>
+                      <div className="text-[10px] font-mono text-muted-foreground/80">
+                        Ext: {node.publicIp}
+                      </div>
                     )}
-                  </td>
+                  </div>
+                </TableCell>
 
-                  {/* CPU % */}
-                  <td className="py-3 px-4 font-mono text-[11px]">
-                    <span className={node.usage.cpuPercent > 80 ? 'text-status-danger font-semibold' : 'text-foreground'}>
-                      {isOffline ? '0%' : `${node.usage.cpuPercent}%`}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground ml-1">
-                      ({node.cpuTotalCores}c)
-                    </span>
-                  </td>
+                {/* 4. CPU Utilization */}
+                <TableCell className="py-3 px-4 font-mono text-xs">
+                  {isOffline ? (
+                    <span className="text-muted-foreground">0%</span>
+                  ) : (
+                    <div>
+                      <span className={getMetricColor(node.usage.cpuPercent)}>
+                        {node.usage.cpuPercent}%
+                      </span>
+                      <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
+                        ({node.cpuTotalCores} cores)
+                      </span>
+                    </div>
+                  )}
+                  <div className="h-1 w-28 bg-muted/80 rounded-full overflow-hidden mt-1.5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isOffline
+                          ? 'bg-muted'
+                          : node.usage.cpuPercent >= 90
+                          ? 'bg-status-danger'
+                          : node.usage.cpuPercent >= 70
+                          ? 'bg-status-warning'
+                          : 'bg-status-success'
+                      }`}
+                      style={{ width: `${isOffline ? 0 : node.usage.cpuPercent}%` }}
+                    />
+                  </div>
+                </TableCell>
 
-                  {/* RAM % */}
-                  <td className="py-3 px-4 font-mono text-[11px]">
-                    <span className={memPct > 85 ? 'text-status-danger font-semibold' : 'text-foreground'}>
-                      {isOffline ? '0%' : `${memPct}%`}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground ml-1">
-                      ({Math.round(node.memoryTotalMb / 1024)}GB)
-                    </span>
-                  </td>
+                {/* 5. Memory & Disk */}
+                <TableCell className="py-3 px-4 font-mono text-xs">
+                  <div className="space-y-0.5">
+                    <div>
+                      <span className="text-muted-foreground text-[10px] uppercase font-sans mr-1">
+                        RAM:
+                      </span>
+                      <span className={getMetricColor(memPct)}>
+                        {isOffline ? '0%' : `${memPct}%`}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground ml-1 font-normal">
+                        ({Math.round(node.memoryTotalMb / 1024)}GB)
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-[10px] uppercase font-sans mr-1">
+                        Disk:
+                      </span>
+                      <span>{diskPct}%</span>
+                      <span className="text-[10px] text-muted-foreground ml-1 font-normal">
+                        ({node.diskTotalGb}GB)
+                      </span>
+                    </div>
+                  </div>
+                </TableCell>
 
-                  {/* Disk % */}
-                  <td className="py-3 px-4 font-mono text-[11px] text-foreground">
-                    <span>{diskPct}%</span>
-                    <span className="text-[10px] text-muted-foreground ml-1">
-                      ({node.diskTotalGb}GB)
-                    </span>
-                  </td>
-
-                  {/* Services count */}
-                  <td className="py-3 px-4">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/70 text-[11px] font-medium text-foreground">
+                {/* 6. Workloads & Action (Exact 6th Column) */}
+                <TableCell className="py-3 px-4 text-right">
+                  <div className="flex items-center justify-end gap-2.5">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0">
                       <Boxes className="size-3 text-muted-foreground" />
-                      {node.servicesCount}
+                      <span>{node.servicesCount}</span>
                     </span>
-                  </td>
 
-                  {/* Action Link */}
-                  <td className="py-3 px-4 text-right">
                     <Button
                       variant="ghost"
                       size="sm"
-                      render={<Link href={`/nodes/${node.id}`} />}
-                      className="h-8 text-xs gap-1 text-muted-foreground hover:text-primary group-hover:text-primary"
+                      render={<Link href={`/nodes/${node.id}`} onClick={(e) => e.stopPropagation()} />}
+                      className="h-8 text-xs gap-1 text-muted-foreground hover:text-primary group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
                     >
                       <span>View</span>
-                      <ChevronRight className="size-3.5" />
+                      <ChevronRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
