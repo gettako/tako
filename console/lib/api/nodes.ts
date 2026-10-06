@@ -9,11 +9,89 @@ export function setNodesMockData(newNodes: Node[]): void {
 }
 
 export async function getNodes(): Promise<Node[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/nodes');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          // Normalize nodes from Go API if needed
+          return data.map((n: Partial<Node>) => ({
+            id: n.id || `node-${Math.random().toString(36).slice(2, 8)}`,
+            name: n.name || 'node-worker',
+            ipAddress: n.ipAddress || '127.0.0.1',
+            publicIp: n.publicIp || n.ipAddress || '127.0.0.1',
+            role: n.role || 'worker',
+            status: n.status || 'online',
+            cpuTotalCores: n.cpuTotalCores || 4,
+            memoryTotalMb: n.memoryTotalMb || 8192,
+            diskTotalGb: n.diskTotalGb || 100,
+            usage: n.usage || {
+              cpuPercent: 5,
+              memoryUsedMb: 1024,
+              memoryLimitMb: n.memoryTotalMb || 8192,
+              diskUsedGb: 20,
+              diskTotalGb: n.diskTotalGb || 100,
+              networkRxKbps: 10,
+              networkTxKbps: 15,
+            },
+            servicesCount: n.servicesCount ?? 0,
+            dockerVersion: n.dockerVersion || '26.1.0',
+            os: n.os || 'Linux',
+            kernelVersion: n.kernelVersion,
+            uptime: n.uptime || 'Uptime: running',
+            lastHeartbeat: n.lastHeartbeat || new Date().toISOString(),
+          })) as Node[];
+        }
+      }
+    } catch {
+      // Fallback to mock data when master server is unreachable
+    }
+  }
+
   await simulateDelay();
   return [...nodes];
 }
 
 export async function getNodeById(id: string): Promise<Node | null> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${id}`);
+      if (res.ok) {
+        const n = await res.json();
+        if (n && n.id) {
+          return {
+            id: n.id,
+            name: n.name || 'node-worker',
+            ipAddress: n.ipAddress || '127.0.0.1',
+            publicIp: n.publicIp || n.ipAddress || '127.0.0.1',
+            role: n.role || 'worker',
+            status: n.status || 'online',
+            cpuTotalCores: n.cpuTotalCores || 4,
+            memoryTotalMb: n.memoryTotalMb || 8192,
+            diskTotalGb: n.diskTotalGb || 100,
+            usage: n.usage || {
+              cpuPercent: 5,
+              memoryUsedMb: 1024,
+              memoryLimitMb: n.memoryTotalMb || 8192,
+              diskUsedGb: 20,
+              diskTotalGb: n.diskTotalGb || 100,
+              networkRxKbps: 10,
+              networkTxKbps: 15,
+            },
+            servicesCount: n.servicesCount ?? 0,
+            dockerVersion: n.dockerVersion || '26.1.0',
+            os: n.os || 'Linux',
+            uptime: n.uptime || 'Uptime: running',
+            lastHeartbeat: n.lastHeartbeat || new Date().toISOString(),
+          };
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   await simulateDelay();
   const node = nodes.find((n) => n.id === id);
   return node ? { ...node } : null;
@@ -28,7 +106,7 @@ export async function createNode(input?: CreateNodeInput): Promise<Node> {
     name: input?.name || `node-${randomSuffix}-ams`,
     ipAddress: input?.ipAddress || `192.168.1.${randomHostNum}`,
     publicIp: input?.publicIp || `142.250.${randomSuffix}.${randomHostNum}`,
-    role: 'worker', // All nodes are worker nodes
+    role: 'worker',
     status: 'online',
     cpuTotalCores: 16,
     memoryTotalMb: 32768,
@@ -53,6 +131,13 @@ export async function createNode(input?: CreateNodeInput): Promise<Node> {
 }
 
 export async function deleteNode(id: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    try {
+      await fetch(`/api/nodes/${id}`, { method: 'DELETE' });
+    } catch {
+      // Fallback
+    }
+  }
   await simulateDelay();
   nodes = nodes.filter((n) => n.id !== id);
 }

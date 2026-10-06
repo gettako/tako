@@ -1,0 +1,60 @@
+---
+title: "Node Worker Installation"
+description: "Attach additional worker servers to your Tako cluster via gRPC without SSH."
+---
+
+# Worker Node Installation
+
+Worker nodes run containerized workloads and host applications. They connect to the Master Server via outbound gRPC (`50051`).
+
+## System Requirements
+
+- **OS**: Any modern Linux distribution with Docker support
+- **RAM**: 512 MB minimum (plus capacity for user apps)
+- **CPU**: 1 Core minimum
+- **Networking**: Outbound access to `<MASTER_IP>:50051`
+
+<Note>
+Worker nodes **do not** require inbound SSH access or open control ports. The agent establishes an outbound long-lived gRPC connection to the master.
+</Note>
+
+---
+
+## Step 1: Generate an Enrollment Token
+
+1. Go to **Nodes** in your Tako Console.
+2. Click **Add Node** (Enroll).
+3. The console will display a unique enrollment token and an installation command.
+
+---
+
+## Step 2: Run Worker Installer
+
+SSH into your target worker server and run:
+
+```bash
+curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
+```
+
+When prompted:
+1. Enter your **Master Server gRPC URL**: `198.51.100.1:50051`
+2. Enter the **Enrollment Token**: Generated from the step above.
+3. Enter the **Node Name** (or press Enter to use the host's hostname).
+
+---
+
+## Non-Interactive Worker Setup
+
+```bash
+export TAKO_MASTER_URL="198.51.100.1:50051"
+export TAKO_AGENT_TOKEN="your-enrollment-token"
+export TAKO_NODE_NAME="worker-ams-01"
+
+curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
+```
+
+---
+
+## Verifying Node Status
+
+Return to your Tako Console under **Nodes**. The new node will appear with status `online`, displaying live CPU, Memory, Disk, and Network telemetry streamed every 3 seconds.

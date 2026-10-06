@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package tako.v1;
+
+option go_package = "gettako.dev/tako/proto/gen/go/tako/v1;takov1";
+
+service AgentService {
+  rpc RegisterNode (RegisterNodeRequest) returns (RegisterNodeResponse);
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+}
+
+message RegisterNodeRequest {
+  string node_id = 1;
+  string name = 2;
+  string ip_address = 3;
+  string public_ip = 4;
+  string role = 5;
+  int32 cpu_total_cores = 6;
+  int64 memory_total_mb = 7;
+  double disk_total_gb = 8;
+  string docker_version = 9;
+  string os = 10;
+  string kernel_version = 11;
+  string enroll_token = 12;
+}
+
+message RegisterNodeResponse {
+  string node_id = 1;
+  string status = 2;
+  string registered_at = 3;
+  string auth_token = 4;
+}
+
+message HeartbeatRequest {
+  string node_id = 1;
+  double cpu_percent = 2;
+  int64 memory_used_mb = 3;
+  double disk_used_gb = 4;
+  double network_rx_kbps = 5;
+  double network_tx_kbps = 6;
+  int64 uptime_seconds = 7;
+  int64 timestamp = 8;
+}
+
+message HeartbeatResponse {
+  bool acknowledged = 1;
+  int64 timestamp = 2;
+}

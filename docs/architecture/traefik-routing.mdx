@@ -1,0 +1,46 @@
+---
+title: "Traefik Reverse Proxy Routing"
+description: "Dynamic label generation, Let's Encrypt automated TLS, and container networking."
+---
+
+# Traefik Reverse Proxy Routing
+
+Tako integrates **Traefik v3** to handle all ingress traffic for user-deployed applications.
+
+## How Routing Works
+
+1. When a service is deployed, `tako-agent` generates Docker labels dynamically based on user domain and port configuration.
+2. Traefik listens on `/var/run/docker.sock` and automatically discovers new containers attached to `tako-network`.
+3. Traefik creates HTTP routers, attaches HTTPS redirection, and provisions TLS certificates from Let's Encrypt via ACME HTTP-01 challenges.
+
+---
+
+## Standard Generated Labels
+
+For an application with domain `app.example.com` exposing port `8080`, `tako-agent` attaches:
+
+```ini
+traefik.enable=true
+traefik.docker.network=tako-network
+traefik.http.routers.app-web.rule=Host(`app.example.com`)
+traefik.http.routers.app-web.entrypoints=web
+traefik.http.routers.app-web.middlewares=app-redirect-ssl
+
+traefik.http.middlewares.app-redirect-ssl.redirectscheme.scheme=https
+traefik.http.middlewares.app-redirect-ssl.redirectscheme.permanent=true
+
+traefik.http.routers.app-websecure.rule=Host(`app.example.com`)
+traefik.http.routers.app-websecure.entrypoints=websecure
+traefik.http.routers.app-websecure.tls=true
+traefik.http.routers.app-websecure.tls.certresolver=letsencrypt
+
+traefik.http.services.app-svc.loadbalancer.server.port=8080
+```
+
+---
+
+## Ingress Separation Guarantee
+
+- **Ports 80 & 443**: MURNI untuk routing container aplikasi user.
+- **Port 3000**: Didedikasikan untuk Tako Console.
+- In this architecture, misconfigured user application domains can never break access to the Tako management dashboard.

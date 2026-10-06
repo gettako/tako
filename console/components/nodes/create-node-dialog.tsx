@@ -40,8 +40,22 @@ export function CreateNodeDialog({
 }: CreateNodeDialogProps) {
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
+  const [token, setToken] = useState<string>('');
 
-  const installCommand = 'curl gettako.dev/install.sh --agent | bash';
+  React.useEffect(() => {
+    if (open) {
+      fetch('/api/nodes/enroll-token', { method: 'POST' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.token) setToken(data.token);
+        })
+        .catch(() => {});
+    }
+  }, [open]);
+
+  const installCommand = token
+    ? `curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent --token ${token}`
+    : 'curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent';
 
   const handleCopyCommand = () => {
     navigator.clipboard.writeText(installCommand);

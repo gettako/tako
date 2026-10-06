@@ -1,0 +1,47 @@
+---
+title: "Quickstart"
+description: "Get your Tako cluster up and running in less than 5 minutes."
+---
+
+# 5-Minute Quickstart
+
+Follow these steps to deploy Tako Master and deploy your first containerized application.
+
+### Step 1: Run the Master Installer
+
+On a fresh Linux VPS (Ubuntu, Debian, or AlmaLinux), run the universal installer:
+
+```bash
+curl -fsSL https://gettako.dev/install.sh | bash
+```
+
+The script will automatically:
+1. Detect your OS and CPU architecture.
+2. Verify or install Docker and Docker Compose v2.
+3. Prompt you for an Admin Email and Password.
+4. Launch the 4-container Master stack (`tako-traefik`, `tako-server`, `tako-console`, `tako-agent`).
+
+### Step 2: Access the Dashboard
+
+Once the installation finishes, open your browser and navigate to:
+
+```text
+http://<YOUR_SERVER_IP>:3000
+```
+
+<Note>
+Tako Console runs on port `3000` to prevent collisions with user application traffic on ports `80` and `443`.
+</Note>
+
+Log in with your administrator credentials created during installation.
+
+### Step 3: Deploy Your First Service
+
+1. In the console, click **New Service**.
+2. Select **Application** type.
+3. Enter a name (e.g. `my-web-app`).
+4. Specify a Docker image (e.g. `nginxdemos/hello:latest`).
+5. Set port `80` and enter your custom domain (e.g. `hello.yourdomain.com`).
+6. Click **Deploy**.
+
+Tako will pull the image, configure Traefik labels, issue a Let's Encrypt SSL certificate, and make your application live in seconds!

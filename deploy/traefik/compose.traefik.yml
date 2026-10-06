@@ -1,0 +1,21 @@
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: tako-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./acme.json:/acme.json
+    environment:
+      - TAKO_ACME_EMAIL=${TAKO_ACME_EMAIL:-admin@gettako.dev}
+    networks:
+      - tako-network
+
+networks:
+  tako-network:
+    name: tako-network
+    driver: bridge

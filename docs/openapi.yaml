@@ -1,0 +1,600 @@
+openapi: 3.1.0
+info:
+  title: Tako Master Server Control Plane API
+  version: 1.0.0
+  description: |
+    REST API specification for Tako Master Server.
+    Provides cluster orchestration, node management, application lifecycles, and deployment pipelines.
+servers:
+  - url: http://localhost:8080
+    description: Local Master Server
+  - url: https://api.gettako.dev
+    description: Production Master Server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags: [System]
+      responses:
+        '200':
+          description: Server status and DB connectivity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  database:
+                    type: string
+                    example: connected
+
+  /ping:
+    get:
+      summary: Ping endpoint
+      operationId: getPing
+      tags: [System]
+      responses:
+        '200':
+          description: Pong response
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: pong
+
+  /api/v1/auth/login:
+    post:
+      summary: Login user
+      operationId: loginUser
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful with JWT token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /api/v1/auth/logout:
+    post:
+      summary: Logout user
+      operationId: logoutUser
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Logged out successfully
+
+  /api/v1/auth/me:
+    get:
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      tags: [Authentication]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/v1/nodes:
+    get:
+      summary: List all registered nodes
+      operationId: listNodes
+      tags: [Nodes]
+      responses:
+        '200':
+          description: List of nodes with live telemetry
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Node'
+
+  /api/v1/nodes/enroll-token:
+    post:
+      summary: Generate node enrollment token
+      operationId: generateEnrollToken
+      tags: [Nodes]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: One-time or scoped enrollment token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: tok-7f8e9a2b1c4d
+
+  /api/v1/nodes/{id}:
+    get:
+      summary: Get node detail
+      operationId: getNode
+      tags: [Nodes]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Node'
+        '404':
+          description: Node not found
+    delete:
+      summary: Delete node
+      operationId: deleteNode
+      tags: [Nodes]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node removed
+
+  /api/v1/events/nodes:
+    get:
+      summary: Stream node updates (SSE)
+      operationId: streamNodeEvents
+      tags: [Nodes]
+      responses:
+        '200':
+          description: Realtime server-sent events for node heartbeats
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/v1/projects:
+    get:
+      summary: List projects
+      operationId: listProjects
+      tags: [Projects]
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      summary: Create project
+      operationId: createProject
+      tags: [Projects]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+
+  /api/v1/services:
+    get:
+      summary: List all services
+      operationId: listServices
+      tags: [Services]
+      responses:
+        '200':
+          description: List of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+    post:
+      summary: Create service
+      operationId: createService
+      tags: [Services]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceInput'
+      responses:
+        '201':
+          description: Service created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+
+  /api/v1/services/{id}:
+    get:
+      summary: Get service by ID
+      operationId: getService
+      tags: [Services]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Service details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '404':
+          description: Service not found
+    delete:
+      summary: Delete service
+      operationId: deleteService
+      tags: [Services]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Service deleted
+
+  /api/v1/services/{id}/deploy:
+    post:
+      summary: Trigger deployment pipeline for service
+      operationId: triggerDeploy
+      tags: [Services]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Deployment accepted and queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deploymentId:
+                    type: string
+                    example: dep-9a8b7c6d
+                  status:
+                    type: string
+                    example: queued
+
+  /api/v1/services/{id}/deployments:
+    get:
+      summary: List deployments for a service
+      operationId: listServiceDeployments
+      tags: [Services]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deployments history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deployment'
+
+  /api/v1/deployments:
+    get:
+      summary: Query deployments
+      operationId: listDeployments
+      tags: [Deployments]
+      parameters:
+        - name: serviceId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of deployments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Deployment'
+
+  /api/v1/deployments/{id}:
+    get:
+      summary: Get deployment details
+      operationId: getDeployment
+      tags: [Deployments]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deployment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+
+  /api/v1/deployments/{id}/logs:
+    get:
+      summary: Stream live deployment build logs (SSE)
+      operationId: streamDeploymentLogs
+      tags: [Deployments]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Realtime log chunks stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/v1/deployments/{id}/logs/history:
+    get:
+      summary: Get full historical deployment logs as plain text
+      operationId: getDeploymentLogsHistory
+      tags: [Deployments]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plaintext log history
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          example: admin
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        environment:
+          type: string
+        status:
+          type: string
+
+    Node:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ipAddress:
+          type: string
+        role:
+          type: string
+          example: worker
+        status:
+          type: string
+          example: online
+        cpuTotalCores:
+          type: integer
+        memoryTotalMb:
+          type: integer
+        diskTotalGb:
+          type: integer
+        dockerVersion:
+          type: string
+        os:
+          type: string
+        usage:
+          type: object
+          properties:
+            cpuPercent:
+              type: number
+            memoryUsedMb:
+              type: number
+            memoryLimitMb:
+              type: number
+            diskUsedGb:
+              type: number
+            diskTotalGb:
+              type: number
+            networkRxKbps:
+              type: number
+            networkTxKbps:
+              type: number
+        lastHeartbeat:
+          type: string
+          format: date-time
+
+    CreateServiceInput:
+      type: object
+      required: [projectId, nodeId, name, type]
+      properties:
+        projectId:
+          type: string
+        nodeId:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          type: string
+          enum: [app, compose, database]
+        repository:
+          type: string
+        branch:
+          type: string
+        dockerfile:
+          type: string
+        image:
+          type: string
+        ports:
+          type: array
+          items:
+            type: integer
+        domains:
+          type: array
+          items:
+            type: string
+        environmentVars:
+          type: object
+          additionalProperties:
+            type: string
+
+    Service:
+      type: object
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        nodeId:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        repository:
+          type: string
+        branch:
+          type: string
+        image:
+          type: string
+        ports:
+          type: array
+          items:
+            type: integer
+        domains:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    Deployment:
+      type: object
+      properties:
+        id:
+          type: string
+        serviceId:
+          type: string
+        commitHash:
+          type: string
+        commitMessage:
+          type: string
+        branch:
+          type: string
+        author:
+          type: string
+        status:
+          type: string
+        steps:
+          type: string
+        logs:
+          type: string
+        createdAt:
+          type: string
+        finishedAt:
+          type: string
+        durationMs:
+          type: integer

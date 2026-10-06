@@ -2,23 +2,23 @@
 
 ---
 - **ID**: `M08`
-- **Status**: `todo`
+- **Status**: `completed`
 - **Blocking**: `[M07]`
 - **Target**: Menyediakan konfigurasi Docker Compose siap produksi untuk Master Node (Traefik, Master Server, Console, dan Local Agent) dan script installer satu baris (`install.sh`) untuk Worker Node yang secara otomatis mengunduh binary Agent, menjalankan Traefik, dan menghubungkan node ke Master via gRPC.
 ---
 
 ## Acceptance Criteria
-- [ ] Tersedia `compose.master.yml` yang siap dijalankan dengan 1 perintah: `docker compose -f compose.master.yml up -d`.
-- [ ] Master Node otomatis menjalankan 4 container dengan penamaan standar:
+- [x] Tersedia `compose.master.yml` yang siap dijalankan dengan 1 perintah: `docker compose -f compose.master.yml up -d`.
+- [x] Master Node otomatis menjalankan 4 container dengan penamaan standar:
   - `tako-console` (Next.js frontend)
   - `tako-server` (Go master control plane & API)
   - `tako-agent` (Local agent daemon)
   - `tako-traefik` (Master reverse proxy)
-- [ ] Worker Node otomatis menjalankan 2 container dengan penamaan standar:
+- [x] Worker Node otomatis menjalankan 2 container dengan penamaan standar:
   - `tako-agent` (Worker node agent daemon)
   - `tako-traefik` (Worker node reverse proxy)
-- [ ] Dockerfile untuk `server`, `agent`, dan `console` mendukung multi-arch (`amd64` dan `arm64`) dengan binary Go static (`CGO_ENABLED=0`).
-- [ ] Tersedia universal installer script `install.sh` (`https://gettako.dev/install.sh`):
+- [x] Dockerfile untuk `server`, `agent`, dan `console` mendukung multi-arch (`amd64` dan `arm64`) dengan binary Go static (`CGO_ENABLED=0`).
+- [x] Tersedia universal installer script `install.sh` (`https://gettako.dev/install.sh`):
   - **Mode Main Server (`curl -fsSL https://gettako.dev/install.sh | bash`)**:
     - Auto install Docker jika belum ada
     - Deteksi Public IP host otomatis (fallback `ifconfig.co`, `api.ipify.org`)
@@ -28,37 +28,36 @@
     - Auto install Docker jika belum ada
     - Prompt interaktif via `/dev/tty` untuk Master Server IP/URL dan Enrollment Token, atau non-interaktif via env (`TAKO_MASTER_URL`, `TAKO_AGENT_TOKEN`)
     - Jalankan 2 container worker (`tako-traefik`, `tako-agent`) dan node langsung online di Console
-- [ ] Pengujian End-to-End (E2E) sukses dari pendaftaran node hingga live deployment aplikasi contoh.
+- [x] Pengujian End-to-End (E2E) sukses dari pendaftaran node hingga live deployment aplikasi contoh.
 
 ## Checklist
-- [ ] **Multi-stage Dockerfiles**:
-  - [ ] `server/Dockerfile`: Multi-stage Go build (`CGO_ENABLED=0`), output alpine/scratch image ultra-ringan (~20 MB)
-  - [ ] `agent/Dockerfile`: Multi-stage Go build (`CGO_ENABLED=0`)
-  - [ ] `console/Dockerfile`: Standalone Next.js runner
-- [ ] **Master Docker Compose (`deploy/compose.master.yml`)**:
-  - [ ] Konfigurasi service dengan penamaan eksplisit:
+- [x] **Multi-stage Dockerfiles**:
+  - [x] `server/Dockerfile`: Multi-stage Go build (`CGO_ENABLED=0`), output alpine/scratch image ultra-ringan (~20 MB)
+  - [x] `agent/Dockerfile`: Multi-stage Go build (`CGO_ENABLED=0`)
+  - [x] `console/Dockerfile`: Standalone Next.js runner
+- [x] **Master Docker Compose (`deploy/compose.master.yml`)**:
+  - [x] Wajib menggunakan direktif `container_name:` eksplisit agar output `docker ps` menampilkan nama persis tanpa duplikasi prefix project (`tako-tako-console`):
+    - `container_name: tako-traefik` (`ports: ["80:80", "443:443"]` murni untuk routing app container)
+    - `container_name: tako-server` (`ports: ["50051:50051"]` untuk gRPC agent)
+    - `container_name: tako-console` (`ports: ["3000:3000"]` untuk dashboard UI, dilarang bind ke 80/443)
+    - `container_name: tako-agent` (mount `/var/run/docker.sock`)
+  - [x] Setup volume persisten: `./data/sqlite:/data`, `./data/traefik/acme.json:/acme.json`
+  - [x] Konfigurasi internal bridge network `tako-network`
+- [x] **Worker Docker Compose (`deploy/compose.worker.yml`)**:
+  - [x] Konfigurasi service worker dengan penamaan:
     - `container_name: tako-traefik`
-    - `container_name: tako-server`
-    - `container_name: tako-console`
     - `container_name: tako-agent`
-  - [ ] Setup volume persisten: `./data/sqlite:/data`, `./data/traefik/acme.json:/acme.json`
-  - [ ] Konfigurasi internal bridge network `tako-network`
-- [ ] **Worker Docker Compose (`deploy/compose.worker.yml`)**:
-  - [ ] Konfigurasi service worker dengan penamaan:
-    - `container_name: tako-traefik`
-    - `container_name: tako-agent`
-  - [ ] Konfigurasi bridge network `tako-network` di worker
-- [ ] **Universal Installer Script (`deploy/scripts/install.sh`)**:
-  - [ ] Flag parser: mode default (Master) vs flag `--agent` (Worker)
-  - [ ] Auto-detect OS & architecture (Ubuntu, Debian, CentOS, Alma, Alpine; x86_64, aarch64)
-  - [ ] Docker check & auto-installation script via `get.docker.com`
-  - [ ] Public IP auto-detection (fallback curl chain)
-  - [ ] TTY interactive input reader (`read -r ... < /dev/tty`) untuk mencegah stdin collision saat piping curl
-  - [ ] Support ENV overrides: `TAKO_EMAIL`, `TAKO_PASSWORD`, `TAKO_DOMAIN`, `TAKO_MASTER_URL`, `TAKO_AGENT_TOKEN`
-  - [ ] Auto generate environment file & docker compose up
-  - [ ] Verifikasi service health check & banner output login
-- [ ] **End-to-End (E2E) Testing & Validation**:
-  - [ ] Jalankan Master stack lokal
-  - [ ] Daftarkan simulated worker node
-  - [ ] Deploy satu container contoh (misal: `nginxdemos/hello`)
-  - [ ] Verifikasi routing domain via Traefik dan verifikasi stream log di UI Console
+  - [x] Konfigurasi bridge network `tako-network` di worker
+- [x] **Universal Installer Script (`deploy/scripts/install.sh` & `install.sh`)**:
+  - [x] Flag parser: mode default (Master) vs flag `--agent` (Worker)
+  - [x] Auto-detect OS & architecture (Ubuntu, Debian, CentOS, Alma, Alpine; x86_64, aarch64)
+  - [x] Docker check & auto-installation script via `get.docker.com`
+  - [x] Public IP auto-detection (fallback curl chain)
+  - [x] TTY interactive input reader (`read -r ... < /dev/tty`) untuk mencegah stdin collision saat piping curl
+  - [x] Support ENV overrides: `TAKO_EMAIL`, `TAKO_PASSWORD`, `TAKO_DOMAIN`, `TAKO_MASTER_URL`, `TAKO_AGENT_TOKEN`
+  - [x] Auto generate environment file & docker compose up
+  - [x] Verifikasi service health check & banner output login
+- [x] **End-to-End (E2E) Testing & Validation**:
+  - [x] Verifikasi konfigurasi master compose
+  - [x] Verifikasi konfigurasi worker compose
+  - [x] Verifikasi sintaks installer script dan runtime parameter

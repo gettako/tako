@@ -1,0 +1,43 @@
+---
+title: "API Reference"
+description: "Interactive REST API documentation for the Tako Master Server."
+---
+
+# Tako Master REST API
+
+The Tako Master Server exposes a high-performance RESTful API for automation, CI/CD pipelines, and console interaction.
+
+## Interactive Specification
+
+The complete OpenAPI 3.1 specification is located at [`/openapi.yaml`](/openapi.yaml).
+
+## Base URLs
+
+- **Local Development**: `http://localhost:8080`
+- **Console BFF**: `http://localhost:3000/api`
+- **Production Server**: Configurable via `TAKO_SERVER_URL`
+
+---
+
+## Authentication
+
+All endpoints under `/api/v1` (except public health checks and node registration) require authentication via Bearer token:
+
+```http
+Authorization: Bearer <your-jwt-token>
+```
+
+When accessed via the Next.js Console, authentication tokens are stored securely in `HttpOnly` session cookies to protect against cross-site scripting (XSS).
+
+---
+
+## Key Endpoint Groups
+
+| Group | Path Prefix | Description |
+| :--- | :--- | :--- |
+| **System** | `/health`, `/ping` | Readiness and database checks |
+| **Authentication** | `/api/v1/auth` | User login, session verify, logout |
+| **Nodes** | `/api/v1/nodes` | Node registration, listing, deletion, SSE events |
+| **Projects** | `/api/v1/projects` | Project workspaces |
+| **Services** | `/api/v1/services` | Service configuration, CRUD, trigger deploys |
+| **Deployments** | `/api/v1/deployments` | Pipeline execution status, logs SSE |

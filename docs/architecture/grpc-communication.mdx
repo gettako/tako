@@ -1,0 +1,34 @@
+---
+title: "gRPC Communication"
+description: "Protocol Buffers contracts and bidirectional streaming in Tako."
+---
+
+# gRPC Communication
+
+Tako uses **gRPC** over HTTP/2 for all interactions between the Master Server and Node Agents.
+
+## Protocol Buffers Services
+
+The protocol contracts are defined in `proto/tako/v1/`:
+
+### 1. `AgentService` (`agent.proto`)
+- `RegisterNode`: Called when an agent boots up, exchanging an enrollment token for node authentication.
+- `SendHeartbeat`: Called every 3 seconds to report live host metrics (CPU cores, RAM usage, disk space, network bandwidth, uptime).
+- `SyncStatus`: Streams node status events between master and agent.
+
+### 2. `DeploymentService` (`deployment.proto`)
+- `ExecuteDeployment`: Server triggers a container pull/build/run pipeline on the agent.
+- `StreamDeploymentLogs`: Bi-directional streaming RPC allowing the agent to stream stdout/stderr log chunks back to the master in real time.
+
+### 3. `ContainerService` (`container.proto`)
+- `ListContainers`: Reports running containers on the node.
+- `StopContainer`: Gracefully terminates containers.
+- `RestartContainer`: Restarts services.
+- `GetContainerLogs`: Streams runtime logs from existing containers.
+
+---
+
+## Authentication & Security
+
+- **Enrollment Token**: When adding a node, a cryptographically secure token is passed in metadata headers (`Authorization: Bearer <token>`).
+- **Heartbeat & Liveness**: The master tracks the last heartbeat timestamp of each node. If an agent fails to report within 15 seconds, its status is automatically transitioned to `offline` and broadcast via SSE.

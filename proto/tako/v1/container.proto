@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package tako.v1;
+
+option go_package = "gettako.dev/tako/proto/gen/go/tako/v1;takov1";
+
+service ContainerService {
+  rpc ListContainers (ListContainersRequest) returns (ListContainersResponse);
+  rpc ContainerAction (ContainerActionRequest) returns (ContainerActionResponse);
+}
+
+message ListContainersRequest {
+  string node_id = 1;
+}
+
+message ContainerInfo {
+  string container_id = 1;
+  string name = 2;
+  string image = 3;
+  string status = 4;
+  string created_at = 5;
+  repeated string ports = 6;
+}
+
+message ListContainersResponse {
+  repeated ContainerInfo containers = 1;
+}
+
+message ContainerActionRequest {
+  string container_id = 1;
+  string action = 2; // start, stop, restart
+}
+
+message ContainerActionResponse {
+  bool success = 1;
+  string message = 2;
+}

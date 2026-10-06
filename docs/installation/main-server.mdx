@@ -1,0 +1,65 @@
+---
+title: "Main Server Installation"
+description: "Deploy the Tako Control Plane on your primary master server."
+---
+
+# Master Server Installation
+
+The Master Server hosts the Tako control plane, database, web console, and reverse proxy.
+
+## System Requirements
+
+- **OS**: Ubuntu 22.04+, Debian 12+, Rocky/Alma Linux 9+, or Alpine Linux
+- **RAM**: 1 GB minimum (2 GB+ recommended)
+- **CPU**: 1 Core (2+ Cores recommended)
+- **Disk**: 10 GB SSD
+- **Inbound Ports**:
+  - `80/tcp` & `443/tcp` (Application HTTP/HTTPS routing via Traefik)
+  - `3000/tcp` (Tako Console Dashboard)
+  - `50051/tcp` (gRPC Hub for Worker Nodes)
+
+---
+
+## Interactive Installation
+
+Run the universal installer as root or with sudo:
+
+```bash
+curl -fsSL https://gettako.dev/install.sh | bash
+```
+
+The script will prompt you for:
+- **Admin Email**: Used for console login and Let's Encrypt notifications.
+- **Admin Password**: Your initial administrator password.
+
+---
+
+## Non-Interactive / Automated Setup
+
+For automated provisioning (e.g. Terraform, Ansible, cloud-init), supply environment variables ahead of time:
+
+```bash
+export TAKO_EMAIL="admin@example.com"
+export TAKO_PASSWORD="your-secure-password"
+export TAKO_AUTH_SECRET="a-32-byte-random-jwt-secret-key"
+
+curl -fsSL https://gettako.dev/install.sh | bash
+```
+
+---
+
+## Directory Structure
+
+All runtime data is placed in `/opt/tako`:
+
+```text
+/opt/tako/
+├── docker-compose.yml
+├── data/
+│   ├── sqlite/
+│   │   └── tako.db
+│   └── agent/
+└── traefik/
+    ├── traefik.yml
+    └── acme.json
+```

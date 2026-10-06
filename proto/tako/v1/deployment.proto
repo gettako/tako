@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package tako.v1;
+
+option go_package = "gettako.dev/tako/proto/gen/go/tako/v1;takov1";
+
+service DeploymentService {
+  rpc Deploy (DeployRequest) returns (stream DeployLogChunk);
+  rpc StreamLogs (StreamLogsRequest) returns (stream DeployLogChunk);
+}
+
+message DeployRequest {
+  string deployment_id = 1;
+  string service_id = 2;
+  string service_name = 3;
+  string repository = 4;
+  string branch = 5;
+  string commit_hash = 6;
+  string dockerfile = 7;
+  string build_command = 8;
+  string image = 9;
+  repeated int32 ports = 10;
+  repeated string domains = 11;
+  map<string, string> env_vars = 12;
+  double cpu_limit = 13;
+  int64 memory_limit_mb = 14;
+}
+
+message DeployLogChunk {
+  string deployment_id = 1;
+  string step = 2;
+  string message = 3;
+  int64 timestamp = 4;
+  bool is_error = 5;
+}
+
+message StreamLogsRequest {
+  string deployment_id = 1;
+  bool follow = 2;
+}
+
+message DeploymentStatusUpdate {
+  string deployment_id = 1;
+  string status = 2;
+  int64 duration_ms = 3;
+  string error_message = 4;
+}

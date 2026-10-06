@@ -1,0 +1,36 @@
+---
+title: "Introduction to Tako"
+description: "A modern, lightweight PaaS with an SSH-free gRPC agent architecture and Traefik v3."
+---
+
+# Welcome to Tako PaaS 🐙
+
+**Tako** is an open-source Platform-as-a-Service (PaaS) engineered for simplicity, reliability, and modern cloud native workloads. Unlike traditional self-hosted solutions that rely on fragile SSH connections and heavy databases, Tako introduces a clean, distributed architecture powered by:
+
+- **SSH-Free gRPC Agent Architecture**: Worker nodes initiate resilient outbound gRPC connections to the Master Server. No public SSH ports required on worker servers.
+- **Dedicated Traefik v3 Reverse Proxy**: Clean ingress separation. Application routing is isolated on ports `80` and `443`, while the Console UI resides exclusively on port `3000`.
+- **Pure-Go SQLite WAL Database**: Zero external database dependencies like Postgres or Redis for the control plane. SQLite in WAL mode delivers sub-millisecond query performance.
+- **Real-Time Streaming**: Live node heartbeats, resource metrics, and build logs piped directly to the Next.js Console via Server-Sent Events (SSE).
+- **Single-Line Deployment**: Deploy entire clusters with a unified installer script or simple Docker Compose manifests.
+
+---
+
+## Architectural Highlights
+
+| Component | Technology | Primary Role |
+| :--- | :--- | :--- |
+| **Tako Console** | Next.js 16 + React 19 + TailwindCSS | Developer dashboard, BFF, and management UI |
+| **Tako Server** | Go 1.27 + Chi + SQLite WAL + Goose | Master control plane, REST API, and gRPC Hub |
+| **Tako Agent** | Go 1.27 + Docker Engine SDK + gopsutil | Node daemon collecting metrics and managing containers |
+| **Tako Traefik** | Traefik v3 | High-performance reverse proxy with auto Let's Encrypt SSL |
+
+---
+
+## Why Tako?
+
+1. **Firewall & NAT Friendly**: Worker nodes communicate outbound via gRPC (`50051`). Worker servers can be placed behind strict NATs or VPNs without exposing SSH or incoming ports.
+2. **Deterministic Routing**: Traefik labels are managed deterministically per container, preventing wildcard routing collisions.
+3. **No Container Prefix Bloat**: Strict explicit `container_name:` directives prevent confusing names like `tako-tako-console`.
+4. **Lightweight Footprint**: The entire master stack runs in less than 200MB of RAM.
+
+Get started by following the [Quickstart Guide](/quickstart).

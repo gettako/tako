@@ -16,8 +16,10 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { Server, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNodeEvents } from '@/hooks/use-node-events';
 
 export default function NodesPage() {
+  useNodeEvents();
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');

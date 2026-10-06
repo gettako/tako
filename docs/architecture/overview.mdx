@@ -1,0 +1,58 @@
+---
+title: "Architecture Overview"
+description: "High-level system topology and design principles of Tako PaaS."
+---
+
+# Architecture Overview
+
+Tako is designed around an **Agent-First, Ingress-Separated** topology that eliminates the architectural pitfalls of older PaaS solutions.
+
+## High-Level Topology
+
+```
+                  +----------------------------------------------+
+                  |                 USER BROWSER                 |
+                  +-----------------------+----------------------+
+                                          |
+                      HTTP:3000 (Console) | HTTP/S:80/443 (Apps)
+                                          v
++---------------------------------------------------------------------------------+
+| MASTER NODE                                                                     |
+|                                                                                 |
+|   +-------------------+    Internal     +-----------------------------------+   |
+|   |   tako-console    | --------------> |            tako-server            |   |
+|   |  (Next.js BFF)    |    HTTP:8080    |   (Chi REST + gRPC Hub + SQLite)  |   |
+|   +-------------------+                 +-----------------+-----------------+   |
+|                                                           |                     |
+|                                                           | gRPC:50051          |
+|   +-------------------+                 +-----------------+-----------------+   |
+|   |   tako-traefik    |                 |           tako-agent              |   |
+|   | (Ports 80 & 443)  |                 |      (Docker SDK Daemon)          |   |
+|   +-------------------+                 +-----------------------------------+   |
++-----------------------------------------------------------^---------------------+
+                                                            |
+                                               gRPC Outbound| (Stream & RPC)
+                                                            |
++-----------------------------------------------------------+---------------------+
+| WORKER NODE                                               |                     |
+|                                                           |                     |
+|   +-------------------+                 +-----------------+-----------------+   |
+|   |   tako-traefik    |                 |           tako-agent              |   |
+|   | (Ports 80 & 443)  |                 |      (Docker SDK Daemon)          |   |
+|   +-------------------+                 +-----------------+-----------------+   |
+|                                                           | Docker API          |
+|                                                           v                     |
+|                                                 [ User App Containers ]         |
++---------------------------------------------------------------------------------+
+```
+
+## Key Principles
+
+### 1. Ingress Separation
+Tako Console runs on port **`3000`**, completely separate from Traefik on ports **`80`** and **`443`**. This guarantees that user application traffic, SSL certificate renewals, and DNS routing never collide with or disrupt the administrator dashboard.
+
+### 2. Zero-SSH Agent Communication
+Worker nodes never listen on SSH ports for cluster operations. Instead, `tako-agent` dials outward to `tako-server:50051`. This allows workers to run safely behind corporate firewalls, NAT gateways, and private VPC subnets.
+
+### 3. Lightweight SQLite in WAL Mode
+By using SQLite with Write-Ahead Logging (WAL) and pure-Go drivers (`modernc.org/sqlite`), Tako eliminates external database containers while maintaining sub-millisecond query performance and seamless zero-downtime backups.

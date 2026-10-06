@@ -8,15 +8,15 @@ Dokumen ini adalah ringkasan status dan dependency graph untuk seluruh milestone
 
 | Milestone | Nama | Status | Blocking / Dependencies |
 | :--- | :--- | :---: | :--- |
-| [M01](file:///Users/SupianIDz/Work/gettako/plans/milestone-01-core-scaffold-db.md) | Core Scaffold & Database Layer | `todo` | `[]` |
-| [M02](file:///Users/SupianIDz/Work/gettako/plans/milestone-02-proto-grpc-contract.md) | Protocol Buffers & gRPC Contract | `todo` | `[M01]` |
-| [M03](file:///Users/SupianIDz/Work/gettako/plans/milestone-03-agent-daemon-docker.md) | Agent Daemon & Docker Engine Integration | `todo` | `[M02]` |
-| [M04](file:///Users/SupianIDz/Work/gettako/plans/milestone-04-server-orchestrator-sse.md) | Master Node Orchestrator & Realtime SSE | `todo` | `[M01, M03]` |
-| [M05](file:///Users/SupianIDz/Work/gettako/plans/milestone-05-traefik-proxy-integration.md) | Traefik Reverse Proxy & Network Routing | `todo` | `[M03]` |
-| [M06](file:///Users/SupianIDz/Work/gettako/plans/milestone-06-service-deployment-pipeline.md) | Service Lifecycle & Deployment Pipeline | `todo` | `[M04, M05]` |
-| [M07](file:///Users/SupianIDz/Work/gettako/plans/milestone-07-console-bff-integration.md) | Console Next.js BFF & SSE Wiring | `todo` | `[M06]` |
-| [M08](file:///Users/SupianIDz/Work/gettako/plans/milestone-08-production-compose-distribution.md) | Compose Orchestration & Node Installer Script | `todo` | `[M07]` |
-| [M09](file:///Users/SupianIDz/Work/gettako/plans/milestone-09-mintlify-docs-openapi.md) | Mintlify Documentation & OpenAPI Specification | `todo` | `[M01, M08]` |
+| [M01](plans/milestone-01-core-scaffold-db.md) | Core Scaffold & Database Layer | `completed` | `[]` |
+| [M02](plans/milestone-02-proto-grpc-contract.md) | Protocol Buffers & gRPC Contract | `completed` | `[M01]` |
+| [M03](plans/milestone-03-agent-daemon-docker.md) | Agent Daemon & Docker Engine Integration | `completed` | `[M02]` |
+| [M04](plans/milestone-04-server-orchestrator-sse.md) | Master Node Orchestrator & Realtime SSE | `completed` | `[M01, M03]` |
+| [M05](plans/milestone-05-traefik-proxy-integration.md) | Traefik Reverse Proxy & Network Routing | `completed` | `[M03]` |
+| [M06](plans/milestone-06-service-deployment-pipeline.md) | Service Lifecycle & Deployment Pipeline | `completed` | `[M04, M05]` |
+| [M07](plans/milestone-07-console-bff-integration.md) | Console Next.js BFF & SSE Wiring | `completed` | `[M06]` |
+| [M08](plans/milestone-08-production-compose-distribution.md) | Compose Orchestration & Node Installer Script | `completed` | `[M07]` |
+| [M09](plans/milestone-09-mintlify-docs-openapi.md) | Mintlify Documentation & OpenAPI Specification | `completed` | `[M01, M08]` |
 
 ---
 
@@ -28,15 +28,16 @@ Dokumen ini adalah ringkasan status dan dependency graph untuk seluruh milestone
 
 ---
 
-## Standar Penamaan Container Docker
+## Standar Penamaan Container & Alokasi Port
 
 ### 1. Server Utama (Master Node):
-- `tako-traefik`: Reverse proxy publik (HTTP 80, HTTPS 443, gRPC 50051)
-- `tako-server`: Master control plane, Go API, DB SQLite, gRPC Hub
-- `tako-console`: Frontend Next.js dashboard
-- `tako-agent`: Local node agent daemon (memungkinkan master node juga menghosting app container)
+- `tako-console`: Frontend Next.js dashboard di port **`3000:3000`** (Akses langsung via `http://<IP>:3000`). **DILARANG di-bind langsung ke port 80/443** agar tidak bentrok atau membingungkan saat user deploy aplikasi.
+- `tako-traefik`: Reverse proxy publik di port **`80:80` & `443:443`** (MURNI didedikasikan untuk routing domain aplikasi yang di-deploy user, atau custom domain console jika user menyetelnya via domain).
+- `tako-server`: Master control plane, Go API, DB SQLite, gRPC Hub di port **`50051:50051`** (Direct gRPC untuk `tako-agent`).
+- `tako-agent`: Local node agent daemon (memungkinkan master node juga menghosting app container).
 
 ### 2. Server Node (Worker Node):
-- `tako-traefik`: Reverse proxy lokal untuk routing app container di worker tersebut
-- `tako-agent`: Node agent daemon terhubung outbound ke master via gRPC
+- `tako-traefik`: Reverse proxy lokal di port **`80:80` & `443:443`** untuk routing domain app container di worker tersebut.
+- `tako-agent`: Node agent daemon terhubung outbound ke master via gRPC (`<IP_MASTER>:50051`).
+
 

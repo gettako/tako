@@ -2,3 +2,8 @@
 *.pem
 node_modules/
 .next/
+bin/
+*.db
+*.db-shm
+*.db-wal
+acme.json

@@ -1,0 +1,48 @@
+---
+title: "Services & Deployments"
+description: "Creating, configuring, deploying, and rolling back applications in Tako."
+---
+
+# Services & Deployments Guide
+
+In Tako, applications and databases are organized as **Services** under **Projects**.
+
+## Service Types
+
+1. **App**: Standalone container built from a Git repository or pulled directly from a Docker registry (e.g. Docker Hub, GHCR).
+2. **Compose**: Multi-container applications configured via `docker-compose.yml`.
+3. **Database**: Managed databases (PostgreSQL, MySQL, Redis, MongoDB).
+
+---
+
+## Deploying a Service
+
+### 1. From a Docker Image
+- Provide the container image (e.g. `postgres:16-alpine` or `redis:7-alpine`).
+- Specify environment variables (e.g. `POSTGRES_PASSWORD=secret`).
+- Map ports (e.g. `5432`).
+
+### 2. From a Git Repository
+- Connect your GitHub or Git URL (e.g. `https://github.com/myorg/myapp`).
+- Select branch (default: `main`).
+- Specify build command or `Dockerfile` location.
+
+---
+
+## Deployment Pipeline Steps
+
+When you click **Deploy**, Tako initiates an asynchronous 7-step pipeline:
+
+1. **Queued**: Deployment queued in Master DB.
+2. **Clone**: Source code checked out (if Git-based).
+3. **Build**: Image built or pulled via Docker Engine SDK on the target node.
+4. **Push/Load Image**: Container image verified locally.
+5. **Deploy**: Container launched with Traefik routing labels on `tako-network`.
+6. **Health Check**: Endpoint readiness check performed.
+7. **Live**: Service marked healthy and routing traffic.
+
+---
+
+## Rollbacks
+
+Every deployment preserves its image digest, commit hash, and configuration. If a release introduces bugs, click **Rollback** on any previous deployment in the history tab to immediately revert container execution to that known-good state.

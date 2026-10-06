@@ -1,0 +1,40 @@
+---
+title: "Monitoring & Logs"
+description: "Realtime metrics tracking and live log streaming in Tako."
+---
+
+# Monitoring & Logs Guide
+
+Tako provides end-to-end visibility into your infrastructure and running applications without requiring external agents like Datadog or Prometheus.
+
+## Real-Time Node Telemetry
+
+Every `tako-agent` collects hardware and container metrics directly via `gopsutil` and Docker Engine SDK:
+
+- **CPU Utilization**: Real-time percent load across all cores.
+- **Memory Consumption**: Used vs total megabytes.
+- **Disk Space**: Used vs total gigabytes on root and data partitions.
+- **Network I/O**: Real-time ingress (`Rx`) and egress (`Tx`) kilobits per second.
+- **Node Status**: Automatically detects network partitioning or daemon failure within 15 seconds.
+
+Metrics are pushed every 3 seconds to the Master Server and broadcast to the browser via Server-Sent Events (`/api/v1/events/nodes`).
+
+---
+
+## Live Build & Deployment Logs
+
+During deployment, log chunks are streamed over gRPC from the agent directly to the master server's event bus.
+
+In the console, you can monitor the live log stream in real time. The console log viewer supports:
+- Automatic auto-scroll to the latest log line.
+- ANSI color highlighting.
+- Historical log inspection (`/api/v1/deployments/:id/logs/history`).
+
+---
+
+## Container Runtime Logs
+
+To view runtime output from live application containers:
+1. Navigate to your **Service**.
+2. Click the **Logs** tab.
+3. Tako streams the `stdout` and `stderr` streams directly from the container's Docker socket.

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Tako",
+  "logo": {
+    "dark": "/logo/dark.svg",
+    "light": "/logo/light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#432DD7",
+    "light": "#432DD7",
+    "dark": "#5B63D3",
+    "anchors": {
+      "from": "#432DD7",
+      "to": "#6366F1"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/gettakodev/tako"
+    },
+    {
+      "name": "Website",
+      "url": "https://gettako.dev"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/quickstart"
+  },
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart"
+      ]
+    },
+    {
+      "group": "Installation",
+      "pages": [
+        "installation/main-server",
+        "installation/node-server",
+        "installation/manual-docker"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture/overview",
+        "architecture/grpc-communication",
+        "architecture/traefik-routing"
+      ]
+    },
+    {
+      "group": "User Guides",
+      "pages": [
+        "guides/services-deployments",
+        "guides/monitoring-logs"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/overview"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/gettakodev/tako"
+  }
+}
