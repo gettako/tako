@@ -1,0 +1,347 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getS3Buckets, addS3Bucket, testS3BucketConnection } from '@/lib/api/settings';
+import { S3Bucket } from '@/lib/types';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { HardDrive, Plus, CheckCircle2, AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { SectionHeader } from '@/components/ui/section-header';
+import { toast } from 'sonner';
+
+export function BucketsPanel() {
+  const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [endpoint, setEndpoint] = useState('');
+  const [region, setRegion] = useState('us-east-1');
+  const [bucket, setBucket] = useState('');
+  const [accessKeyId, setAccessKeyId] = useState('');
+  const [secretAccessKey, setSecretAccessKey] = useState('');
+  const [testResult, setTestResult] = useState<{ ok: boolean; latencyMs: number; message: string } | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const { data: buckets = [], isLoading } = useQuery({
+    queryKey: ['s3-buckets'],
+    queryFn: getS3Buckets,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: addS3Bucket,
+    onSuccess: (newB) => {
+      queryClient.invalidateQueries({ queryKey: ['s3-buckets'] });
+      toast.success(`Storage bucket "${newB.name}" configured`);
+      setDialogOpen(false);
+      resetForm();
+    },
+    onError: () => toast.error('Failed to add S3 bucket'),
+  });
+
+  const resetForm = () => {
+    setName('');
+    setEndpoint('');
+    setRegion('us-east-1');
+    setBucket('');
+    setAccessKeyId('');
+    setSecretAccessKey('');
+    setTestResult(null);
+  };
+
+  const handleTestConnection = async () => {
+    if (!endpoint || !bucket) {
+      toast.error('Endpoint and bucket name are required to test connection');
+      return;
+    }
+
+    try {
+      setIsTesting(true);
+      setTestResult(null);
+      const res = await testS3BucketConnection({ endpoint, bucket });
+      setTestResult(res);
+      if (res.ok) {
+        toast.success(`Connection verified (${res.latencyMs}ms)`);
+      } else {
+        toast.error('Connection test failed');
+      }
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !endpoint.trim() || !bucket.trim() || !accessKeyId.trim()) return;
+
+    addMutation.mutate({
+      name: name.trim(),
+      endpoint: endpoint.trim(),
+      region: region.trim() || 'us-east-1',
+      bucket: bucket.trim(),
+      accessKeyId: accessKeyId.trim(),
+      secretAccessKey: secretAccessKey.trim(),
+      isDefault: buckets.length === 0,
+    });
+  };
+
+  return (
+    <>
+      <Card className="border-border/60 bg-card p-6">
+        <CardHeader className="px-0 pt-0 pb-4">
+          <SectionHeader
+            icon={HardDrive}
+            title="S3 Compatible Object Storage"
+            description="Connect Cloudflare R2, AWS S3, MinIO, or DigitalOcean Spaces for persistent volume snapshots."
+            action={
+              <Button
+                size="sm"
+                onClick={() => {
+                  resetForm();
+                  setDialogOpen(true);
+                }}
+                className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0"
+              >
+                <Plus className="size-3.5" />
+                Add S3 Bucket
+              </Button>
+            }
+          />
+        </CardHeader>
+
+        <CardContent className="px-0 pt-2">
+          {buckets.length === 0 ? (
+            <div className="text-center py-8 border border-dashed border-border/60 rounded-lg">
+              <HardDrive className="size-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No S3 storage buckets configured.</p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border/60 overflow-hidden">
+              <Table>
+                <TableHeader className="bg-muted/40">
+                  <TableRow className="border-b border-border/60 hover:bg-transparent">
+                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Storage Name
+                    </TableHead>
+                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Bucket
+                    </TableHead>
+                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Endpoint
+                    </TableHead>
+                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Region
+                    </TableHead>
+                    <TableHead className="py-2.5 px-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Default
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {buckets.map((b) => (
+                    <TableRow key={b.id} className="hover:bg-muted/30 border-b border-border/40">
+                      <TableCell className="py-3 px-4 font-medium text-foreground">
+                        {b.name}
+                      </TableCell>
+                      <TableCell className="py-3 px-4 font-mono text-sm text-foreground">
+                        {b.bucket}
+                      </TableCell>
+                      <TableCell className="py-3 px-4 font-mono text-sm text-muted-foreground truncate max-w-xs">
+                        {b.endpoint}
+                      </TableCell>
+                      <TableCell className="py-3 px-4 font-mono text-sm text-muted-foreground">
+                        {b.region}
+                      </TableCell>
+                      <TableCell className="py-3 px-4 text-right">
+                        {b.isDefault && (
+                          <Badge
+                            variant="outline"
+                            className="bg-primary/10 text-primary border-primary/30 font-mono text-xs"
+                          >
+                            Default
+                          </Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Add S3 Bucket Dialog (AC-9) */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-md">
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle className="text-lg font-semibold">
+                Configure S3 Compatible Storage
+              </DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Enter your bucket credentials and test connectivity before saving.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-foreground">Display Name</Label>
+                <Input
+                  placeholder="e.g. Primary Backups (Cloudflare R2)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-foreground">S3 Endpoint URL</Label>
+                <Input
+                  placeholder="https://<account>.r2.cloudflarestorage.com"
+                  value={endpoint}
+                  onChange={(e) => setEndpoint(e.target.value)}
+                  required
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-foreground">Bucket Name</Label>
+                  <Input
+                    placeholder="my-tako-backups"
+                    value={bucket}
+                    onChange={(e) => setBucket(e.target.value)}
+                    required
+                    className="font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium text-foreground">Region</Label>
+                  <SearchableSelect
+                    value={region}
+                    onValueChange={setRegion}
+                    options={[
+                      { value: 'auto', label: 'auto (Cloudflare R2 / MinIO)' },
+                      { value: 'us-east-1', label: 'us-east-1 (N. Virginia)' },
+                      { value: 'us-west-2', label: 'us-west-2 (Oregon)' },
+                      { value: 'eu-central-1', label: 'eu-central-1 (Frankfurt)' },
+                      { value: 'eu-west-1', label: 'eu-west-1 (Ireland)' },
+                      { value: 'ap-southeast-1', label: 'ap-southeast-1 (Singapore)' },
+                      { value: 'ap-northeast-1', label: 'ap-northeast-1 (Tokyo)' },
+                    ]}
+                    placeholder="Select region..."
+                    searchPlaceholder="Search S3 region..."
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-foreground">Access Key ID</Label>
+                <Input
+                  placeholder="AKIAIOSFODNN7EXAMPLE"
+                  value={accessKeyId}
+                  onChange={(e) => setAccessKeyId(e.target.value)}
+                  required
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-foreground">Secret Access Key</Label>
+                <Input
+                  type="password"
+                  placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                  value={secretAccessKey}
+                  onChange={(e) => setSecretAccessKey(e.target.value)}
+                  className="font-mono text-sm"
+                />
+              </div>
+
+              {/* Simulated Test Connection Result */}
+              {testResult && (
+                <div
+                  className={`p-3 rounded-md border flex items-center gap-2.5 text-sm ${
+                    testResult.ok
+                      ? 'border-status-success/30 bg-status-success/10 text-status-success'
+                      : 'border-status-danger/30 bg-status-danger/10 text-status-danger'
+                  }`}
+                >
+                  {testResult.ok ? (
+                    <CheckCircle2 className="size-4 shrink-0" />
+                  ) : (
+                    <AlertCircle className="size-4 shrink-0" />
+                  )}
+                  <span className="flex-1 text-sm">{testResult.message}</span>
+                  {testResult.ok && (
+                    <span className="font-mono text-sm shrink-0">
+                      {testResult.latencyMs}ms
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleTestConnection}
+                disabled={isTesting || !endpoint || !bucket}
+                className="text-sm gap-1.5"
+              >
+                {isTesting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3.5 text-primary" />
+                )}
+                Test Connection
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDialogOpen(false)}
+                  className="text-sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!name || !endpoint || !bucket || !accessKeyId || addMutation.isPending}
+                  className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                >
+                  {addMutation.isPending ? 'Saving...' : 'Save Storage'}
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
