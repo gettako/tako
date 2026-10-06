@@ -92,11 +92,11 @@ export function GlobalCommandPalette() {
       onOpenChange={setOpen}
       title="Global Command Palette"
       description="Search across projects, services, nodes, and execute quick administrative actions"
-      className="max-w-2xl bg-background/80 backdrop-blur-md border border-border/60 shadow-2xl p-0 overflow-hidden"
+      className="max-w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-3xl bg-background/90 backdrop-blur-xl border border-border/70 shadow-2xl p-0 overflow-hidden"
     >
       <Command className="bg-transparent border-0">
-        <CommandInput placeholder="Type a command or search console..." className="h-12 text-sm" />
-        <CommandList className="max-h-[380px] p-2">
+        <CommandInput placeholder="Type a command or search console..." className="h-13 text-base sm:text-sm" />
+        <CommandList className="max-h-[440px] p-2">
           <CommandEmpty className="py-8 text-center text-sm text-muted-foreground">
             No matching resources or commands found.
           </CommandEmpty>
@@ -147,17 +147,23 @@ export function GlobalCommandPalette() {
           <CommandGroup heading="Platform">
             <CommandItem
               onSelect={() => runCommand(() => router.push('/'))}
-              className="gap-3 py-2 cursor-pointer"
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
             >
-              <LayoutDashboard className="size-4 text-muted-foreground" />
-              <span>Dashboard Overview</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <LayoutDashboard className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">Dashboard Overview</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/</span>
             </CommandItem>
             <CommandItem
               onSelect={() => runCommand(() => router.push('/projects'))}
-              className="gap-3 py-2 cursor-pointer"
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
             >
-              <Folder className="size-4 text-muted-foreground" />
-              <span>Projects & Services</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Folder className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">Projects & Services</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/projects</span>
             </CommandItem>
           </CommandGroup>
 
@@ -167,17 +173,23 @@ export function GlobalCommandPalette() {
           <CommandGroup heading="Infrastructure">
             <CommandItem
               onSelect={() => runCommand(() => router.push('/nodes'))}
-              className="gap-3 py-2 cursor-pointer"
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
             >
-              <HardDrive className="size-4 text-muted-foreground" />
-              <span>Cluster Nodes</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <HardDrive className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">Cluster Nodes</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/nodes</span>
             </CommandItem>
             <CommandItem
               onSelect={() => runCommand(() => router.push('/monitoring'))}
-              className="gap-3 py-2 cursor-pointer"
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
             >
-              <Activity className="size-4 text-muted-foreground" />
-              <span>Cluster Telemetry & Monitoring</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Activity className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">Cluster Telemetry & Monitoring</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/monitoring</span>
             </CommandItem>
           </CommandGroup>
 
@@ -187,24 +199,33 @@ export function GlobalCommandPalette() {
           <CommandGroup heading="Management">
             <CommandItem
               onSelect={() => runCommand(() => router.push('/audit-logs'))}
-              className="gap-3 py-2 cursor-pointer"
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
             >
-              <FileText className="size-4 text-muted-foreground" />
-              <span>Audit Logs</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FileText className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">Audit Logs</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/audit-logs</span>
             </CommandItem>
             <CommandItem
               onSelect={() => runCommand(() => router.push('/settings'))}
-              className="gap-3 py-2 cursor-pointer"
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
             >
-              <Settings className="size-4 text-muted-foreground" />
-              <span>Cluster Settings</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Settings className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">Cluster Settings</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/settings</span>
             </CommandItem>
             <CommandItem
               onSelect={() => runCommand(() => router.push('/profile'))}
-              className="gap-3 py-2 cursor-pointer"
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
             >
-              <User className="size-4 text-muted-foreground" />
-              <span>User Profile & Security</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <User className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">User Profile & Security</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/profile</span>
             </CommandItem>
           </CommandGroup>
 
@@ -217,16 +238,18 @@ export function GlobalCommandPalette() {
                   <CommandItem
                     key={proj.id}
                     onSelect={() => runCommand(() => router.push(`/projects/${proj.id}`))}
-                    className="gap-3 py-2 cursor-pointer"
+                    className="flex items-center justify-between gap-3 py-2 cursor-pointer"
                   >
-                    <Folder className="size-4 text-primary" />
-                    <span className="font-medium text-foreground">{proj.name}</span>
-                    <span className="text-xs text-muted-foreground font-mono">({proj.slug})</span>
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <Folder className="size-4 text-primary shrink-0" />
+                      <span className="font-medium text-foreground truncate">{proj.name}</span>
+                      <span className="text-xs text-muted-foreground font-mono truncate">({proj.slug})</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
                       <span className="text-[11px] text-muted-foreground">
-                        {proj.servicesCount} services
+                        {proj.servicesCount} {proj.servicesCount === 1 ? 'service' : 'services'}
                       </span>
-                      <span className={cn('size-2 rounded-full', getStatusColor(proj.status))} />
+                      <span className={cn('size-2 rounded-full shrink-0', getStatusColor(proj.status))} />
                     </div>
                   </CommandItem>
                 ))}
@@ -245,18 +268,20 @@ export function GlobalCommandPalette() {
                     onSelect={() =>
                       runCommand(() => router.push(`/projects/${srv.projectId}/services/${srv.id}`))
                     }
-                    className="gap-3 py-2 cursor-pointer"
+                    className="flex items-center justify-between gap-3 py-2 cursor-pointer"
                   >
-                    <Server className="size-4 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{srv.name}</span>
-                    <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground uppercase">
-                      {srv.type}
-                    </span>
-                    <div className="ml-auto flex items-center gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <Server className="size-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-foreground truncate">{srv.name}</span>
+                      <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground uppercase shrink-0">
+                        {srv.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
                       <span className="text-[11px] font-mono text-muted-foreground">
                         {srv.nodeName}
                       </span>
-                      <span className={cn('size-2 rounded-full', getStatusColor(srv.status))} />
+                      <span className={cn('size-2 rounded-full shrink-0', getStatusColor(srv.status))} />
                     </div>
                   </CommandItem>
                 ))}
@@ -273,13 +298,20 @@ export function GlobalCommandPalette() {
                   <CommandItem
                     key={node.id}
                     onSelect={() => runCommand(() => router.push(`/nodes/${node.id}`))}
-                    className="gap-3 py-2 cursor-pointer"
+                    className="flex items-center justify-between gap-3 py-2 cursor-pointer"
                   >
-                    <HardDrive className="size-4 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{node.name}</span>
-                    <span className="text-xs font-mono text-muted-foreground">{node.ipAddress}</span>
-                    <div className="ml-auto flex items-center gap-2">
-                      <span className={cn('size-2 rounded-full', getStatusColor(node.status))} />
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <HardDrive className="size-4 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-foreground truncate">{node.name}</span>
+                      <span className="rounded-xs bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground uppercase shrink-0">
+                        {node.role}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {node.ipAddress}
+                      </span>
+                      <span className={cn('size-2 rounded-full shrink-0', getStatusColor(node.status))} />
                     </div>
                   </CommandItem>
                 ))}

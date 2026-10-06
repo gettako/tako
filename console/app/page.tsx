@@ -242,8 +242,8 @@ export default function DashboardPage() {
       <div className="space-y-8">
         {/* Soft header glow banner */}
         <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 shadow-xs">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1.5 min-w-0 flex-1">
               <div className="flex items-center gap-3 flex-wrap">
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
                   Cluster Overview
@@ -271,8 +271,8 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
-              <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
-                Realtime cluster telemetry, workload health status, and node orchestration distribution.
+              <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-normal">
+                Realtime cluster telemetry, workload health status, and node orchestration.
               </p>
             </div>
 

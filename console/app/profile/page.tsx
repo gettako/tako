@@ -56,15 +56,27 @@ export default function ProfilePage() {
     <>
       <title>Account & Security — Takō Cloud</title>
       <div className="space-y-8 max-w-5xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Account Profile & Security
-        </h1>
-        <p className="text-base text-muted-foreground mt-1">
-          Manage your credentials, authentication factors, active sessions, and hardware security keys.
-        </p>
-      </div>
+        {/* Page Header (Base Vega Gradient Hero) */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 shadow-xs">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1.5 min-w-0 flex-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
+                  Account Profile & Security
+                </h1>
+
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  <ShieldCheck className="size-3.5 text-primary" />
+                  Operator Identity
+                </span>
+              </div>
+
+              <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-normal">
+                Manage your credentials, authentication factors, active sessions, and hardware security keys.
+              </p>
+            </div>
+          </div>
+        </div>
 
       {/* 1. Personal Information */}
       <ProfileInfoForm user={user} onUpdate={handleUpdate} />

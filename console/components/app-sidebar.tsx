@@ -1,6 +1,6 @@
 "use client"
 
-import * as React from "react"
+import Link from "next/link"
 import {
   LayoutDashboard,
   FolderKanban,
@@ -9,14 +9,11 @@ import {
   ScrollText,
   Settings,
   Octagon,
-  Cloud,
-  Layers,
   BookOpen,
   ExternalLink,
 } from "lucide-react"
 
 import { NavMain, type NavGroup } from "@/components/nav-main"
-import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
@@ -27,24 +24,6 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
-
-const teams = [
-  {
-    name: "Tako Cloud",
-    logo: <Octagon className="size-4" />,
-    plan: "Enterprise PaaS",
-  },
-  {
-    name: "Production Cluster",
-    logo: <Cloud className="size-4" />,
-    plan: "Dedicated (3 Nodes)",
-  },
-  {
-    name: "Staging Cluster",
-    logo: <Layers className="size-4" />,
-    plan: "Development (1 Node)",
-  },
-]
 
 const navGroups: NavGroup[] = [
   {
@@ -97,9 +76,29 @@ const navGroups: NavGroup[] = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
-      {/* Header: Workspace / Cluster Switcher */}
+      {/* Header: Brand Identity */}
       <SidebarHeader>
-        <TeamSwitcher teams={teams} />
+        <SidebarMenu>
+          <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+            <SidebarMenuButton
+              size="lg"
+              render={<Link href="/" />}
+              className="group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0! hover:bg-sidebar-accent/50 transition-colors"
+            >
+              <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-2xs">
+                <Octagon className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                <span className="truncate font-semibold tracking-tight text-sidebar-foreground">
+                  Tako Cloud
+                </span>
+                <span className="truncate text-xs text-muted-foreground font-mono">
+                  Enterprise PaaS
+                </span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
       {/* Main Content: Grouped Navigation without Collapsible */}

@@ -86,7 +86,7 @@ export default function ProjectDetailPage({
   return (
     <>
       <title>{titleText}</title>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* Project KPI Header */}
         <ProjectDetailHeader
           project={project}

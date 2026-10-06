@@ -103,7 +103,7 @@ export default function ProjectsPage() {
   return (
     <>
       <title>Projects — Takō Cloud</title>
-      <div className="space-y-6">
+      <div className="space-y-8">
         {/* 1. Hero Glow Banner Header */}
         <ProjectsHeader
           totalCount={projects.length}

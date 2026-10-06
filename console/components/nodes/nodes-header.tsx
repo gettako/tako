@@ -25,21 +25,21 @@ export function NodesHeader({
 
   return (
     <>
-      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8">
+      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="space-y-1.5 min-w-0 flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
                 Cluster Nodes
               </h1>
 
               {isAllHealthy ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-status-success/25 bg-status-success/15 px-2.5 py-0.5 text-xs font-medium text-status-success">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-status-success/30 bg-status-success/10 px-2.5 py-0.5 text-xs font-medium text-status-success">
                   <span className="size-1.5 rounded-full bg-status-success animate-pulse" />
                   All Systems Operational
                 </span>
               ) : hasIssues ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-status-danger/25 bg-status-danger/15 px-2.5 py-0.5 text-xs font-medium text-status-danger">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-status-danger/30 bg-status-danger/10 px-2.5 py-0.5 text-xs font-medium text-status-danger">
                   <span className="size-1.5 rounded-full bg-status-danger animate-pulse" />
                   {offlineCount > 0
                     ? `${offlineCount} ${offlineCount === 1 ? 'Node' : 'Nodes'} Offline`
@@ -48,19 +48,21 @@ export function NodesHeader({
               ) : null}
             </div>
 
-            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
-              Physical hosts, virtual machines, and cloud instances orchestrating container workloads across your cluster.
+            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-normal">
+              Physical hosts, virtual machines, and cloud instances orchestrating cluster workloads.
             </p>
           </div>
 
-          <Button
-            onClick={() => setRegisterOpen(true)}
-            size="sm"
-            className="gap-1.5 text-sm h-9 shadow-xs active:not-aria-[haspopup]:translate-y-px shrink-0 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
-          >
-            <Plus className="size-4" />
-            <span>Register Node</span>
-          </Button>
+          <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+            <Button
+              onClick={() => setRegisterOpen(true)}
+              size="sm"
+              className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer shadow-xs dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
+            >
+              <Plus className="size-3.5" />
+              <span>Register Node</span>
+            </Button>
+          </div>
         </div>
       </div>
 
