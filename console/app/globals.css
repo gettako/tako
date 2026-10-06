@@ -61,7 +61,7 @@
 }
 
 :root {
-    --background:  var(--color-slate-100);;
+    --background:  var(--color-white);;
     --foreground: oklch(0.145 0 0);
     --card: var(--color-white);
     --card-foreground: oklch(0.145 0 0);

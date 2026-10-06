@@ -91,7 +91,7 @@ export default function MonitoringPage() {
   return (
     <>
       <title>Cluster Telemetry & Monitoring — Takō Cloud</title>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Header with Time Range selector (AC-7) */}
         <MonitoringHeader
           timeRange={timeRange}

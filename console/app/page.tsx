@@ -203,26 +203,24 @@ export default function DashboardPage() {
     return (
       <>
         <title>Cluster Overview — Takō Cloud</title>
-        <div className="space-y-8">
-          <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
-                  Cluster Overview
-                </h1>
-                <p className="text-sm sm:text-base text-muted-foreground mt-1">
-                  Realtime telemetry, workload health, and node distribution
-                </p>
-              </div>
-              <Button
-                onClick={() => setIsCreateProjectOpen(true)}
-                size="sm"
-                className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
-              >
-                <Plus className="size-3.5" />
-                <span>New Project</span>
-              </Button>
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">
+                Cluster Overview
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Realtime telemetry, workload health, and node distribution
+              </p>
             </div>
+            <Button
+              onClick={() => setIsCreateProjectOpen(true)}
+              size="sm"
+              className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
+            >
+              <Plus className="size-3.5" />
+              <span>New Project</span>
+            </Button>
           </div>
 
           <EmptyState
@@ -252,64 +250,62 @@ export default function DashboardPage() {
   return (
     <>
       <title>Cluster Overview — Takō Cloud</title>
-      <div className="space-y-8">
-        {/* Soft header glow banner */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 shadow-xs">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1.5 min-w-0 flex-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
-                  Cluster Overview
-                </h1>
-                <div
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">
+                Cluster Overview
+              </h1>
+              <div
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  isAllHealthy
+                    ? 'border-status-success/30 bg-status-success/10 text-status-success'
+                    : 'border-status-warning/30 bg-status-warning/10 text-status-warning'
+                )}
+              >
+                <span
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                    isAllHealthy
-                      ? 'border-status-success/30 bg-status-success/10 text-status-success'
-                      : 'border-status-warning/30 bg-status-warning/10 text-status-warning'
+                    'size-1.5 rounded-full',
+                    isAllHealthy ? 'bg-status-success animate-pulse' : 'bg-status-warning'
                   )}
-                >
-                  <span
-                    className={cn(
-                      'size-1.5 rounded-full',
-                      isAllHealthy ? 'bg-status-success animate-pulse' : 'bg-status-warning'
-                    )}
-                  />
-                  <span>
-                    {isAllHealthy
-                      ? 'All Systems Operational'
-                      : `${totalServices - healthyServices} Workload${
-                          totalServices - healthyServices === 1 ? '' : 's'
-                        } Degraded`}
-                  </span>
-                </div>
+                />
+                <span>
+                  {isAllHealthy
+                    ? 'All Systems Operational'
+                    : `${totalServices - healthyServices} Workload${
+                        totalServices - healthyServices === 1 ? '' : 's'
+                      } Degraded`}
+                </span>
               </div>
-              <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-normal">
-                Realtime cluster telemetry, workload health status, and node orchestration.
-              </p>
             </div>
+            <p className="text-sm text-muted-foreground">
+              Realtime cluster telemetry, workload health status, and node orchestration.
+            </p>
+          </div>
 
-            <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="gap-1.5 text-xs sm:text-sm h-9 px-3 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
-              >
-                <RefreshCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
-                <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-              </Button>
+          <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="gap-1.5 text-xs sm:text-sm h-9 px-3 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
+            >
+              <RefreshCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
+              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </Button>
 
-              <Button
-                onClick={() => setIsCreateProjectOpen(true)}
-                size="sm"
-                className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer shadow-xs"
-              >
-                <Plus className="size-3.5" />
-                <span>New Project</span>
-              </Button>
-            </div>
+            <Button
+              onClick={() => setIsCreateProjectOpen(true)}
+              size="sm"
+              className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer shadow-xs"
+            >
+              <Plus className="size-3.5" />
+              <span>New Project</span>
+            </Button>
           </div>
         </div>
 

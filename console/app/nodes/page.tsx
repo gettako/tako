@@ -63,8 +63,8 @@ export default function NodesPage() {
   return (
     <>
       <title>Cluster Nodes — Takō Cloud</title>
-      <div className="space-y-8">
-        {/* 1. Page Header (Soft Indigo Gradient Hero Glow) */}
+      <div className="space-y-6">
+        {/* 1. Page Header */}
         <NodesHeader
           totalCount={nodes.length}
           onlineCount={statusCounts.online}

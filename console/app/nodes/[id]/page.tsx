@@ -77,7 +77,7 @@ export default function NodeDetailPage({
   return (
     <>
       <title>{titleText}</title>
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Node Specifications & Header (AC-4) */}
         <NodeSpecHeader node={node} onRefresh={() => refetchNode()} />
 

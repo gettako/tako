@@ -86,56 +86,56 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* 2. Hero Gradient Glow Header Container (Base Vega Standard) */}
-      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
-                {node.name}
-              </h1>
-              <StatusBadge status={node.status} />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-muted-foreground">
-              <span>Node ID: {node.id}</span>
-              <span>•</span>
-              <span>Docker v{node.dockerVersion}</span>
-              <span>•</span>
-              <span className="truncate">{node.os}</span>
-            </div>
+      {/* 2. Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">
+              {node.name}
+            </h1>
+            <StatusBadge status={node.status} />
           </div>
 
-          {/* Action CTAs */}
-          <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setTerminalOpen(true)}
-              className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
-            >
-              <Terminal className="size-3.5" />
-              <span>Connect SSH</span>
-            </Button>
-
-            {onRefresh && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefreshClick}
-                className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
-              >
-                <RotateCw
-                  className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`}
-                />
-                <span>Refresh</span>
-              </Button>
-            )}
+          <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-muted-foreground">
+            <span>Node ID: {node.id}</span>
+            <span>•</span>
+            <span>Docker v{node.dockerVersion}</span>
+            <span>•</span>
+            <span className="truncate">{node.os}</span>
           </div>
         </div>
 
-        {/* 3. Hardware & Network Telemetry Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 pt-6 border-t border-border/40 text-xs">
+        {/* Action CTAs */}
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setTerminalOpen(true)}
+            className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+          >
+            <Terminal className="size-3.5" />
+            <span>Connect SSH</span>
+          </Button>
+
+          {onRefresh && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshClick}
+              className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              <RotateCw
+                className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`}
+              />
+              <span>Refresh</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* 3. Hardware & Network Telemetry Grid */}
+      <div className="rounded-xl border border-border/70 bg-card p-4 sm:p-5 text-xs shadow-2xs">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 text-xs">
           {/* Private IP */}
           <div className="space-y-1">
             <span className="text-[11px] text-muted-foreground font-medium">Private IP</span>

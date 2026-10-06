@@ -28,56 +28,54 @@ export function MonitoringHeader({
   isRefreshing,
 }: MonitoringHeaderProps) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 shadow-xs">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1.5 min-w-0 flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
-              Cluster Monitoring
-            </h1>
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="space-y-1 min-w-0 flex-1">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">
+            Cluster Monitoring
+          </h1>
 
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-status-success/30 bg-status-success/10 px-2.5 py-0.5 text-xs font-medium text-status-success">
-              <span className="size-1.5 rounded-full bg-status-success animate-pulse" />
-              Live Telemetry Active
-            </span>
-          </div>
-
-          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-normal">
-            Historical resource metrics, multi-node comparisons, network bandwidth, and storage I/O.
-          </p>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-status-success/30 bg-status-success/10 px-2.5 py-0.5 text-xs font-medium text-status-success">
+            <span className="size-1.5 rounded-full bg-status-success animate-pulse" />
+            Live Telemetry Active
+          </span>
         </div>
 
-        {/* Time Range Selector & Refresh Action */}
-        <div className="flex items-center gap-2.5 shrink-0 self-start lg:self-auto">
-          <div className="flex items-center rounded-lg border border-border/70 bg-muted/40 p-1 text-xs">
-            {TIME_RANGES.map((r) => (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => onTimeRangeChange(r.id)}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium transition-all active:not-aria-[haspopup]:translate-y-px',
-                  timeRange === r.id
-                    ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                )}
-              >
-                {r.label}
-              </button>
-            ))}
-          </div>
+        <p className="text-sm text-muted-foreground">
+          Historical resource metrics, multi-node comparisons, network bandwidth, and storage I/O.
+        </p>
+      </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="gap-1.5 text-xs sm:text-sm h-9 px-3 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
-          >
-            <RotateCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </Button>
+      {/* Time Range Selector & Refresh Action */}
+      <div className="flex items-center gap-2.5 shrink-0 self-start lg:self-auto">
+        <div className="flex items-center rounded-lg border border-border/70 bg-muted/40 p-1 text-xs">
+          {TIME_RANGES.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => onTimeRangeChange(r.id)}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-xs font-medium transition-all active:not-aria-[haspopup]:translate-y-px',
+                timeRange === r.id
+                  ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              )}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onRefresh}
+          disabled={isRefreshing}
+          className="gap-1.5 text-xs sm:text-sm h-9 px-3 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
+        >
+          <RotateCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+        </Button>
       </div>
     </div>
   );

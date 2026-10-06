@@ -319,10 +319,10 @@ Tako is built strictly upon the **shadcn `base-vega`** style preset (`components
 - **Padding Discipline:** Never apply arbitrary `p-6` to `<Card>` while adding `px-0` or `p-0` to children unless implementing a specialized full-bleed chart viewport.
 
 ### 3. Header Architecture: Page vs Section Headers
-- **Page Headers (No Title Icon):**
-  - Page-level headers (e.g., *Cluster Overview*, *Cluster Settings*, *Nodes*) must **NEVER** place an icon directly to the left of the main title.
-  - Page headers consist of: title (`text-2xl sm:text-3xl font-bold tracking-tight text-foreground`), optional real-time status pill (*All Systems Operational* / *Degraded*), subtitle (`text-sm sm:text-base text-muted-foreground`), and right-aligned primary CTA buttons.
-  - Page headers and hero containers utilize the ambient soft indigo gradient glow (`bg-gradient-to-b from-primary/5 via-background to-background border border-border/70 rounded-2xl`).
+- **Page Headers (No Title Icon, Clean & Compact):**
+  - Page-level headers (e.g., *Cluster Overview*, *Cluster Settings*, *Nodes*, *Projects*) must **NEVER** place an icon directly to the left of the main title.
+  - Page headers are clean, compact, and unboxed (flat layout, without bulky card borders or gradient boxes).
+  - Page headers consist of: title (`text-2xl font-bold tracking-tight text-foreground`), optional real-time status pill (*All Systems Operational* / *Degraded*), subtitle (`text-sm text-muted-foreground`), and right-aligned action buttons.
 - **Section Headers (Squircle Icon Pattern):**
   - Section and card-level headers feature a dedicated squircle icon container (`size-9` to `size-10`, `rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs`).
   - The icon is placed to the left of the section title and description, creating an engineered telemetry card aesthetic.
@@ -380,7 +380,7 @@ Control sizes stay as defined in Layout (36px default). Spaciousness comes from 
 
 ### Glass surfaces (subtle, selective)
 
-Allowed ONLY on: top header, command palette, popovers/dropdowns, dialog overlays, and toast. Content cards, tables, and forms stay solid.
+Allowed ONLY on: command palette, popovers/dropdowns, dialog overlays, and toast. The top header uses a solid `bg-sidebar` matching the sidebar background. Content cards, tables, and forms stay solid.
 
 - Light: `bg-background/70 backdrop-blur-md border border-border/60`
 - Dark: `bg-background/70 backdrop-blur-md border border-white/14` (matching `#FFFFFF24`)
@@ -389,7 +389,7 @@ Allowed ONLY on: top header, command palette, popovers/dropdowns, dialog overlay
 
 ### Brand identity
 
-- **Header glow:** Page headers and the dashboard hero may use a very soft indigo gradient (`from-primary/5 via-transparent to-transparent`), max 5% opacity.
+- **Clean page headers:** Page headers use a flat, uncluttered layout without bulky glowing container boxes, maximizing vertical space for dashboard content.
 - **Status accent:** Project, service, and node cards show a 3px left accent bar in the item's status color.
 - **Brand tint:** `primary/5` (light) or `primary/15` (dark `#5B63D3`/15) is allowed as a background for the active sidebar item and selected rows. Do not use it elsewhere.
 

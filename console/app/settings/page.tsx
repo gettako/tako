@@ -24,26 +24,24 @@ export default function SettingsPage() {
   return (
     <>
       <title>Cluster Settings — Takō Cloud</title>
-      <div className="space-y-8">
-        {/* Page Header (Base Vega Gradient Hero) */}
-        <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8 shadow-xs">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1.5 min-w-0 flex-1">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
-                  Cluster Settings
-                </h1>
+      <div className="space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1 min-w-0 flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">
+                Cluster Settings
+              </h1>
 
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                  <SettingsIcon className="size-3.5 text-primary" />
-                  Global Configuration
-                </span>
-              </div>
-
-              <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-normal">
-                Configure cluster-wide operators, storage buckets, Git sync, TLS domains, and notifications.
-              </p>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                <SettingsIcon className="size-3.5 text-primary" />
+                Global Configuration
+              </span>
             </div>
+
+            <p className="text-sm text-muted-foreground">
+              Configure cluster-wide operators, storage buckets, Git sync, TLS domains, and notifications.
+            </p>
           </div>
         </div>
 
