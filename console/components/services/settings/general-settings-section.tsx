@@ -79,7 +79,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
         <CardContent className="px-0 space-y-5">
           {/* Service Name */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-foreground">Service Name</Label>
+            <Label className="text-xs font-medium text-foreground">Service Name</Label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -133,7 +133,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
           <CardContent className="px-0 space-y-5">
             {/* Repository */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <FolderGit2 className="size-3.5 text-muted-foreground" />
                 Repository
               </Label>
@@ -148,7 +148,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
 
             {/* Branch */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <GitBranch className="size-3.5 text-muted-foreground" />
                 Target Branch
               </Label>
@@ -167,7 +167,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {/* Dockerfile Path */}
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                   <FileCode2 className="size-3.5 text-muted-foreground" />
                   Dockerfile Path
                 </Label>
@@ -182,7 +182,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
 
               {/* Build Command */}
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                   <Terminal className="size-3.5 text-muted-foreground" />
                   Custom Build Command (Optional)
                 </Label>
@@ -201,10 +201,10 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="default"
               onClick={handleReset}
               disabled={!isDirty || isSaving}
-              className="gap-1.5 text-sm"
+              className="gap-1.5 text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               <Undo2 className="size-3.5" />
               Discard Changes
@@ -212,9 +212,9 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
 
             <Button
               type="submit"
-              size="sm"
+              size="default"
               disabled={!isDirty || isSaving}
-              className="gap-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              className="gap-1.5 text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {isSaving ? (
                 <>
@@ -238,10 +238,10 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="default"
             onClick={handleReset}
             disabled={!isDirty || isSaving}
-            className="gap-1.5 text-sm"
+            className="gap-1.5 text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
           >
             <Undo2 className="size-3.5" />
             Discard
@@ -249,9 +249,9 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
 
           <Button
             type="submit"
-            size="sm"
+            size="default"
             disabled={!isDirty || isSaving}
-            className="gap-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+            className="gap-1.5 text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
           >
             {isSaving ? (
               <>

@@ -165,7 +165,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
         <CardContent className="px-0 space-y-5">
           {/* Webhook URL Input & Actions (AC-7) */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-foreground">Webhook URL</Label>
+            <Label className="text-xs font-medium text-foreground">Webhook URL</Label>
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <InputGroup className="font-mono text-sm bg-muted/30 flex-1">
                 <InputGroupInput
@@ -326,22 +326,13 @@ export function WebhookSection({ service }: WebhookSectionProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+          <DialogFooter className="pt-2 flex justify-end">
             <Button
               type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setRegenerateDialogOpen(false)}
-              className="text-sm"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              size="sm"
+              size="default"
               onClick={() => regenerateMutation.mutate()}
               disabled={regenerateMutation.isPending}
-              className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              className="w-full sm:w-auto text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {regenerateMutation.isPending ? 'Regenerating...' : 'Confirm & Regenerate'}
             </Button>

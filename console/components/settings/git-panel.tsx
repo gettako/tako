@@ -90,9 +90,9 @@ export function GitPanel() {
               <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={() => toast.info('Redirecting to GitHub App settings...')}
-                  className="text-sm h-9 gap-1.5"
+                  className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
                 >
                   <span>Configure App</span>
                   <ExternalLink className="size-3.5" />
@@ -102,7 +102,7 @@ export function GitPanel() {
           ) : (
             <div className="p-4 rounded-lg border border-border text-center space-y-2">
               <p className="text-sm text-muted-foreground">No GitHub App connected.</p>
-              <Button size="sm" className="text-sm bg-primary text-primary-foreground">
+              <Button size="default" className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px">
                 Connect GitHub App
               </Button>
             </div>
@@ -121,10 +121,10 @@ export function GitPanel() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={handleSyncNow}
                 disabled={isSyncing}
-                className="text-sm h-9 gap-1.5 shrink-0"
+                className="text-sm h-9 gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isSyncing ? (
                   <Loader2 className="size-3.5 animate-spin" />

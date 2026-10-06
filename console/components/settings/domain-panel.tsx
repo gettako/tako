@@ -69,7 +69,7 @@ export function DomainPanel() {
         <CardContent className="px-0 space-y-5 pt-2">
           {/* Domain Input */}
           <div className="space-y-1.5">
-            <Label className="text-sm font-medium text-foreground">Control Plane Hostname</Label>
+            <Label className="text-xs font-medium text-foreground">Control Plane Hostname</Label>
             <Input
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
@@ -97,12 +97,12 @@ export function DomainPanel() {
           </div>
 
           {/* SSL Auto-Renew Switch */}
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium text-foreground">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 py-6 border-t border-border">
+            <div className="space-y-1.5 flex-1 min-w-0">
+              <Label className="text-xs font-semibold text-foreground">
                 Automatic Let&apos;s Encrypt SSL Certificates
               </Label>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground leading-relaxed sm:whitespace-nowrap">
                 Automatically issue and renew TLS certificates before expiration via ACME HTTP-01 challenge.
               </p>
             </div>
@@ -114,12 +114,12 @@ export function DomainPanel() {
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
+        <CardFooter className="px-0 pt-6 pb-0 flex justify-end border-t border-border">
           <Button
             type="submit"
-            size="sm"
+            size="default"
             disabled={!domain.trim() || isSaving}
-            className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5"
+            className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
           >
             {isSaving ? (
               <>

@@ -91,19 +91,19 @@ export function DeleteServiceDialog({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="default"
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
-            className="text-sm active:not-aria-[haspopup]:translate-y-px"
+            className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
           >
             Cancel
           </Button>
           <Button
             type="button"
-            size="sm"
+            size="default"
             onClick={handleDelete}
             disabled={!isConfirmed || isDeleting}
-            className="text-sm bg-status-danger hover:bg-status-danger/90 text-white font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+            className="text-sm h-9 bg-status-danger hover:bg-status-danger/90 text-white font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
           >
             {isDeleting ? (
               <>

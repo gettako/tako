@@ -84,10 +84,10 @@ export function BackupsPanel() {
             action={
               <Button
                 type="button"
-                size="sm"
+                size="default"
                 onClick={handleBackupNow}
                 disabled={isTriggering}
-                className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0"
+                className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isTriggering ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -121,7 +121,7 @@ export function BackupsPanel() {
             {/* Schedule Toggle */}
             <div className="flex items-center justify-between pt-2">
               <div className="space-y-0.5">
-                <Label htmlFor="snapshot-toggle" className="text-sm font-medium text-foreground cursor-pointer">
+                <Label htmlFor="snapshot-toggle" className="text-xs font-medium text-foreground cursor-pointer">
                   Automated Snapshot Schedule
                 </Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -135,7 +135,7 @@ export function BackupsPanel() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border">
                 {/* Frequency */}
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-foreground">Frequency</Label>
+                  <Label className="text-xs font-medium text-foreground">Frequency</Label>
                   <SearchableSelect
                     value={frequency}
                     onValueChange={(val) => setFrequency(val as 'daily' | 'weekly')}
@@ -150,7 +150,7 @@ export function BackupsPanel() {
 
                 {/* Time UTC */}
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                  <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                     <Clock className="size-3.5 text-muted-foreground" />
                     Time (UTC)
                   </Label>
@@ -164,7 +164,7 @@ export function BackupsPanel() {
 
                 {/* Retention */}
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-foreground">Retention (Days)</Label>
+                  <Label className="text-xs font-medium text-foreground">Retention (Days)</Label>
                   <Input
                     type="number"
                     min="1"
@@ -179,8 +179,8 @@ export function BackupsPanel() {
 
             {/* Destination Bucket */}
             <div className="space-y-1.5 pt-4 border-t border-border">
-              <Label className="text-sm font-medium text-foreground">Destination Storage Bucket</Label>
-              <div className="max-w-md">
+              <Label className="text-xs font-medium text-foreground">Destination Storage Bucket</Label>
+              <div className="w-full">
                 <SearchableSelect
                   value={bucketId}
                   onValueChange={setBucketId}
@@ -202,9 +202,9 @@ export function BackupsPanel() {
           <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
             <Button
               type="submit"
-              size="sm"
+              size="default"
               disabled={isSaving}
-              className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5"
+              className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
               {isSaving ? (
                 <>

@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { SearchableSelect } from '@/components/ui/searchable-select';
 import {
   Table,
   TableBody,
@@ -114,12 +113,12 @@ export function BucketsPanel() {
             description="Connect Cloudflare R2, AWS S3, MinIO, or DigitalOcean Spaces for persistent volume snapshots."
             action={
               <Button
-                size="sm"
+                size="default"
                 onClick={() => {
                   resetForm();
                   setDialogOpen(true);
                 }}
-                className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0"
+                className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
               >
                 <Plus className="size-3.5" />
                 Add S3 Bucket
@@ -182,7 +181,7 @@ export function BucketsPanel() {
 
       {/* Add S3 Bucket Dialog (AC-9) */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle className="text-lg font-semibold">
@@ -195,7 +194,7 @@ export function BucketsPanel() {
 
             <div className="space-y-4 py-4">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Display Name</Label>
+                <Label className="text-xs font-medium text-foreground">Display Name</Label>
                 <Input
                   placeholder="e.g. Primary Backups (Cloudflare R2)"
                   value={name}
@@ -205,7 +204,7 @@ export function BucketsPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">S3 Endpoint URL</Label>
+                <Label className="text-xs font-medium text-foreground">S3 Endpoint URL</Label>
                 <Input
                   placeholder="https://<account>.r2.cloudflarestorage.com"
                   value={endpoint}
@@ -217,7 +216,7 @@ export function BucketsPanel() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-foreground">Bucket Name</Label>
+                  <Label className="text-xs font-medium text-foreground">Bucket Name</Label>
                   <Input
                     placeholder="my-tako-backups"
                     value={bucket}
@@ -227,27 +226,18 @@ export function BucketsPanel() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-foreground">Region</Label>
-                  <SearchableSelect
+                  <Label className="text-xs font-medium text-foreground">Region</Label>
+                  <Input
+                    placeholder="e.g. us-east-1 or auto"
                     value={region}
-                    onValueChange={setRegion}
-                    options={[
-                      { value: 'auto', label: 'auto (Cloudflare R2 / MinIO)' },
-                      { value: 'us-east-1', label: 'us-east-1 (N. Virginia)' },
-                      { value: 'us-west-2', label: 'us-west-2 (Oregon)' },
-                      { value: 'eu-central-1', label: 'eu-central-1 (Frankfurt)' },
-                      { value: 'eu-west-1', label: 'eu-west-1 (Ireland)' },
-                      { value: 'ap-southeast-1', label: 'ap-southeast-1 (Singapore)' },
-                      { value: 'ap-northeast-1', label: 'ap-northeast-1 (Tokyo)' },
-                    ]}
-                    placeholder="Select region..."
-                    searchPlaceholder="Search S3 region..."
+                    onChange={(e) => setRegion(e.target.value)}
+                    className="font-mono text-sm"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Access Key ID</Label>
+                <Label className="text-xs font-medium text-foreground">Access Key ID</Label>
                 <Input
                   placeholder="AKIAIOSFODNN7EXAMPLE"
                   value={accessKeyId}
@@ -258,7 +248,7 @@ export function BucketsPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Secret Access Key</Label>
+                <Label className="text-xs font-medium text-foreground">Secret Access Key</Label>
                 <Input
                   type="password"
                   placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
@@ -292,14 +282,14 @@ export function BucketsPanel() {
               )}
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <DialogFooter className="flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="default"
                 onClick={handleTestConnection}
                 disabled={isTesting || !endpoint || !bucket}
-                className="text-sm gap-1.5"
+                className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isTesting ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -309,25 +299,14 @@ export function BucketsPanel() {
                 Test Connection
               </Button>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDialogOpen(false)}
-                  className="text-sm"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!name || !endpoint || !bucket || !accessKeyId || addMutation.isPending}
-                  className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                >
-                  {addMutation.isPending ? 'Saving...' : 'Save Storage'}
-                </Button>
-              </div>
+              <Button
+                type="submit"
+                size="default"
+                disabled={!name || !endpoint || !bucket || !accessKeyId || addMutation.isPending}
+                className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+              >
+                {addMutation.isPending ? 'Saving...' : 'Save Storage'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -56,8 +56,8 @@ export function OverviewPanel() {
             </span>
             <Button
               variant="outline"
-              size="sm"
-              className="text-sm h-8 gap-1.5"
+              size="default"
+              className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
               render={<a href="https://github.com/gettako/tako/releases" target="_blank" rel="noreferrer" />}
             >
               <span>Release Notes</span>
@@ -79,9 +79,9 @@ export function OverviewPanel() {
           </p>
           <Button
             variant="ghost"
-            size="sm"
+            size="default"
             render={<Link href="/nodes" />}
-            className="w-full text-sm h-8 text-primary hover:text-primary justify-between"
+            className="w-full text-sm h-9 text-primary hover:text-primary justify-between active:not-aria-[haspopup]:translate-y-px"
           >
             <span>View 4 Nodes</span>
             <ArrowUpRight className="size-3.5" />
@@ -98,9 +98,9 @@ export function OverviewPanel() {
           </p>
           <Button
             variant="ghost"
-            size="sm"
+            size="default"
             render={<Link href="/projects" />}
-            className="w-full text-sm h-8 text-primary hover:text-primary justify-between"
+            className="w-full text-sm h-9 text-primary hover:text-primary justify-between active:not-aria-[haspopup]:translate-y-px"
           >
             <span>View Projects</span>
             <ArrowUpRight className="size-3.5" />
@@ -117,9 +117,9 @@ export function OverviewPanel() {
           </p>
           <Button
             variant="ghost"
-            size="sm"
+            size="default"
             render={<Link href="/audit-logs" />}
-            className="w-full text-sm h-8 text-primary hover:text-primary justify-between"
+            className="w-full text-sm h-9 text-primary hover:text-primary justify-between active:not-aria-[haspopup]:translate-y-px"
           >
             <span>View Audit Logs</span>
             <ArrowUpRight className="size-3.5" />

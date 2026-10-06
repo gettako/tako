@@ -135,7 +135,7 @@ export function ResourceLimitsSection({
           {/* CPU Allocation Slider & Input */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <Cpu className="size-4 text-primary" />
                 CPU Limit (Cores)
               </Label>
@@ -178,7 +178,7 @@ export function ResourceLimitsSection({
           {/* Memory Limit Slider & Input */}
           <div className="space-y-3 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <Layers className="size-4 text-status-success" />
                 Memory Limit (RAM)
               </Label>
@@ -235,7 +235,7 @@ export function ResourceLimitsSection({
           <div className="space-y-3 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
-                <Label htmlFor="swap-toggle" className="text-sm font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
+                <Label htmlFor="swap-toggle" className="text-xs font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
                   <HardDrive className="size-4 text-status-warning" />
                   Swap Space
                 </Label>
@@ -253,7 +253,7 @@ export function ResourceLimitsSection({
 
             {enableSwap && (
               <div className="flex items-center justify-between pt-2">
-                <Label className="text-sm font-medium text-foreground">Allocated Swap</Label>
+                <Label className="text-xs font-medium text-foreground">Allocated Swap</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     type="number"
@@ -278,10 +278,10 @@ export function ResourceLimitsSection({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="default"
             onClick={handleReset}
             disabled={!isDirty || isSaving}
-            className="gap-1.5 text-sm"
+            className="gap-1.5 text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
           >
             <Undo2 className="size-3.5" />
             Reset
@@ -289,10 +289,10 @@ export function ResourceLimitsSection({
 
           <Button
             type="button"
-            size="sm"
+            size="default"
             onClick={handleSave}
             disabled={!isDirty || isSaving}
-            className="gap-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+            className="gap-1.5 text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
           >
             {isSaving ? (
               <>

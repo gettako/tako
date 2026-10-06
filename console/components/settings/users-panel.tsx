@@ -134,13 +134,13 @@ export function UsersPanel() {
             description="Manage operators who can deploy services, configure cluster settings, and inspect logs."
             action={
               <Button
-                size="sm"
+                size="default"
                 onClick={() => {
                   setInviteEmail('');
                   setGeneratedInvite(null);
                   setInviteDialogOpen(true);
                 }}
-                className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0"
+                className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
               >
                 <UserPlus className="size-4" />
                 Invite Member
@@ -374,9 +374,9 @@ export function UsersPanel() {
               <DialogFooter className="pt-2">
                 <Button
                   type="button"
-                  size="sm"
+                  size="default"
                   onClick={() => setInviteDialogOpen(false)}
-                  className="w-full text-sm font-medium"
+                  className="w-full text-sm font-medium h-9 active:not-aria-[haspopup]:translate-y-px"
                 >
                   Done
                 </Button>
@@ -391,7 +391,7 @@ export function UsersPanel() {
               className="space-y-4 py-3 text-sm"
             >
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Email Address</Label>
+                <Label className="text-xs font-medium text-foreground">Email Address</Label>
                 <Input
                   type="email"
                   placeholder="colleague@company.com"
@@ -404,7 +404,7 @@ export function UsersPanel() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-foreground">Assigned Role</Label>
+                  <Label className="text-xs font-medium text-foreground">Assigned Role</Label>
                   <SearchableSelect
                     value={inviteRole}
                     onValueChange={(val) => setInviteRole(val as UserRole)}
@@ -417,7 +417,7 @@ export function UsersPanel() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-sm font-medium text-foreground">Link Expiration</Label>
+                  <Label className="text-xs font-medium text-foreground">Link Expiration</Label>
                   <SearchableSelect
                     value={String(inviteExpiry)}
                     onValueChange={(val) => setInviteExpiry(Number(val))}
@@ -431,21 +431,12 @@ export function UsersPanel() {
                 </div>
               </div>
 
-              <DialogFooter className="gap-2 sm:gap-0 pt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setInviteDialogOpen(false)}
-                  className="text-sm"
-                >
-                  Cancel
-                </Button>
+              <DialogFooter className="pt-2 flex justify-end">
                 <Button
                   type="submit"
-                  size="sm"
+                  size="default"
                   disabled={!inviteEmail.trim() || createInviteMutation.isPending}
-                  className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                  className="w-full sm:w-auto text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
                 >
                   {createInviteMutation.isPending ? 'Generating...' : 'Generate Invite Link'}
                 </Button>

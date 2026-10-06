@@ -99,7 +99,7 @@ export function CronJobDialog({
           <div className="space-y-4 py-4">
             {/* Job Name */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground">Job Name</Label>
+              <Label className="text-xs font-medium text-foreground">Job Name</Label>
               <Input
                 placeholder="e.g. sitemap-regenerator"
                 value={name}
@@ -113,7 +113,7 @@ export function CronJobDialog({
             {/* Schedule Expression */}
             <div className="space-y-2">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                   <Clock className="size-4 text-primary" />
                   Schedule (5-field Cron Expression)
                 </Label>
@@ -199,7 +199,7 @@ export function CronJobDialog({
 
             {/* Execution Command */}
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
                 <Terminal className="size-4 text-muted-foreground" />
                 Container Command
               </Label>
@@ -217,22 +217,12 @@ export function CronJobDialog({
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => onOpenChange(false)}
-              disabled={isSaving}
-              className="text-sm"
-            >
-              Cancel
-            </Button>
+          <DialogFooter className="pt-2 flex justify-end">
             <Button
               type="submit"
-              size="sm"
+              size="default"
               disabled={!name.trim() || !command.trim() || !validation.isValid || isSaving}
-              className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+              className="w-full sm:w-auto text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {isSaving ? 'Saving...' : initialJob ? 'Update Job' : 'Create Job'}
             </Button>

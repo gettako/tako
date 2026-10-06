@@ -84,7 +84,7 @@ export function NotificationsPanel() {
           <CardContent className="px-0 pt-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-sm font-medium text-foreground">SMTP Server Host</Label>
+                <Label className="text-xs font-medium text-foreground">SMTP Server Host</Label>
                 <Input
                   value={settings.email.smtpHost}
                   onChange={(e) =>
@@ -99,7 +99,7 @@ export function NotificationsPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Port</Label>
+                <Label className="text-xs font-medium text-foreground">Port</Label>
                 <Input
                   type="number"
                   value={settings.email.smtpPort}
@@ -115,7 +115,7 @@ export function NotificationsPanel() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground">Sender From Email</Label>
+              <Label className="text-xs font-medium text-foreground">Sender From Email</Label>
               <Input
                 value={settings.email.fromEmail}
                 onChange={(e) =>
@@ -156,7 +156,7 @@ export function NotificationsPanel() {
         {settings.slack.enabled && (
           <CardContent className="px-0 pt-4 space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground">Slack Incoming Webhook URL</Label>
+              <Label className="text-xs font-medium text-foreground">Slack Incoming Webhook URL</Label>
               <Input
                 value={settings.slack.webhookUrl}
                 onChange={(e) =>
@@ -171,7 +171,7 @@ export function NotificationsPanel() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-sm font-medium text-foreground">Channel Name</Label>
+              <Label className="text-xs font-medium text-foreground">Channel Name</Label>
               <Input
                 value={settings.slack.channelName}
                 onChange={(e) =>
@@ -213,7 +213,7 @@ export function NotificationsPanel() {
           <CardContent className="px-0 pt-4 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Bot Token</Label>
+                <Label className="text-xs font-medium text-foreground">Bot Token</Label>
                 <Input
                   value={settings.telegram.botToken}
                   onChange={(e) =>
@@ -228,7 +228,7 @@ export function NotificationsPanel() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Target Chat ID</Label>
+                <Label className="text-xs font-medium text-foreground">Target Chat ID</Label>
                 <Input
                   value={settings.telegram.chatId}
                   onChange={(e) =>
@@ -250,9 +250,9 @@ export function NotificationsPanel() {
       <div className="flex justify-end">
         <Button
           type="submit"
-          size="sm"
+          size="default"
           disabled={isSaving}
-          className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5"
+          className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
         >
           {isSaving ? (
             <>
