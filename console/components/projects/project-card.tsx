@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Layers, Tag } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { StatusAccentCard } from '@/components/ui/status-accent-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Project } from '@/lib/types';
@@ -11,41 +11,61 @@ export interface ProjectCardProps {
   project: Project;
 }
 
+function formatRelativeTime(dateStr?: string) {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffSec < 60) return 'just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 30) return `${diffDays}d ago`;
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
 export function ProjectCard({ project }: ProjectCardProps) {
   const isStopped = project.status === 'stopped';
   const issueCount = Math.max(0, project.servicesCount - project.healthyServicesCount);
 
   return (
-    <StatusAccentCard status={project.status} className="group flex flex-col justify-between p-5 sm:p-6">
-      <div>
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1 min-w-0">
-            <Link
-              href={`/projects/${project.id}`}
-              className="text-base sm:text-lg font-semibold text-foreground hover:text-primary transition-colors tracking-tight line-clamp-1"
-            >
-              {project.name}
-            </Link>
-            <div className="flex items-center gap-2">
-              <span className="rounded-xs bg-muted px-1.5 py-0.5 font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                {project.environment}
-              </span>
-              <span className="font-mono text-xs text-muted-foreground">/{project.slug}</span>
+    <Link href={`/projects/${project.id}`} className="block group outline-none">
+      <StatusAccentCard
+        status={project.status}
+        className="flex flex-col justify-between p-5 h-full transition-all group-hover:border-primary/40 group-hover:shadow-xs"
+      >
+        <div>
+          {/* Header: Project Name, Environment & Status */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1.5 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-foreground group-hover:text-primary transition-colors tracking-tight line-clamp-1">
+                {project.name}
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="rounded-xs border border-border/80 bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {project.environment}
+                </span>
+              </div>
             </div>
+            <StatusBadge status={project.status} size="sm" />
           </div>
-          <StatusBadge status={project.status} size="sm" />
+
+          {/* Description */}
+          {project.description && (
+            <p className="mt-2.5 text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+              {project.description}
+            </p>
+          )}
         </div>
 
-        {project.description && (
-          <p className="mt-2.5 text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-            {project.description}
-          </p>
-        )}
-      </div>
-
-      <div className="mt-4 space-y-3 pt-3 border-t border-border/50">
-        {/* Service breakdown badges */}
-        <div className="flex items-center justify-between gap-2 text-xs">
+        {/* Clean Single-Row Footer */}
+        <div className="mt-5 pt-3 border-t border-border/50 flex items-center justify-between text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground">
             <Layers className="size-3.5" />
             <span>
@@ -53,50 +73,24 @@ export function ProjectCard({ project }: ProjectCardProps) {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {project.healthyServicesCount > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-success/20 bg-status-success/10 px-2 py-0.5 text-[11px] font-medium text-status-success">
-                <span className="size-1 rounded-full bg-status-success" />
-                {project.healthyServicesCount} ok
-              </span>
-            )}
-            {isStopped ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-neutral/20 bg-status-neutral/10 px-2 py-0.5 text-[11px] font-medium text-status-neutral">
-                <span className="size-1 rounded-full bg-status-neutral" />
-                {project.servicesCount} stopped
-              </span>
-            ) : issueCount > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/20 bg-status-warning/10 px-2 py-0.5 text-[11px] font-medium text-status-warning">
-                <span className="size-1 rounded-full bg-status-warning" />
-                {issueCount} issue
-              </span>
-            ) : null}
-          </div>
+          {issueCount > 0 && !isStopped ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/20 bg-status-warning/10 px-2 py-0.5 text-[11px] font-medium text-status-warning">
+              <span className="size-1 rounded-full bg-status-warning" />
+              {issueCount} {issueCount === 1 ? 'issue' : 'issues'}
+            </span>
+          ) : isStopped ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-status-neutral/20 bg-status-neutral/10 px-2 py-0.5 text-[11px] font-medium text-status-neutral">
+              <span className="size-1 rounded-full bg-status-neutral" />
+              stopped
+            </span>
+          ) : project.updatedAt ? (
+            <span className="text-[11px] text-muted-foreground font-mono">
+              Updated {formatRelativeTime(project.updatedAt)}
+            </span>
+          ) : null}
         </div>
-
-        {/* Tags & Action Link */}
-        <div className="flex items-center justify-between gap-2 pt-0.5">
-          <div className="flex items-center gap-1.5 overflow-hidden">
-            {project.tags?.slice(0, 2).map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono"
-              >
-                <Tag className="size-2.5" />
-                <span>{tag}</span>
-              </span>
-            ))}
-          </div>
-
-          <Link
-            href={`/projects/${project.id}`}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline ml-auto"
-          >
-            <span>Manage</span>
-            <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        </div>
-      </div>
-    </StatusAccentCard>
+      </StatusAccentCard>
+    </Link>
   );
 }
+
