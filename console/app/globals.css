@@ -121,16 +121,16 @@
     /* Better Stack Dark Theme */
     --background: #0B0C14;
     --foreground: var(--color-white);
-    --card: #131625;
+    --card: #0B0C14;
     --card-foreground: var(--color-white);
-    --popover: #131625;
+    --popover: #0B0C14;
     --popover-foreground: var(--color-white);
-    --surface: #131625;
+    --surface: #0B0C14;
     --primary: #5B63D3;
     --primary-foreground: var(--color-white);
     --primary-60: #98A4F7;
     --primary-70: #7D87E8;
-    --secondary: #131625;
+    --secondary: #0B0C14;
     --secondary-foreground: var(--color-white);
     --muted: rgba(147, 157, 184, 0.10); /* #939DB81A */
     --muted-foreground: #939DB8;
@@ -276,4 +276,29 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar {
+    @apply size-1.5;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-[var(--primary)];
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-[--primary];
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-[var(--primary)];
 }
