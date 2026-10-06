@@ -22,11 +22,33 @@ export default function AuditLogsPage() {
   });
 
   // Extract unique actors for filter dropdown
-  const actorsMap: Record<string, { id: string; name: string }> = {};
+  const actorsMap: Record<string, { id: string; name: string; email?: string; avatarUrl?: string }> = {};
   logs.forEach((l) => {
-    actorsMap[l.actor.id] = { id: l.actor.id, name: l.actor.name };
+    actorsMap[l.actor.id] = {
+      id: l.actor.id,
+      name: l.actor.name,
+      email: l.actor.email,
+      avatarUrl: l.actor.avatarUrl,
+    };
   });
   const uniqueActors = Object.values(actorsMap);
+
+  const categoryCounts = React.useMemo(() => {
+    return {
+      all: logs.length,
+      auth: logs.filter((l) => l.action.startsWith('auth.') || l.targetType === 'user').length,
+      project: logs.filter((l) => l.targetType === 'project').length,
+      service: logs.filter((l) => l.targetType === 'service').length,
+      node: logs.filter((l) => l.targetType === 'node').length,
+      settings: logs.filter((l) => l.targetType === 'settings').length,
+    };
+  }, [logs]);
+
+  const handleResetFilters = () => {
+    setCategory('all');
+    setSearch('');
+    setSelectedActor('all');
+  };
 
   const filteredLogs = logs.filter((log) => {
     // 1. Category filter
@@ -117,6 +139,8 @@ export default function AuditLogsPage() {
         selectedActor={selectedActor}
         onActorChange={setSelectedActor}
         actors={uniqueActors}
+        counts={categoryCounts}
+        onReset={handleResetFilters}
       />
 
       {/* Table & Skeletons */}
