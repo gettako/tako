@@ -123,6 +123,24 @@ export function GlobalCommandPalette() {
             <CommandItem
               onSelect={() =>
                 runCommand(() => {
+                  window.dispatchEvent(new CustomEvent('open-create-node-dialog'));
+                  router.push('/nodes');
+                })
+              }
+              className="gap-3 py-2.5 cursor-pointer"
+            >
+              <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Plus className="size-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-medium text-foreground">Create new node...</span>
+                <span className="text-[11px] text-muted-foreground">Provision server host with curl agent script</span>
+              </div>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() =>
+                runCommand(() => {
                   setTheme(theme === 'dark' ? 'light' : 'dark');
                 })
               }

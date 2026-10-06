@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { RegisterNodeDialog } from './register-node-dialog';
@@ -19,6 +19,12 @@ export function NodesHeader({
   degradedCount,
 }: NodesHeaderProps) {
   const [registerOpen, setRegisterOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpen = () => setRegisterOpen(true);
+    window.addEventListener('open-create-node-dialog', handleOpen);
+    return () => window.removeEventListener('open-create-node-dialog', handleOpen);
+  }, []);
 
   const isAllHealthy = totalCount > 0 && offlineCount === 0 && degradedCount === 0;
   const hasIssues = offlineCount > 0 || degradedCount > 0;
@@ -60,7 +66,7 @@ export function NodesHeader({
               className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer shadow-xs dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]"
             >
               <Plus className="size-3.5" />
-              <span>Register Node</span>
+              <span>Create Node</span>
             </Button>
           </div>
         </div>

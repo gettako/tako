@@ -140,7 +140,13 @@ export default function NodesPage() {
                           setSelectedStatus('all');
                         },
                       }
-                    : undefined
+                    : {
+                        label: 'Create First Node',
+                        onClick: () =>
+                          window.dispatchEvent(
+                            new CustomEvent('open-create-node-dialog')
+                          ),
+                      }
                 }
               />
             ) : viewMode === 'grid' ? (

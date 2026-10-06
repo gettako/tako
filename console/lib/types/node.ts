@@ -21,3 +21,10 @@ export interface Node {
   uptime: string;
   lastHeartbeat: string;
 }
+
+export interface CreateNodeInput {
+  name?: string;
+  ipAddress?: string;
+  publicIp?: string;
+  role?: NodeRole;
+}
