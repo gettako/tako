@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { logout } from "@/lib/api/auth"
 import {
   Avatar,
   AvatarFallback,
@@ -39,6 +41,7 @@ export function NavUser({
     avatar: string
   }
 }) {
+  const router = useRouter()
   const { isMobile, setOpenMobile } = useSidebar()
 
   const handleNavigate = () => {
@@ -145,8 +148,10 @@ export function NavUser({
             <DropdownMenuItem
               variant="destructive"
               className="cursor-pointer gap-2 text-status-danger"
-              onClick={() => {
-                alert("Sign out functionality would connect to auth provider")
+              onClick={async () => {
+                await logout();
+                router.push("/login");
+                router.refresh();
               }}
             >
               <LogOutIcon className="size-4" />

@@ -14,11 +14,11 @@ export async function getNodes(): Promise<Node[]> {
       const res = await fetch('/api/nodes');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          // Normalize nodes from Go API if needed
+        if (Array.isArray(data)) {
+          // Return real nodes from server (do not fallback to mock)
           return data.map((n: Partial<Node>) => ({
             id: n.id || `node-${Math.random().toString(36).slice(2, 8)}`,
-            name: n.name || 'node-worker',
+            name: n.name || 'tako-master-01',
             ipAddress: n.ipAddress || '127.0.0.1',
             publicIp: n.publicIp || n.ipAddress || '127.0.0.1',
             role: n.role || 'worker',

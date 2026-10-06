@@ -55,6 +55,7 @@ import { getCurrentUser } from '@/lib/api/settings';
 import { getProjects } from '@/lib/api/projects';
 import { getServices, getServiceById } from '@/lib/api/services';
 import { getNodes } from '@/lib/api/nodes';
+import { logout } from '@/lib/api/auth';
 import { openCommandPalette } from '@/hooks/use-command-palette';
 import { NotificationPopover } from '@/components/notifications/notification-popover';
 
@@ -431,8 +432,10 @@ export function Header() {
             <DropdownMenuItem
               variant="destructive"
               className="flex items-center gap-2.5 cursor-pointer text-status-danger focus:text-status-danger"
-              onClick={() => {
-                alert('Sign out functionality would connect to auth provider');
+              onClick={async () => {
+                await logout();
+                router.push('/login');
+                router.refresh();
               }}
             >
               <LogOut className="size-4" />

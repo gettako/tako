@@ -25,7 +25,8 @@ func main() {
 		defaultHost = "tako-worker"
 	}
 
-	masterURL := flag.String("master-url", getEnv("TAKO_MASTER_URL", "127.0.0.1:50051"), "Master gRPC server address (host:port)")
+	serverAddr := getEnv("TAKO_MASTER_URL", getEnv("TAKO_SERVER_ADDR", "127.0.0.1:50051"))
+	masterURL := flag.String("master-url", serverAddr, "Master gRPC server address (host:port)")
 	enrollToken := flag.String("token", getEnv("TAKO_ENROLL_TOKEN", ""), "Master enrollment token for agent")
 	nodeID := flag.String("node-id", getEnv("TAKO_NODE_ID", ""), "Node ID (auto-generated if empty)")
 	nodeName := flag.String("node-name", getEnv("TAKO_NODE_NAME", defaultHost), "Human-readable name for this node")

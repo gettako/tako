@@ -1,0 +1,2 @@
+# Directory for dynamic Traefik service configurations (*.yml)
+# Physical host path: /etc/tako/traefik/dynamic/

@@ -197,3 +197,37 @@ func (o *Orchestrator) StartLivenessWatcher(ctx context.Context, interval time.D
 		}
 	}()
 }
+
+// EnsureMasterNode checks if any nodes exist; if not, seeds the primary master node in the database.
+func (o *Orchestrator) EnsureMasterNode(ctx context.Context, defaultName string) error {
+	nodes, err := o.queries.ListNodes(ctx)
+	if err != nil {
+		return err
+	}
+	if len(nodes) > 0 {
+		return nil
+	}
+
+	name := defaultName
+	if name == "" {
+		name = "tako-master-01"
+	}
+
+	_, err = o.queries.CreateNode(ctx, db.CreateNodeParams{
+		ID:            "node-master-01",
+		Name:          name,
+		IpAddress:     "127.0.0.1",
+		PublicIp:      "",
+		Role:          "leader",
+		Status:        "online",
+		CpuTotalCores: 4,
+		MemoryTotalMb: 8192,
+		DiskTotalGb:   100,
+		DockerVersion: "26.1.0",
+		Os:            "Linux (Master)",
+		KernelVersion: "",
+		EnrollToken:   "",
+	})
+	return err
+}
+

@@ -142,10 +142,10 @@ prompt_secret() {
 }
 
 mkdir -p "${TAKO_DIR}/data"
-mkdir -p "${TAKO_DIR}/traefik"
+mkdir -p /etc/tako/traefik/dynamic
 
-# Write default Traefik config
-cat << 'EOF' > "${TAKO_DIR}/traefik/traefik.yml"
+# Write default Traefik config to physical host /etc/tako/traefik/traefik.yml
+cat << 'EOF' > /etc/tako/traefik/traefik.yml
 global:
   checkNewVersion: false
   sendAnonymousUsage: false
@@ -157,6 +157,9 @@ providers:
   docker:
     exposedByDefault: false
     network: tako-network
+    watch: true
+  file:
+    directory: /etc/traefik/dynamic
     watch: true
 
 entryPoints:
@@ -174,8 +177,8 @@ certificatesResolvers:
         entryPoint: web
 EOF
 
-touch "${TAKO_DIR}/traefik/acme.json"
-chmod 600 "${TAKO_DIR}/traefik/acme.json"
+touch /etc/tako/traefik/acme.json
+chmod 600 /etc/tako/traefik/acme.json
 
 # Create network if not exists
 docker network inspect tako-network >/dev/null 2>&1 || docker network create --driver bridge tako-network
@@ -209,8 +212,9 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/acme.json:/acme.json
+      - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/acme.json:/acme.json
     networks:
       - tako-network
 
@@ -220,12 +224,14 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ./data/agent:/data
     environment:
       - TAKO_SERVER_ADDR=${MASTER_URL}
       - TAKO_ENROLL_TOKEN=${AGENT_TOKEN}
       - TAKO_NODE_NAME=${NODE_NAME}
       - TAKO_METRICS_INTERVAL=3s
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
     networks:
       - tako-network
 
@@ -260,6 +266,33 @@ if [[ -z "$ADMIN_PASSWORD" ]]; then
   prompt_secret "Enter Admin Password" "admin123456" ADMIN_PASSWORD
 fi
 
+# Write dynamic Tako Console routing config for Traefik
+cat << 'EOF' > /etc/tako/traefik/tako.yml
+http:
+  routers:
+    tako-console-secure:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - websecure
+      priority: 1
+      tls:
+        certResolver: letsencrypt
+      service: tako-console
+
+    tako-console:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      priority: 1
+      service: tako-console
+
+  services:
+    tako-console:
+      loadBalancer:
+        servers:
+          - url: "http://tako-console:3000"
+EOF
+
 cat << EOF > "${TAKO_DIR}/docker-compose.yml"
 services:
   traefik:
@@ -271,8 +304,10 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/acme.json:/acme.json
+      - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /etc/tako/traefik/tako.yml:/etc/traefik/dynamic/tako.yml:ro
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/acme.json:/acme.json
     environment:
       - TAKO_ACME_EMAIL=${ADMIN_EMAIL}
     networks:
@@ -294,6 +329,8 @@ services:
       - TAKO_AUTH_SECRET=${AUTH_SECRET}
       - TAKO_INITIAL_ADMIN_EMAIL=${ADMIN_EMAIL}
       - TAKO_INITIAL_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - TAKO_AGENT_SECRET=local-master-token
+      - TAKO_NODE_NAME=tako-master-01
     networks:
       - tako-network
 
@@ -317,12 +354,17 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ./data/agent:/data
     environment:
       - TAKO_SERVER_ADDR=tako-server:50051
+      - TAKO_MASTER_URL=tako-server:50051
       - TAKO_ENROLL_TOKEN=local-master-token
       - TAKO_NODE_NAME=tako-master-01
+      - TAKO_NODE_ROLE=leader
+      - TAKO_STATE_FILE=/data/agent.json
       - TAKO_METRICS_INTERVAL=3s
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
     depends_on:
       - server
     networks:

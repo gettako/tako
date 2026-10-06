@@ -1,0 +1,25 @@
+# Dynamic routing configuration for Tako Console Dashboard
+# Physical host location: /etc/tako/traefik/tako.yml
+http:
+  routers:
+    tako-console-secure:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - websecure
+      priority: 1
+      tls:
+        certResolver: letsencrypt
+      service: tako-console
+
+    tako-console:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      priority: 1
+      service: tako-console
+
+  services:
+    tako-console:
+      loadBalancer:
+        servers:
+          - url: "http://tako-console:3000"

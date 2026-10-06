@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -82,15 +83,24 @@ func (e *Executor) ExecuteDeploy(
 		targetPort = int(req.GetPorts()[0])
 	}
 
-	traefikLabels := traefik.GenerateLabels(traefik.RouteConfig{
+	traefikCfg := traefik.RouteConfig{
 		ServiceName: serviceName,
 		Domains:     req.GetDomains(),
 		TargetPort:  targetPort,
 		EnableTLS:   true,
 		Network:     "tako-network",
-	})
+	}
+
+	traefikLabels := traefik.GenerateLabels(traefikCfg)
 	traefikLabels["tako.service.id"] = req.GetServiceId()
 	traefikLabels["tako.deployment.id"] = depID
+
+	// Write dynamic YAML file to /etc/tako/traefik/dynamic/*.yml if directory exists or configured
+	dynamicDir := os.Getenv("TAKO_TRAEFIK_DYNAMIC_DIR")
+	if dynamicDir == "" {
+		dynamicDir = "/etc/tako/traefik/dynamic"
+	}
+	_ = traefik.WriteDynamicConfig(dynamicDir, traefikCfg)
 
 	sendLog("Deploy", fmt.Sprintf("Prepared Traefik routing rules for %d domains (port %d)", len(req.GetDomains()), targetPort), false)
 

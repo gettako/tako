@@ -8,8 +8,9 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/acme.json:/acme.json
+      - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/acme.json:/acme.json
     environment:
       - TAKO_ACME_EMAIL=${TAKO_ACME_EMAIL:-admin@gettako.dev}
     networks:
@@ -21,12 +22,17 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ../data/agent:/data
     environment:
       - TAKO_SERVER_ADDR=${TAKO_MASTER_URL:-127.0.0.1:50051}
+      - TAKO_MASTER_URL=${TAKO_MASTER_URL:-127.0.0.1:50051}
       - TAKO_ENROLL_TOKEN=${TAKO_AGENT_TOKEN}
       - TAKO_NODE_NAME=${TAKO_NODE_NAME}
+      - TAKO_NODE_ROLE=worker
+      - TAKO_STATE_FILE=/data/agent.json
       - TAKO_METRICS_INTERVAL=3s
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
     networks:
       - tako-network
 

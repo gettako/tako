@@ -238,7 +238,7 @@ fi
 # -i : itemize-changes (menampilkan status perubahan tiap file)
 echo -e "${CYAN}File yang disinkronisasikan ke remote:${NC}"
 
-rsync -avzh -P -i \
+rsync -avzh -P -i --delete \
   -e "ssh -p ${SSH_PORT}" \
   "${RSYNC_EXCLUDES[@]}" \
   $DRY_RUN \
@@ -260,15 +260,29 @@ echo -e "\n${YELLOW}3. Menyiapkan environment dan menjalankan Docker di server..
 REMOTE_SCRIPT="
 set -euo pipefail
 
-# 1. Pastikan folder data dan permission aman
+# 1. Pastikan folder data dan direktori fisik /etc/tako/traefik siap
 mkdir -p ${REMOTE_DIR}/data/sqlite
 mkdir -p ${REMOTE_DIR}/data/agent
-mkdir -p ${REMOTE_DIR}/deploy/traefik
+mkdir -p /etc/tako/traefik/dynamic
 
-touch ${REMOTE_DIR}/deploy/traefik/acme.json
-chmod 600 ${REMOTE_DIR}/deploy/traefik/acme.json
+# Salin konfigurasi ke mount fisik /etc/tako/traefik
+if [ -f "${REMOTE_DIR}/deploy/traefik/traefik.yml" ]; then
+  cp "${REMOTE_DIR}/deploy/traefik/traefik.yml" /etc/tako/traefik/traefik.yml
+fi
+if [ -f "${REMOTE_DIR}/deploy/traefik/tako.yml" ]; then
+  cp "${REMOTE_DIR}/deploy/traefik/tako.yml" /etc/tako/traefik/tako.yml
+fi
 
-# 2. Buat .env untuk docker compose di server
+touch /etc/tako/traefik/acme.json
+chmod 600 /etc/tako/traefik/acme.json
+
+# 2. Bersihkan sisa rute ambigu/stale di console jika ada
+if [ -d \"${REMOTE_DIR}/console/app/services/[id]\" ]; then
+  echo '==> Membersihkan rute lama yang bentrok: console/app/services/[id]'
+  rm -rf \"${REMOTE_DIR}/console/app/services/[id]\"
+fi
+
+# 3. Buat .env untuk docker compose di server
 cat << 'ENVEOF' > ${REMOTE_DIR}/deploy/.env
 TAKO_EMAIL=${TAKO_EMAIL}
 TAKO_PASSWORD=${TAKO_PASSWORD}
@@ -276,10 +290,10 @@ TAKO_ACME_EMAIL=${TAKO_EMAIL}
 TAKO_DOMAIN=${TAKO_DOMAIN}
 ENVEOF
 
-# 3. Pastikan network bridge tako-network tersedia
+# 4. Pastikan network bridge tako-network tersedia
 docker network inspect tako-network >/dev/null 2>&1 || docker network create --driver bridge tako-network
 
-# 4. Jalankan docker compose build & up
+# 5. Jalankan docker compose build & up
 cd ${REMOTE_DIR}/deploy
 echo '==> Menjalankan: docker compose -f compose.master.yml up -d --build ${TARGET_SERVICES[*]}'
 docker compose -f compose.master.yml up -d --build ${TARGET_SERVICES[*]}

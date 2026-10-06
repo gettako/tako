@@ -41,3 +41,6 @@ providers:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
     network: "tako-network"
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
