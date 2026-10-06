@@ -230,19 +230,12 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
       <Dialog open={terminalOpen} onOpenChange={setTerminalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-                <Terminal className="size-5" />
-              </div>
-              <div>
-                <DialogTitle className="text-base font-bold text-foreground">
-                  Connect to {node.name}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                  Establish a secure SSH session into this cluster node.
-                </DialogDescription>
-              </div>
-            </div>
+            <DialogTitle className="text-base font-bold text-foreground">
+              Connect to {node.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Establish a secure SSH session into this cluster node.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 pt-2">

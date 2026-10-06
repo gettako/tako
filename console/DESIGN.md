@@ -326,6 +326,9 @@ Tako is built strictly upon the **shadcn `base-vega`** style preset (`components
 - **Section Headers (Squircle Icon Pattern):**
   - Section and card-level headers feature a dedicated squircle icon container (`size-9` to `size-10`, `rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs`).
   - The icon is placed to the left of the section title and description, creating an engineered telemetry card aesthetic.
+- **Modal / Dialog Headers (Strictly No Title Icon):**
+  - Modal and dialog headers (e.g., `DialogHeader`, `SheetHeader`) must **NEVER** place an icon in or beside the heading/title.
+  - Modal headers consist solely of clean `DialogTitle` (or `SheetTitle`) and `DialogDescription` (or `SheetDescription`).
 
 ### 4. Interactive Controls & Micro-interactions
 - **Tactile Click Feedback:** All interactive buttons and click targets must feature the Base Vega tactile 1px vertical translation on click:

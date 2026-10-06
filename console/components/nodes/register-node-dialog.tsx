@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Terminal, Copy, Check, Server, Shield, CheckCircle2 } from 'lucide-react';
+import { Terminal, Copy, Check, Shield, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface RegisterNodeDialogProps {
@@ -37,19 +37,12 @@ export function RegisterNodeDialog({ open, onOpenChange }: RegisterNodeDialogPro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-              <Server className="size-5" />
-            </div>
-            <div>
-              <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
-                Register Cluster Node
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
-                Join a bare-metal server, cloud VPS, or edge compute node to this Takō cluster.
-              </DialogDescription>
-            </div>
-          </div>
+          <DialogTitle className="text-lg font-bold tracking-tight text-foreground">
+            Register Cluster Node
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+            Join a bare-metal server, cloud VPS, or edge compute node to this Takō cluster.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 pt-2">

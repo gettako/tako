@@ -106,7 +106,7 @@ export function GlobalCommandPalette() {
             <CommandItem
               onSelect={() =>
                 runCommand(() => {
-                  router.push('/projects');
+                  window.dispatchEvent(new CustomEvent('open-create-project-dialog'));
                 })
               }
               className="gap-3 py-2.5 cursor-pointer"

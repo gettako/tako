@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Plus, RefreshCw, Server, Activity, ArrowUpRight } from 'lucide-react';
@@ -18,10 +18,18 @@ import { getDeployments } from '@/lib/api/deployments';
 import { getTimeSeriesMetrics } from '@/lib/api/metrics';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpen = () => setIsCreateProjectOpen(true);
+    window.addEventListener('open-create-project-dialog', handleOpen);
+    return () => window.removeEventListener('open-create-project-dialog', handleOpen);
+  }, []);
 
   const {
     data: projects,
@@ -207,9 +215,9 @@ export default function DashboardPage() {
                 </p>
               </div>
               <Button
-                render={<Link href="/projects" />}
+                onClick={() => setIsCreateProjectOpen(true)}
                 size="sm"
-                className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px"
+                className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
               >
                 <Plus className="size-3.5" />
                 <span>New Project</span>
@@ -223,9 +231,14 @@ export default function DashboardPage() {
             description="Your Tako cluster currently has no projects or server nodes provisioned. Connect a node or initialize a project to start deploying containers."
             action={{
               label: 'Create First Project',
-              href: '/projects',
+              onClick: () => setIsCreateProjectOpen(true),
               icon: Plus,
             }}
+          />
+
+          <CreateProjectDialog
+            open={isCreateProjectOpen}
+            onOpenChange={setIsCreateProjectOpen}
           />
         </div>
       </>
@@ -289,7 +302,7 @@ export default function DashboardPage() {
               </Button>
 
               <Button
-                render={<Link href="/projects" />}
+                onClick={() => setIsCreateProjectOpen(true)}
                 size="sm"
                 className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer shadow-xs"
               >
@@ -317,6 +330,12 @@ export default function DashboardPage() {
             <RecentDeploymentsWidget deployments={deployments} />
           </div>
         </div>
+
+        {/* Create Project Modal Form */}
+        <CreateProjectDialog
+          open={isCreateProjectOpen}
+          onOpenChange={setIsCreateProjectOpen}
+        />
       </div>
     </>
   );

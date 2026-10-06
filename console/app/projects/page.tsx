@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FolderKanban, SearchX } from 'lucide-react';
 import { ProjectsHeader } from '@/components/projects/projects-header';
@@ -15,12 +15,20 @@ import { ViewMode } from '@/components/ui/view-toggle';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 import { getProjects } from '@/lib/api/projects';
 
 export default function ProjectsPage() {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEnv, setSelectedEnv] = useState<EnvironmentFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+
+  useEffect(() => {
+    const handleOpen = () => setIsCreateOpen(true);
+    window.addEventListener('open-create-project-dialog', handleOpen);
+    return () => window.removeEventListener('open-create-project-dialog', handleOpen);
+  }, []);
 
   const {
     data: projects = [],
@@ -109,9 +117,7 @@ export default function ProjectsPage() {
           totalCount={projects.length}
           healthyCount={healthyProjects}
           issuesCount={issuesCount}
-          onNewProject={() => {
-            alert('Create project dialog will open (covered in Plan 08/Polish)');
-          }}
+          onNewProject={() => setIsCreateOpen(true)}
         />
 
         {/* 2. Top Aggregate Stat Cards */}
@@ -163,9 +169,7 @@ export default function ProjectsPage() {
               icon={FolderKanban}
               action={{
                 label: 'Create First Project',
-                onClick: () => {
-                  alert('Create project dialog');
-                },
+                onClick: () => setIsCreateOpen(true),
               }}
             />
           )
@@ -178,6 +182,12 @@ export default function ProjectsPage() {
         ) : (
           <ProjectsTable projects={filteredProjects} />
         )}
+
+        {/* Create Project Modal Form */}
+        <CreateProjectDialog
+          open={isCreateOpen}
+          onOpenChange={setIsCreateOpen}
+        />
       </div>
     </>
   );

@@ -18,7 +18,6 @@ import {
   Globe,
   Clock,
   User,
-  FileCode2,
   Hash,
   Layers,
   ShieldCheck,
@@ -189,18 +188,13 @@ export function AuditDetailDrawer({
             </div>
           </div>
 
-          <div className="flex items-start gap-3.5">
-            <div className="size-10 sm:size-11 rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs flex items-center justify-center">
-              <FileCode2 className="size-5 sm:size-5.5 text-primary dark:text-[#98A4F7]" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <SheetTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground font-mono break-all leading-tight">
-                {log.action}
-              </SheetTitle>
-              <SheetDescription className="text-xs text-muted-foreground leading-normal">
-                Cryptographically tracked immutable security ledger event record.
-              </SheetDescription>
-            </div>
+          <div className="space-y-1">
+            <SheetTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground font-mono break-all leading-tight">
+              {log.action}
+            </SheetTitle>
+            <SheetDescription className="text-xs text-muted-foreground leading-normal">
+              Cryptographically tracked immutable security ledger event record.
+            </SheetDescription>
           </div>
         </SheetHeader>
 

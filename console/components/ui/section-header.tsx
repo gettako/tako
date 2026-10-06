@@ -37,7 +37,7 @@ export function SectionHeader({
         {Icon && (
           <div
             className={cn(
-              'flex size-10 items-center justify-center rounded-xl border border-border/80 bg-background shadow-2xs shrink-0',
+              'flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 shadow-2xs shrink-0',
               iconContainerClassName
             )}
           >
