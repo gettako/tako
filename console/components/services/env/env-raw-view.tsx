@@ -275,7 +275,7 @@ export function EnvRawView({ rawContent, onChange }: EnvRawViewProps) {
             preClassName="prism-code"
             placeholder={'# Takō Environment Configuration\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgres://user:pass@host:5432/db\nAPI_KEY="sk_live_..."'}
             style={{
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+              fontFamily: 'Iosevka, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
               fontSize: '12px',
               lineHeight: '21px',
               whiteSpace: 'pre',

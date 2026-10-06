@@ -160,7 +160,7 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
           cursorStyle: 'block',
           fontSize: 13,
           lineHeight: 1.4,
-          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          fontFamily: 'Iosevka, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
           theme: themeConfig,
           convertEol: true,
           scrollback: 5000,
