@@ -1,0 +1,77 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Tako",
+  "colors": {
+    "primary": "#432DD7",
+    "light": "#432DD7",
+    "dark": "#5B63D3"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "quickstart"
+        ]
+      },
+      {
+        "group": "Installation",
+        "pages": [
+          "installation/main-server",
+          "installation/node-server",
+          "installation/manual-docker"
+        ]
+      },
+      {
+        "group": "Architecture",
+        "pages": [
+          "architecture/overview",
+          "architecture/grpc-communication",
+          "architecture/traefik-routing"
+        ]
+      },
+      {
+        "group": "User Guides",
+        "pages": [
+          "guides/services-deployments",
+          "guides/monitoring-logs"
+        ]
+      },
+      {
+        "group": "API Reference",
+        "pages": [
+          "api-reference/overview"
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/gettakodev/tako"
+      },
+      {
+        "label": "Website",
+        "href": "https://gettako.dev"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "/quickstart"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/gettakodev/tako"
+    }
+  }
+}

@@ -7,3 +7,6 @@ bin/
 *.db-shm
 *.db-wal
 acme.json
+.env
+.env.deploy
+.env.local
