@@ -1,5 +1,7 @@
 # Multi-stage Dockerfile for Tako Agent Daemon
-FROM golang:1.24-alpine AS builder
+FROM golang:1.27-alpine AS builder
+
+ENV GOTOOLCHAIN=auto
 
 WORKDIR /src
 
@@ -8,8 +10,8 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Copy proto and agent source
 COPY proto/ /src/proto/
 COPY agent/ /src/agent/
-COPY go.work /src/go.work
 
+ENV GOWORK=off
 WORKDIR /src/agent
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/tako-agent ./cmd/agent
 
