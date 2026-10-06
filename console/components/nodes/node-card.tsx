@@ -21,15 +21,6 @@ interface NodeCardProps {
   node: Node;
 }
 
-const statusAccentColors: Record<string, string> = {
-  online: 'before:bg-status-success',
-  healthy: 'before:bg-status-success',
-  degraded: 'before:bg-status-warning',
-  warning: 'before:bg-status-warning',
-  offline: 'before:bg-status-danger',
-  danger: 'before:bg-status-danger',
-};
-
 export function NodeCard({ node }: NodeCardProps) {
   const [copiedIp, setCopiedIp] = useState(false);
 
@@ -52,27 +43,25 @@ export function NodeCard({ node }: NodeCardProps) {
       ? Math.round(((node.usage.diskUsedGb || 0) / node.diskTotalGb) * 100)
       : 0;
 
-  const accentColorClass =
-    statusAccentColors[node.status] || 'before:bg-status-neutral';
-
   return (
-    <Link href={`/nodes/${node.id}`} className="block group outline-hidden">
+    <Link href={`/nodes/${node.id}`} className="block group outline-hidden h-[170px]">
       <Card
-        className={`relative h-full flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-border/80 group-hover:shadow-xs active:not-aria-[haspopup]:translate-y-px before:absolute before:inset-y-0 before:left-0 before:w-[3px] ${accentColorClass}`}
+        size="sm"
+        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-border/80 group-hover:shadow-xs active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
       >
-        <div className="space-y-4">
+        <div className="p-4 pb-3 space-y-3">
           {/* Canonical CardHeader with CardAction */}
-          <CardHeader className="pb-0">
-            <div className="space-y-1 min-w-0 pr-2">
+          <CardHeader className="p-0">
+            <div className="space-y-0.5 min-w-0 pr-2">
               <div className="flex items-center gap-1.5">
-                <Server className="size-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                <CardTitle className="font-semibold text-base text-foreground group-hover:text-primary transition-colors truncate">
+                <Server className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+                <CardTitle className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors truncate">
                   {node.name}
                 </CardTitle>
               </div>
 
               {/* IP Address & Public IP */}
-              <CardDescription className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+              <CardDescription className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
                 <span>{node.ipAddress}</span>
                 <button
                   type="button"
@@ -88,7 +77,7 @@ export function NodeCard({ node }: NodeCardProps) {
                   )}
                 </button>
                 {node.publicIp && (
-                  <span className="text-[11px] text-muted-foreground/70 hidden sm:inline">
+                  <span className="text-[10px] text-muted-foreground/70 hidden sm:inline">
                     ({node.publicIp})
                   </span>
                 )}
@@ -101,52 +90,55 @@ export function NodeCard({ node }: NodeCardProps) {
           </CardHeader>
 
           {/* CardContent: 3 Standard Resource Usage Bars */}
-          <CardContent className="pt-1 pb-0">
+          <CardContent className="p-0">
             {isOffline ? (
-              <div className="flex items-center gap-2 rounded-lg bg-status-danger/10 border border-status-danger/25 p-3 text-xs text-status-danger font-mono">
-                <AlertCircle className="size-4 shrink-0" />
+              <div className="flex items-center gap-2 rounded-lg bg-status-danger/10 border border-status-danger/25 px-2.5 py-1.5 text-xs text-status-danger font-mono">
+                <AlertCircle className="size-3.5 shrink-0" />
                 <span>Host unreachable • Heartbeat signal lost</span>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3 pt-1">
+              <div className="grid grid-cols-3 gap-2.5">
                 {/* CPU Utilization Bar */}
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <ResourceBar
                     label="CPU"
                     value={node.usage.cpuPercent}
                     unit="%"
                     size="sm"
                     showPercentage={false}
+                    className="space-y-1"
                   />
-                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-none">
+                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
                     {node.cpuTotalCores} cores
                   </span>
                 </div>
 
                 {/* RAM Allocation Bar */}
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <ResourceBar
                     label="RAM"
                     value={memPct}
                     unit="%"
                     size="sm"
                     showPercentage={false}
+                    className="space-y-1"
                   />
-                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-none">
+                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
                     {Math.round(node.memoryTotalMb / 1024)} GB
                   </span>
                 </div>
 
                 {/* Disk Storage Bar */}
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   <ResourceBar
                     label="Disk"
                     value={diskPct}
                     unit="%"
                     size="sm"
                     showPercentage={false}
+                    className="space-y-1"
                   />
-                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-none">
+                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
                     {node.diskTotalGb} GB
                   </span>
                 </div>
@@ -156,11 +148,11 @@ export function NodeCard({ node }: NodeCardProps) {
         </div>
 
         {/* Canonical CardFooter */}
-        <CardFooter className="pt-3 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground">
-          <span className="truncate text-xs font-normal pr-2">{node.os}</span>
+        <CardFooter className="px-4 py-2.5 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
+          <span className="truncate text-[11px] font-normal pr-2">{node.os}</span>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/80 text-[11px] font-medium text-foreground">
+            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/80 text-[10px] font-medium text-foreground">
               <Boxes className="size-3 text-muted-foreground" />
               {node.servicesCount} {node.servicesCount === 1 ? 'service' : 'services'}
             </span>

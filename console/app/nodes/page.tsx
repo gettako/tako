@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 export default function NodesPage() {
   const [search, setSearch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
 
   const { data: nodes = [], isLoading } = useQuery({
     queryKey: ['nodes'],
@@ -73,7 +73,7 @@ export default function NodesPage() {
         />
 
         {isLoading ? (
-          <LoadingSkeleton variant="cards" count={4} />
+          <LoadingSkeleton variant={viewMode === 'grid' ? 'cards' : 'table'} count={4} />
         ) : (
           <>
             {/* 2. Cluster Hardware Telemetry Summary */}
@@ -150,7 +150,7 @@ export default function NodesPage() {
                 }
               />
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredNodes.map((node) => (
                   <NodeCard key={node.id} node={node} />
                 ))}

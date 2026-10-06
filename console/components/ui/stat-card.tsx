@@ -19,17 +19,6 @@ export interface StatCardProps extends React.HTMLAttributes<HTMLDivElement> {
   statusAccent?: 'healthy' | 'unhealthy' | 'warning' | 'degraded' | 'info' | 'neutral' | string;
 }
 
-const statusAccentColors: Record<string, string> = {
-  healthy: 'before:bg-status-success',
-  success: 'before:bg-status-success',
-  unhealthy: 'before:bg-status-danger',
-  danger: 'before:bg-status-danger',
-  warning: 'before:bg-status-warning',
-  degraded: 'before:bg-status-warning',
-  info: 'before:bg-status-info',
-  neutral: 'before:bg-status-neutral',
-};
-
 export function StatCard({
   title,
   value,
@@ -40,16 +29,10 @@ export function StatCard({
   className,
   ...props
 }: StatCardProps) {
-  const accentClass = statusAccent ? statusAccentColors[statusAccent] || 'before:bg-status-neutral' : null;
-
   return (
     <div
       className={cn(
         'relative rounded-xl border border-border bg-card p-5 text-card-foreground shadow-xs transition-colors overflow-hidden',
-        accentClass && [
-          'before:absolute before:inset-y-0 before:left-0 before:w-[3px]',
-          accentClass,
-        ],
         className
       )}
       {...props}

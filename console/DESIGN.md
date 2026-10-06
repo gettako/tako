@@ -390,7 +390,7 @@ Allowed ONLY on: command palette, popovers/dropdowns, dialog overlays, and toast
 ### Brand identity
 
 - **Clean page headers:** Page headers use a flat, uncluttered layout without bulky glowing container boxes, maximizing vertical space for dashboard content.
-- **Status accent:** Project, service, and node cards show a 3px left accent bar in the item's status color.
+- **Status indicator:** Card status is communicated cleanly via the StatusBadge at the top right, without redundant left-edge accent borders.
 - **Brand tint:** `primary/5` (light) or `primary/15` (dark `#5B63D3`/15) is allowed as a background for the active sidebar item and selected rows. Do not use it elsewhere.
 
 ### Status colors

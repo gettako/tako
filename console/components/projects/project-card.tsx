@@ -2,8 +2,15 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Layers } from 'lucide-react';
-import { StatusAccentCard } from '@/components/ui/status-accent-card';
+import { Layers, ChevronRight } from 'lucide-react';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardAction,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Project } from '@/lib/types';
 
@@ -35,61 +42,67 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const issueCount = Math.max(0, project.servicesCount - project.healthyServicesCount);
 
   return (
-    <Link href={`/projects/${project.id}`} className="block group outline-none">
-      <StatusAccentCard
-        status={project.status}
-        className="flex flex-col justify-between p-5 h-full transition-all group-hover:border-primary/40 group-hover:shadow-xs"
+    <Link href={`/projects/${project.id}`} className="block group outline-hidden h-[170px]">
+      <Card
+        size="sm"
+        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-border/80 group-hover:shadow-xs active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
       >
-        <div>
+        <div className="p-4 pb-3 space-y-2.5">
           {/* Header: Project Name, Environment & Status */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1.5 min-w-0">
-              <h3 className="text-base sm:text-lg font-semibold text-foreground group-hover:text-primary transition-colors tracking-tight line-clamp-1">
+          <CardHeader className="p-0">
+            <div className="space-y-0.5 min-w-0 pr-2">
+              <CardTitle className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors tracking-tight line-clamp-1">
                 {project.name}
-              </h3>
+              </CardTitle>
               <div className="flex items-center gap-2">
-                <span className="rounded-xs border border-border/80 bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <span className="rounded-xs border border-border/80 bg-muted/60 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {project.environment}
                 </span>
               </div>
             </div>
-            <StatusBadge status={project.status} size="sm" />
-          </div>
+
+            <CardAction>
+              <StatusBadge status={project.status} size="sm" />
+            </CardAction>
+          </CardHeader>
 
           {/* Description */}
-          {project.description && (
-            <p className="mt-2.5 text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-              {project.description}
+          <CardContent className="p-0">
+            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed min-h-[2.25rem]">
+              {project.description || 'No description provided.'}
             </p>
-          )}
+          </CardContent>
         </div>
 
         {/* Clean Single-Row Footer */}
-        <div className="mt-5 pt-3 border-t border-border/50 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Layers className="size-3.5" />
+        <CardFooter className="px-4 py-2.5 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs shrink-0">
+            <Layers className="size-3 text-muted-foreground" />
             <span>
               {project.servicesCount} {project.servicesCount === 1 ? 'service' : 'services'}
             </span>
           </div>
 
-          {issueCount > 0 && !isStopped ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/20 bg-status-warning/10 px-2 py-0.5 text-[11px] font-medium text-status-warning">
-              <span className="size-1 rounded-full bg-status-warning" />
-              {issueCount} {issueCount === 1 ? 'issue' : 'issues'}
-            </span>
-          ) : isStopped ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-status-neutral/20 bg-status-neutral/10 px-2 py-0.5 text-[11px] font-medium text-status-neutral">
-              <span className="size-1 rounded-full bg-status-neutral" />
-              stopped
-            </span>
-          ) : project.updatedAt ? (
-            <span className="text-[11px] text-muted-foreground font-mono">
-              Updated {formatRelativeTime(project.updatedAt)}
-            </span>
-          ) : null}
-        </div>
-      </StatusAccentCard>
+          <div className="flex items-center gap-1.5">
+            {issueCount > 0 && !isStopped ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/20 bg-status-warning/10 px-2 py-0.5 text-[10px] font-medium text-status-warning">
+                <span className="size-1 rounded-full bg-status-warning" />
+                {issueCount} {issueCount === 1 ? 'issue' : 'issues'}
+              </span>
+            ) : isStopped ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-status-neutral/20 bg-status-neutral/10 px-2 py-0.5 text-[10px] font-medium text-status-neutral">
+                <span className="size-1 rounded-full bg-status-neutral" />
+                stopped
+              </span>
+            ) : project.updatedAt ? (
+              <span className="text-[11px] text-muted-foreground font-mono">
+                Updated {formatRelativeTime(project.updatedAt)}
+              </span>
+            ) : null}
+            <ChevronRight className="size-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-transform" />
+          </div>
+        </CardFooter>
+      </Card>
     </Link>
   );
 }

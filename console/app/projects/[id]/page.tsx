@@ -26,7 +26,7 @@ export default function ProjectDetailPage({
   const projectId = resolvedParams.id;
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [createServiceOpen, setCreateServiceOpen] = useState(false);
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export default function ProjectDetailPage({
             />
           )
         ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredServices.map((service) => (
               <ServiceCard key={service.id} service={service} />
             ))}
