@@ -8,6 +8,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuditDetailDrawer } from './audit-detail-drawer';
 import { FileJson, ChevronLeft, ChevronRight, Clock, ShieldCheck } from 'lucide-react';
 
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
+
 interface AuditTableProps {
   logs: AuditLog[];
   pageSize?: number;
@@ -35,11 +44,11 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
       case 'service':
         return 'border-primary/40 bg-primary/10 text-primary';
       case 'node':
-        return 'border-blue-500/40 bg-blue-500/10 text-blue-500';
+        return 'border-status-info/40 bg-status-info/10 text-status-info';
       case 'project':
-        return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-500';
+        return 'border-status-success/40 bg-status-success/10 text-status-success';
       case 'user':
-        return 'border-amber-500/40 bg-amber-500/10 text-amber-500';
+        return 'border-status-warning/40 bg-status-warning/10 text-status-warning';
       default:
         return 'border-border/60 bg-muted/40 text-muted-foreground';
     }
@@ -47,118 +56,128 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
 
   return (
     <>
-      <div className="rounded-lg border border-border/60 bg-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-muted/40 border-b border-border/60 text-[11px] font-semibold text-muted-foreground">
-              <tr className="h-11">
-                <th className="py-2.5 px-4">Timestamp</th>
-                <th className="py-2.5 px-4">Actor</th>
-                <th className="py-2.5 px-4">Action</th>
-                <th className="py-2.5 px-4">Target Resource</th>
-                <th className="py-2.5 px-4">Source IP</th>
-                <th className="py-2.5 px-4 text-right">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40">
-              {visibleLogs.map((log) => (
-                <tr key={log.id} className="h-14 hover:bg-muted/30 transition-colors">
-                  {/* Timestamp */}
-                  <td className="py-3 px-4 font-mono text-[11px] text-muted-foreground">
-                    <div>
-                      {new Date(log.timestamp).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                      })}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground/70">
-                      {new Date(log.timestamp).toLocaleDateString()}
-                    </div>
-                  </td>
+      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+        <Table>
+          <TableHeader className="bg-muted/40 border-b border-border/60">
+            <TableRow className="h-11 hover:bg-transparent">
+              <TableHead className="w-[18%]">Timestamp</TableHead>
+              <TableHead className="w-[22%]">Actor</TableHead>
+              <TableHead className="w-[18%]">Action</TableHead>
+              <TableHead className="w-[20%]">Target Resource</TableHead>
+              <TableHead className="w-[12%]">Source IP</TableHead>
+              <TableHead className="text-right w-[10%]">Details</TableHead>
+            </TableRow>
+          </TableHeader>
 
-                  {/* Actor */}
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar className="size-6 text-[10px]">
-                        <AvatarImage src={log.actor.avatarUrl} alt={log.actor.name} />
-                        <AvatarFallback>{getInitials(log.actor.name)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-semibold text-foreground">{log.actor.name}</div>
-                        <div className="text-[10px] text-muted-foreground">{log.actor.email}</div>
+          <TableBody className="divide-y divide-border/40">
+            {visibleLogs.map((log) => (
+              <TableRow
+                key={log.id}
+                className="h-14 hover:bg-muted/30 transition-colors group cursor-pointer"
+                onClick={() => setSelectedLog(log)}
+              >
+                {/* 1. Timestamp */}
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  <div className="font-medium text-foreground">
+                    {new Date(log.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/80">
+                    {new Date(log.timestamp).toLocaleDateString()}
+                  </div>
+                </TableCell>
+
+                {/* 2. Actor */}
+                <TableCell>
+                  <div className="flex items-center gap-2.5">
+                    <Avatar className="size-7 text-[10px] border border-border/60 shrink-0">
+                      <AvatarImage src={log.actor.avatarUrl} alt={log.actor.name} />
+                      <AvatarFallback>{getInitials(log.actor.name)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
+                        {log.actor.name}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground font-mono truncate">
+                        {log.actor.email}
                       </div>
                     </div>
-                  </td>
+                  </div>
+                </TableCell>
 
-                  {/* Action Verb */}
-                  <td className="py-3 px-4">
-                    <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-muted/60 text-foreground border border-border/40">
-                      {log.action}
-                    </span>
-                  </td>
+                {/* 3. Action */}
+                <TableCell>
+                  <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-muted/60 text-foreground border border-border/50">
+                    {log.action}
+                  </span>
+                </TableCell>
 
-                  {/* Target Resource */}
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-1.5">
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] font-mono capitalize ${getTargetBadgeColor(
-                          log.targetType
-                        )}`}
-                      >
-                        {log.targetType}
-                      </Badge>
-                      <span className="font-medium text-foreground truncate max-w-xs">
-                        {log.targetName}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* IP Address */}
-                  <td className="py-3 px-4 font-mono text-[11px] text-muted-foreground">
-                    {log.ipAddress}
-                  </td>
-
-                  {/* Inspect Details Button */}
-                  <td className="py-3 px-4 text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedLog(log)}
-                      className="h-7 text-xs gap-1 text-primary hover:text-primary hover:bg-primary/10"
+                {/* 4. Target Resource */}
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] font-mono capitalize ${getTargetBadgeColor(
+                        log.targetType
+                      )}`}
                     >
-                      <FileJson className="size-3.5" />
-                      Inspect
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      {log.targetType}
+                    </Badge>
+                    <span className="font-medium text-sm text-foreground truncate max-w-[160px]">
+                      {log.targetName}
+                    </span>
+                  </div>
+                </TableCell>
+
+                {/* 5. Source IP */}
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {log.ipAddress}
+                </TableCell>
+
+                {/* 6. Action */}
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedLog(log);
+                    }}
+                    className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-primary group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
+                  >
+                    <FileJson className="size-3.5" />
+                    <span>Inspect</span>
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
 
         {/* Pagination Bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-border/60 bg-muted/20 text-xs text-muted-foreground">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border/60 bg-muted/20 text-xs text-muted-foreground font-mono">
           <div>
-            Showing <span className="font-mono font-medium text-foreground">{startIndex + 1}</span> to{' '}
-            <span className="font-mono font-medium text-foreground">
+            Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{' '}
+            <span className="font-semibold text-foreground">
               {Math.min(startIndex + pageSize, logs.length)}
             </span>{' '}
-            of <span className="font-mono font-medium text-foreground">{logs.length}</span> events
+            of <span className="font-semibold text-foreground">{logs.length}</span> events
           </div>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage <= 1}
-              className="h-7 w-7 p-0"
+              className="size-8 p-0 border-border/70 bg-card active:not-aria-[haspopup]:translate-y-px shadow-2xs"
             >
               <ChevronLeft className="size-3.5" />
             </Button>
-            <span className="px-2 text-xs font-mono">
+            <span className="px-2 text-xs font-mono font-medium text-foreground">
               {currentPage} / {totalPages}
             </span>
             <Button
@@ -166,7 +185,7 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
               size="sm"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages}
-              className="h-7 w-7 p-0"
+              className="size-8 p-0 border-border/70 bg-card active:not-aria-[haspopup]:translate-y-px shadow-2xs"
             >
               <ChevronRight className="size-3.5" />
             </Button>

@@ -83,26 +83,14 @@ export function NodeServicesTable({
         ) : (
           <div className="border-t border-border/60">
             <Table>
-              <TableHeader className="bg-muted/30 border-b border-border/60">
+              <TableHeader className="bg-muted/40 border-b border-border/60">
                 <TableRow className="h-11 hover:bg-transparent">
-                  <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[32%]">
-                    Service
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[20%]">
-                    Parent Project
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[12%]">
-                    Type
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[12%]">
-                    Status
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[14%]">
-                    Compute Usage
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground text-right w-[10%]">
-                    Action
-                  </TableHead>
+                  <TableHead className="w-[32%]">Service</TableHead>
+                  <TableHead className="w-[20%]">Parent Project</TableHead>
+                  <TableHead className="w-[12%]">Type</TableHead>
+                  <TableHead className="w-[12%]">Status</TableHead>
+                  <TableHead className="w-[14%]">Compute Usage</TableHead>
+                  <TableHead className="text-right w-[10%]">Action</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -120,7 +108,7 @@ export function NodeServicesTable({
                       }}
                     >
                       {/* 1. Service Name & Slug/Port */}
-                      <TableCell className="py-3 px-4">
+                      <TableCell>
                         <div className="flex items-center gap-2.5">
                           <span
                             className={`flex size-8 items-center justify-center rounded-lg border shrink-0 transition-colors ${
@@ -156,7 +144,7 @@ export function NodeServicesTable({
                       </TableCell>
 
                       {/* 2. Parent Project */}
-                      <TableCell className="py-3 px-4">
+                      <TableCell>
                         <Link
                           href={`/projects/${service.projectId}`}
                           onClick={(e) => e.stopPropagation()}
@@ -170,7 +158,7 @@ export function NodeServicesTable({
                       </TableCell>
 
                       {/* 3. Workload Type */}
-                      <TableCell className="py-3 px-4">
+                      <TableCell>
                         <Badge
                           variant="outline"
                           className="text-[10px] font-mono capitalize border-border/60 bg-muted/40"
@@ -181,12 +169,12 @@ export function NodeServicesTable({
                       </TableCell>
 
                       {/* 4. Status Badge */}
-                      <TableCell className="py-3 px-4">
+                      <TableCell>
                         <StatusBadge status={service.status} size="sm" />
                       </TableCell>
 
                       {/* 5. Compute (CPU & RAM) */}
-                      <TableCell className="py-3 px-4 font-mono text-xs">
+                      <TableCell className="font-mono text-xs">
                         <div className="space-y-0.5">
                           <div>
                             <span className={getComputeColor(service.usage.cpuPercent)}>
@@ -204,7 +192,7 @@ export function NodeServicesTable({
                       </TableCell>
 
                       {/* 6. Action */}
-                      <TableCell className="py-3 px-4 text-right">
+                      <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="sm"

@@ -30,7 +30,7 @@ export function ServiceRow({ service }: ServiceRowProps) {
 
   return (
     <TableRow
-      className="group h-14 hover:bg-muted/40 transition-colors cursor-pointer"
+      className="group h-14 hover:bg-muted/30 transition-colors cursor-pointer"
       onClick={() => {
         window.location.href = `/services/${service.id}`;
       }}
@@ -98,9 +98,9 @@ export function ServiceRow({ service }: ServiceRowProps) {
         <Link
           href={`/services/${service.id}`}
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary"
+          className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
           <span className="sr-only">Configure service</span>
         </Link>
       </TableCell>

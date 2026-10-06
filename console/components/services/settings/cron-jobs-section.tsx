@@ -170,28 +170,16 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
               }}
             />
           ) : (
-            <div className="rounded-lg border border-border/60 overflow-hidden">
+            <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
               <Table>
-                <TableHeader className="bg-muted/40">
+                <TableHeader className="bg-muted/40 border-b border-border/60">
                   <TableRow className="border-b border-border/60 hover:bg-transparent">
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Name & Schedule
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Command
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Active
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Last Run
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Next Run
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Actions
-                    </TableHead>
+                    <TableHead className="w-[28%]">Name & Schedule</TableHead>
+                    <TableHead className="w-[24%]">Command</TableHead>
+                    <TableHead className="w-[10%]">Active</TableHead>
+                    <TableHead className="w-[14%]">Last Run</TableHead>
+                    <TableHead className="w-[10%]">Next Run</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -199,44 +187,44 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                     const isRunning = runningJobId === job.id;
                     const isActive = job.status === 'active';
                     return (
-                      <TableRow key={job.id} className="hover:bg-muted/30 border-b border-border/40">
+                      <TableRow key={job.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
                         {/* Name & Schedule */}
-                        <TableCell className="py-3.5 px-4">
+                        <TableCell>
                           <div className="font-medium text-foreground text-sm">{job.name}</div>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="font-mono text-sm text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                            <span className="font-mono text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
                               {job.schedule}
                             </span>
-                            <span className="text-sm text-muted-foreground">
+                            <span className="text-xs text-muted-foreground truncate">
                               • {explainCronExpression(job.schedule)}
                             </span>
                           </div>
                         </TableCell>
 
                         {/* Command */}
-                        <TableCell className="py-3.5 px-4 font-mono text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5 max-w-xs truncate bg-muted/40 px-2.5 py-1 rounded border border-border/40">
-                            <Terminal className="size-3.5 text-muted-foreground shrink-0" />
-                            <span className="truncate">{job.command}</span>
+                        <TableCell className="font-mono text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1.5 max-w-xs truncate bg-muted/40 px-2 py-0.5 rounded border border-border/40">
+                            <Terminal className="size-3 text-muted-foreground shrink-0" />
+                            <span className="truncate text-xs">{job.command}</span>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon-xs"
                               onClick={() => handleCopyCommand(job.id, job.command)}
-                              className="text-muted-foreground hover:text-foreground shrink-0 ml-auto"
+                              className="text-muted-foreground hover:text-foreground shrink-0 ml-auto active:not-aria-[haspopup]:translate-y-px"
                               title="Copy command"
                             >
                               {copiedCommandId === job.id ? (
-                                <Check className="size-3.5 text-status-success" />
+                                <Check className="size-3 text-status-success" />
                               ) : (
-                                <Copy className="size-3.5" />
+                                <Copy className="size-3" />
                               )}
                             </Button>
                           </div>
                         </TableCell>
 
                         {/* Active Toggle Switch (AC-4) */}
-                        <TableCell className="py-3.5 px-4">
+                        <TableCell>
                           <Switch
                             checked={isActive}
                             onCheckedChange={() => toggleMutation.mutate(job.id)}
@@ -245,7 +233,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                         </TableCell>
 
                         {/* Last Run */}
-                        <TableCell className="py-3.5 px-4">
+                        <TableCell>
                           <div className="flex items-center gap-1.5">
                             {job.lastStatus === 'success' ? (
                               <CheckCircle2 className="size-3.5 text-status-success shrink-0" />
@@ -261,7 +249,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                         </TableCell>
 
                         {/* Next Run */}
-                        <TableCell className="py-3.5 px-4 font-mono text-sm text-muted-foreground">
+                        <TableCell className="font-mono text-sm text-muted-foreground">
                           {isActive ? (
                             job.nextRunAt ? (
                               new Date(job.nextRunAt).toLocaleTimeString([], {
@@ -272,12 +260,12 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                               'Scheduled'
                             )
                           ) : (
-                            <span className="text-muted-foreground/60 italic">Paused</span>
+                            <span className="text-muted-foreground/60 italic text-xs">Paused</span>
                           )}
                         </TableCell>
 
                         {/* Action Buttons (AC-6) */}
-                        <TableCell className="py-3.5 px-4 text-right">
+                        <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             {/* Run Now Trigger */}
                             <Button
@@ -285,7 +273,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                               size="sm"
                               onClick={() => handleRunNow(job)}
                               disabled={isRunning}
-                              className="h-8 text-sm gap-1.5 text-primary hover:text-primary hover:bg-primary/10 border-primary/30"
+                              className="h-8 text-xs gap-1.5 text-primary hover:text-primary hover:bg-primary/10 border-primary/30 active:not-aria-[haspopup]:translate-y-px"
                               title="Run this job immediately"
                             >
                               {isRunning ? (
@@ -301,7 +289,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                               variant="ghost"
                               size="sm"
                               onClick={() => setHistoryJob(job)}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                              className="size-8 p-0 text-muted-foreground hover:text-foreground active:not-aria-[haspopup]:translate-y-px"
                               title="View execution history"
                             >
                               <History className="size-4" />
@@ -315,7 +303,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                                 setEditingJob(job);
                                 setDialogOpen(true);
                               }}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                              className="size-8 p-0 text-muted-foreground hover:text-foreground active:not-aria-[haspopup]:translate-y-px"
                               title="Edit job"
                             >
                               <Pencil className="size-4" />
@@ -330,7 +318,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                                   deleteMutation.mutate(job.id);
                                 }
                               }}
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-status-danger"
+                              className="size-8 p-0 text-muted-foreground hover:text-status-danger active:not-aria-[haspopup]:translate-y-px"
                               title="Delete job"
                             >
                               <Trash2 className="size-4" />

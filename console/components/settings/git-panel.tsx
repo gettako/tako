@@ -138,36 +138,28 @@ export function GitPanel() {
         </CardHeader>
 
         <CardContent className="px-0 pt-2">
-          <div className="rounded-lg border border-border/60 overflow-hidden">
+          <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
             <Table>
-              <TableHeader className="bg-muted/40">
+              <TableHeader className="bg-muted/40 border-b border-border/60">
                 <TableRow className="border-b border-border/60 hover:bg-transparent">
-                  <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Repository
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Default Branch
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Visibility
-                  </TableHead>
-                  <TableHead className="py-2.5 px-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    GitHub Link
-                  </TableHead>
+                  <TableHead className="w-[40%]">Repository</TableHead>
+                  <TableHead className="w-[25%]">Default Branch</TableHead>
+                  <TableHead className="w-[20%]">Visibility</TableHead>
+                  <TableHead className="text-right">GitHub Link</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {repos.map((repo) => (
-                  <TableRow key={repo.id} className="hover:bg-muted/30 border-b border-border/40">
-                    <TableCell className="py-3 px-4 font-medium text-foreground font-mono text-sm">
+                  <TableRow key={repo.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
+                    <TableCell className="font-medium text-foreground font-mono text-sm">
                       {repo.fullName}
                     </TableCell>
-                    <TableCell className="py-3 px-4 font-mono text-sm text-muted-foreground">
+                    <TableCell className="font-mono text-sm text-muted-foreground">
                       <span className="px-2 py-0.5 rounded bg-muted text-foreground">
                         {repo.defaultBranch}
                       </span>
                     </TableCell>
-                    <TableCell className="py-3 px-4">
+                    <TableCell>
                       {repo.private ? (
                         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                           <Lock className="size-3.5" /> Private
@@ -178,7 +170,7 @@ export function GitPanel() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="py-3 px-4 text-right">
+                    <TableCell className="text-right">
                       <a
                         href={repo.htmlUrl}
                         target="_blank"

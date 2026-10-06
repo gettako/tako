@@ -135,43 +135,33 @@ export function BucketsPanel() {
               <p className="text-sm text-muted-foreground">No S3 storage buckets configured.</p>
             </div>
           ) : (
-            <div className="rounded-lg border border-border/60 overflow-hidden">
+            <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
               <Table>
-                <TableHeader className="bg-muted/40">
+                <TableHeader className="bg-muted/40 border-b border-border/60">
                   <TableRow className="border-b border-border/60 hover:bg-transparent">
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Storage Name
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Bucket
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Endpoint
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Region
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Default
-                    </TableHead>
+                    <TableHead className="w-[25%]">Storage Name</TableHead>
+                    <TableHead className="w-[20%]">Bucket</TableHead>
+                    <TableHead className="w-[30%]">Endpoint</TableHead>
+                    <TableHead className="w-[15%]">Region</TableHead>
+                    <TableHead className="w-[10%] text-right">Default</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {buckets.map((b) => (
-                    <TableRow key={b.id} className="hover:bg-muted/30 border-b border-border/40">
-                      <TableCell className="py-3 px-4 font-medium text-foreground">
+                    <TableRow key={b.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-medium text-foreground">
                         {b.name}
                       </TableCell>
-                      <TableCell className="py-3 px-4 font-mono text-sm text-foreground">
+                      <TableCell className="font-mono text-sm text-foreground">
                         {b.bucket}
                       </TableCell>
-                      <TableCell className="py-3 px-4 font-mono text-sm text-muted-foreground truncate max-w-xs">
+                      <TableCell className="font-mono text-sm text-muted-foreground truncate max-w-xs">
                         {b.endpoint}
                       </TableCell>
-                      <TableCell className="py-3 px-4 font-mono text-sm text-muted-foreground">
+                      <TableCell className="font-mono text-sm text-muted-foreground">
                         {b.region}
                       </TableCell>
-                      <TableCell className="py-3 px-4 text-right">
+                      <TableCell className="text-right">
                         {b.isDefault && (
                           <Badge
                             variant="outline"

@@ -150,15 +150,15 @@ export function UsersPanel() {
         </CardHeader>
 
         <CardContent className="px-0 pt-2">
-          <div className="rounded-lg border border-border/60 overflow-hidden bg-card">
+          <div className="rounded-xl border border-border/70 overflow-hidden bg-card shadow-2xs">
             <Table>
               <TableHeader className="bg-muted/40 border-b border-border/60">
-                <TableRow className="h-10 hover:bg-transparent">
-                  <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Member</TableHead>
-                  <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Role</TableHead>
-                  <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">2FA Status</TableHead>
-                  <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Member Since</TableHead>
-                  <TableHead className="py-2.5 px-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</TableHead>
+                <TableRow className="h-11 hover:bg-transparent">
+                  <TableHead className="w-[32%]">Member</TableHead>
+                  <TableHead className="w-[20%]">Role</TableHead>
+                  <TableHead className="w-[18%]">2FA Status</TableHead>
+                  <TableHead className="w-[18%]">Member Since</TableHead>
+                  <TableHead className="text-right w-[12%]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-border/40">
@@ -167,7 +167,7 @@ export function UsersPanel() {
                   const isOwner = u.role === 'owner';
                   return (
                     <TableRow key={u.id} className="h-14 hover:bg-muted/30 transition-colors">
-                      <TableCell className="py-3 px-4">
+                      <TableCell>
                         <div className="flex items-center gap-2.5">
                           <Avatar className="size-8 text-xs">
                             <AvatarImage src={u.avatarUrl} alt={u.name} />
@@ -177,18 +177,18 @@ export function UsersPanel() {
                             <div className="font-semibold text-sm text-foreground flex items-center gap-1.5">
                               <span>{u.name}</span>
                               {isCurrent && (
-                                <span className="text-sm text-muted-foreground font-normal">
+                                <span className="text-xs text-muted-foreground font-normal">
                                   (You)
                                 </span>
                               )}
                             </div>
-                            <div className="text-sm text-muted-foreground font-mono">{u.email}</div>
+                            <div className="text-xs text-muted-foreground font-mono">{u.email}</div>
                           </div>
                         </div>
                       </TableCell>
 
                       {/* Role selection */}
-                      <TableCell className="py-3 px-4">
+                      <TableCell>
                         {isOwner || isCurrent ? (
                           <Badge
                             variant="outline"
@@ -220,21 +220,21 @@ export function UsersPanel() {
                       </TableCell>
 
                       {/* 2FA */}
-                      <TableCell className="py-3 px-4">
+                      <TableCell>
                         {u.twoFactorEnabled ? (
-                          <span className="text-status-success font-medium text-sm">Enabled</span>
+                          <span className="text-status-success font-medium text-xs">Enabled</span>
                         ) : (
-                          <span className="text-muted-foreground text-sm">Disabled</span>
+                          <span className="text-muted-foreground text-xs">Disabled</span>
                         )}
                       </TableCell>
 
                       {/* Created date */}
-                      <TableCell className="py-3 px-4 text-muted-foreground font-mono text-sm">
+                      <TableCell className="text-muted-foreground font-mono text-xs">
                         {new Date(u.createdAt).toLocaleDateString()}
                       </TableCell>
 
                       {/* Actions */}
-                      <TableCell className="py-3 px-4 text-right">
+                      <TableCell className="text-right">
                         {!isOwner && !isCurrent && (
                           <Button
                             variant="ghost"
@@ -244,7 +244,7 @@ export function UsersPanel() {
                                 deactivateMutation.mutate(u.id);
                               }
                             }}
-                            className="size-8 p-0 text-muted-foreground hover:text-status-danger"
+                            className="size-8 p-0 text-muted-foreground hover:text-status-danger active:not-aria-[haspopup]:translate-y-px"
                             title="Deactivate user"
                           >
                             <Trash2 className="size-4" />
@@ -272,31 +272,23 @@ export function UsersPanel() {
           </CardHeader>
 
           <CardContent className="px-0 pt-2">
-            <div className="rounded-lg border border-border/60 overflow-hidden">
+            <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
               <Table>
-                <TableHeader className="bg-muted/40">
+                <TableHeader className="bg-muted/40 border-b border-border/60">
                   <TableRow className="border-b border-border/60 hover:bg-transparent">
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Invited Email
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Role
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Expires In
-                    </TableHead>
-                    <TableHead className="py-2.5 px-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Actions
-                    </TableHead>
+                    <TableHead className="w-[35%]">Invited Email</TableHead>
+                    <TableHead className="w-[20%]">Role</TableHead>
+                    <TableHead className="w-[25%]">Expires In</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {invites.map((inv) => (
-                    <TableRow key={inv.id} className="hover:bg-muted/30 border-b border-border/40">
-                      <TableCell className="py-2.5 px-4 font-mono font-medium text-foreground">
+                    <TableRow key={inv.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-mono font-medium text-foreground">
                         {inv.email}
                       </TableCell>
-                      <TableCell className="py-2.5 px-4">
+                      <TableCell>
                         <Badge
                           variant="outline"
                           className="font-mono text-xs uppercase border-border/60 bg-muted/30"
@@ -304,16 +296,16 @@ export function UsersPanel() {
                           {inv.role}
                         </Badge>
                       </TableCell>
-                      <TableCell className="py-2.5 px-4 text-muted-foreground text-sm font-mono">
+                      <TableCell className="text-muted-foreground font-mono">
                         {new Date(inv.expiresAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="py-2.5 px-4 text-right">
+                      <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleCopyInvite(inv.token)}
-                            className="h-8 text-sm gap-1.5"
+                            className="h-8 text-xs gap-1.5 active:not-aria-[haspopup]:translate-y-px"
                           >
                             <Copy className="size-3.5" />
                             Copy Link
@@ -322,7 +314,7 @@ export function UsersPanel() {
                             variant="ghost"
                             size="sm"
                             onClick={() => revokeInviteMutation.mutate(inv.id)}
-                            className="size-8 p-0 text-muted-foreground hover:text-status-danger"
+                            className="size-8 p-0 text-muted-foreground hover:text-status-danger active:not-aria-[haspopup]:translate-y-px"
                             title="Revoke invite"
                           >
                             <Trash2 className="size-4" />

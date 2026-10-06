@@ -50,10 +50,10 @@ export function EnvTableView({ envVars, onChange }: EnvTableViewProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
         <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
+          <TableHeader className="bg-muted/40 border-b border-border/60">
+            <TableRow className="h-11 hover:bg-transparent">
               <TableHead className="w-[280px]">Key</TableHead>
               <TableHead>Value</TableHead>
               <TableHead className="w-[110px]">Type</TableHead>

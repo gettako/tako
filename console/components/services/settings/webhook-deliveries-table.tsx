@@ -36,24 +36,24 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
 
   return (
     <>
-      <div className="rounded-lg border border-border/60 overflow-hidden bg-card">
+      <div className="rounded-xl border border-border/70 overflow-hidden bg-card shadow-2xs">
         <Table>
           <TableHeader className="bg-muted/40 border-b border-border/60">
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Timestamp</TableHead>
-              <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Event</TableHead>
-              <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
-              <TableHead className="py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Duration</TableHead>
-              <TableHead className="py-2.5 px-4 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Payload</TableHead>
+            <TableRow className="h-11 hover:bg-transparent">
+              <TableHead className="w-[30%]">Timestamp</TableHead>
+              <TableHead className="w-[20%]">Event</TableHead>
+              <TableHead className="w-[20%]">Status</TableHead>
+              <TableHead className="w-[15%]">Duration</TableHead>
+              <TableHead className="text-right w-[15%]">Payload</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody className="divide-y divide-border/40">
             {deliveries.map((delivery) => {
               const isSuccess = delivery.status === 'success';
               return (
-                <TableRow key={delivery.id} className="hover:bg-muted/30 transition-colors">
+                <TableRow key={delivery.id} className="h-14 hover:bg-muted/30 transition-colors">
                   {/* Timestamp */}
-                  <TableCell className="py-3 px-4 font-mono text-sm text-foreground">
+                  <TableCell className="font-mono text-xs text-foreground">
                     {new Date(delivery.timestamp).toLocaleString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -64,14 +64,14 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
                   </TableCell>
 
                   {/* Event Tag */}
-                  <TableCell className="py-3 px-4">
-                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-foreground border border-border/40">
+                  <TableCell>
+                    <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-muted text-foreground border border-border/40">
                       {delivery.event}
                     </span>
                   </TableCell>
 
                   {/* Status Badge */}
-                  <TableCell className="py-3 px-4">
+                  <TableCell>
                     <div className="flex items-center gap-1.5">
                       {isSuccess ? (
                         <CheckCircle2 className="size-4 text-status-success shrink-0" />
@@ -92,20 +92,20 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
                   </TableCell>
 
                   {/* Duration */}
-                  <TableCell className="py-3 px-4 font-mono text-sm text-muted-foreground">
+                  <TableCell className="font-mono text-xs text-muted-foreground">
                     {delivery.durationMs}ms
                   </TableCell>
 
                   {/* Payload Action */}
-                  <TableCell className="py-3 px-4 text-right">
+                  <TableCell className="text-right">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setSelectedDelivery(delivery)}
-                      className="h-8 text-sm gap-1.5 text-primary hover:text-primary hover:bg-primary/10"
+                      className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-primary active:not-aria-[haspopup]:translate-y-px"
                     >
                       <FileJson className="size-3.5" />
-                      Inspect
+                      <span>Inspect</span>
                     </Button>
                   </TableCell>
                 </TableRow>

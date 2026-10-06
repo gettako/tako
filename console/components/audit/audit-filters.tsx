@@ -39,18 +39,19 @@ export function AuditFilters({
   return (
     <div className="space-y-4">
       {/* Category Tabs (AC-1) */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-border/60 scrollbar-none">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
         {CATEGORIES.map((cat) => {
           const isActive = category === cat.id;
           return (
             <button
               key={cat.id}
+              type="button"
               onClick={() => onCategoryChange(cat.id)}
               className={cn(
-                'px-3.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border',
+                'h-8 px-3 rounded-lg text-xs font-medium whitespace-nowrap transition-all active:not-aria-[haspopup]:translate-y-px',
                 isActive
-                  ? 'bg-primary/10 border-primary/40 text-primary font-semibold'
-                  : 'bg-card border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
+                  : 'bg-muted/40 border border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/70'
               )}
             >
               {cat.label}
@@ -62,12 +63,12 @@ export function AuditFilters({
       {/* Search Input & Actor Dropdown Filter */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search action, target resource, or metadata..."
-            className="pl-8 text-xs h-9 bg-card"
+            placeholder="Search action, target resource, or actor..."
+            className="pl-8 text-xs h-9 bg-card border-border/70 shadow-2xs"
           />
         </div>
 
@@ -81,7 +82,7 @@ export function AuditFilters({
               ...actors.map((actor) => ({ value: actor.name, label: actor.name })),
             ]}
             size="sm"
-            className="h-9 w-44 text-xs bg-card"
+            className="h-9 w-48 text-xs bg-card border-border/70 shadow-2xs"
           />
         </div>
       </div>

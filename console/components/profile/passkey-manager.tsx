@@ -16,6 +16,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
 import { Fingerprint, Plus, Trash2, ShieldCheck, Loader2 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
@@ -99,30 +107,30 @@ export function PasskeyManager() {
               </p>
             </div>
           ) : (
-            <div className="rounded-lg border border-border/60 overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-muted/40 border-b border-border/60 text-[11px] font-semibold text-muted-foreground">
-                  <tr className="h-10">
-                    <th className="py-2 px-4">Passkey Name</th>
-                    <th className="py-2 px-4">Created Date</th>
-                    <th className="py-2 px-4">Last Used</th>
-                    <th className="py-2 px-4 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
+            <div className="rounded-xl border border-border/70 overflow-hidden shadow-2xs">
+              <Table>
+                <TableHeader className="bg-muted/40 border-b border-border/60">
+                  <TableRow className="h-11 hover:bg-transparent">
+                    <TableHead className="w-[40%]">Passkey Name</TableHead>
+                    <TableHead className="w-[25%]">Created Date</TableHead>
+                    <TableHead className="w-[20%]">Last Used</TableHead>
+                    <TableHead className="text-right w-[15%]">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-border/40">
                   {passkeys.map((key) => (
-                    <tr key={key.id} className="h-12 hover:bg-muted/30 transition-colors">
-                      <td className="py-2.5 px-4 font-semibold text-foreground flex items-center gap-2">
+                    <TableRow key={key.id} className="h-14 hover:bg-muted/30 transition-colors">
+                      <TableCell className="font-semibold text-foreground flex items-center gap-2">
                         <ShieldCheck className="size-3.5 text-status-success shrink-0" />
                         <span>{key.name}</span>
-                      </td>
-                      <td className="py-2.5 px-4 text-muted-foreground font-mono text-[11px]">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground font-mono text-xs">
                         {new Date(key.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="py-2.5 px-4 text-muted-foreground text-[11px]">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
                         {key.lastUsedAt || 'Never'}
-                      </td>
-                      <td className="py-2.5 px-4 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -131,16 +139,16 @@ export function PasskeyManager() {
                               deleteMutation.mutate(key.id);
                             }
                           }}
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-status-danger"
+                          className="size-8 p-0 text-muted-foreground hover:text-status-danger active:not-aria-[haspopup]:translate-y-px"
                           title="Remove passkey"
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

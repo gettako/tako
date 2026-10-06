@@ -7,7 +7,9 @@ import { AuditFilters, AuditCategory } from '@/components/audit/audit-filters';
 import { AuditTable } from '@/components/audit/audit-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
-import { History } from 'lucide-react';
+import { History, ShieldCheck, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 export default function AuditLogsPage() {
   const [category, setCategory] = useState<AuditCategory>('all');
@@ -56,19 +58,53 @@ export default function AuditLogsPage() {
     return true;
   });
 
+  const handleExportJson = () => {
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(filteredLogs, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `audit-logs-${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    toast.success(`Exported ${filteredLogs.length} audit event records`);
+  };
+
   return (
     <>
       <title>Security Audit Logs — Takō Cloud</title>
       <div className="space-y-8">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-          Security Audit Logs
-        </h1>
-        <p className="text-base text-muted-foreground mt-1">
-          Immutable event ledger tracking administrative operations, deployments, role adjustments, and logins.
-        </p>
-      </div>
+        {/* Page Header (Base Vega Gradient Hero) */}
+        <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-6 sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
+                  Security Audit Logs
+                </h1>
+
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                  <ShieldCheck className="size-3.5 text-primary" />
+                  Immutable Audit Ledger
+                </span>
+              </div>
+
+              <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
+                Cryptographically tracked ledger recording administrative operations, deployments, role modifications, and authentication events.
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportJson}
+              disabled={filteredLogs.length === 0}
+              className="gap-1.5 text-xs h-9 shadow-2xs bg-card border-border/70 active:not-aria-[haspopup]:translate-y-px shrink-0"
+            >
+              <Download className="size-3.5" />
+              <span>Export Ledger JSON</span>
+            </Button>
+          </div>
+        </div>
 
       {/* Filter Controls (AC-1) */}
       <AuditFilters

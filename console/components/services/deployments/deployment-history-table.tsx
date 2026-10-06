@@ -49,7 +49,7 @@ export function DeploymentHistoryTable({
   return (
     <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
       {/* Table Header Toolbar (Base Vega pattern) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 border-b border-border/60 bg-muted/20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-b border-border/60 bg-muted/20">
         <div className="flex items-center gap-2.5">
           <h4 className="text-sm font-semibold tracking-tight text-foreground">
             All Deployments
@@ -91,92 +91,79 @@ export function DeploymentHistoryTable({
       </div>
 
       {/* Table Data */}
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/40 hover:bg-muted/40 border-b border-border/60">
-              <TableHead className="h-10 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pl-5 w-[200px]">
-                Commit
-              </TableHead>
-              <TableHead className="h-10 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Message & Branch
-              </TableHead>
-              <TableHead className="h-10 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[120px]">
-                Status
-              </TableHead>
-              <TableHead className="hidden sm:table-cell h-10 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[150px]">
-                Triggered
-              </TableHead>
-              <TableHead className="hidden md:table-cell h-10 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground w-[110px]">
-                Duration
-              </TableHead>
-              <TableHead className="h-10 text-right text-[11px] font-semibold uppercase tracking-wider text-muted-foreground pr-5 w-[140px]">
-                Actions
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredDeployments.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="h-28 text-center text-xs text-muted-foreground">
-                  <div className="flex flex-col items-center justify-center gap-1.5 py-4">
-                    <span>No deployments found matching &quot;{searchQuery}&quot;</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSearchQuery('')}
-                      className="text-xs h-7 text-primary hover:text-primary/90"
-                    >
-                      Clear search filter
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredDeployments.map((dep, index) => {
-                const isSelected = selectedDeploymentId === dep.id;
-                const canRollback =
-                  index < 5 && dep.status !== 'running' && dep.status !== 'queued';
-                const durationSec = dep.durationMs
-                  ? Math.round(dep.durationMs / 1000)
-                  : null;
-
-                return (
-                  <TableRow
-                    key={dep.id}
-                    onClick={() => onSelectDeployment(dep)}
-                    className={cn(
-                      'h-14 cursor-pointer transition-colors border-b border-border/40 last:border-b-0',
-                      isSelected
-                        ? 'bg-primary/5 dark:bg-primary/10 font-medium'
-                        : 'hover:bg-muted/30'
-                    )}
+      <Table>
+        <TableHeader className="bg-muted/40 border-b border-border/60">
+          <TableRow className="h-11 hover:bg-transparent">
+            <TableHead className="w-[180px]">Commit</TableHead>
+            <TableHead>Message & Branch</TableHead>
+            <TableHead className="w-[120px]">Status</TableHead>
+            <TableHead className="hidden sm:table-cell w-[150px]">Triggered</TableHead>
+            <TableHead className="hidden md:table-cell w-[110px]">Duration</TableHead>
+            <TableHead className="text-right w-[140px]">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-border/40">
+          {filteredDeployments.length === 0 ? (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={6} className="h-28 text-center text-xs text-muted-foreground">
+                <div className="flex flex-col items-center justify-center gap-1.5 py-4">
+                  <span>No deployments found matching &quot;{searchQuery}&quot;</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchQuery('')}
+                    className="text-xs h-7 text-primary hover:text-primary/90"
                   >
-                    {/* Commit Hash & Author */}
-                    <TableCell className="pl-5 relative">
-                      {isSelected && (
-                        <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r bg-primary" />
-                      )}
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold px-1.5 py-0.5 rounded-md border border-border/60 bg-muted/40 text-foreground">
-                            <GitCommit className="size-3 text-muted-foreground" />
-                            {dep.commitHash.substring(0, 7)}
-                          </span>
-                          {dep.isRollback && (
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] px-1.5 py-0 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-sans font-medium"
-                            >
-                              Rollback
-                            </Badge>
-                          )}
-                        </div>
-                        <span className="text-[11px] text-muted-foreground pl-0.5">
-                          by {dep.author}
+                    Clear search filter
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredDeployments.map((dep, index) => {
+              const isSelected = selectedDeploymentId === dep.id;
+              const canRollback =
+                index < 5 && dep.status !== 'running' && dep.status !== 'queued';
+              const durationSec = dep.durationMs
+                ? Math.round(dep.durationMs / 1000)
+                : null;
+
+              return (
+                <TableRow
+                  key={dep.id}
+                  onClick={() => onSelectDeployment(dep)}
+                  className={cn(
+                    'h-14 cursor-pointer transition-colors border-b border-border/40 last:border-b-0',
+                    isSelected
+                      ? 'bg-primary/5 dark:bg-primary/10 font-medium'
+                      : 'hover:bg-muted/30'
+                  )}
+                >
+                  {/* Commit Hash & Author */}
+                  <TableCell className="relative">
+                    {isSelected && (
+                      <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-r bg-primary" />
+                    )}
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold px-1.5 py-0.5 rounded-md border border-border/60 bg-muted/40 text-foreground">
+                          <GitCommit className="size-3 text-muted-foreground" />
+                          {dep.commitHash.substring(0, 7)}
                         </span>
+                        {dep.isRollback && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-sans font-medium"
+                          >
+                            Rollback
+                          </Badge>
+                        )}
                       </div>
-                    </TableCell>
+                      <span className="text-[11px] text-muted-foreground pl-0.5">
+                        by {dep.author}
+                      </span>
+                    </div>
+                  </TableCell>
 
                     {/* Commit Message & Branch */}
                     <TableCell>
@@ -228,7 +215,7 @@ export function DeploymentHistoryTable({
                     </TableCell>
 
                     {/* Rollback & Detail Actions */}
-                    <TableCell className="text-right pr-5">
+                    <TableCell className="text-right">
                       <div
                         className="flex items-center justify-end gap-1.5"
                         onClick={(e) => e.stopPropagation()}
@@ -238,7 +225,7 @@ export function DeploymentHistoryTable({
                             variant="outline"
                             size="sm"
                             onClick={() => onRequestRollback(dep)}
-                            className="h-7 px-2.5 text-xs border-border/80 hover:bg-muted text-foreground gap-1.5 shadow-2xs"
+                            className="h-7 px-2.5 text-xs border-border/80 hover:bg-muted text-foreground gap-1.5 shadow-2xs active:not-aria-[haspopup]:translate-y-px"
                           >
                             <RotateCcw className="size-3 text-muted-foreground" />
                             <span className="hidden lg:inline">Rollback</span>
@@ -269,7 +256,7 @@ export function DeploymentHistoryTable({
                           size="icon"
                           onClick={() => onSelectDeployment(dep)}
                           className={cn(
-                            'size-7 transition-colors',
+                            'size-7 transition-colors active:not-aria-[haspopup]:translate-y-px',
                             isSelected
                               ? 'bg-primary/10 text-primary hover:bg-primary/15 font-semibold'
                               : 'text-muted-foreground hover:text-foreground'
@@ -286,10 +273,9 @@ export function DeploymentHistoryTable({
             )}
           </TableBody>
         </Table>
-      </div>
 
       {/* Table Footer Summary (Base Vega pattern) */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-t border-border/60 bg-muted/10 text-xs text-muted-foreground font-mono">
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/60 bg-muted/10 text-xs text-muted-foreground font-mono">
         <span>
           Showing {filteredDeployments.length} of {deployments.length} releases
         </span>

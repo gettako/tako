@@ -7,6 +7,7 @@ import { getTimeSeriesMetrics } from '@/lib/api/metrics';
 import { MonitoringHeader, TimeRange } from '@/components/monitoring/monitoring-header';
 import { ClusterMetricChart, NodeSeriesData } from '@/components/monitoring/cluster-metric-chart';
 import { NetworkDiskCharts } from '@/components/monitoring/network-disk-charts';
+import { MonitoringNodesTable } from '@/components/monitoring/monitoring-nodes-table';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 
 const NODE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
@@ -102,7 +103,7 @@ export default function MonitoringPage() {
         {isLoading ? (
           <LoadingSkeleton variant="cards" />
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Multi-Node Comparative Breakdown Charts (AC-8) */}
             <ClusterMetricChart
               title="CPU Utilization Across Nodes"
@@ -122,6 +123,9 @@ export default function MonitoringPage() {
 
             {/* Network Ingress/Egress & Disk I/O Charts (AC-8) */}
             <NetworkDiskCharts metrics={clusterMetrics} />
+
+            {/* Live Hardware Telemetry Breakdown Table */}
+            <MonitoringNodesTable nodes={nodes} />
           </div>
         )}
       </div>

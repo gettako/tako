@@ -20,10 +20,10 @@ export interface ProjectsTableProps {
 
 export function ProjectsTable({ projects }: ProjectsTableProps) {
   return (
-    <div className="rounded-xl border border-border bg-card shadow-xs overflow-hidden">
+    <div className="rounded-xl border border-border/70 bg-card shadow-2xs overflow-hidden">
       <Table>
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
+        <TableHeader className="bg-muted/40 border-b border-border/60">
+          <TableRow className="h-11 hover:bg-transparent">
             <TableHead className="w-[280px]">Project</TableHead>
             <TableHead className="hidden sm:table-cell">Environment</TableHead>
             <TableHead>Status</TableHead>
@@ -33,7 +33,7 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody className="divide-y divide-border/40">
           {projects.map((project) => {
             const isStopped = project.status === 'stopped';
             const issueCount = Math.max(0, project.servicesCount - project.healthyServicesCount);
@@ -41,7 +41,7 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
             return (
               <TableRow
                 key={project.id}
-                className="group h-14 transition-colors hover:bg-muted/40 cursor-pointer"
+                className="group h-14 transition-colors hover:bg-muted/30 cursor-pointer"
                 onClick={() => {
                   window.location.href = `/projects/${project.id}`;
                 }}
@@ -126,9 +126,9 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                   <Link
                     href={`/projects/${project.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary"
+                    className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
                   >
-                    <ChevronRight className="size-4" />
+                    <ChevronRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
                     <span className="sr-only">View project</span>
                   </Link>
                 </TableCell>

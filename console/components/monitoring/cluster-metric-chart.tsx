@@ -92,8 +92,8 @@ export function ClusterMetricChart({
   });
 
   return (
-    <Card className="border-border/60 bg-card p-6">
-      <CardHeader className="px-0 pt-0 pb-4">
+    <Card className="rounded-xl border border-border/70 bg-card shadow-2xs">
+      <CardHeader>
         <SectionHeader
           icon={icon || (metricKey === 'cpu' ? Cpu : Activity)}
           title={title}
@@ -108,9 +108,9 @@ export function ClusterMetricChart({
                     type="button"
                     onClick={() => toggleNode(s.node.id)}
                     className={cn(
-                      'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border transition-all',
+                      'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border transition-all active:not-aria-[haspopup]:translate-y-px',
                       isVisible
-                        ? 'bg-muted/50 border-border text-foreground'
+                        ? 'bg-muted/50 border-border text-foreground shadow-2xs'
                         : 'opacity-40 line-through bg-transparent border-dashed text-muted-foreground'
                     )}
                   >
@@ -127,64 +127,63 @@ export function ClusterMetricChart({
         />
       </CardHeader>
 
-      <CardContent className="px-0 pt-2">
+      <CardContent className="pt-2">
         {!mounted ? (
           <div className="h-64 w-full animate-pulse rounded-md bg-muted/40" />
         ) : (
           <ChartContainer config={chartConfig} className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
+            <LineChart data={chartData} margin={{ top: 8, right: 12, left: -20, bottom: 0 }}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" stroke="var(--border)" strokeOpacity={0.35} />
 
-                <XAxis
-                  dataKey="time"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  tick={{ fontSize: 11, fill: 'currentColor' }}
-                  className="text-muted-foreground font-mono"
-                />
+              <XAxis
+                dataKey="time"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tick={{ fontSize: 11, fill: 'currentColor' }}
+                className="text-muted-foreground font-mono"
+              />
 
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={4}
-                  domain={[0, 100]}
-                  tick={{ fontSize: 11, fill: 'currentColor' }}
-                  className="text-muted-foreground font-mono"
-                />
+              <YAxis
+                tickLine={false}
+                axisLine={false}
+                tickMargin={4}
+                domain={[0, 100]}
+                tick={{ fontSize: 11, fill: 'currentColor' }}
+                className="text-muted-foreground font-mono"
+              />
 
-                <ChartTooltip
-                  cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                  content={
-                    <ChartTooltipContent
-                      className="font-mono text-xs"
-                      formatter={(val, name) => {
-                        const targetSeries = series.find((s) => s.node.id === name);
-                        return [`${val} ${unit}`, targetSeries?.node.name || String(name)];
-                      }}
-                    />
-                  }
-                />
+              <ChartTooltip
+                cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                content={
+                  <ChartTooltipContent
+                    className="font-mono text-xs"
+                    formatter={(val, name) => {
+                      const targetSeries = series.find((s) => s.node.id === name);
+                      return [`${val} ${unit}`, targetSeries?.node.name || String(name)];
+                    }}
+                  />
+                }
+              />
 
-                {series.map((s) => {
-                  if (visibleNodes[s.node.id] === false) return null;
-                  return (
-                    <Line
-                      key={s.node.id}
-                      type="monotone"
-                      dataKey={s.node.id}
-                      name={s.node.id}
-                      stroke={s.color}
-                      strokeWidth={2}
-                      strokeDasharray={s.dashPattern}
-                      dot={false}
-                      activeDot={{ r: 4, strokeWidth: 0 }}
-                    />
-                  );
-                })}
-              </LineChart>
-            </ResponsiveContainer>
+              {series.map((s) => {
+                if (visibleNodes[s.node.id] === false) return null;
+                return (
+                  <Line
+                    key={s.node.id}
+                    type="monotone"
+                    dataKey={s.node.id}
+                    name={s.node.id}
+                    stroke={s.color}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeDasharray={s.dashPattern}
+                    dot={false}
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                  />
+                );
+              })}
+            </LineChart>
           </ChartContainer>
         )}
       </CardContent>

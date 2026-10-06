@@ -107,10 +107,10 @@ export function BackupsTab({ service }: BackupsTabProps) {
         }
       />
 
-      <div className="rounded-lg border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
         <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
+          <TableHeader className="bg-muted/40 border-b border-border/60">
+            <TableRow className="h-11 hover:bg-transparent">
               <TableHead>Snapshot Archive</TableHead>
               <TableHead className="w-[120px]">Size</TableHead>
               <TableHead className="w-[140px]">Status</TableHead>
@@ -118,9 +118,9 @@ export function BackupsTab({ service }: BackupsTabProps) {
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody className="divide-y divide-border/40">
             {backups.map((item) => (
-              <TableRow key={item.id} className="h-14">
+              <TableRow key={item.id} className="h-14 hover:bg-muted/30 transition-colors">
                 <TableCell className="font-mono text-xs font-medium text-foreground">
                   <div className="flex items-center gap-2">
                     <Archive className="size-3.5 text-muted-foreground" />
@@ -131,7 +131,7 @@ export function BackupsTab({ service }: BackupsTabProps) {
                   {item.sizeMb} MB
                 </TableCell>
                 <TableCell>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-status-success/20 bg-status-success/10 px-2 py-0.5 text-[11px] font-medium text-status-success">
                     <CheckCircle2 className="size-3" />
                     Completed
                   </span>
@@ -150,7 +150,7 @@ export function BackupsTab({ service }: BackupsTabProps) {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRestore(item.name)}
-                      className="gap-1 text-xs h-7"
+                      className="gap-1 text-xs h-7 text-muted-foreground hover:text-foreground active:not-aria-[haspopup]:translate-y-px"
                     >
                       <RotateCcw className="size-3" />
                       <span className="hidden sm:inline">Restore</span>
@@ -159,7 +159,7 @@ export function BackupsTab({ service }: BackupsTabProps) {
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(item.id)}
-                      className="size-7 text-muted-foreground hover:text-destructive"
+                      className="size-7 text-muted-foreground hover:text-destructive active:not-aria-[haspopup]:translate-y-px"
                       title="Delete snapshot"
                     >
                       <Trash2 className="size-3" />

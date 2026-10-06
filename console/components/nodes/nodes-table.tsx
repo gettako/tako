@@ -42,24 +42,12 @@ export function NodesTable({ nodes }: NodesTableProps) {
       <Table>
         <TableHeader className="bg-muted/40 border-b border-border/60">
           <TableRow className="h-11 hover:bg-transparent">
-            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[26%]">
-              Node Hostname
-            </TableHead>
-            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[12%]">
-              Status
-            </TableHead>
-            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[18%]">
-              Network / IP Address
-            </TableHead>
-            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[16%]">
-              CPU Utilization
-            </TableHead>
-            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground w-[16%]">
-              Memory & Disk
-            </TableHead>
-            <TableHead className="py-2.5 px-4 font-semibold text-xs text-muted-foreground text-right w-[12%]">
-              Workloads
-            </TableHead>
+            <TableHead className="w-[26%]">Node Hostname</TableHead>
+            <TableHead className="w-[12%]">Status</TableHead>
+            <TableHead className="w-[18%]">Network / IP Address</TableHead>
+            <TableHead className="w-[16%]">CPU Utilization</TableHead>
+            <TableHead className="w-[16%]">Memory & Disk</TableHead>
+            <TableHead className="text-right w-[12%]">Workloads</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -84,7 +72,7 @@ export function NodesTable({ nodes }: NodesTableProps) {
                 }}
               >
                 {/* 1. Node Hostname & OS */}
-                <TableCell className="py-3 px-4">
+                <TableCell>
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground group-hover:text-primary group-hover:border-primary/40 transition-colors shrink-0">
                       <Server className="size-4" />
@@ -105,12 +93,12 @@ export function NodesTable({ nodes }: NodesTableProps) {
                 </TableCell>
 
                 {/* 2. Status Badge */}
-                <TableCell className="py-3 px-4">
+                <TableCell>
                   <StatusBadge status={node.status} size="sm" />
                 </TableCell>
 
                 {/* 3. Network / IP Address */}
-                <TableCell className="py-3 px-4">
+                <TableCell>
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5 font-mono text-xs text-foreground font-medium">
                       <span>{node.ipAddress}</span>
@@ -137,7 +125,7 @@ export function NodesTable({ nodes }: NodesTableProps) {
                 </TableCell>
 
                 {/* 4. CPU Utilization */}
-                <TableCell className="py-3 px-4 font-mono text-xs">
+                <TableCell className="font-mono text-xs">
                   {isOffline ? (
                     <span className="text-muted-foreground">0%</span>
                   ) : (
@@ -167,7 +155,7 @@ export function NodesTable({ nodes }: NodesTableProps) {
                 </TableCell>
 
                 {/* 5. Memory & Disk */}
-                <TableCell className="py-3 px-4 font-mono text-xs">
+                <TableCell className="font-mono text-xs">
                   <div className="space-y-0.5">
                     <div>
                       <span className="text-muted-foreground text-[10px] uppercase font-sans mr-1">
@@ -193,7 +181,7 @@ export function NodesTable({ nodes }: NodesTableProps) {
                 </TableCell>
 
                 {/* 6. Workloads & Action (Exact 6th Column) */}
-                <TableCell className="py-3 px-4 text-right">
+                <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2.5">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0">
                       <Boxes className="size-3 text-muted-foreground" />
