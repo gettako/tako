@@ -118,7 +118,7 @@ export default function DashboardPage() {
         <title>Cluster Overview — Takō Cloud</title>
         <div className="space-y-8 animate-pulse">
           {/* Header Banner Skeleton */}
-          <div className="rounded-2xl border border-border/60 bg-muted/20 p-6 sm:p-8 space-y-3">
+          <div className="rounded-2xl border border-border bg-muted/20 p-6 sm:p-8 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-2">
                 <div className="h-8 w-56 rounded-lg bg-muted/60" />
@@ -134,7 +134,7 @@ export default function DashboardPage() {
           {/* 4 Stat Cards Skeleton */}
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-border/60 bg-card p-5 space-y-3 shadow-xs">
+              <div key={i} className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="h-4 w-24 rounded bg-muted/50" />
                   <div className="size-8 rounded-lg bg-muted/40" />
@@ -157,7 +157,7 @@ export default function DashboardPage() {
               </div>
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="rounded-xl border border-border/60 bg-card p-6 space-y-4 shadow-xs">
+                  <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="size-9 rounded-xl bg-muted/50" />
@@ -177,8 +177,8 @@ export default function DashboardPage() {
             {/* 2 Bottom Widgets Skeleton */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="rounded-xl border border-border/60 bg-card p-6 space-y-4 shadow-xs">
-                  <div className="flex items-center justify-between pb-3 border-b border-border/40">
+                <div key={i} className="rounded-xl border border-border bg-card p-6 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-border">
                     <div className="flex items-center gap-3">
                       <div className="size-9 rounded-xl bg-muted/50" />
                       <div className="h-5 w-36 rounded bg-muted/60" />
@@ -259,18 +259,10 @@ export default function DashboardPage() {
                 Cluster Overview
               </h1>
               <div
-                className={cn(
-                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
-                  isAllHealthy
-                    ? 'border-status-success/30 bg-status-success/10 text-status-success'
-                    : 'border-status-warning/30 bg-status-warning/10 text-status-warning'
-                )}
+                className={cn( 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium', isAllHealthy ? 'border-status-success/30 bg-status-success/10 text-status-success' : 'border-status-warning/30 bg-status-warning/10 text-status-warning' )}
               >
                 <span
-                  className={cn(
-                    'size-1.5 rounded-full',
-                    isAllHealthy ? 'bg-status-success animate-pulse' : 'bg-status-warning'
-                  )}
+                  className={cn( 'size-1.5 rounded-full', isAllHealthy ? 'bg-status-success animate-pulse' : 'bg-status-warning' )}
                 />
                 <span>
                   {isAllHealthy
@@ -301,7 +293,7 @@ export default function DashboardPage() {
             <Button
               onClick={() => setIsCreateProjectOpen(true)}
               size="sm"
-              className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer shadow-xs"
+              className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
             >
               <Plus className="size-3.5" />
               <span>New Project</span>

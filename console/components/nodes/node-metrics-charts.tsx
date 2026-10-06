@@ -30,7 +30,7 @@ export function NodeMetricsCharts({ metrics, nodeName }: NodeMetricsChartsProps)
         title="Host Telemetry & Metrics"
         description={`Real-time resource utilization for ${nodeName} (sampled over the last hour)`}
         action={
-          <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border/60 bg-muted/20">
+          <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border bg-muted/20">
             {(['1h', '6h', '24h'] as const).map((range) => (
               <button
                 key={range}
@@ -38,7 +38,7 @@ export function NodeMetricsCharts({ metrics, nodeName }: NodeMetricsChartsProps)
                 onClick={() => setTimeRange(range)}
                 className={`px-2.5 py-1 text-xs font-mono rounded-md transition-all active:not-aria-[haspopup]:translate-y-px ${
                   timeRange === range
-                    ? 'bg-background text-foreground shadow-2xs font-semibold'
+                    ? 'bg-background text-foreground  font-semibold'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >

@@ -49,7 +49,7 @@ export function ProjectsHeader({
         <Button
           onClick={onNewProject}
           size="sm"
-          className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer shadow-xs"
+          className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-primary text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
         >
           <Plus className="size-3.5" />
           <span>Create Project</span>

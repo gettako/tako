@@ -47,7 +47,7 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
   };
 
   return (
-    <div className="rounded-lg border border-border bg-background text-foreground font-mono text-[13px] overflow-hidden shadow-sm">
+    <div className="rounded-lg border border-border bg-background text-foreground font-mono text-[13px] overflow-hidden">
       {/* Viewer Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-2 text-xs">
         <div className="flex items-center gap-2">

@@ -82,11 +82,7 @@ export function StepBadge({ step, isActive = false, onClick }: StepBadgeProps) {
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        'group flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all select-none whitespace-nowrap outline-none focus:outline-none focus-visible:outline-none',
-        style.container,
-        isActive && 'border-primary ring-1 ring-inset ring-primary shadow-xs'
-      )}
+      className={cn( 'group flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all select-none whitespace-nowrap outline-none focus:outline-none focus-visible:outline-none', style.container, isActive && 'border-primary ring-1 ring-inset ring-primary ' )}
     >
       <div className="relative flex size-2 items-center justify-center shrink-0">
         {style.pulse && (

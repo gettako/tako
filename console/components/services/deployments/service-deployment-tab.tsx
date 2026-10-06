@@ -107,7 +107,7 @@ export function ServiceDeploymentTab({
       {/* Selected Deployment Pipeline Detail */}
       {selectedDeployment && (
         <div className="rounded-lg border border-border bg-card p-6 space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-2 border-b border-border/60">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-2 border-b border-border">
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-sm text-foreground">

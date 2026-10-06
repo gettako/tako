@@ -92,7 +92,7 @@ export function ClusterMetricChart({
   });
 
   return (
-    <Card className="rounded-xl border border-border/70 bg-card shadow-2xs">
+    <Card className="rounded-xl border border-border bg-card">
       <CardHeader>
         <SectionHeader
           icon={icon || (metricKey === 'cpu' ? Cpu : Activity)}
@@ -107,12 +107,7 @@ export function ClusterMetricChart({
                     key={s.node.id}
                     type="button"
                     onClick={() => toggleNode(s.node.id)}
-                    className={cn(
-                      'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border transition-all active:not-aria-[haspopup]:translate-y-px',
-                      isVisible
-                        ? 'bg-muted/50 border-border text-foreground shadow-2xs'
-                        : 'opacity-40 line-through bg-transparent border-dashed text-muted-foreground'
-                    )}
+                    className={cn( 'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border transition-all active:not-aria-[haspopup]:translate-y-px', isVisible ? 'bg-muted/50 border-border text-foreground ' : 'opacity-40 line-through bg-transparent border-dashed text-muted-foreground' )}
                   >
                     <span
                       className="size-2 rounded-full shrink-0"

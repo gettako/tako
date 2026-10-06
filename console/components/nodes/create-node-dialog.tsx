@@ -97,7 +97,7 @@ export function CreateNodeDialog({
               </div>
             </div>
 
-            <div className="relative rounded-xl border border-border/70 bg-[#0B0C14] p-3.5 sm:p-4 font-mono text-xs sm:text-sm text-slate-200 shadow-2xs">
+            <div className="relative rounded-xl border border-border bg-[#0B0C14] p-3.5 sm:p-4 font-mono text-xs sm:text-sm text-slate-200">
               <pre className="overflow-x-auto whitespace-pre-wrap break-all leading-relaxed pr-10">
                 <code className="text-emerald-400 font-semibold">{installCommand}</code>
               </pre>
@@ -129,7 +129,7 @@ export function CreateNodeDialog({
               Automatic Provisioning Details
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="rounded-lg border border-border/70 bg-card p-3 space-y-1.5">
+              <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
                 <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                   <div className="size-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <Cpu className="size-3.5" />
@@ -141,7 +141,7 @@ export function CreateNodeDialog({
                 </p>
               </div>
 
-              <div className="rounded-lg border border-border/70 bg-card p-3 space-y-1.5">
+              <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
                 <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                   <div className="size-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <Network className="size-3.5" />
@@ -153,7 +153,7 @@ export function CreateNodeDialog({
                 </p>
               </div>
 
-              <div className="rounded-lg border border-border/70 bg-card p-3 space-y-1.5">
+              <div className="rounded-lg border border-border bg-card p-3 space-y-1.5">
                 <div className="flex items-center gap-2 text-foreground font-medium text-xs">
                   <div className="size-6 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <Server className="size-3.5" />
@@ -168,7 +168,7 @@ export function CreateNodeDialog({
           </div>
 
           {/* Node Prerequisites Checklist */}
-          <div className="rounded-xl border border-border/60 bg-muted/20 p-3 space-y-2 text-xs">
+          <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2 text-xs">
             <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
               <Shield className="size-3 text-primary" />
               Node Prerequisites
@@ -194,7 +194,7 @@ export function CreateNodeDialog({
           </div>
 
           {/* Waiting for Telemetry Indicator */}
-          <div className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3.5 py-2.5 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <span className="relative flex size-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-status-success opacity-75"></span>
@@ -206,7 +206,7 @@ export function CreateNodeDialog({
           </div>
         </div>
 
-        <DialogFooter className="pt-3 border-t border-border/60 flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <DialogFooter className="pt-3 border-t border-border flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div className="order-2 sm:order-1">
             <Button
               type="button"
@@ -239,7 +239,7 @@ export function CreateNodeDialog({
             <Button
               type="button"
               onClick={handleCopyCommand}
-              className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5 shadow-xs"
+              className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
             >
               {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
               <span>{copied ? 'Command Copied' : 'Copy Script'}</span>

@@ -51,12 +51,7 @@ export function DashboardChartsGrid({
                 key={r}
                 type="button"
                 onClick={() => onTimeRangeChange(r)}
-                className={cn(
-                  'px-2.5 py-1 rounded-md font-mono text-xs transition-colors cursor-pointer',
-                  timeRange === r
-                    ? 'bg-background text-foreground shadow-xs font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
+                className={cn( 'px-2.5 py-1 rounded-md font-mono text-xs transition-colors cursor-pointer', timeRange === r ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground' )}
               >
                 {r}
               </button>

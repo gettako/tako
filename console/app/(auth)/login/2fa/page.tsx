@@ -16,7 +16,7 @@ export default function TwoFactorPage() {
   return (
     <main className="flex min-h-svh items-center justify-center p-4 bg-background">
       <div className="w-full max-w-sm">
-        <Card className="border-border/80 shadow-md">
+        <Card className="border-border">
           <CardHeader>
             <CardTitle className="text-xl font-bold font-sans">Two-factor code</CardTitle>
             <CardDescription className="text-xs sm:text-sm">Enter the six-digit code from your authenticator app.</CardDescription>

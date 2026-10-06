@@ -41,7 +41,7 @@ export function LoadingSkeleton({
         </div>
         <div className="space-y-3">
           {Array.from({ length: count }).map((_, i) => (
-            <div key={i} className="flex h-14 items-center justify-between border-b border-border/50 px-2 last:border-none">
+            <div key={i} className="flex h-14 items-center justify-between border-b border-border px-2 last:border-none">
               <div className="flex items-center gap-3">
                 <Skeleton className="size-8 rounded-full" />
                 <div className="space-y-1.5">
@@ -98,7 +98,7 @@ export function LoadingSkeleton({
           </div>
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-2/3" />
-          <div className="pt-2 flex justify-between items-center border-t border-border/50">
+          <div className="pt-2 flex justify-between items-center border-t border-border">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="h-8 w-20" />
           </div>

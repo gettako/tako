@@ -80,7 +80,7 @@ export default function ProfilePage() {
       <ProfileInfoForm user={user} onUpdate={handleUpdate} />
 
       {/* 2. Two-Factor Authentication (TOTP) Card (AC-4) */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={ShieldCheck}

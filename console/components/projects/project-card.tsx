@@ -45,7 +45,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
     <Link href={`/projects/${project.id}`} className="block group outline-hidden h-[170px]">
       <Card
         size="sm"
-        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-border/80 group-hover:shadow-xs active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
+        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
       >
         <div className="p-4 pb-3 space-y-2.5">
           {/* Header: Project Name, Environment & Status */}
@@ -55,7 +55,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 {project.name}
               </CardTitle>
               <div className="flex items-center gap-2">
-                <span className="rounded-xs border border-border/80 bg-muted/60 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <span className="rounded-xs border border-border bg-muted/60 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {project.environment}
                 </span>
               </div>
@@ -75,7 +75,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
         </div>
 
         {/* Clean Single-Row Footer */}
-        <CardFooter className="px-4 py-2.5 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
+        <CardFooter className="px-4 py-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
           <div className="flex items-center gap-1.5 text-muted-foreground text-xs shrink-0">
             <Layers className="size-3 text-muted-foreground" />
             <span>

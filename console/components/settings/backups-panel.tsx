@@ -75,7 +75,7 @@ export function BackupsPanel() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Database}
@@ -104,7 +104,7 @@ export function BackupsPanel() {
           <CardContent className="px-0 space-y-5 pt-2">
             {/* Last Backup Status */}
             {schedule?.lastBackupAt && (
-              <div className="flex items-center justify-between p-3.5 rounded-lg border border-border/60 bg-muted/20 text-sm">
+              <div className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-muted/20 text-sm">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="size-4 text-status-success shrink-0" />
                   <span className="font-medium text-foreground">Last Successful Snapshot</span>
@@ -132,7 +132,7 @@ export function BackupsPanel() {
             </div>
 
             {enabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border/40">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border">
                 {/* Frequency */}
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium text-foreground">Frequency</Label>
@@ -178,7 +178,7 @@ export function BackupsPanel() {
             )}
 
             {/* Destination Bucket */}
-            <div className="space-y-1.5 pt-4 border-t border-border/40">
+            <div className="space-y-1.5 pt-4 border-t border-border">
               <Label className="text-sm font-medium text-foreground">Destination Storage Bucket</Label>
               <div className="max-w-md">
                 <SearchableSelect
@@ -199,7 +199,7 @@ export function BackupsPanel() {
             </div>
           </CardContent>
 
-          <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border/40">
+          <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
             <Button
               type="submit"
               size="sm"

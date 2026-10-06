@@ -92,14 +92,7 @@ export function ServiceHeader({
             <h1 className="text-3xl font-bold tracking-tight text-foreground">{service.name}</h1>
             <StatusBadge status={service.status} />
             <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded-xs px-2 py-0.5 text-xs font-semibold uppercase',
-                service.type === 'database'
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : service.type === 'compose'
-                  ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400'
-                  : 'bg-primary/10 text-primary'
-              )}
+              className={cn( 'inline-flex items-center gap-1 rounded-xs px-2 py-0.5 text-xs font-semibold uppercase', service.type === 'database' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : service.type === 'compose' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400' : 'bg-primary/10 text-primary' )}
             >
               <TypeIcon className="size-3" />
               <span>{service.databaseType || service.type}</span>

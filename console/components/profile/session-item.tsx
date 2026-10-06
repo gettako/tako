@@ -20,7 +20,7 @@ export function SessionItem({ session, onRevoke, isRevoking }: SessionItemProps)
   const DeviceIcon = isMobile ? Smartphone : Laptop;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-border/60 bg-muted/20 gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-border bg-muted/20 gap-3">
       <div className="flex items-start gap-3 min-w-0">
         <div className="p-2 rounded-md bg-muted text-muted-foreground shrink-0 mt-0.5">
           <DeviceIcon className="size-4" />

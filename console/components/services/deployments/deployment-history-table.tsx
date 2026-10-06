@@ -47,9 +47,9 @@ export function DeploymentHistoryTable({
   }, [deployments, searchQuery]);
 
   return (
-    <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-2xs">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       {/* Table Header Toolbar (Base Vega pattern) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-b border-border/60 bg-muted/20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-b border-border bg-muted/20">
         <div className="flex items-center gap-2.5">
           <h4 className="text-sm font-semibold tracking-tight text-foreground">
             All Deployments
@@ -92,7 +92,7 @@ export function DeploymentHistoryTable({
 
       {/* Table Data */}
       <Table>
-        <TableHeader className="bg-muted/40 border-b border-border/60">
+        <TableHeader className="bg-muted/40 border-b border-border">
           <TableRow className="h-11 hover:bg-transparent">
             <TableHead className="w-[180px]">Commit</TableHead>
             <TableHead>Message & Branch</TableHead>
@@ -132,12 +132,7 @@ export function DeploymentHistoryTable({
                 <TableRow
                   key={dep.id}
                   onClick={() => onSelectDeployment(dep)}
-                  className={cn(
-                    'h-14 cursor-pointer transition-colors border-b border-border/40 last:border-b-0',
-                    isSelected
-                      ? 'bg-primary/5 dark:bg-primary/10 font-medium'
-                      : 'hover:bg-muted/30'
-                  )}
+                  className={cn( 'h-14 cursor-pointer transition-colors border-b border-border last:border-b-0', isSelected ? 'bg-primary/5 dark:bg-primary/10 font-medium' : 'hover:bg-muted/30' )}
                 >
                   {/* Commit Hash & Author */}
                   <TableCell className="relative">
@@ -146,7 +141,7 @@ export function DeploymentHistoryTable({
                     )}
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold px-1.5 py-0.5 rounded-md border border-border/60 bg-muted/40 text-foreground">
+                        <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold px-1.5 py-0.5 rounded-md border border-border bg-muted/40 text-foreground">
                           <GitCommit className="size-3 text-muted-foreground" />
                           {dep.commitHash.substring(0, 7)}
                         </span>
@@ -225,7 +220,7 @@ export function DeploymentHistoryTable({
                             variant="outline"
                             size="sm"
                             onClick={() => onRequestRollback(dep)}
-                            className="h-7 px-2.5 text-xs border-border/80 hover:bg-muted text-foreground gap-1.5 shadow-2xs active:not-aria-[haspopup]:translate-y-px"
+                            className="h-7 px-2.5 text-xs border-border hover:bg-muted text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px"
                           >
                             <RotateCcw className="size-3 text-muted-foreground" />
                             <span className="hidden lg:inline">Rollback</span>
@@ -255,12 +250,7 @@ export function DeploymentHistoryTable({
                           variant={isSelected ? 'secondary' : 'ghost'}
                           size="icon"
                           onClick={() => onSelectDeployment(dep)}
-                          className={cn(
-                            'size-7 transition-colors active:not-aria-[haspopup]:translate-y-px',
-                            isSelected
-                              ? 'bg-primary/10 text-primary hover:bg-primary/15 font-semibold'
-                              : 'text-muted-foreground hover:text-foreground'
-                          )}
+                          className={cn( 'size-7 transition-colors active:not-aria-[haspopup]:translate-y-px', isSelected ? 'bg-primary/10 text-primary hover:bg-primary/15 font-semibold' : 'text-muted-foreground hover:text-foreground' )}
                           title={isSelected ? 'Currently inspecting' : 'Inspect deployment & logs'}
                         >
                           <ChevronRight className="size-4" />
@@ -275,7 +265,7 @@ export function DeploymentHistoryTable({
         </Table>
 
       {/* Table Footer Summary (Base Vega pattern) */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/60 bg-muted/10 text-xs text-muted-foreground font-mono">
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/10 text-xs text-muted-foreground font-mono">
         <span>
           Showing {filteredDeployments.length} of {deployments.length} releases
         </span>

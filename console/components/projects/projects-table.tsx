@@ -20,9 +20,9 @@ export interface ProjectsTableProps {
 
 export function ProjectsTable({ projects }: ProjectsTableProps) {
   return (
-    <div className="rounded-xl border border-border/70 bg-card shadow-2xs overflow-hidden">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
-        <TableHeader className="bg-muted/40 border-b border-border/60">
+        <TableHeader className="bg-muted/40 border-b border-border">
           <TableRow className="h-11 hover:bg-transparent">
             <TableHead className="w-[280px]">Project</TableHead>
             <TableHead className="hidden sm:table-cell">Environment</TableHead>

@@ -50,9 +50,9 @@ export function EnvTableView({ envVars, onChange }: EnvTableViewProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>
-          <TableHeader className="bg-muted/40 border-b border-border/60">
+          <TableHeader className="bg-muted/40 border-b border-border">
             <TableRow className="h-11 hover:bg-transparent">
               <TableHead className="w-[280px]">Key</TableHead>
               <TableHead>Value</TableHead>
@@ -111,12 +111,7 @@ export function EnvTableView({ envVars, onChange }: EnvTableViewProps) {
                       <button
                         type="button"
                         onClick={() => handleUpdate(item.id, 'isSecret', !item.isSecret)}
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors select-none',
-                          item.isSecret
-                            ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20'
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                        )}
+                        className={cn( 'inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors select-none', item.isSecret ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20' : 'bg-muted text-muted-foreground hover:bg-muted/80' )}
                         title="Toggle secret masking"
                       >
                         <Lock className="size-3" />

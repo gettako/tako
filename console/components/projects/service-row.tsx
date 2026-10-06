@@ -39,12 +39,7 @@ export function ServiceRow({ service }: ServiceRowProps) {
       <TableCell className="font-medium">
         <div className="flex items-center gap-2.5">
           <span
-            className={cn(
-              'flex size-7 items-center justify-center rounded-md shrink-0',
-              service.type === 'database'
-                ? 'border border-status-success/20 bg-status-success/10 text-status-success'
-                : 'border border-primary/20 bg-primary/10 text-primary'
-            )}
+            className={cn( 'flex size-7 items-center justify-center rounded-md shrink-0', service.type === 'database' ? 'border border-status-success/20 bg-status-success/10 text-status-success' : 'border border-primary/20 bg-primary/10 text-primary' )}
           >
             <TypeIcon className="size-3.5" />
           </span>

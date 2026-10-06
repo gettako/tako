@@ -19,11 +19,7 @@ export function StatusAccentCard({
 }: StatusAccentCardProps) {
   return (
     <div
-      className={cn(
-        'relative rounded-xl border border-border bg-card p-4 sm:p-5 text-card-foreground shadow-xs overflow-hidden',
-        hoverable && 'transition-all duration-150 hover:border-border/80 hover:shadow-sm',
-        className
-      )}
+      className={cn( 'relative rounded-xl border border-border bg-card p-4 sm:p-5 text-card-foreground overflow-hidden', hoverable && 'transition-colors duration-150 hover:border-foreground/40', className )}
       {...props}
     >
       {children}

@@ -163,22 +163,19 @@ export function AuditDetailDrawer({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full sm:w-[500px] md:w-[540px] lg:w-[38vw] xl:w-[35vw] max-w-full sm:max-w-[50vw] xl:max-w-[640px] flex flex-col p-0 gap-0 border-l border-border/80 bg-background dark:bg-[#0B0C14] shadow-2xl"
+        className="w-full sm:w-[500px] md:w-[540px] lg:w-[38vw] xl:w-[35vw] max-w-full sm:max-w-[50vw] xl:max-w-[640px] flex flex-col p-0 gap-0 border-l border-border bg-background"
       >
         {/* Section Header (Base Vega Squircle Icon Pattern) */}
-        <SheetHeader className="p-5 sm:p-6 pb-4 sm:pb-5 border-b border-border/60 bg-muted/15 dark:bg-muted/5 flex flex-col gap-3">
+        <SheetHeader className="p-5 sm:p-6 pb-4 sm:pb-5 border-b border-border bg-muted/15 dark:bg-muted/5 flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2 flex-wrap">
               <Badge
                 variant="outline"
-                className={cn(
-                  'font-mono text-xs uppercase font-semibold px-2.5 py-0.5 tracking-wider',
-                  getTargetBadgeColor(log.targetType)
-                )}
+                className={cn( 'font-mono text-xs uppercase font-semibold px-2.5 py-0.5 tracking-wider', getTargetBadgeColor(log.targetType) )}
               >
                 {log.targetType}
               </Badge>
-              <span className="font-mono text-xs px-2.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border/50">
+              <span className="font-mono text-xs px-2.5 py-0.5 rounded-md bg-muted/60 text-muted-foreground border border-border">
                 {log.id}
               </span>
               <span className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
@@ -209,9 +206,9 @@ export function AuditDetailDrawer({
               <span className="text-xs font-mono text-muted-foreground">ID: {log.actor.id}</span>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 p-3.5 sm:p-4 rounded-xl border border-border/70 bg-card shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 p-3.5 sm:p-4 rounded-xl border border-border bg-card">
               <div className="flex items-center gap-3 min-w-0">
-                <Avatar className="size-10 border border-border/80 shadow-2xs shrink-0">
+                <Avatar className="size-10 border border-border shrink-0">
                   <AvatarImage src={log.actor.avatarUrl} alt={log.actor.name} />
                   <AvatarFallback className="font-semibold text-xs sm:text-sm bg-primary/10 text-primary">
                     {getInitials(log.actor.name)}
@@ -228,7 +225,7 @@ export function AuditDetailDrawer({
               </div>
 
               <div className="shrink-0 flex items-center gap-2 self-start sm:self-auto">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted/60 text-muted-foreground border border-border/60">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-muted/60 text-muted-foreground border border-border">
                   <User className="size-3.5 text-muted-foreground" />
                   Operator Profile
                 </span>
@@ -243,7 +240,7 @@ export function AuditDetailDrawer({
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Target Resource */}
-              <div className="p-3.5 rounded-xl border border-border/70 bg-card shadow-2xs space-y-1.5 min-w-0">
+              <div className="p-3.5 rounded-xl border border-border bg-card space-y-1.5 min-w-0">
                 <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <TargetIcon className="size-3.5 text-muted-foreground shrink-0" />
                   Target Resource
@@ -257,7 +254,7 @@ export function AuditDetailDrawer({
               </div>
 
               {/* Target ID */}
-              <div className="p-3.5 rounded-xl border border-border/70 bg-card shadow-2xs space-y-1.5 min-w-0">
+              <div className="p-3.5 rounded-xl border border-border bg-card space-y-1.5 min-w-0">
                 <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Hash className="size-3.5 text-muted-foreground shrink-0" />
                   Target ID
@@ -272,7 +269,7 @@ export function AuditDetailDrawer({
               </div>
 
               {/* Source IP */}
-              <div className="p-3.5 rounded-xl border border-border/70 bg-card shadow-2xs space-y-1.5 min-w-0">
+              <div className="p-3.5 rounded-xl border border-border bg-card space-y-1.5 min-w-0">
                 <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Globe className="size-3.5 text-muted-foreground shrink-0" />
                   Source IP
@@ -284,7 +281,7 @@ export function AuditDetailDrawer({
               </div>
 
               {/* Timestamp */}
-              <div className="p-3.5 rounded-xl border border-border/70 bg-card shadow-2xs space-y-1.5 min-w-0">
+              <div className="p-3.5 rounded-xl border border-border bg-card space-y-1.5 min-w-0">
                 <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <Clock className="size-3.5 text-muted-foreground shrink-0" />
                   Recorded At
@@ -309,12 +306,12 @@ export function AuditDetailDrawer({
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Structured Metadata Attributes
               </span>
-              <div className="p-4 rounded-xl border border-border/70 bg-card shadow-2xs">
+              <div className="p-4 rounded-xl border border-border bg-card">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {Object.entries(log.metadata).map(([key, val]) => (
                     <div
                       key={key}
-                      className="p-3 rounded-lg bg-muted/40 border border-border/60 space-y-1"
+                      className="p-3 rounded-lg bg-muted/40 border border-border space-y-1"
                     >
                       <span className="text-[11px] font-mono text-muted-foreground uppercase font-semibold">
                         {key}
@@ -336,7 +333,7 @@ export function AuditDetailDrawer({
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Raw Event Payload
                 </span>
-                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border/50">
+                <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border">
                   {jsonLines.length} lines • {new Blob([jsonContent]).size} B
                 </span>
               </div>
@@ -344,7 +341,7 @@ export function AuditDetailDrawer({
                 variant="outline"
                 size="sm"
                 onClick={handleCopyJson}
-                className="h-8 text-xs gap-1.5 border-border/80 bg-card hover:bg-muted/60 active:not-aria-[haspopup]:translate-y-px shadow-2xs cursor-pointer"
+                className="h-8 text-xs gap-1.5 border-border bg-card hover:bg-muted/60 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
               >
                 {copied ? (
                   <Check className="size-3.5 text-emerald-500 dark:text-emerald-400" />
@@ -355,11 +352,11 @@ export function AuditDetailDrawer({
               </Button>
             </div>
 
-            <div className="rounded-xl bg-[#0B0C14] border border-white/14 shadow-inner overflow-hidden">
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
               {/* Window title bar */}
-              <div className="flex items-center justify-between px-4 py-2 border-b border-white/10 bg-white/5 text-xs font-mono text-[#939DB8]">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/20 text-xs font-mono text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-emerald-400 shadow-xs" />
+                  <span className="size-2 rounded-full bg-emerald-400" />
                   <span className="text-white/80 font-medium">audit-event-{log.id}.json</span>
                 </div>
                 <span className="text-[11px] opacity-70">application/json</span>

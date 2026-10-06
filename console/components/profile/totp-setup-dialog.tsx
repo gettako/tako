@@ -103,7 +103,7 @@ export function TotpSetupDialog({
         {/* Step 1: QR Code & Manual Secret Key */}
         {step === 1 && (
           <div className="space-y-4 py-3 text-xs">
-            <div className="flex flex-col items-center justify-center p-4 rounded-lg border border-border/60 bg-white dark:bg-card">
+            <div className="flex flex-col items-center justify-center p-4 rounded-lg border border-border bg-white dark:bg-card">
               {/* Simulated QR Code matrix illustration */}
               <div className="size-40 p-2 border-2 border-zinc-900 rounded-md bg-white flex flex-col justify-between">
                 <div className="flex justify-between">
@@ -220,7 +220,7 @@ export function TotpSetupDialog({
               Save these one-time recovery codes in a safe location. They allow emergency access if you lose your phone or security device.
             </p>
 
-            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border border-border/80 bg-[#0B0C14] text-[#939DB8] font-mono text-[11px] text-center">
+            <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border border-border bg-[#0B0C14] text-[#939DB8] font-mono text-[11px] text-center">
               {RECOVERY_CODES.map((c, i) => (
                 <div key={i} className="py-1">
                   {c}

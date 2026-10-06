@@ -24,7 +24,7 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
 
   if (deliveries.length === 0) {
     return (
-      <div className="text-center py-8 border border-dashed border-border/60 rounded-lg">
+      <div className="text-center py-8 border border-dashed border-border rounded-lg">
         <Clock className="size-8 text-muted-foreground/40 mx-auto mb-2" />
         <p className="text-sm text-muted-foreground">No webhook deliveries recorded yet.</p>
         <p className="text-sm text-muted-foreground mt-1">
@@ -36,9 +36,9 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
 
   return (
     <>
-      <div className="rounded-xl border border-border/70 overflow-hidden bg-card shadow-2xs">
+      <div className="rounded-xl border border-border overflow-hidden bg-card">
         <Table>
-          <TableHeader className="bg-muted/40 border-b border-border/60">
+          <TableHeader className="bg-muted/40 border-b border-border">
             <TableRow className="h-11 hover:bg-transparent">
               <TableHead className="w-[30%]">Timestamp</TableHead>
               <TableHead className="w-[20%]">Event</TableHead>
@@ -65,7 +65,7 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
 
                   {/* Event Tag */}
                   <TableCell>
-                    <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-muted text-foreground border border-border/40">
+                    <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-muted text-foreground border border-border">
                       {delivery.event}
                     </span>
                   </TableCell>
@@ -80,11 +80,7 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
                       )}
                       <Badge
                         variant="outline"
-                        className={
-                          isSuccess
-                            ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs'
-                            : 'bg-status-danger/10 text-status-danger border-status-danger/30 font-mono text-xs'
-                        }
+                        className={isSuccess ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs' : 'bg-status-danger/10 text-status-danger border-status-danger/30 font-mono text-xs'}
                       >
                         {delivery.statusCode} {isSuccess ? 'OK' : 'Error'}
                       </Badge>

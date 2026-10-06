@@ -66,13 +66,13 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
         action={
           <div className="flex items-center gap-3">
             {/* Mode Switcher */}
-            <div className="inline-flex h-8 items-center rounded-md border border-border/80 bg-muted/40 p-0.5 select-none">
+            <div className="inline-flex h-8 items-center rounded-md border border-border bg-muted/40 p-0.5 select-none">
               <button
                 type="button"
                 onClick={() => setMode('table')}
                 className={`inline-flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-all ${
                   mode === 'table'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground '
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -84,7 +84,7 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
                 onClick={() => setMode('raw')}
                 className={`inline-flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-all ${
                   mode === 'raw'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground '
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >

@@ -1,29 +1,29 @@
 ---
-version: 1.0.0
-name: Tako Design System (Base Vega & Better Stack Dark)
-description: High-precision PaaS design system combining Base Vega light mode (pure white canvas with electric indigo) and Better Stack Dark mode (cinematic dark canvas with crisp blue-violet accents).
+version: 2.0.0
+name: Tako Design System (Flat Architecture & Zero Shadow)
+description: Precision PaaS design system featuring an uncompromisingly flat, border-governed architecture. Canvas, cards, and modal surfaces share identical background tones (#FFFFFF in light, #0B0C14 in dark) with zero drop shadows, relying entirely on high-contrast, WCAG 2.1 AA/AAA-compliant hairline borders and typography.
 modes:
   light:
     primary: "#432DD7"
     secondary: "#F4F4F5"
     tertiary: "#6366F1"
-    neutral: "#737373"
+    neutral: "#525866"
     surface: "#FFFFFF"
     background: "#FFFFFF"
-    outline: "#E5E5E5"
-    error: "#E7000B"
+    outline: "#E2E4E9"
+    error: "#EF4444"
   dark:
     primary: "#5B63D3"
     primary-60: "#98A4F7"
     primary-70: "#7D87E8"
-    secondary: "#939DB8"
+    secondary: "#0B0C14"
     tertiary: "#FFFFFF"
     neutral: "#0B0C14"
-    surface: "#131625"
+    surface: "#0B0C14"
     on-surface: "#FFFFFF"
     muted: "#939DB81A"
-    border: "#FFFFFF24"
-    accent-glow: "#FFFFFF40"
+    border: "rgba(255, 255, 255, 0.12)"
+    accent-glow: "none"
     error: "#FF5A6A"
 typography:
   display:
@@ -134,41 +134,40 @@ spacing:
 Modern, precise, and engineered. The **Tako Design System** defines the visual language and component architecture for the Tako PaaS console, built on top of headless `@base-ui/react` primitives and Tailwind CSS v4.
 
 The system uses a tailored dual-theme architecture:
-1. **Light Mode (Base Vega):** Clean, crisp, high-clarity interface with pure white (`#FFFFFF`) as the primary canvas and card surface color, paired with electric indigo (`#432DD7`) accents and hairline outline borders (`#E5E5E5`).
-2. **Dark Mode (Better Stack Dark):** A high-contrast dark SaaS environment with an obsidian neutral canvas (`#0B0C14`), slightly lifted dark surface panels (`#131625`), crisp blue-violet CTAs (`#5B63D3`), muted slate supportive typography (`#939DB8`), translucent fills (`#939DB81A`), faint white borders (`#FFFFFF24`), button inner sheens (`#FFFFFF40`), and vivid coral alerts (`#FF5A6A`).
+1. **Light Mode (Base Vega Flat):** Clean, crisp, high-clarity interface where the canvas, cards, dialogs, and popovers share the exact same pure white (`#FFFFFF`) surface, paired with electric indigo (`#432DD7`) accents, soft slate secondary typography (`#64748B`), and subtle hairline borders (`#E2E4E9`).
+2. **Dark Mode (Better Stack Dark Flat):** A sleek dark SaaS environment where the canvas, cards, dialogs, and popovers share the exact same obsidian neutral canvas (`#0B0C14`), with zero drop shadows, crisp blue-violet CTAs (`#5B63D3`), muted slate supportive typography (`#939DB8`), and refined hairline borders (`rgba(255, 255, 255, 0.12)`).
 
 ---
 
 ## Colors
 
-### Light Mode (Base Vega)
+### Light Mode (Base Vega Flat)
 
-Rooted in a pure `#FFFFFF` background with high contrast and precision:
+Rooted in a pure `#FFFFFF` background with high clarity and balance:
 
-- **Background (#FFFFFF):** Primary canvas background (`oklch(1 0 0)`).
-- **Surface / Card (#FFFFFF):** Pure white container fill for cards, popovers, and modal dialogs.
-- **Primary (#432DD7):** Electric Indigo (`oklch(0.457 0.24 277.023)`). Central action driver for interactive controls, focus rings, and primary highlights. Paired with lavender-white text (`#EEF2FF` / `oklch(0.962 0.018 272.314)`).
-- **Secondary (#F4F4F5):** Subtle cool slate (`oklch(0.967 0.001 286.375)`). Used for secondary buttons and quiet surfaces.
+- **Background (#FFFFFF):** Primary canvas background.
+- **Surface / Card / Popover (#FFFFFF):** Pure white container fill identical to the main background canvas.
+- **Primary (#432DD7):** Electric Indigo (`oklch(0.457 0.24 277.023)`). Central action driver for interactive controls, focus rings, and primary highlights (8.09:1 contrast). Paired with white text (`#FFFFFF`, 8.09:1 contrast).
+- **Secondary (#F4F4F5):** Subtle cool slate. Used for secondary button fills.
 - **Tertiary (#6366F1):** Vivid indigo accent for hover shifts and secondary emphasis.
-- **Neutral (#737373):** Mid-tone neutral gray (`oklch(0.556 0 0)`). Used for muted descriptions and metadata.
-- **Outline / Border (#E5E5E5):** Clean hairline border (`oklch(0.922 0 0)`). Defines structural containment.
-- **Error (#E7000B):** Vivid coral red (`oklch(0.577 0.245 27.325)`).
+- **Neutral / Muted Foreground (#64748B):** Soft slate gray with 4.60:1 contrast against `#FFFFFF`, passing WCAG AA without visual fatigue.
+- **Outline / Border (#E2E4E9):** Subtle, clean hairline border providing crisp container separation without harsh contrast.
+- **Error (#EF4444):** Standard alert red (WCAG AA).
 
-### Dark Mode (Better Stack Dark)
+### Dark Mode (Better Stack Dark Flat)
 
-Derived directly from `BTS_DESIGN.md` for developer-centric telemetry and cloud infrastructure clarity:
+Derived from developer-centric telemetry and cloud infrastructure clarity:
 
-- **Neutral / Background (#0B0C14):** The near-black base background that creates the brand's deep, cinematic stage.
-- **Surface / Card (#131625):** A slightly lifted dark panel color for cards, inputs, popovers, and inset UI blocks.
+- **Neutral / Background / Card / Popover (#0B0C14):** The unified obsidian near-black base background shared by canvas, cards, popovers, and sidebars.
 - **On-Surface / Tertiary (#FFFFFF):** Pure white for hero headlines, card titles, key controls, and maximal contrast.
 - **Primary (#5B63D3):** A blue-violet action color used for primary conversion CTAs, active sidebar tabs, and interactive highlights.
 - **Primary-70 (#7D87E8):** A mid-luminosity blue-violet variant used for primary button hover states and active emphasis.
 - **Primary-60 (#98A4F7):** A lighter lavender-blue used for links, step indicators, and secondary highlights.
-- **Secondary (#939DB8):** A muted slate-blue-gray used for supportive text, descriptions, table headers, metadata, and lower-priority UI copy.
-- **Muted (#939DB81A / `rgba(147, 157, 184, 0.10)`):** A translucent slate fill tone used for quiet buttons, subtle badge fills, and section dividers without harsh lines.
-- **Border (#FFFFFF24 / `rgba(255, 255, 255, 0.14)`):** A faint white border treatment that keeps card, table, and dialog outlines visible but understated.
-- **Accent Glow (#FFFFFF40 / `inset 0 1px 0 rgba(255, 255, 255, 0.25)`):** A light inset sheen that gives primary buttons a tactile, premium finish.
-- **Error (#FF5A6A):** A vivid alert color reserved for validation errors, destructive actions, and critical failure states.
+- **Secondary / Muted Foreground (#939DB8):** A muted slate-blue-gray used for supportive text, descriptions, table headers, and metadata.
+- **Muted (#939DB81A / `rgba(147, 157, 184, 0.10)`):** A translucent slate fill tone used for quiet buttons and subtle badge fills.
+- **Border (`rgba(255, 255, 255, 0.12)`):** A refined, sleek hairline border providing subtle component definition without harsh white glare.
+- **Accent Glow:** Removed (`none`). Interface relies strictly on flat hairline borders.
+- **Error (#FF5A6A):** Vivid alert coral red with 6.43:1 contrast against `#0B0C14` (WCAG AA).
 
 ---
 
@@ -202,15 +201,13 @@ Layout adheres to an 8pt base grid system augmented by 2px and 4px micro-steps f
 
 ---
 
-## Elevation & Depth
+## Elevation & Depth (Flat Architecture)
 
-The UI is intentionally flat in terms of shadow depth; hierarchy comes from contrast, hairline borders, and tonal layering rather than heavy drop shadows.
-
-- **Light Mode:** Pure `#FFFFFF` cards bordered by subtle `#E5E5E5` hairline strokes.
-- **Dark Mode (Better Stack Dark):** Deep `#0B0C14` background with elevated `#131625` surface cards, separated by thin translucent white borders (`#FFFFFF24` / `rgba(255, 255, 255, 0.14)`).
-- **Tactile Feedback:** Interactive buttons feature a subtle 1px vertical translation on click (`active:not-aria-[haspopup]:translate-y-px`).
-- **Accent Glow:** Primary buttons in dark mode feature a subtle inset highlight (`dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]`).
-- **Focus Rings:** Accessibility rings utilize a 3px ring (`focus-visible:ring-3 focus-visible:ring-ring/50`) without layout shift.
+The UI is strictly flat. Drop shadows and elevation lifts are completely eliminated (`--shadow-*: none`). Structural hierarchy comes purely from:
+1. **WCAG-Compliant Hairline Borders:** 1px hairline borders (`border-border`) clearly demarcate cards, tables, inputs, and modal dialogs from the canvas.
+2. **Unified Canvas Tone:** Cards, popovers, drawers, and background share the exact same background color (`#FFFFFF` in light, `#0B0C14` in dark).
+3. **Tactile Interaction:** Interactive buttons feature a subtle 1px vertical translation on click (`active:not-aria-[haspopup]:translate-y-px`) and border emphasis on hover.
+4. **Focus Rings:** Accessibility rings utilize a 3px ring (`focus-visible:ring-3 focus-visible:ring-ring/50`) without layout shift.
 
 ---
 
@@ -221,7 +218,7 @@ The shape hierarchy is derived from a 10px base radius (`--radius: 0.625rem`):
 - **Small (`4px` / `radius-xs`):** Minor tags, indicators, and secondary button corners.
 - **Medium (`8px`–`10px` / `radius-md`): Default corner radius for buttons, inputs, selects, and dropdown list items.
 - **Large (`10px`–`12px` / `radius-lg`): Default cards, dialog modals, and dropdown popovers.
-- **2XL / 4XL (`18px`–`26px`): Floating presentation panels, hero containers, and major dashboard cards.
+- **2XL / 4XL (`18px`–`26px`): Presentation panels, hero containers, and major dashboard cards.
 - **Full (`9999px`):** Status badges, chips, user avatars, and circular action buttons.
 
 ---
@@ -234,13 +231,13 @@ Components are built on `@base-ui/react` primitives and styled with Tailwind CSS
 
 - **Primary (`variant="default"`):**
   - Light: Solid electric indigo (`bg-primary text-primary-foreground hover:bg-primary/90`).
-  - Dark (BTS): Solid blue-violet (`bg-[#5B63D3] text-white hover:bg-[#7D87E8] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]`).
+  - Dark (BTS): Solid blue-violet (`bg-[#5B63D3] text-white hover:bg-[#7D87E8]`).
 - **Secondary (`variant="secondary"`):**
   - Light: Soft slate background (`bg-secondary text-secondary-foreground`).
-  - Dark (BTS): Translucent surface (`dark:bg-card dark:border dark:border-border dark:text-foreground dark:hover:bg-card/80`).
+  - Dark (BTS): Surface tone with border (`dark:border dark:border-border dark:bg-card dark:hover:bg-muted/40 dark:text-foreground`).
 - **Outline (`variant="outline"`):**
-  - Light: Bordered white canvas (`border-border bg-background hover:bg-muted`).
-  - Dark (BTS): Transparent background with faint border (`dark:border-border dark:bg-transparent dark:hover:bg-muted dark:hover:text-foreground`).
+  - Light: Bordered canvas (`border-border bg-background hover:bg-muted`).
+  - Dark (BTS): Transparent background with border (`dark:border-border dark:bg-transparent dark:hover:bg-muted dark:hover:text-foreground`).
 - **Ghost (`variant="ghost"`):**
   - Transparent background with muted hover fill (`hover:bg-muted hover:text-foreground`).
 - **Destructive (`variant="destructive"`):**
@@ -253,34 +250,24 @@ Components are built on `@base-ui/react` primitives and styled with Tailwind CSS
 ### Form Controls & Inputs
 
 - Inputs and textareas match standard button heights (36px default) and corner radii (8px–10px / `rounded-md`).
-- Light Mode: Clean bordered fields with muted placeholder text.
-- Dark Mode (BTS): Lifted dark surface fields (`dark:bg-card` / `#131625`), faint translucent border (`dark:border-border` / `#FFFFFF24`), high-contrast white text (`#FFFFFF`), and muted slate placeholder (`#939DB8`).
+- Flat, zero-shadow borders (`border-border`) ensure high visibility against the unified background.
 
 ### Cards & Panels
 
 - Container padding follows the 8pt rhythm (`p-6` standard, `p-5` for stat cards).
-- Light Mode: Solid white container fill (`#FFFFFF`) with `#E5E5E5` hairline border.
-- Dark Mode (BTS): Dark surface container fill (`#131625`) on `#0B0C14` canvas with `#FFFFFF24` border, `#FFFFFF` title, and `#939DB8` secondary text.
-
-### Chips & Badges
-
-- Fully rounded corners (`rounded-full`), compact internal padding (`px-2.5 py-0.5`).
-- Light Mode: Tinted background (`bg-{c}-500/10`), border, and text.
-- Dark Mode (BTS): Low-contrast surface fill (`dark:bg-card`), faint white border (`dark:border-border`), and slate text (`#939DB8`), or status-tinted variants (`dark:bg-{c}-500/15`).
+- All cards share the same background color as the canvas (`bg-card` = `bg-background`).
+- Separation is achieved entirely via high-contrast hairline borders (`border border-border`).
 
 ---
 
 ## Do's and Don'ts
 
-- **Do** keep light mode strictly on a pure white canvas (`bg-white` / `#FFFFFF`) with crisp borders.
-- **Do** keep dark mode deep, cinematic, and high-contrast (`#0B0C14` background, `#131625` surface, `#FFFFFF` headlines).
-- **Do** use the blue-violet primary color (`#5B63D3`) for CTAs, active sidebar selection, and interactive focus states in dark mode.
-- **Do** use `#7D87E8` for primary button hover states and `#98A4F7` for link buttons and secondary highlights in dark mode.
-- **Do** maintain `gap-1.5` (6px) between icons and labels in standard 36px controls.
-- **Do** favor thin borders (`#FFFFFF24` in dark, `#E5E5E5` in light) and tonal surface changes over heavy shadows.
-- **Don't** mix saturated colors into background or container fills; all secondary surfaces should remain neutral or surface-toned.
-- **Don't** use blue for buttons or links in places where it conflicts with the "blue is status-only" rule in monitoring copy.
-- **Don't** introduce heavy drop shadows; depth is achieved via tonal contrast and subtle 1px border lines.
+- **Do** keep both light mode and dark mode completely flat with zero drop shadows.
+- **Do** ensure cards, containers, popovers, and the main background share the exact same background color.
+- **Do** rely exclusively on crisp 1px borders (`border-border`) for containment and visual separation.
+- **Do** maintain all color tokens strictly above WCAG 2.1 AA thresholds (>= 4.5:1 for text, >= 3.0:1 for borders/controls).
+- **Don't** add drop shadows, inner box-shadows, or artificial glow effects.
+- **Don't** use faint, low-contrast borders (e.g., opacity under 0.35 in dark mode or lighter than `#808080` in light mode) that fail WCAG 1.4.11.
 
 ---
 

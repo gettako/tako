@@ -450,25 +450,15 @@ export function CreateServiceDialog({
         </DialogHeader>
 
         {/* Wizard Stepper */}
-        <div className="flex items-center gap-2 border-b border-border/60 py-2.5">
+        <div className="flex items-center gap-2 border-b border-border py-2.5">
           {/* Stepper Buttons */}
           <button
             type="button"
             onClick={() => setStep(1)}
-            className={cn(
-              'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer',
-              step === 1
-                ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+            className={cn( 'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer', step === 1 ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground' )}
           >
             <span
-              className={cn(
-                'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors',
-                step === 1
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground border border-border/80'
-              )}
+              className={cn( 'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors', step === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground border border-border' )}
             >
               1
             </span>
@@ -482,20 +472,10 @@ export function CreateServiceDialog({
             onClick={() => {
               if (validateStep1()) setStep(2);
             }}
-            className={cn(
-              'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer',
-              step === 2
-                ? 'bg-primary/10 text-primary border border-primary/20 shadow-2xs'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+            className={cn( 'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer', step === 2 ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground' )}
           >
             <span
-              className={cn(
-                'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors',
-                step === 2
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground border border-border/80'
-              )}
+              className={cn( 'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors', step === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground border border-border' )}
             >
               2
             </span>
@@ -528,20 +508,10 @@ export function CreateServiceDialog({
                     type="button"
                     onClick={() => setServiceType('app')}
                     disabled={createMutation.isPending}
-                    className={cn(
-                      'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none',
-                      serviceType === 'app'
-                        ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40 shadow-2xs'
-                        : 'border-border/70 bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground'
-                    )}
+                    className={cn( 'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', serviceType === 'app' ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground' )}
                   >
                     <div
-                      className={cn(
-                        'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border',
-                        serviceType === 'app'
-                          ? 'bg-primary/10 border-primary/30 text-primary'
-                          : 'bg-muted/60 border-border/80 text-foreground'
-                      )}
+                      className={cn( 'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border', serviceType === 'app' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted/60 border-border text-foreground' )}
                     >
                       <Layers className="size-4.5" />
                     </div>
@@ -566,20 +536,10 @@ export function CreateServiceDialog({
                     type="button"
                     onClick={() => setServiceType('compose')}
                     disabled={createMutation.isPending}
-                    className={cn(
-                      'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none',
-                      serviceType === 'compose'
-                        ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40 shadow-2xs'
-                        : 'border-border/70 bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground'
-                    )}
+                    className={cn( 'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', serviceType === 'compose' ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground' )}
                   >
                     <div
-                      className={cn(
-                        'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border',
-                        serviceType === 'compose'
-                          ? 'bg-primary/10 border-primary/30 text-primary'
-                          : 'bg-muted/60 border-border/80 text-foreground'
-                      )}
+                      className={cn( 'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border', serviceType === 'compose' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted/60 border-border text-foreground' )}
                     >
                       <Boxes className="size-4.5" />
                     </div>
@@ -602,36 +562,26 @@ export function CreateServiceDialog({
               </div>
 
               {/* 2. Git Source Selection */}
-              <div className="rounded-xl border border-border/70 bg-card/60 p-3.5 space-y-3.5">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border/60 pb-3">
+              <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
                   <div className="flex items-center gap-2">
                     <FolderGit2 className="size-4 text-foreground" />
                     <span className="text-xs font-semibold text-foreground">Git Source Repository</span>
                   </div>
 
                   {/* Toggle Mode: Select Account/Repo vs Git URL */}
-                  <div className="flex items-center p-0.5 rounded-lg border border-border/70 bg-muted/30 text-xs">
+                  <div className="flex items-center p-0.5 rounded-lg border border-border bg-muted/30 text-xs">
                     <button
                       type="button"
                       onClick={() => setSourceMode('account')}
-                      className={cn(
-                        'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer',
-                        sourceMode === 'account'
-                          ? 'bg-background text-foreground shadow-2xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
+                      className={cn( 'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer', sourceMode === 'account' ? 'bg-background text-foreground border border-border' : 'text-muted-foreground hover:text-foreground' )}
                     >
                       GitHub Account & Repo
                     </button>
                     <button
                       type="button"
                       onClick={() => setSourceMode('url')}
-                      className={cn(
-                        'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer',
-                        sourceMode === 'url'
-                          ? 'bg-background text-foreground shadow-2xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
+                      className={cn( 'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer', sourceMode === 'url' ? 'bg-background text-foreground border border-border' : 'text-muted-foreground hover:text-foreground' )}
                     >
                       Custom Git URL
                     </button>
@@ -656,10 +606,10 @@ export function CreateServiceDialog({
                               setSelectedRepoId('');
                             }}
                           >
-                            <SelectTrigger className="h-9 w-full bg-card border-border/80 text-xs sm:text-sm">
+                            <SelectTrigger className="h-9 w-full bg-card border-border text-xs sm:text-sm">
                               <SelectValue placeholder="Select account..." />
                             </SelectTrigger>
-                            <SelectContent className="bg-popover dark:bg-[#131625] border border-border/80">
+                            <SelectContent className="bg-popover border border-border">
                               {gitProviders.map((provider) => (
                                 <SelectItem key={provider.id} value={provider.id} className="py-2">
                                   <div className="flex items-center gap-2">
@@ -689,14 +639,11 @@ export function CreateServiceDialog({
                             onValueChange={(val) => handleRepoChange(String(val))}
                           >
                             <SelectTrigger
-                              className={cn(
-                                'h-9 w-full bg-card border-border/80 text-xs sm:text-sm',
-                                repoError && 'border-status-danger ring-1 ring-status-danger/40'
-                              )}
+                              className={cn( 'h-9 w-full bg-card border-border text-xs sm:text-sm', repoError && 'border-status-danger ring-1 ring-status-danger/40' )}
                             >
                               <SelectValue placeholder="Select repository..." />
                             </SelectTrigger>
-                            <SelectContent className="bg-popover dark:bg-[#131625] border border-border/80 max-h-56">
+                            <SelectContent className="bg-popover border border-border max-h-56">
                               {accountRepos.length === 0 ? (
                                 <div className="p-3 text-xs text-center text-muted-foreground">
                                   No repositories found for this account.
@@ -912,25 +859,14 @@ export function CreateServiceDialog({
                           setNodeError('');
                         }}
                         disabled={isOffline || createMutation.isPending}
-                        className={cn(
-                          'relative flex flex-col p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none',
-                          isSelected
-                            ? 'border-primary bg-primary/5 ring-1 ring-primary/40 shadow-2xs'
-                            : 'border-border/70 bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground',
-                          isOffline && 'opacity-60 cursor-not-allowed bg-muted/20 hover:bg-muted/20'
-                        )}
+                        className={cn( 'relative flex flex-col p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', isSelected ? 'border-primary bg-primary/5 ring-1 ring-primary/40' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground', isOffline && 'opacity-60 cursor-not-allowed bg-muted/20 hover:bg-muted/20' )}
                       >
                         {/* Header Row: Radio Indicator + Node Name + Status Badge */}
                         <div className="flex items-center justify-between w-full gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
                             {/* Radio Circle */}
                             <div
-                              className={cn(
-                                'size-4 rounded-full border flex items-center justify-center shrink-0 transition-colors',
-                                isSelected
-                                  ? 'border-primary bg-primary text-primary-foreground'
-                                  : 'border-border/80 bg-background'
-                              )}
+                              className={cn( 'size-4 rounded-full border flex items-center justify-center shrink-0 transition-colors', isSelected ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background' )}
                             >
                               {isSelected && <div className="size-1.5 rounded-full bg-white" />}
                             </div>
@@ -945,14 +881,7 @@ export function CreateServiceDialog({
                           {/* Status Pill */}
                           <div className="flex items-center gap-1.5 shrink-0">
                             <span
-                              className={cn(
-                                'size-2 rounded-full',
-                                node.status === 'online'
-                                  ? 'bg-status-success'
-                                  : isDegraded
-                                  ? 'bg-status-warning'
-                                  : 'bg-status-danger'
-                              )}
+                              className={cn( 'size-2 rounded-full', node.status === 'online' ? 'bg-status-success' : isDegraded ? 'bg-status-warning' : 'bg-status-danger' )}
                             />
                             <span className="text-[10px] font-medium capitalize text-muted-foreground">
                               {node.status}
@@ -962,19 +891,19 @@ export function CreateServiceDialog({
 
                         {/* Specs & Hardware Row */}
                         <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px] font-mono text-muted-foreground">
-                          <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">
+                          <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border">
                             {node.cpuTotalCores} vCPU
                           </span>
-                          <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">
+                          <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border">
                             {Math.round(node.memoryTotalMb / 1024)} GB RAM
                           </span>
-                          <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">
+                          <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border">
                             {node.ipAddress}
                           </span>
                         </div>
 
                         {/* Usage & Telemetry Stats */}
-                        <div className="mt-2.5 pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
+                        <div className="mt-2.5 pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
                           <div className="flex items-center gap-1.5">
                             <Activity className="size-3 text-primary" />
                             <span>Load:</span>
@@ -1008,7 +937,7 @@ export function CreateServiceDialog({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   {/* CPU Slider Card */}
-                  <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-3 shadow-2xs">
+                  <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -1084,8 +1013,7 @@ export function CreateServiceDialog({
                               >
                                 {/* Tick notch */}
                                 <span
-                                  className={cn(
-                                    "w-0.5 rounded-full transition-all mb-1",
+                                  className={cn("w-0.5 rounded-full transition-all mb-1",
                                     isSelected
                                       ? "bg-primary h-2 w-1"
                                       : isPast
@@ -1096,8 +1024,7 @@ export function CreateServiceDialog({
                                 />
                                 {/* Step label */}
                                 <span
-                                  className={cn(
-                                    "text-[10px] font-mono leading-none transition-colors px-1 py-0.5 rounded",
+                                  className={cn("text-[10px] font-mono leading-none transition-colors px-1 py-0.5 rounded",
                                     isSelected
                                       ? "text-primary font-bold bg-primary/10"
                                       : "text-muted-foreground group-hover:text-foreground group-hover:bg-muted/60"
@@ -1114,7 +1041,7 @@ export function CreateServiceDialog({
                   </div>
 
                   {/* Memory Slider Card */}
-                  <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-3 shadow-2xs">
+                  <div className="rounded-xl border border-border bg-card p-3.5 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
@@ -1192,8 +1119,7 @@ export function CreateServiceDialog({
                               >
                                 {/* Tick notch */}
                                 <span
-                                  className={cn(
-                                    "w-0.5 rounded-full transition-all mb-1",
+                                  className={cn("w-0.5 rounded-full transition-all mb-1",
                                     isSelected
                                       ? "bg-primary h-2 w-1"
                                       : isPast
@@ -1204,8 +1130,7 @@ export function CreateServiceDialog({
                                 />
                                 {/* Step label */}
                                 <span
-                                  className={cn(
-                                    "text-[10px] font-mono leading-none transition-colors px-1 py-0.5 rounded",
+                                  className={cn("text-[10px] font-mono leading-none transition-colors px-1 py-0.5 rounded",
                                     isSelected
                                       ? "text-primary font-bold bg-primary/10"
                                       : "text-muted-foreground group-hover:text-foreground group-hover:bg-muted/60"
@@ -1224,7 +1149,7 @@ export function CreateServiceDialog({
               </div>
 
               {/* Deployment Confirmation Summary */}
-              <div className="rounded-xl border border-border/60 bg-muted/20 p-3.5 space-y-2 text-xs">
+              <div className="rounded-xl border border-border bg-muted/20 p-3.5 space-y-2 text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
                   <CheckCircle2 className="size-3 text-status-success" />
                   Deployment Summary
@@ -1256,7 +1181,7 @@ export function CreateServiceDialog({
           )}
 
           {/* Dialog Footer with Wizard Navigation */}
-          <DialogFooter className="pt-3.5 border-t border-border/60 flex items-center justify-between gap-3">
+          <DialogFooter className="pt-3.5 border-t border-border flex items-center justify-between gap-3">
             {step === 1 ? (
               <>
                 <Button
@@ -1274,7 +1199,7 @@ export function CreateServiceDialog({
                     e.stopPropagation();
                     handleNextStep();
                   }}
-                  className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5 shadow-xs"
+                  className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
                 >
                   <span>Next: Node & Resources</span>
                   <ArrowRight className="size-3.5" />
@@ -1296,7 +1221,7 @@ export function CreateServiceDialog({
                 <Button
                   type="submit"
                   disabled={createMutation.isPending || !selectedNodeId}
-                  className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5 shadow-xs"
+                  className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
                 >
                   {createMutation.isPending ? (
                     <>

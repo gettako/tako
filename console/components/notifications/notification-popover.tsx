@@ -47,8 +47,7 @@ export function NotificationPopover() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
-        className={cn(
-          buttonVariants({ variant: 'ghost', size: 'icon' }),
+        className={cn( buttonVariants({ variant: 'ghost', size: 'icon'}),
           'relative size-9 rounded-md text-muted-foreground hover:text-foreground cursor-pointer'
         )}
         aria-label="Notifications"
@@ -66,10 +65,10 @@ export function NotificationPopover() {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-88 sm:w-96 p-0 overflow-hidden bg-background/85 backdrop-blur-md border border-border/60 shadow-xl rounded-xl"
+        className="w-88 sm:w-96 p-0 overflow-hidden bg-popover border border-border rounded-xl"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3 bg-muted/20">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-muted/20">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground">Notifications</span>
             {unreadCount > 0 && (

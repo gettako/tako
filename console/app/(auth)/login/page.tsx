@@ -16,12 +16,12 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-svh lg:grid-cols-2 bg-background text-foreground">
       {/* Left side: Terminal Deploy Animation & Showcase */}
-      <div className="relative hidden flex-col justify-between border-r border-border/80 bg-muted/20 p-10 lg:flex dark:bg-[#090A12]">
+      <div className="relative hidden flex-col justify-between border-r border-border bg-muted/20 p-10 lg:flex dark:bg-[#090A12]">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <BrandLockup />
           </Link>
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-card px-2.5 py-0.5 text-xs text-muted-foreground shadow-2xs backdrop-blur-sm">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground backdrop-blur-sm">
             <span className="size-1.5 rounded-full bg-status-success" />
             <span className="font-mono">tako console</span>
           </div>
@@ -85,7 +85,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground lg:hidden pt-4 border-t border-border/60">
+        <div className="flex items-center justify-between text-xs text-muted-foreground lg:hidden pt-4 border-t border-border">
           <span>&copy; {new Date().getFullYear()} tako</span>
           <span className="font-mono">mTLS &bull; Traefik v3</span>
         </div>

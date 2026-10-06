@@ -126,12 +126,7 @@ export function CronJobDialog({
                       size="sm"
                       onClick={() => setSchedule(p.expr)}
                       disabled={isSaving}
-                      className={cn(
-                        'h-7 px-2 text-xs font-mono transition-colors',
-                        schedule === p.expr
-                          ? 'border-primary/50 bg-primary/10 text-primary font-medium'
-                          : 'border-border/60 text-muted-foreground hover:text-foreground'
-                      )}
+                      className={cn( 'h-7 px-2 text-xs font-mono transition-colors', schedule === p.expr ? 'border-primary/50 bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground hover:text-foreground' )}
                     >
                       {p.label}
                     </Button>
@@ -178,7 +173,7 @@ export function CronJobDialog({
                     </div>
 
                     {/* Next 5 runs preview (AC-5) */}
-                    <div className="pt-2 border-t border-border/40 space-y-1">
+                    <div className="pt-2 border-t border-border space-y-1">
                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                         <Calendar className="size-3.5" />
                         Next 5 Scheduled Executions (UTC)

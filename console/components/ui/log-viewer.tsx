@@ -112,10 +112,7 @@ export function LogViewer({
 
   return (
     <div
-      className={cn(
-        'relative flex flex-col rounded-lg border border-border bg-background text-foreground font-mono text-[13px] leading-relaxed shadow-sm overflow-hidden',
-        className
-      )}
+      className={cn( 'relative flex flex-col rounded-lg border border-border bg-background text-foreground font-mono text-[13px] leading-relaxed overflow-hidden', className )}
     >
       {/* Log Header Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/40 px-4 py-2 text-xs">
@@ -151,12 +148,7 @@ export function LogViewer({
           <button
             type="button"
             onClick={togglePause}
-            className={cn(
-              'inline-flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-medium transition-colors',
-              isPaused
-                ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                : 'border-border bg-background text-muted-foreground hover:text-foreground'
-            )}
+            className={cn( 'inline-flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-medium transition-colors', isPaused ? 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'border-border bg-background text-muted-foreground hover:text-foreground' )}
             title={isPaused ? 'Resume stream' : 'Pause stream'}
           >
             {isPaused ? <Play className="size-3 text-emerald-500" /> : <Pause className="size-3 text-amber-500" />}
@@ -172,12 +164,7 @@ export function LogViewer({
                 rowVirtualizer.scrollToIndex(count - 1, { align: 'end' });
               }
             }}
-            className={cn(
-              'inline-flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-medium transition-colors',
-              autoScroll
-                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'border-border bg-background text-muted-foreground hover:text-foreground'
-            )}
+            className={cn( 'inline-flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-medium transition-colors', autoScroll ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'border-border bg-background text-muted-foreground hover:text-foreground' )}
             title={autoScroll ? 'Auto-scroll enabled' : 'Auto-scroll disabled'}
           >
             <ArrowDown className="size-3" />
@@ -238,10 +225,7 @@ export function LogViewer({
                     width: '100%',
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  className={cn(
-                    'flex items-baseline gap-3 py-0.5 px-1 rounded-xs hover:bg-muted/40',
-                    textColor
-                  )}
+                  className={cn( 'flex items-baseline gap-3 py-0.5 px-1 rounded-xs hover:bg-muted/40', textColor )}
                 >
                   {showLineNumbers && (
                     <span className="w-8 shrink-0 select-none text-right font-mono text-[11px] text-muted-foreground/40">

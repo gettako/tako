@@ -28,37 +28,25 @@ export function SectionHeader({
 }: SectionHeaderProps) {
   return (
     <div
-      className={cn(
-        'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3',
-        className
-      )}
+      className={cn( 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3', className )}
     >
       <div className="flex items-center gap-3.5 min-w-0">
         {Icon && (
           <div
-            className={cn(
-              'flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 shadow-2xs shrink-0',
-              iconContainerClassName
-            )}
+            className={cn( 'flex size-10 items-center justify-center rounded-xl border border-border bg-muted/40 shrink-0', iconContainerClassName )}
           >
             <Icon className={cn('size-5 text-foreground', iconClassName)} />
           </div>
         )}
         <div className="space-y-0.5 min-w-0">
           <CardTitle
-            className={cn(
-              'text-base font-semibold tracking-tight text-foreground leading-snug',
-              titleClassName
-            )}
+            className={cn( 'text-base font-semibold tracking-tight text-foreground leading-snug', titleClassName )}
           >
             {title}
           </CardTitle>
           {description && (
             <CardDescription
-              className={cn(
-                'text-sm text-muted-foreground mt-0.5 leading-normal',
-                descriptionClassName
-              )}
+              className={cn( 'text-sm text-muted-foreground mt-0.5 leading-normal', descriptionClassName )}
             >
               {description}
             </CardDescription>

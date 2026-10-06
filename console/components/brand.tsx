@@ -9,7 +9,7 @@ export function BrandMark({ className }: { className?: string }) {
       alt=""
       width={36}
       height={36}
-      className={className ?? "size-9 rounded-md"}
+      className={className ??"size-9 rounded-md"}
     />
   )
 }
@@ -23,7 +23,7 @@ export function BrandLockup({ className }: { className?: string }) {
       width={150}
       height={50}
       unoptimized
-      className={className ?? "h-10 w-auto"}
+      className={className ??"h-10 w-auto"}
     />
   )
 }

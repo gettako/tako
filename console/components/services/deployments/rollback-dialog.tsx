@@ -53,7 +53,7 @@ export function RollbackDialog({
             <span className="text-muted-foreground font-medium">Branch</span>
             <span className="font-mono text-muted-foreground">{deployment.branch}</span>
           </div>
-          <p className="text-xs text-foreground italic border-t border-border/40 pt-2 line-clamp-2">
+          <p className="text-xs text-foreground italic border-t border-border pt-2 line-clamp-2">
             "{deployment.commitMessage}"
           </p>
         </div>

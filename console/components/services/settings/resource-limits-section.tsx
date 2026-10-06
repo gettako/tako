@@ -94,7 +94,7 @@ export function ResourceLimitsSection({
   return (
     <div className="space-y-6">
       {/* Informational Alert Banner (AC-3) */}
-      <div className="flex items-start gap-3 rounded-lg border border-border/80 bg-muted/30 p-4">
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-4">
         <Info className="size-4 text-primary shrink-0 mt-0.5" />
         <div className="flex-1 text-sm">
           <span className="font-semibold text-foreground">Notice: </span>
@@ -122,7 +122,7 @@ export function ResourceLimitsSection({
       </div>
 
       {/* Main Limits Configuration Card */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Cpu}
@@ -176,7 +176,7 @@ export function ResourceLimitsSection({
           </div>
 
           {/* Memory Limit Slider & Input */}
-          <div className="space-y-3 pt-4 border-t border-border/40">
+          <div className="space-y-3 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium text-foreground flex items-center gap-1.5">
                 <Layers className="size-4 text-status-success" />
@@ -223,12 +223,7 @@ export function ResourceLimitsSection({
                   size="sm"
                   onClick={() => setMemoryMb(preset)}
                   disabled={isSaving}
-                  className={cn(
-                    'h-7 px-2.5 font-mono text-xs transition-colors',
-                    memoryMb === preset
-                      ? 'bg-primary text-primary-foreground font-semibold'
-                      : 'border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground'
-                  )}
+                  className={cn( 'h-7 px-2.5 font-mono text-xs transition-colors', memoryMb === preset ? 'bg-primary text-primary-foreground font-semibold' : 'border-border bg-muted/30 text-muted-foreground hover:text-foreground' )}
                 >
                   {formatMemory(preset)}
                 </Button>
@@ -237,7 +232,7 @@ export function ResourceLimitsSection({
           </div>
 
           {/* Optional Swap Configuration */}
-          <div className="space-y-3 pt-4 border-t border-border/40">
+          <div className="space-y-3 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="swap-toggle" className="text-sm font-medium text-foreground flex items-center gap-1.5 cursor-pointer">
@@ -279,7 +274,7 @@ export function ResourceLimitsSection({
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border/40">
+        <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border">
           <Button
             type="button"
             variant="outline"
@@ -315,7 +310,7 @@ export function ResourceLimitsSection({
       </Card>
 
       {/* Utilization vs Limit Comparison Card */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Activity}

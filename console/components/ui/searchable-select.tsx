@@ -112,14 +112,7 @@ export function SearchableSelect({
               aria-expanded={open}
               aria-label={ariaLabel || placeholder}
               disabled={disabled}
-              className={cn(
-                'group flex w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent text-left shadow-xs transition-[color,box-shadow] outline-none',
-                'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
-                'disabled:cursor-not-allowed disabled:opacity-50',
-                'dark:bg-card dark:border-border dark:text-foreground dark:placeholder:text-[#939DB8]',
-                size === 'default' && 'h-9 px-3 py-1.5 text-sm',
-                size === 'sm' && 'h-8 px-2.5 py-1 text-xs'
-              )}
+              className={cn( 'group flex w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent text-left transition-colors outline-none', 'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50', 'disabled:cursor-not-allowed disabled:opacity-50', 'dark:bg-card dark:border-border dark:text-foreground dark:placeholder:text-[#939DB8]', size === 'default' && 'h-9 px-3 py-1.5 text-sm', size === 'sm' && 'h-8 px-2.5 py-1 text-xs' )}
             />
           }
         >
@@ -132,10 +125,7 @@ export function SearchableSelect({
             )}
           </span>
           <ChevronDownIcon
-            className={cn(
-              'pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-150',
-              open && 'rotate-180 text-foreground'
-            )}
+            className={cn( 'pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-150', open && 'rotate-180 text-foreground' )}
           />
         </PopoverTrigger>
 
@@ -143,11 +133,7 @@ export function SearchableSelect({
           align={align}
           side="bottom"
           sideOffset={4}
-          className={cn(
-            'w-(--anchor-width) min-w-[200px] p-0 rounded-md bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none',
-            'dark:bg-[#131625] dark:border dark:border-white/14',
-            contentClassName
-          )}
+          className={cn( 'w-(--anchor-width) min-w-[200px] p-0 rounded-md bg-popover text-popover-foreground border border-border outline-none', contentClassName )}
         >
           <Command className="w-full">
             {isSearchable && (
@@ -205,12 +191,7 @@ function CommandOptionItem({
       value={`${option.label} ${option.value} ${option.description || ''}`}
       onSelect={onSelect}
       disabled={option.disabled}
-      className={cn(
-        'flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-sm text-sm cursor-pointer select-none outline-none',
-        'data-selected:bg-muted data-selected:text-foreground',
-        'dark:data-selected:bg-white/10 dark:data-selected:text-white',
-        isSelected && 'font-medium text-primary dark:text-white'
-      )}
+      className={cn( 'flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-sm text-sm cursor-pointer select-none outline-none', 'data-selected:bg-muted data-selected:text-foreground', 'dark:data-selected:bg-white/10 dark:data-selected:text-white', isSelected && 'font-medium text-primary dark:text-white' )}
     >
       <div className="flex items-center gap-2 truncate">
         {Icon && <Icon className="size-4 shrink-0 text-muted-foreground" />}
@@ -224,10 +205,7 @@ function CommandOptionItem({
         </div>
       </div>
       <CheckIcon
-        className={cn(
-          'size-4 shrink-0 text-primary transition-opacity',
-          isSelected ? 'opacity-100' : 'opacity-0'
-        )}
+        className={cn( 'size-4 shrink-0 text-primary transition-opacity', isSelected ? 'opacity-100' : 'opacity-0' )}
       />
     </CommandItem>
   );

@@ -55,7 +55,7 @@ export function NodesFilterBar({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search hostname, IP, OS..."
-            className="pl-9 pr-8 text-sm h-9 bg-card border-border/80 focus-visible:ring-3 focus-visible:ring-ring/50 outline-hidden"
+            className="pl-9 pr-8 text-sm h-9 bg-card border-border focus-visible:ring-3 focus-visible:ring-ring/50 outline-hidden"
           />
           {searchQuery && (
             <button
@@ -70,7 +70,7 @@ export function NodesFilterBar({
         </div>
 
         {/* Status Filter Pills */}
-        <div className="flex items-center gap-1 overflow-x-auto p-0.5 rounded-lg border border-border/60 bg-muted/20">
+        <div className="flex items-center gap-1 overflow-x-auto p-0.5 rounded-lg border border-border bg-muted/20">
           {(
             [
               { id: 'all', label: 'All', count: statusCounts.all },
@@ -87,7 +87,7 @@ export function NodesFilterBar({
                 onClick={() => onStatusChange(item.id)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md font-medium transition-all active:not-aria-[haspopup]:translate-y-px ${
                   isSelected
-                    ? 'bg-background text-foreground shadow-2xs font-semibold'
+                    ? 'bg-background text-foreground  font-semibold'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
                 }`}
               >

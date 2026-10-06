@@ -103,7 +103,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
       </div>
 
       {/* 3. Hardware & Network Telemetry Grid */}
-      <div className="rounded-xl border border-border/70 bg-card p-4 sm:p-5 text-xs shadow-2xs">
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-5 text-xs">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 text-xs">
           {/* Private IP */}
           <div className="space-y-1">
@@ -208,7 +208,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
           </DialogHeader>
 
           <div className="space-y-3 pt-2">
-            <div className="relative rounded-xl border border-border/70 bg-[#0B0C14] p-3.5 font-mono text-xs text-slate-200">
+            <div className="relative rounded-xl border border-border bg-[#0B0C14] p-3.5 font-mono text-xs text-slate-200">
               <pre className="overflow-x-auto whitespace-pre-wrap break-all pr-8">
                 <code>{sshCommand}</code>
               </pre>

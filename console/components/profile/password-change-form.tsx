@@ -43,7 +43,7 @@ export function PasswordChangeForm() {
   };
 
   return (
-    <Card className="border-border/60 bg-card p-6">
+    <Card className="border-border bg-card p-6">
       <CardHeader className="px-0 pt-0 pb-4">
         <SectionHeader
           icon={KeyRound}
@@ -93,7 +93,7 @@ export function PasswordChangeForm() {
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border/40">
+        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
           <Button
             type="submit"
             size="sm"

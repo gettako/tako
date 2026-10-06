@@ -43,12 +43,7 @@ export function NotificationItem({ notification, onMarkRead, onNavigate }: Notif
 
   return (
     <div
-      className={cn(
-        'group relative flex items-start gap-3 p-3 text-xs transition-colors rounded-lg border border-transparent',
-        !notification.read
-          ? 'bg-primary/5 hover:bg-primary/10 border-primary/10'
-          : 'hover:bg-muted/50'
-      )}
+      className={cn( 'group relative flex items-start gap-3 p-3 text-xs transition-colors rounded-lg border border-transparent', !notification.read ? 'bg-primary/5 hover:bg-primary/10 border-primary/10' : 'hover:bg-muted/50' )}
     >
       <div className="mt-0.5">{getIcon()}</div>
 

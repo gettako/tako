@@ -92,7 +92,7 @@ export function GlobalCommandPalette() {
       onOpenChange={setOpen}
       title="Global Command Palette"
       description="Search across projects, services, nodes, and execute quick administrative actions"
-      className="max-w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-3xl bg-background/90 backdrop-blur-xl border border-border/70 shadow-2xl p-0 overflow-hidden"
+      className="max-w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-3xl bg-background border border-border p-0 overflow-hidden"
     >
       <Command className="bg-transparent border-0">
         <CommandInput placeholder="Type a command or search console..." className="h-13 text-base sm:text-sm" />

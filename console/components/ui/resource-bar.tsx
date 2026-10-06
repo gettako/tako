@@ -56,10 +56,7 @@ export function ResourceBar({
 
       {/* Progress track */}
       <div
-        className={cn(
-          'w-full overflow-hidden rounded-full bg-muted/80',
-          size === 'sm' ? 'h-1.5' : 'h-2'
-        )}
+        className={cn( 'w-full overflow-hidden rounded-full bg-muted/80', size === 'sm' ? 'h-1.5' : 'h-2' )}
       >
         <div
           className={cn('h-full rounded-full transition-all duration-300 ease-out', barColor)}

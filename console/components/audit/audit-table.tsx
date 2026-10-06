@@ -50,15 +50,15 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
       case 'user':
         return 'border-status-warning/40 bg-status-warning/10 text-status-warning';
       default:
-        return 'border-border/60 bg-muted/40 text-muted-foreground';
+        return 'border-border bg-muted/40 text-muted-foreground';
     }
   };
 
   return (
     <>
-      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>
-          <TableHeader className="bg-muted/40 border-b border-border/60">
+          <TableHeader className="bg-muted/40 border-b border-border">
             <TableRow className="h-11 hover:bg-transparent">
               <TableHead className="w-[18%]">Timestamp</TableHead>
               <TableHead className="w-[22%]">Actor</TableHead>
@@ -93,7 +93,7 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
                 {/* 2. Actor */}
                 <TableCell>
                   <div className="flex items-center gap-2.5">
-                    <Avatar className="size-7 text-[10px] border border-border/60 shrink-0">
+                    <Avatar className="size-7 text-[10px] border border-border shrink-0">
                       <AvatarImage src={log.actor.avatarUrl} alt={log.actor.name} />
                       <AvatarFallback>{getInitials(log.actor.name)}</AvatarFallback>
                     </Avatar>
@@ -110,7 +110,7 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
 
                 {/* 3. Action */}
                 <TableCell>
-                  <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-muted/60 text-foreground border border-border/50">
+                  <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-muted/60 text-foreground border border-border">
                     {log.action}
                   </span>
                 </TableCell>
@@ -158,7 +158,7 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
         </Table>
 
         {/* Pagination Bar */}
-        <div className="flex items-center justify-between px-5 py-3 border-t border-border/60 bg-muted/20 text-xs text-muted-foreground font-mono">
+        <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground font-mono">
           <div>
             Showing <span className="font-semibold text-foreground">{startIndex + 1}</span> to{' '}
             <span className="font-semibold text-foreground">
@@ -173,7 +173,7 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
               size="sm"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage <= 1}
-              className="size-8 p-0 border-border/70 bg-card active:not-aria-[haspopup]:translate-y-px shadow-2xs"
+              className="size-8 p-0 border-border bg-card active:not-aria-[haspopup]:translate-y-px"
             >
               <ChevronLeft className="size-3.5" />
             </Button>
@@ -185,7 +185,7 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
               size="sm"
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages}
-              className="size-8 p-0 border-border/70 bg-card active:not-aria-[haspopup]:translate-y-px shadow-2xs"
+              className="size-8 p-0 border-border bg-card active:not-aria-[haspopup]:translate-y-px"
             >
               <ChevronRight className="size-3.5" />
             </Button>

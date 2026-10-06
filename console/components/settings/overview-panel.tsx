@@ -12,7 +12,7 @@ export function OverviewPanel() {
   return (
     <div className="space-y-6">
       {/* Cluster Status Summary Card */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Sliders}
@@ -31,7 +31,7 @@ export function OverviewPanel() {
         </CardHeader>
 
         <CardContent className="px-0 pt-2 space-y-4 text-sm">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-lg border border-border/60 bg-muted/20">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-lg border border-border bg-muted/20">
             <div>
               <span className="text-sm font-medium text-muted-foreground block mb-1">Tako Version</span>
               <span className="text-sm font-mono font-semibold text-foreground">v0.8.4-stable</span>
@@ -69,7 +69,7 @@ export function OverviewPanel() {
 
       {/* Quick Navigation Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <Card className="border-border/60 bg-card p-5 space-y-3">
+        <Card className="border-border bg-card p-5 space-y-3">
           <div className="flex items-center gap-2.5 text-primary">
             <Server className="size-4" />
             <span className="font-semibold text-sm text-foreground">Nodes & Hardware</span>
@@ -88,7 +88,7 @@ export function OverviewPanel() {
           </Button>
         </Card>
 
-        <Card className="border-border/60 bg-card p-5 space-y-3">
+        <Card className="border-border bg-card p-5 space-y-3">
           <div className="flex items-center gap-2.5 text-status-success">
             <Boxes className="size-4" />
             <span className="font-semibold text-sm text-foreground">Projects & Services</span>
@@ -107,7 +107,7 @@ export function OverviewPanel() {
           </Button>
         </Card>
 
-        <Card className="border-border/60 bg-card p-5 space-y-3">
+        <Card className="border-border bg-card p-5 space-y-3">
           <div className="flex items-center gap-2.5 text-status-warning">
             <Shield className="size-4" />
             <span className="font-semibold text-sm text-foreground">Security Audit Trail</span>

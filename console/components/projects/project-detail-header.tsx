@@ -50,7 +50,7 @@ export function ProjectDetailHeader({
           <Button
             onClick={onNewService}
             size="sm"
-            className="gap-1.5 text-sm h-9 shadow-xs active:not-aria-[haspopup]:translate-y-px"
+            className="gap-1.5 text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
           >
             <Plus className="size-4" />
             <span>Add Service</span>

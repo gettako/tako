@@ -80,21 +80,11 @@ export function ProjectsFilterBar({
                 key={opt.id}
                 type="button"
                 onClick={() => onEnvChange(opt.id)}
-                className={cn(
-                  'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-all active:not-aria-[haspopup]:translate-y-px whitespace-nowrap',
-                  isSelected
-                    ? 'border border-primary/25 bg-primary/10 text-primary font-semibold shadow-2xs'
-                    : 'border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                )}
+                className={cn( 'inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-all active:not-aria-[haspopup]:translate-y-px whitespace-nowrap', isSelected ? 'border border-primary/25 bg-primary/10 text-primary font-semibold ' : 'border border-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground' )}
               >
                 <span>{opt.label}</span>
                 <span
-                  className={cn(
-                    'rounded-full px-1.5 py-0.2 text-[10px] font-mono',
-                    isSelected
-                      ? 'bg-primary/20 text-primary'
-                      : 'bg-muted text-muted-foreground'
-                  )}
+                  className={cn( 'rounded-full px-1.5 py-0.2 text-[10px] font-mono', isSelected ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground' )}
                 >
                   {count}
                 </span>

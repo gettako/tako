@@ -55,11 +55,11 @@ export function DangerZoneSection({
   return (
     <div className="space-y-6">
       {/* Clean Premium Danger Zone Card */}
-      <Card className="rounded-xl border border-destructive/30 dark:border-destructive/40 bg-card p-6 shadow-2xs">
-        <CardHeader className="px-0 pt-0 pb-6 border-b border-border/60">
+      <Card className="rounded-xl border border-destructive/30 dark:border-destructive/40 bg-card p-6">
+        <CardHeader className="px-0 pt-0 pb-6 border-b border-border">
           <SectionHeader
             icon={AlertTriangle}
-            iconContainerClassName="border-destructive/25 bg-destructive/10 text-destructive shadow-2xs"
+            iconContainerClassName="border-destructive/25 bg-destructive/10 text-destructive "
             iconClassName="text-destructive size-4"
             title="Danger Zone"
             description="Irreversible operations and destructive administrative interventions."
@@ -81,7 +81,7 @@ export function DangerZoneSection({
               size="sm"
               onClick={handleForceRestart}
               disabled={isRestarting}
-              className="text-sm h-9 px-4 border-border/80 hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 px-4 border-border hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
             >
               {isRestarting ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -107,7 +107,7 @@ export function DangerZoneSection({
                 size="sm"
                 onClick={handleRebuildWithoutCache}
                 disabled={isRebuilding}
-                className="text-sm h-9 px-4 border-border/80 hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
+                className="text-sm h-9 px-4 border-border hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isRebuilding ? (
                   <Loader2 className="size-3.5 animate-spin" />

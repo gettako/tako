@@ -48,11 +48,7 @@ export function WebhookPayloadDialog({
             </DialogTitle>
             <Badge
               variant="outline"
-              className={
-                isSuccess
-                  ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs'
-                  : 'bg-status-danger/10 text-status-danger border-status-danger/30 font-mono text-xs'
-              }
+              className={isSuccess ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs' : 'bg-status-danger/10 text-status-danger border-status-danger/30 font-mono text-xs'}
             >
               {delivery.statusCode} {isSuccess ? 'OK' : 'Error'}
             </Badge>
@@ -84,7 +80,7 @@ export function WebhookPayloadDialog({
                 Copy Payload
               </Button>
             </div>
-            <pre className="p-3.5 rounded-lg bg-[#0B0C14] text-[#939DB8] font-mono text-sm overflow-x-auto border border-white/10 leading-relaxed max-h-60">
+            <pre className="p-3.5 rounded-lg bg-[#0B0C14] text-[#939DB8] font-mono text-sm overflow-x-auto border border-border leading-relaxed max-h-60">
               {delivery.requestPayload}
             </pre>
           </div>
@@ -109,7 +105,7 @@ export function WebhookPayloadDialog({
                 Copy Response
               </Button>
             </div>
-            <pre className="p-3.5 rounded-lg bg-[#0B0C14] text-[#939DB8] font-mono text-sm overflow-x-auto border border-white/10 leading-relaxed max-h-40">
+            <pre className="p-3.5 rounded-lg bg-[#0B0C14] text-[#939DB8] font-mono text-sm overflow-x-auto border border-border leading-relaxed max-h-40">
               {delivery.responseBody}
             </pre>
           </div>

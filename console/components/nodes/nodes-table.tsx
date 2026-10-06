@@ -38,9 +38,9 @@ export function NodesTable({ nodes }: NodesTableProps) {
   };
 
   return (
-    <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
-        <TableHeader className="bg-muted/40 border-b border-border/60">
+        <TableHeader className="bg-muted/40 border-b border-border">
           <TableRow className="h-11 hover:bg-transparent">
             <TableHead className="w-[26%]">Node Hostname</TableHead>
             <TableHead className="w-[12%]">Status</TableHead>
@@ -74,7 +74,7 @@ export function NodesTable({ nodes }: NodesTableProps) {
                 {/* 1. Node Hostname & OS */}
                 <TableCell>
                   <div className="flex items-center gap-2.5">
-                    <div className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground group-hover:text-primary group-hover:border-primary/40 transition-colors shrink-0">
+                    <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground group-hover:text-primary group-hover:border-primary/40 transition-colors shrink-0">
                       <Server className="size-4" />
                     </div>
                     <div className="min-w-0">

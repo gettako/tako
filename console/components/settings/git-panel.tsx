@@ -51,7 +51,7 @@ export function GitPanel() {
   return (
     <div className="space-y-6">
       {/* Connected GitHub App Card */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={FolderGit2}
@@ -62,7 +62,7 @@ export function GitPanel() {
 
         <CardContent className="px-0 pt-2">
           {primaryProvider ? (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-border/60 bg-muted/20 gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-border bg-muted/20 gap-4">
               <div className="flex items-center gap-3">
                 <Avatar className="size-10">
                   <AvatarImage src={primaryProvider.avatarUrl} alt={primaryProvider.name} />
@@ -100,7 +100,7 @@ export function GitPanel() {
               </div>
             </div>
           ) : (
-            <div className="p-4 rounded-lg border border-border/60 text-center space-y-2">
+            <div className="p-4 rounded-lg border border-border text-center space-y-2">
               <p className="text-sm text-muted-foreground">No GitHub App connected.</p>
               <Button size="sm" className="text-sm bg-primary text-primary-foreground">
                 Connect GitHub App
@@ -111,7 +111,7 @@ export function GitPanel() {
       </Card>
 
       {/* Synced Repositories Card */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={GitBranch}
@@ -138,10 +138,10 @@ export function GitPanel() {
         </CardHeader>
 
         <CardContent className="px-0 pt-2">
-          <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
             <Table>
-              <TableHeader className="bg-muted/40 border-b border-border/60">
-                <TableRow className="border-b border-border/60 hover:bg-transparent">
+              <TableHeader className="bg-muted/40 border-b border-border">
+                <TableRow className="border-b border-border hover:bg-transparent">
                   <TableHead className="w-[40%]">Repository</TableHead>
                   <TableHead className="w-[25%]">Default Branch</TableHead>
                   <TableHead className="w-[20%]">Visibility</TableHead>
@@ -150,7 +150,7 @@ export function GitPanel() {
               </TableHeader>
               <TableBody>
                 {repos.map((repo) => (
-                  <TableRow key={repo.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
+                  <TableRow key={repo.id} className="h-14 border-b border-border hover:bg-muted/30 transition-colors">
                     <TableCell className="font-medium text-foreground font-mono text-sm">
                       {repo.fullName}
                     </TableCell>

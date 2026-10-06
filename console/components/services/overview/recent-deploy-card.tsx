@@ -93,7 +93,7 @@ export function RecentDeployCard({
               {latestDeployment.commitMessage}
             </p>
 
-            <div className="flex items-center justify-between pt-1 border-t border-border/50 text-[11px] text-muted-foreground font-mono">
+            <div className="flex items-center justify-between pt-1 border-t border-border text-[11px] text-muted-foreground font-mono">
               <span>Deployed by {latestDeployment.author}</span>
               <span>
                 {new Date(latestDeployment.startedAt).toLocaleTimeString([], {

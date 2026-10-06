@@ -172,21 +172,13 @@ export function StatusBadge({
 
   return (
     <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border font-medium select-none',
-        size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs',
-        config.badgeClass,
-        className
-      )}
+      className={cn( 'inline-flex items-center gap-1.5 rounded-full border font-medium select-none', size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs', config.badgeClass, className )}
     >
       {showDot && (
         <span className="relative flex size-2 items-center justify-center shrink-0">
           {config.pulse && (
             <span
-              className={cn(
-                'absolute inline-flex size-full rounded-full opacity-75 animate-ping motion-reduce:hidden',
-                config.dotClass
-              )}
+              className={cn( 'absolute inline-flex size-full rounded-full opacity-75 animate-ping motion-reduce:hidden', config.dotClass )}
             />
           )}
           <span className={cn('relative inline-flex size-1.5 rounded-full', config.dotClass)} />

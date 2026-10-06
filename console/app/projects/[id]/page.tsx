@@ -157,10 +157,10 @@ export default function ProjectDetailPage({
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-border/70 bg-card shadow-2xs overflow-hidden">
+          <div className="rounded-xl border border-border bg-card overflow-hidden">
             <Table>
-              <TableHeader className="bg-muted/40 border-b border-border/60">
-                <TableRow className="border-b border-border/60 hover:bg-transparent">
+              <TableHeader className="bg-muted/40 border-b border-border">
+                <TableRow className="border-b border-border hover:bg-transparent">
                   <TableHead className="w-[260px]">Service</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden sm:table-cell">Node</TableHead>

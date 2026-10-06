@@ -88,7 +88,7 @@ export function AuditFilters({
           onValueChange={(val) => onCategoryChange(val as AuditCategory)}
           className="w-full"
         >
-          <TabsList className="h-9 p-1 bg-muted/60 dark:bg-muted/30 border border-border/70 rounded-lg gap-1 min-w-max justify-start">
+          <TabsList className="h-9 p-1 bg-muted/60 dark:bg-muted/30 border border-border rounded-lg gap-1 min-w-max justify-start">
             {CATEGORIES.map((cat) => {
               const Icon = cat.icon;
               const count = counts?.[cat.id];
@@ -98,28 +98,15 @@ export function AuditFilters({
                 <TabsTrigger
                   key={cat.id}
                   value={cat.id}
-                  className={cn(
-                    'h-7 px-3 text-xs font-medium rounded-md gap-1.5 transition-all select-none',
-                    'active:not-aria-[haspopup]:translate-y-px',
-                    'data-active:bg-background data-active:text-foreground data-active:shadow-xs',
-                    'dark:data-active:bg-card dark:data-active:text-foreground dark:data-active:border-border'
-                  )}
+                  className={cn( 'h-7 px-3 text-xs font-medium rounded-md gap-1.5 transition-all select-none', 'active:not-aria-[haspopup]:translate-y-px', 'data-active:bg-background data-active:text-foreground data-active:border data-active:border-border', 'dark:data-active:bg-card dark:data-active:text-foreground dark:data-active:border-border' )}
                 >
                   <Icon
-                    className={cn(
-                      'size-3.5 shrink-0 transition-opacity',
-                      isSelected ? 'opacity-100 text-primary dark:text-[#98A4F7]' : 'opacity-60 text-muted-foreground'
-                    )}
+                    className={cn( 'size-3.5 shrink-0 transition-opacity', isSelected ? 'opacity-100 text-primary dark:text-[#98A4F7]' : 'opacity-60 text-muted-foreground' )}
                   />
                   <span>{cat.label}</span>
                   {typeof count === 'number' && (
                     <span
-                      className={cn(
-                        'ml-1 text-[10px] font-mono font-medium px-1.5 py-0.2 rounded-full transition-colors',
-                        isSelected
-                          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-[#98A4F7]'
-                          : 'bg-muted-foreground/15 text-muted-foreground'
-                      )}
+                      className={cn( 'ml-1 text-[10px] font-mono font-medium px-1.5 py-0.2 rounded-full transition-colors', isSelected ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-[#98A4F7]' : 'bg-muted-foreground/15 text-muted-foreground' )}
                     >
                       {count}
                     </span>
@@ -140,7 +127,7 @@ export function AuditFilters({
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search action, target resource, or actor..."
-            className="pl-9 pr-8 text-xs sm:text-sm h-9 bg-card border-border/80 shadow-2xs rounded-md placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="pl-9 pr-8 text-xs sm:text-sm h-9 bg-card border-border rounded-md placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           {search && (
             <button
@@ -162,18 +149,18 @@ export function AuditFilters({
               value={selectedActor}
               onValueChange={(val) => onActorChange(val ? String(val) : 'all')}
             >
-              <SelectTrigger className="h-9 w-full bg-card border-border/80 shadow-2xs text-xs sm:text-sm cursor-pointer hover:bg-muted/40 transition-colors">
+              <SelectTrigger className="h-9 w-full bg-card border-border text-xs sm:text-sm cursor-pointer hover:bg-muted/40 transition-colors">
                 <div className="flex items-center gap-2 truncate">
                   {selectedActor === 'all' ? (
                     <>
-                      <div className="size-5 rounded-full bg-muted/80 border border-border/60 flex items-center justify-center shrink-0 text-muted-foreground">
+                      <div className="size-5 rounded-full bg-muted/80 border border-border flex items-center justify-center shrink-0 text-muted-foreground">
                         <Users className="size-3" />
                       </div>
                       <span className="truncate text-muted-foreground font-normal">All Actors</span>
                     </>
                   ) : (
                     <>
-                      <Avatar className="size-5 shrink-0 border border-border/60">
+                      <Avatar className="size-5 shrink-0 border border-border">
                         <AvatarImage src={selectedActorObj?.avatarUrl} alt={selectedActor} />
                         <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-bold">
                           {getInitials(selectedActor)}
@@ -189,12 +176,12 @@ export function AuditFilters({
 
               <SelectContent
                 align="end"
-                className="w-72 bg-popover dark:bg-[#131625] border border-border/80 dark:border-white/14 shadow-lg p-1 rounded-lg"
+                className="w-72 bg-popover border border-border p-1 rounded-lg"
               >
                 {/* All Actors option */}
                 <SelectItem value="all" className="py-2 rounded-md">
                   <div className="flex items-center gap-2.5">
-                    <div className="size-7 rounded-full bg-muted/80 border border-border/60 flex items-center justify-center shrink-0 text-muted-foreground">
+                    <div className="size-7 rounded-full bg-muted/80 border border-border flex items-center justify-center shrink-0 text-muted-foreground">
                       <Users className="size-3.5" />
                     </div>
                     <div className="truncate text-left">
@@ -210,7 +197,7 @@ export function AuditFilters({
                 {actors.map((actor) => (
                   <SelectItem key={actor.id} value={actor.name} className="py-2 rounded-md">
                     <div className="flex items-center gap-2.5">
-                      <Avatar className="size-7 shrink-0 border border-border/70">
+                      <Avatar className="size-7 shrink-0 border border-border">
                         <AvatarImage src={actor.avatarUrl} alt={actor.name} />
                         <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">
                           {getInitials(actor.name)}
@@ -252,7 +239,7 @@ export function AuditFilters({
               variant="outline"
               size="sm"
               onClick={onReset}
-              className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px border-border/80 bg-card shadow-2xs shrink-0"
+              className="h-9 px-2.5 text-xs text-muted-foreground hover:text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px border-border bg-card shrink-0"
               title="Reset all active filters"
             >
               <RotateCcw className="size-3.5" />

@@ -30,10 +30,7 @@ export function EmptyState({
 
   return (
     <div
-      className={cn(
-        'flex flex-col items-center justify-center rounded-lg border border-dashed border-border/80 bg-card/30 p-8 sm:p-12 text-center',
-        className
-      )}
+      className={cn( 'flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/30 p-8 sm:p-12 text-center', className )}
     >
       <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground ring-8 ring-muted/30">
         <Icon className="size-6 stroke-[1.5]" />

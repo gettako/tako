@@ -105,7 +105,7 @@ export function LoginForm({
         <Field>
           <Link
             href="/login/passkey"
-            className={cn(buttonVariants({ variant: "outline" }), "w-full gap-2 cursor-pointer text-xs sm:text-sm")}
+            className={cn(buttonVariants({ variant:"outline" }), "w-full gap-2 cursor-pointer text-xs sm:text-sm")}
           >
             <KeyRound className="size-4" />
             Passkey instead

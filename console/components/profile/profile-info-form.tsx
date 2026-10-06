@@ -52,7 +52,7 @@ export function ProfileInfoForm({ user, onUpdate }: ProfileInfoFormProps) {
   };
 
   return (
-    <Card className="border-border/60 bg-card p-6">
+    <Card className="border-border bg-card p-6">
       <CardHeader className="px-0 pt-0 pb-4">
         <SectionHeader
           icon={UserIcon}
@@ -64,7 +64,7 @@ export function ProfileInfoForm({ user, onUpdate }: ProfileInfoFormProps) {
       <form onSubmit={handleSubmit}>
         <CardContent className="px-0 space-y-5">
           {/* Avatar & Role Header */}
-          <div className="flex items-center gap-4 p-3 rounded-lg border border-border/60 bg-muted/20">
+          <div className="flex items-center gap-4 p-3 rounded-lg border border-border bg-muted/20">
             <Avatar className="size-12">
               <AvatarImage src={user.avatarUrl} alt={user.name} />
               <AvatarFallback className="text-sm font-semibold">{getInitials(user.name)}</AvatarFallback>
@@ -117,7 +117,7 @@ export function ProfileInfoForm({ user, onUpdate }: ProfileInfoFormProps) {
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border/40">
+        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
           <Button
             type="submit"
             size="sm"

@@ -67,7 +67,7 @@ export function CronJobHistoryDialog({
           {isLoading ? (
             <LoadingSkeleton variant="cards" />
           ) : runs.length === 0 ? (
-            <div className="text-center py-10 border border-dashed border-border/60 rounded-lg">
+            <div className="text-center py-10 border border-dashed border-border rounded-lg">
               <Clock className="size-8 text-muted-foreground/40 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No recorded executions for this job yet.</p>
             </div>
@@ -77,9 +77,9 @@ export function CronJobHistoryDialog({
               return (
                 <div
                   key={run.id}
-                  className="rounded-lg border border-border/70 bg-card overflow-hidden text-sm"
+                  className="rounded-lg border border-border bg-card overflow-hidden text-sm"
                 >
-                  <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/40 border-b border-border/60">
+                  <div className="flex items-center justify-between px-3.5 py-2.5 bg-muted/40 border-b border-border">
                     <div className="flex items-center gap-2.5">
                       {isSuccess ? (
                         <CheckCircle2 className="size-4 text-status-success shrink-0" />
@@ -103,11 +103,7 @@ export function CronJobHistoryDialog({
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="outline"
-                        className={
-                          isSuccess
-                            ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs'
-                            : 'bg-status-danger/10 text-status-danger border-status-danger/30 font-mono text-xs'
-                        }
+                        className={isSuccess ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs' : 'bg-status-danger/10 text-status-danger border-status-danger/30 font-mono text-xs'}
                       >
                         Exit code: {run.exitCode}
                       </Badge>
@@ -128,7 +124,7 @@ export function CronJobHistoryDialog({
                   </div>
 
                   {/* Terminal Log Output */}
-                  <div className="p-3 bg-[#0B0C14] font-mono text-sm text-[#939DB8] overflow-x-auto whitespace-pre leading-relaxed border-t border-white/10">
+                  <div className="p-3 bg-[#0B0C14] font-mono text-sm text-[#939DB8] overflow-x-auto whitespace-pre leading-relaxed border-t border-border">
                     {run.output}
                   </div>
                 </div>

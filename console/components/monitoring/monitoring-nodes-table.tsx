@@ -33,7 +33,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
   };
 
   return (
-    <Card className="rounded-xl border border-border/70 bg-card shadow-2xs overflow-hidden">
+    <Card className="rounded-xl border border-border bg-card overflow-hidden">
       <CardHeader>
         <SectionHeader
           icon={Server}
@@ -43,9 +43,9 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
       </CardHeader>
 
       <CardContent className="px-0 pb-0">
-        <div className="border-t border-border/60">
+        <div className="border-t border-border">
           <Table>
-            <TableHeader className="bg-muted/40 border-b border-border/60">
+            <TableHeader className="bg-muted/40 border-b border-border">
               <TableRow className="h-11 hover:bg-transparent">
                 <TableHead className="w-[28%]">Node Host</TableHead>
                 <TableHead className="w-[12%]">Status</TableHead>
@@ -75,7 +75,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                     {/* Node Host & OS */}
                     <TableCell>
                       <div className="flex items-center gap-2.5">
-                        <div className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground group-hover:text-primary group-hover:border-primary/40 transition-colors shrink-0">
+                        <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground group-hover:text-primary group-hover:border-primary/40 transition-colors shrink-0">
                           <Server className="size-4" />
                         </div>
                         <div className="min-w-0">

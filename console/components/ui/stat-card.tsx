@@ -31,16 +31,13 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <div
-      className={cn(
-        'relative rounded-xl border border-border bg-card p-5 text-card-foreground shadow-xs transition-colors overflow-hidden',
-        className
-      )}
+      className={cn( 'relative rounded-xl border border-border bg-card p-5 text-card-foreground transition-colors overflow-hidden', className )}
       {...props}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-muted-foreground">{title}</span>
         {Icon && (
-          <div className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground shrink-0">
+          <div className="flex size-8 items-center justify-center rounded-lg border border-border bg-muted/40 text-muted-foreground shrink-0">
             <Icon className="size-4" />
           </div>
         )}
@@ -52,12 +49,7 @@ export function StatCard({
         </span>
         {change && (
           <span
-            className={cn(
-              'inline-flex items-center gap-0.5 text-xs font-medium font-mono',
-              change.trend === 'up' && 'text-status-success',
-              change.trend === 'down' && 'text-status-danger',
-              change.trend === 'neutral' && 'text-muted-foreground'
-            )}
+            className={cn( 'inline-flex items-center gap-0.5 text-xs font-medium font-mono', change.trend === 'up' && 'text-status-success', change.trend === 'down' && 'text-status-danger', change.trend === 'neutral' && 'text-muted-foreground' )}
           >
             {change.trend === 'up' && <ArrowUpRight className="size-3" />}
             {change.trend === 'down' && <ArrowDownRight className="size-3" />}

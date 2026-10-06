@@ -157,7 +157,7 @@ export function EnvRawView({ rawContent, onChange }: EnvRawViewProps) {
   };
 
   return (
-    <Card className="p-0 overflow-hidden border border-border bg-background shadow-xs">
+    <Card className="p-0 overflow-hidden border border-border bg-background">
       {/* Editor Header & Utilities */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/20 px-4 py-2.5">
         <div className="flex items-center gap-3">

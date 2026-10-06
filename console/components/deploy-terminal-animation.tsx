@@ -107,8 +107,7 @@ export function DeployTerminalAnimation({ className }: { className?: string }) {
 
   return (
     <div
-      className={cn(
-        "relative flex flex-col overflow-hidden rounded-xl border border-border bg-background font-mono text-xs shadow-xl transition-colors",
+      className={cn("relative flex flex-col overflow-hidden rounded-xl border border-border bg-background font-mono text-xs  transition-colors",
         className
       )}
     >
@@ -125,16 +124,14 @@ export function DeployTerminalAnimation({ className }: { className?: string }) {
 
         <div className="flex items-center gap-2">
           <div
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+            className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
               isComplete
                 ? "bg-status-success/10 text-status-success border border-status-success/20"
                 : "bg-status-warning/10 text-status-warning border border-status-warning/20"
             )}
           >
             <span
-              className={cn(
-                "size-1.5 rounded-full",
+              className={cn("size-1.5 rounded-full",
                 isComplete ? "bg-status-success" : "animate-pulse bg-status-warning"
               )}
             />
@@ -213,7 +210,7 @@ export function DeployTerminalAnimation({ className }: { className?: string }) {
       </div>
 
       {/* Terminal Footer Bar */}
-      <div className="flex items-center justify-between border-t border-border/80 bg-muted/40 px-4 py-1.5 text-[11px] text-muted-foreground transition-colors">
+      <div className="flex items-center justify-between border-t border-border bg-muted/40 px-4 py-1.5 text-[11px] text-muted-foreground transition-colors">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-foreground">Target:</span>
           <span>node-a &bull; Traefik v3</span>

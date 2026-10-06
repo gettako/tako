@@ -107,9 +107,9 @@ export function BackupsTab({ service }: BackupsTabProps) {
         }
       />
 
-      <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>
-          <TableHeader className="bg-muted/40 border-b border-border/60">
+          <TableHeader className="bg-muted/40 border-b border-border">
             <TableRow className="h-11 hover:bg-transparent">
               <TableHead>Snapshot Archive</TableHead>
               <TableHead className="w-[120px]">Size</TableHead>

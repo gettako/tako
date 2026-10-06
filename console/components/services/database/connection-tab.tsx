@@ -78,7 +78,7 @@ export function ConnectionTab({ service }: ConnectionTabProps) {
           }
         />
 
-        <div className="rounded-md border border-border/70 bg-[#0B0C14] p-3 font-mono text-xs text-white select-all overflow-x-auto">
+        <div className="rounded-md border border-border bg-[#0B0C14] p-3 font-mono text-xs text-white select-all overflow-x-auto">
           {showPassword ? connectionUri : maskedUri}
         </div>
       </Card>

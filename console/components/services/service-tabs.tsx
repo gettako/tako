@@ -61,7 +61,7 @@ export function ServiceTabs({
   const tabs = getTabsForService(serviceType);
 
   return (
-    <div className={cn('border-b border-border/80 overflow-x-auto scrollbar-none', className)}>
+    <div className={cn('border-b border-border overflow-x-auto scrollbar-none', className)}>
       <nav className="flex space-x-1 sm:space-x-2 min-w-max pb-px">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -71,12 +71,7 @@ export function ServiceTabs({
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={cn(
-                'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none whitespace-nowrap',
-                isActive
-                  ? 'border-primary text-primary font-semibold'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-              )}
+              className={cn( 'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none whitespace-nowrap', isActive ? 'border-primary text-primary font-semibold' : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border' )}
             >
               <Icon className={cn('size-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
               <span>{tab.label}</span>

@@ -120,7 +120,7 @@ export default function AuditLogsPage() {
               size="sm"
               onClick={handleExportJson}
               disabled={filteredLogs.length === 0}
-              className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-card border-border/70 active:not-aria-[haspopup]:translate-y-px shrink-0 cursor-pointer shadow-xs"
+              className="gap-1.5 text-xs sm:text-sm h-9 px-3.5 bg-card border-border active:not-aria-[haspopup]:translate-y-px shrink-0 cursor-pointer"
             >
               <Download className="size-3.5" />
               <span>Export Ledger JSON</span>

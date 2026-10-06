@@ -74,7 +74,7 @@ export function PasskeyManager() {
 
   return (
     <>
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Fingerprint}
@@ -99,7 +99,7 @@ export function PasskeyManager() {
 
         <CardContent className="px-0 pt-2">
           {passkeys.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-border/60 rounded-lg">
+            <div className="text-center py-8 border border-dashed border-border rounded-lg">
               <Fingerprint className="size-8 text-muted-foreground/40 mx-auto mb-2" />
               <p className="text-xs text-muted-foreground">No passkeys registered yet.</p>
               <p className="text-[11px] text-muted-foreground/80 mt-0.5">
@@ -107,9 +107,9 @@ export function PasskeyManager() {
               </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border/70 overflow-hidden shadow-2xs">
+            <div className="rounded-xl border border-border overflow-hidden">
               <Table>
-                <TableHeader className="bg-muted/40 border-b border-border/60">
+                <TableHeader className="bg-muted/40 border-b border-border">
                   <TableRow className="h-11 hover:bg-transparent">
                     <TableHead className="w-[40%]">Passkey Name</TableHead>
                     <TableHead className="w-[25%]">Created Date</TableHead>

@@ -106,7 +106,7 @@ export function BucketsPanel() {
 
   return (
     <>
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={HardDrive}
@@ -130,15 +130,15 @@ export function BucketsPanel() {
 
         <CardContent className="px-0 pt-2">
           {buckets.length === 0 ? (
-            <div className="text-center py-8 border border-dashed border-border/60 rounded-lg">
+            <div className="text-center py-8 border border-dashed border-border rounded-lg">
               <HardDrive className="size-8 text-muted-foreground/40 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No S3 storage buckets configured.</p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
               <Table>
-                <TableHeader className="bg-muted/40 border-b border-border/60">
-                  <TableRow className="border-b border-border/60 hover:bg-transparent">
+                <TableHeader className="bg-muted/40 border-b border-border">
+                  <TableRow className="border-b border-border hover:bg-transparent">
                     <TableHead className="w-[25%]">Storage Name</TableHead>
                     <TableHead className="w-[20%]">Bucket</TableHead>
                     <TableHead className="w-[30%]">Endpoint</TableHead>
@@ -148,7 +148,7 @@ export function BucketsPanel() {
                 </TableHeader>
                 <TableBody>
                   {buckets.map((b) => (
-                    <TableRow key={b.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
+                    <TableRow key={b.id} className="h-14 border-b border-border hover:bg-muted/30 transition-colors">
                       <TableCell className="font-medium text-foreground">
                         {b.name}
                       </TableCell>

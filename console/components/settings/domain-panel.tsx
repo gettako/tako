@@ -45,7 +45,7 @@ export function DomainPanel() {
   };
 
   return (
-    <Card className="border-border/60 bg-card p-6">
+    <Card className="border-border bg-card p-6">
       <CardHeader className="px-0 pt-0 pb-4">
         <SectionHeader
           icon={Globe}
@@ -80,14 +80,14 @@ export function DomainPanel() {
           </div>
 
           {/* DNS Configuration Instructions */}
-          <div className="p-4 rounded-lg border border-border/60 bg-muted/20 text-sm space-y-2.5">
+          <div className="p-4 rounded-lg border border-border bg-muted/20 text-sm space-y-2.5">
             <div className="font-semibold text-foreground flex items-center gap-1.5">
               <span>Required DNS Pointer</span>
             </div>
             <p className="text-muted-foreground text-sm">
               Point your domain&apos;s DNS <code>A</code> record to your Tako cluster leader node:
             </p>
-            <div className="flex items-center gap-2.5 font-mono text-sm bg-muted/60 px-3.5 py-2 rounded-md border border-border/40">
+            <div className="flex items-center gap-2.5 font-mono text-sm bg-muted/60 px-3.5 py-2 rounded-md border border-border">
               <span className="text-muted-foreground">{domain}</span>
               <ArrowRight className="size-3.5 text-muted-foreground" />
               <span className="font-semibold text-foreground">
@@ -97,7 +97,7 @@ export function DomainPanel() {
           </div>
 
           {/* SSL Auto-Renew Switch */}
-          <div className="flex items-center justify-between pt-2 border-t border-border/40">
+          <div className="flex items-center justify-between pt-2 border-t border-border">
             <div className="space-y-0.5">
               <Label className="text-sm font-medium text-foreground">
                 Automatic Let&apos;s Encrypt SSL Certificates
@@ -114,7 +114,7 @@ export function DomainPanel() {
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border/40">
+        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
           <Button
             type="submit"
             size="sm"

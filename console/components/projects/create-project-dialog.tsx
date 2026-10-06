@@ -270,7 +270,7 @@ export function CreateProjectDialog({
                 {slugError}
               </p>
             ) : (
-              <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-1.5 flex items-center justify-between text-xs font-mono text-muted-foreground">
+              <div className="rounded-md border border-border bg-muted/20 px-3 py-1.5 flex items-center justify-between text-xs font-mono text-muted-foreground">
                 <span className="truncate flex items-center gap-1.5">
                   <Globe className="size-3 shrink-0 text-muted-foreground/80" />
                   <span>/projects/</span>
@@ -303,21 +303,13 @@ export function CreateProjectDialog({
                     type="button"
                     onClick={() => setEnvironment(env.id)}
                     disabled={createMutation.isPending}
-                    className={cn(
-                      'flex flex-col text-left p-3 rounded-lg border transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none',
-                      isSelected
-                        ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40 shadow-2xs'
-                        : 'border-border/70 bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground'
-                    )}
+                    className={cn( 'flex flex-col text-left p-3 rounded-lg border transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', isSelected ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40 ' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground' )}
                   >
                     <div className="flex items-center justify-between w-full mb-1">
                       <div className="flex items-center gap-1.5">
                         <span className={cn('size-1.5 rounded-full', env.indicatorColor)} />
                         <span
-                          className={cn(
-                            'text-xs font-semibold',
-                            isSelected ? 'text-foreground' : 'text-foreground/80'
-                          )}
+                          className={cn( 'text-xs font-semibold', isSelected ? 'text-foreground' : 'text-foreground/80' )}
                         >
                           {env.label}
                         </span>
@@ -403,12 +395,7 @@ export function CreateProjectDialog({
                     type="button"
                     onClick={() => handleAddTag(suggested)}
                     disabled={isAdded || createMutation.isPending || tags.length >= 6}
-                    className={cn(
-                      'text-[11px] font-mono px-2 py-0.5 rounded-md border transition-colors cursor-pointer active:not-aria-[haspopup]:translate-y-px',
-                      isAdded
-                        ? 'border-border/40 bg-muted/30 text-muted-foreground/50 cursor-not-allowed'
-                        : 'border-border/70 bg-card hover:bg-muted text-muted-foreground hover:text-foreground'
-                    )}
+                    className={cn( 'text-[11px] font-mono px-2 py-0.5 rounded-md border transition-colors cursor-pointer active:not-aria-[haspopup]:translate-y-px', isAdded ? 'border-border bg-muted/30 text-muted-foreground/50 cursor-not-allowed' : 'border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground' )}
                   >
                     +{suggested}
                   </button>
@@ -423,7 +410,7 @@ export function CreateProjectDialog({
                   <Badge
                     key={tag}
                     variant="outline"
-                    className="gap-1 pl-2 pr-1 py-0.5 text-xs font-mono bg-muted/40 border-border/80"
+                    className="gap-1 pl-2 pr-1 py-0.5 text-xs font-mono bg-muted/40 border-border"
                   >
                     <span>{tag}</span>
                     <button
@@ -441,7 +428,7 @@ export function CreateProjectDialog({
             )}
           </div>
 
-          <DialogFooter className="pt-3 border-t border-border/60">
+          <DialogFooter className="pt-3 border-t border-border">
             <Button
               type="button"
               variant="outline"
@@ -454,7 +441,7 @@ export function CreateProjectDialog({
             <Button
               type="submit"
               disabled={createMutation.isPending || !name.trim()}
-              className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5 shadow-xs"
+              className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
             >
               {createMutation.isPending ? (
                 <>

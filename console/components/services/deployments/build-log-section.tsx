@@ -70,18 +70,14 @@ export function BuildLogSection({
 
       {/* Log lines body */}
       {expanded && (
-        <div className="px-6 py-2 space-y-0.5 bg-muted/20 font-mono text-xs text-muted-foreground border-t border-border/40">
+        <div className="px-6 py-2 space-y-0.5 bg-muted/20 font-mono text-xs text-muted-foreground border-t border-border">
           {logs.length === 0 ? (
             <div className="py-2 italic text-muted-foreground/50">Waiting for logs...</div>
           ) : (
             logs.map((line, idx) => (
               <div
                 key={idx}
-                className={cn(
-                  'flex items-baseline gap-3 py-0.5 px-1 rounded-xs hover:bg-muted/50 text-foreground/80',
-                  line.level === 'error' && 'text-destructive bg-destructive/10 font-semibold',
-                  line.level === 'warn' && 'text-amber-600 dark:text-amber-300'
-                )}
+                className={cn( 'flex items-baseline gap-3 py-0.5 px-1 rounded-xs hover:bg-muted/50 text-foreground/80', line.level === 'error' && 'text-destructive bg-destructive/10 font-semibold', line.level === 'warn' && 'text-amber-600 dark:text-amber-300' )}
               >
                 <span className="w-8 shrink-0 select-none text-right text-[11px] text-muted-foreground/40 font-mono">
                   {idx + 1}

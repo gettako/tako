@@ -167,7 +167,7 @@ export function Header() {
           <TooltipContent side="bottom" align="start">
             <span className="flex items-center gap-1.5">
               <span>Toggle sidebar</span>
-              <kbd className="rounded border border-border/70 bg-background/80 px-1 py-0.2 font-mono text-[10px] text-muted-foreground">
+              <kbd className="rounded border border-border bg-background/80 px-1 py-0.2 font-mono text-[10px] text-muted-foreground">
                 ⌘B
               </kbd>
             </span>
@@ -214,12 +214,7 @@ export function Header() {
                       render={
                         <button
                           type="button"
-                          className={cn(
-                            'flex items-center gap-1.5 px-2 py-1 -my-1 rounded-md text-xs sm:text-sm font-semibold transition-colors outline-none cursor-pointer group',
-                            serviceSwitcherOpen
-                              ? 'bg-muted text-foreground ring-1 ring-border'
-                              : 'text-foreground hover:bg-muted/70 hover:text-primary'
-                          )}
+                          className={cn( 'flex items-center gap-1.5 px-2 py-1 -my-1 rounded-md text-xs sm:text-sm font-semibold transition-colors outline-none cursor-pointer group', serviceSwitcherOpen ? 'bg-muted text-foreground ring-1 ring-border' : 'text-foreground hover:bg-muted/70 hover:text-primary' )}
                           title="Switch service"
                         >
                           <span className="truncate max-w-[130px] lg:max-w-[200px]">
@@ -229,7 +224,7 @@ export function Header() {
                         </button>
                       }
                     />
-                    <PopoverContent align="start" className="w-72 p-0 shadow-lg border-border/80">
+                    <PopoverContent align="start" className="w-72 p-0 border-border">
                       <Command>
                         <CommandInput
                           placeholder="Search service..."
@@ -253,25 +248,11 @@ export function Header() {
                                     setServiceSwitcherOpen(false);
                                     router.push(`/projects/${effectiveProjectId}/services/${srv.id}`);
                                   }}
-                                  className={cn(
-                                    'flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs rounded-md cursor-pointer',
-                                    isSelected && 'bg-primary/10 text-primary font-medium'
-                                  )}
+                                  className={cn( 'flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs rounded-md cursor-pointer', isSelected && 'bg-primary/10 text-primary font-medium' )}
                                 >
                                   <div className="flex items-center gap-2 min-w-0">
                                     <span
-                                      className={cn(
-                                        'size-1.5 rounded-full shrink-0',
-                                        srv.status === 'healthy'
-                                          ? 'bg-emerald-500'
-                                          : srv.status === 'deploying' || srv.status === 'queued'
-                                          ? 'bg-blue-500 animate-pulse'
-                                          : srv.status === 'unhealthy'
-                                          ? 'bg-red-500'
-                                          : srv.status === 'degraded'
-                                          ? 'bg-amber-500'
-                                          : 'bg-neutral-400'
-                                      )}
+                                      className={cn( 'size-1.5 rounded-full shrink-0', srv.status === 'healthy' ? 'bg-emerald-500' : srv.status === 'deploying' || srv.status === 'queued' ? 'bg-blue-500 animate-pulse' : srv.status === 'unhealthy' ? 'bg-red-500' : srv.status === 'degraded' ? 'bg-amber-500' : 'bg-neutral-400' )}
                                     />
                                     <div className="flex flex-col min-w-0 text-left">
                                       <span className="truncate font-medium">{srv.name}</span>
@@ -362,12 +343,12 @@ export function Header() {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 gap-2 px-2.5 text-xs text-muted-foreground hover:text-foreground font-normal border-border/60 bg-muted/30"
+          className="h-8 gap-2 px-2.5 text-xs text-muted-foreground hover:text-foreground font-normal border-border bg-muted/30"
           onClick={() => openCommandPalette()}
         >
           <Search className="size-3.5" />
           <span className="hidden md:inline">Search console...</span>
-          <kbd className="pointer-events-none hidden sm:inline-flex h-5 items-center gap-0.5 rounded border border-border/80 bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-80">
+          <kbd className="pointer-events-none hidden sm:inline-flex h-5 items-center gap-0.5 rounded border border-border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-80">
             <span className="text-xs">⌘</span>K
           </kbd>
         </Button>
@@ -392,7 +373,7 @@ export function Header() {
               </AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-60 p-1.5 shadow-lg">
+          <DropdownMenuContent align="end" className="w-60 p-1.5">
             <DropdownMenuLabel className="px-2.5 py-2">
               <div className="flex flex-col space-y-1">
                 <div className="flex items-center justify-between">
@@ -427,16 +408,11 @@ export function Header() {
               <span className="text-[11px] font-medium text-muted-foreground block mb-1.5">
                 Theme
               </span>
-              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted/70 p-1 border border-border/40">
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted/70 p-1 border border-border">
                 <button
                   type="button"
                   onClick={() => setTheme('light')}
-                  className={cn(
-                    'flex items-center justify-center gap-1.5 rounded-md py-1.5 px-2 text-xs font-medium transition-all cursor-pointer',
-                    activeTheme === 'light'
-                      ? 'bg-background text-foreground shadow-xs font-semibold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  )}
+                  className={cn( 'flex items-center justify-center gap-1.5 rounded-md py-1.5 px-2 text-xs font-medium transition-all cursor-pointer', activeTheme === 'light' ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50' )}
                 >
                   <Sun className="size-3.5" />
                   <span>Light</span>
@@ -444,12 +420,7 @@ export function Header() {
                 <button
                   type="button"
                   onClick={() => setTheme('dark')}
-                  className={cn(
-                    'flex items-center justify-center gap-1.5 rounded-md py-1.5 px-2 text-xs font-medium transition-all cursor-pointer',
-                    activeTheme === 'dark'
-                      ? 'bg-background text-foreground shadow-xs font-semibold'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  )}
+                  className={cn( 'flex items-center justify-center gap-1.5 rounded-md py-1.5 px-2 text-xs font-medium transition-all cursor-pointer', activeTheme === 'dark' ? 'bg-background text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50' )}
                 >
                   <Moon className="size-3.5" />
                   <span>Dark</span>

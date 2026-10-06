@@ -9,11 +9,11 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-primary/90 dark:hover:bg-[#7D87E8] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]",
+          "bg-primary text-primary-foreground hover:bg-primary/90 dark:hover:bg-[#7D87E8]",
         outline:
-          "border-border bg-background shadow-xs hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-border dark:bg-transparent dark:hover:bg-muted dark:hover:text-foreground",
+          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-border dark:bg-transparent dark:hover:bg-muted dark:hover:text-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground dark:border dark:border-border dark:bg-card dark:hover:bg-card/80 dark:text-foreground",
+          "bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)] aria-expanded:bg-secondary aria-expanded:text-secondary-foreground dark:border dark:border-border dark:bg-card dark:hover:bg-muted/40 dark:text-foreground",
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted dark:hover:text-foreground",
         destructive:
@@ -68,7 +68,7 @@ const Button = React.forwardRef<
       ref={ref}
       data-slot="button"
       nativeButton={resolvedNativeButton}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size, className}))}
       {...props}
     />
   )

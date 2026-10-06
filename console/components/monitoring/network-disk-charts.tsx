@@ -55,7 +55,7 @@ export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Network Traffic (In/Out) Chart */}
-      <Card className="rounded-xl border border-border/70 bg-card shadow-2xs">
+      <Card className="rounded-xl border border-border bg-card">
         <CardHeader>
           <SectionHeader
             icon={Network}
@@ -148,7 +148,7 @@ export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
       </Card>
 
       {/* Disk Read/Write Throughput Chart */}
-      <Card className="rounded-xl border border-border/70 bg-card shadow-2xs">
+      <Card className="rounded-xl border border-border bg-card">
         <CardHeader>
           <SectionHeader
             icon={HardDrive}

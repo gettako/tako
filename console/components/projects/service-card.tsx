@@ -48,7 +48,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
     <Link href={`/services/${service.id}`} className="block group outline-hidden h-[170px]">
       <Card
         size="sm"
-        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-border/80 group-hover:shadow-xs active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
+        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
       >
         <div className="p-4 pb-3 space-y-2.5">
           {/* Header row: Name, Type Badge, Domain & Status */}
@@ -59,12 +59,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
               </CardTitle>
               <div className="flex items-center gap-1.5 min-w-0">
                 <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-xs px-1.5 py-0.5 text-[10px] font-semibold uppercase font-mono tracking-wider shrink-0',
-                    service.type === 'database'
-                      ? 'border border-status-success/20 bg-status-success/10 text-status-success'
-                      : 'border border-primary/20 bg-primary/10 text-primary'
-                  )}
+                  className={cn( 'inline-flex items-center gap-1 rounded-xs px-1.5 py-0.5 text-[10px] font-semibold uppercase font-mono tracking-wider shrink-0', service.type === 'database' ? 'border border-status-success/20 bg-status-success/10 text-status-success' : 'border border-primary/20 bg-primary/10 text-primary' )}
                 >
                   <TypeIcon className="size-2.5" />
                   <span>{service.databaseType || service.type}</span>
@@ -119,7 +114,7 @@ export function ServiceCard({ service }: ServiceCardProps) {
         </div>
 
         {/* Clean Single-Row Footer */}
-        <CardFooter className="px-4 py-2.5 flex items-center justify-between border-t border-border/40 text-xs text-muted-foreground h-10 shrink-0">
+        <CardFooter className="px-4 py-2.5 flex items-center justify-between border-t border-border text-xs text-muted-foreground h-10 shrink-0">
           <span className="font-mono text-[11px] shrink-0">
             {service.replicas} {service.replicas === 1 ? 'instance' : 'instances'}
           </span>

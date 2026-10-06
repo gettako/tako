@@ -130,7 +130,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Clock}
@@ -170,10 +170,10 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
               }}
             />
           ) : (
-            <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
               <Table>
-                <TableHeader className="bg-muted/40 border-b border-border/60">
-                  <TableRow className="border-b border-border/60 hover:bg-transparent">
+                <TableHeader className="bg-muted/40 border-b border-border">
+                  <TableRow className="border-b border-border hover:bg-transparent">
                     <TableHead className="w-[28%]">Name & Schedule</TableHead>
                     <TableHead className="w-[24%]">Command</TableHead>
                     <TableHead className="w-[10%]">Active</TableHead>
@@ -187,7 +187,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                     const isRunning = runningJobId === job.id;
                     const isActive = job.status === 'active';
                     return (
-                      <TableRow key={job.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
+                      <TableRow key={job.id} className="h-14 border-b border-border hover:bg-muted/30 transition-colors">
                         {/* Name & Schedule */}
                         <TableCell>
                           <div className="font-medium text-foreground text-sm">{job.name}</div>
@@ -203,7 +203,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
 
                         {/* Command */}
                         <TableCell className="font-mono text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5 max-w-xs truncate bg-muted/40 px-2 py-0.5 rounded border border-border/40">
+                          <div className="flex items-center gap-1.5 max-w-xs truncate bg-muted/40 px-2 py-0.5 rounded border border-border">
                             <Terminal className="size-3 text-muted-foreground shrink-0" />
                             <span className="truncate text-xs">{job.command}</span>
                             <Button

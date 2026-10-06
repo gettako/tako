@@ -68,12 +68,12 @@ export function ResourceChart({
   }));
 
   return (
-    <Card className="rounded-xl border border-border bg-card shadow-xs transition-colors overflow-hidden">
+    <Card className="rounded-xl border border-border bg-card transition-colors overflow-hidden">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             {Icon && (
-              <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
+              <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl border border-border bg-muted/40 text-foreground shrink-0">
                 <Icon className="size-4 sm:size-5" />
               </div>
             )}

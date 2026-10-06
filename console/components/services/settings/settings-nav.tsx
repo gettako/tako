@@ -63,7 +63,7 @@ export function SettingsNav({
   return (
     <>
       {/* Mobile Horizontal Pill Scroll */}
-      <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-2 border-b border-border/60 scrollbar-none">
+      <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-2 border-b border-border scrollbar-none">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = activeSection === item.id;
@@ -71,14 +71,7 @@ export function SettingsNav({
             <button
               key={item.id}
               onClick={() => onSectionChange(item.id)}
-              className={cn(
-                'flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border',
-                isActive
-                  ? item.isDestructive
-                    ? 'bg-status-danger/10 border-status-danger/40 text-status-danger'
-                    : 'bg-primary/10 border-primary/30 text-primary font-semibold'
-                  : 'bg-card border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/50'
-              )}
+              className={cn( 'flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border', isActive ? item.isDestructive ? 'bg-status-danger/10 border-status-danger/40 text-status-danger' : 'bg-primary/10 border-primary/30 text-primary font-semibold' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted/50' )}
             >
               <Icon className="size-4" />
               <span>{item.label}</span>
@@ -104,26 +97,10 @@ export function SettingsNav({
             <button
               key={item.id}
               onClick={() => onSectionChange(item.id)}
-              className={cn(
-                'group flex items-start gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all border',
-                isActive
-                  ? item.isDestructive
-                    ? 'bg-status-danger/10 border-status-danger/40 text-status-danger shadow-xs'
-                    : 'bg-primary/10 border-primary/30 text-primary font-medium shadow-xs'
-                  : item.isDestructive
-                  ? 'border-transparent text-status-danger/80 hover:bg-status-danger/5 hover:text-status-danger'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              )}
+              className={cn( 'group flex items-start gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all border', isActive ? item.isDestructive ? 'bg-status-danger/10 border-status-danger/40 text-status-danger ' : 'bg-primary/10 border-primary/30 text-primary font-medium ' : item.isDestructive ? 'border-transparent text-status-danger/80 hover:bg-status-danger/5 hover:text-status-danger' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60' )}
             >
               <div
-                className={cn(
-                  'mt-0.5 p-1 rounded-md transition-colors',
-                  isActive
-                    ? item.isDestructive
-                      ? 'bg-status-danger/20 text-status-danger'
-                      : 'bg-primary/20 text-primary'
-                    : 'text-muted-foreground group-hover:text-foreground'
-                )}
+                className={cn( 'mt-0.5 p-1 rounded-md transition-colors', isActive ? item.isDestructive ? 'bg-status-danger/20 text-status-danger' : 'bg-primary/20 text-primary' : 'text-muted-foreground group-hover:text-foreground' )}
               >
                 <Icon className="size-4" />
               </div>

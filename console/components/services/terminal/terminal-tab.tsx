@@ -81,7 +81,7 @@ export function TerminalTab({
     <>
       {/* 1. Minimized Floating Dock (Persistent bottom-right bar, stays active anywhere) */}
       {viewMode === 'minimized' && (
-        <div className="fixed bottom-5 right-6 z-50 flex items-center gap-3 rounded-xl border border-border bg-background/95 px-4 py-2.5 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-3 duration-200">
+        <div className="fixed bottom-5 right-6 z-50 flex items-center gap-3 rounded-xl border border-border bg-background/95 px-4 py-2.5 backdrop-blur-md animate-in slide-in-from-bottom-3 duration-200">
           <div className="flex items-center gap-2">
             <span className="relative flex size-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -134,7 +134,7 @@ export function TerminalTab({
           {/* Fullscreen Header */}
           <div className="flex items-center justify-between border-b border-border pb-3 mb-3">
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-muted/40 shadow-2xs">
+              <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-muted/40">
                 <TerminalIcon className="size-4.5 text-primary" />
               </div>
               <div>
@@ -193,7 +193,7 @@ export function TerminalTab({
           </div>
 
           {/* Fullscreen Terminal Canvas */}
-          <div className="flex-1 w-full min-h-0 rounded-lg border border-border bg-background shadow-xs overflow-hidden">
+          <div className="flex-1 w-full min-h-0 rounded-lg border border-border bg-background overflow-hidden">
             <XtermTerminal
               ref={termRef}
               service={service}
@@ -278,7 +278,7 @@ export function TerminalTab({
           </Card>
         ) : (
           /* Inline Terminal Canvas - Background matches theme */
-          <div className="rounded-lg border border-border bg-background p-1 shadow-xs min-h-[440px] h-[520px] overflow-hidden">
+          <div className="rounded-lg border border-border bg-background p-1 min-h-[440px] h-[520px] overflow-hidden">
             <XtermTerminal
               ref={termRef}
               service={service}

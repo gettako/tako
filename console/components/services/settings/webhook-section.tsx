@@ -153,7 +153,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
   return (
     <div className="space-y-6">
       {/* Webhook Configuration Card */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={WebhookIcon}
@@ -223,14 +223,14 @@ export function WebhookSection({ service }: WebhookSectionProps) {
           </div>
 
           {/* Trigger Event Toggles (AC-8) */}
-          <div className="pt-3 border-t border-border/40 space-y-3">
+          <div className="pt-3 border-t border-border space-y-3">
             <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
               Trigger Events
             </Label>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Push to branch */}
-              <div className="flex items-start justify-between p-3.5 rounded-lg border border-border/60 bg-muted/20">
+              <div className="flex items-start justify-between p-3.5 rounded-lg border border-border bg-muted/20">
                 <div className="space-y-0.5 pr-2">
                   <div className="text-sm font-medium text-foreground">Push to Branch</div>
                   <div className="text-sm text-muted-foreground">
@@ -245,7 +245,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
               </div>
 
               {/* New tag */}
-              <div className="flex items-start justify-between p-3.5 rounded-lg border border-border/60 bg-muted/20">
+              <div className="flex items-start justify-between p-3.5 rounded-lg border border-border bg-muted/20">
                 <div className="space-y-0.5 pr-2">
                   <div className="text-sm font-medium text-foreground">New Tag Created</div>
                   <div className="text-sm text-muted-foreground">
@@ -260,7 +260,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
               </div>
 
               {/* Manual curl trigger */}
-              <div className="flex items-start justify-between p-3.5 rounded-lg border border-border/60 bg-muted/20">
+              <div className="flex items-start justify-between p-3.5 rounded-lg border border-border bg-muted/20">
                 <div className="space-y-0.5 pr-2">
                   <div className="text-sm font-medium text-foreground">Manual Trigger</div>
                   <div className="text-sm text-muted-foreground">
@@ -279,7 +279,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
       </Card>
 
       {/* Webhook Deliveries Log Table Card (AC-8) */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={History}

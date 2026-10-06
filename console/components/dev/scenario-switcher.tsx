@@ -33,7 +33,7 @@ export function ScenarioSwitcher() {
       <div className="fixed bottom-4 left-4 z-50">
         <button
           onClick={() => setIsMinimized(false)}
-          className="flex size-9 items-center justify-center rounded-full bg-background/90 text-primary border border-border/80 shadow-lg backdrop-blur-md hover:bg-muted/80 transition-all"
+          className="flex size-9 items-center justify-center rounded-full bg-background/90 text-primary border border-border backdrop-blur-md hover:bg-muted/80 transition-all"
           title="Open Dev Scenario Switcher"
         >
           <Sparkles className="size-4" />
@@ -44,7 +44,7 @@ export function ScenarioSwitcher() {
 
   return (
     <div className="fixed bottom-4 left-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-      <div className="flex items-center gap-2 rounded-full border border-border/80 bg-background/90 px-3 py-1.5 shadow-xl backdrop-blur-md text-xs">
+      <div className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-3 py-1.5 backdrop-blur-md text-xs">
         <div className="flex items-center gap-1.5 text-muted-foreground font-medium pl-1">
           <Sparkles className="size-3.5 text-primary" />
           <span className="hidden sm:inline">Scenario:</span>
@@ -54,12 +54,7 @@ export function ScenarioSwitcher() {
           {/* Normal */}
           <button
             onClick={() => handleSelect('normal')}
-            className={cn(
-              'flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-all',
-              activeScenario === 'normal'
-                ? 'bg-status-success/15 text-status-success border border-status-success/30'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-            )}
+            className={cn( 'flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-all', activeScenario === 'normal' ? 'bg-status-success/15 text-status-success border border-status-success/30' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60' )}
           >
             <span className="size-1.5 rounded-full bg-status-success" />
             <span>Normal</span>
@@ -68,12 +63,7 @@ export function ScenarioSwitcher() {
           {/* Many Errors */}
           <button
             onClick={() => handleSelect('errors')}
-            className={cn(
-              'flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-all',
-              activeScenario === 'errors'
-                ? 'bg-status-danger/15 text-status-danger border border-status-danger/30'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-            )}
+            className={cn( 'flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-all', activeScenario === 'errors' ? 'bg-status-danger/15 text-status-danger border border-status-danger/30' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60' )}
           >
             <span className="size-1.5 rounded-full bg-status-danger" />
             <span>Errors</span>
@@ -82,12 +72,7 @@ export function ScenarioSwitcher() {
           {/* Empty Slate */}
           <button
             onClick={() => handleSelect('empty')}
-            className={cn(
-              'flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-all',
-              activeScenario === 'empty'
-                ? 'bg-primary/15 text-primary border border-primary/30'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-            )}
+            className={cn( 'flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-all', activeScenario === 'empty' ? 'bg-primary/15 text-primary border border-primary/30' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60' )}
           >
             <span className="size-1.5 rounded-full bg-muted-foreground/60" />
             <span>Empty</span>

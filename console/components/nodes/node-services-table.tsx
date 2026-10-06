@@ -48,10 +48,10 @@ export function NodeServicesTable({
   };
 
   return (
-    <Card className="rounded-xl border border-border/70 bg-card shadow-xs transition-colors overflow-hidden">
+    <Card className="rounded-xl border border-border bg-card transition-colors overflow-hidden">
       <CardHeader>
         <div className="flex items-center gap-3.5 min-w-0">
-          <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
+          <div className="flex size-10 items-center justify-center rounded-xl border border-border bg-muted/40 text-foreground shrink-0">
             <Boxes className="size-5" />
           </div>
           <div className="space-y-0.5 min-w-0">
@@ -81,9 +81,9 @@ export function NodeServicesTable({
             />
           </div>
         ) : (
-          <div className="border-t border-border/60">
+          <div className="border-t border-border">
             <Table>
-              <TableHeader className="bg-muted/40 border-b border-border/60">
+              <TableHeader className="bg-muted/40 border-b border-border">
                 <TableRow className="h-11 hover:bg-transparent">
                   <TableHead className="w-[32%]">Service</TableHead>
                   <TableHead className="w-[20%]">Parent Project</TableHead>
@@ -161,7 +161,7 @@ export function NodeServicesTable({
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className="text-[10px] font-mono capitalize border-border/60 bg-muted/40"
+                          className="text-[10px] font-mono capitalize border-border bg-muted/40"
                         >
                           {service.type}
                           {service.databaseType && ` (${service.databaseType})`}

@@ -126,7 +126,7 @@ export function UsersPanel() {
   return (
     <div className="space-y-6">
       {/* Team Members Card */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Users}
@@ -150,9 +150,9 @@ export function UsersPanel() {
         </CardHeader>
 
         <CardContent className="px-0 pt-2">
-          <div className="rounded-xl border border-border/70 overflow-hidden bg-card shadow-2xs">
+          <div className="rounded-xl border border-border overflow-hidden bg-card">
             <Table>
-              <TableHeader className="bg-muted/40 border-b border-border/60">
+              <TableHeader className="bg-muted/40 border-b border-border">
                 <TableRow className="h-11 hover:bg-transparent">
                   <TableHead className="w-[32%]">Member</TableHead>
                   <TableHead className="w-[20%]">Role</TableHead>
@@ -262,7 +262,7 @@ export function UsersPanel() {
 
       {/* Pending Invites Card */}
       {invites.length > 0 && (
-        <Card className="border-border/60 bg-card p-6">
+        <Card className="border-border bg-card p-6">
           <CardHeader className="px-0 pt-0 pb-4">
             <SectionHeader
               icon={Mail}
@@ -272,10 +272,10 @@ export function UsersPanel() {
           </CardHeader>
 
           <CardContent className="px-0 pt-2">
-            <div className="rounded-xl border border-border/70 bg-card overflow-hidden shadow-2xs">
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
               <Table>
-                <TableHeader className="bg-muted/40 border-b border-border/60">
-                  <TableRow className="border-b border-border/60 hover:bg-transparent">
+                <TableHeader className="bg-muted/40 border-b border-border">
+                  <TableRow className="border-b border-border hover:bg-transparent">
                     <TableHead className="w-[35%]">Invited Email</TableHead>
                     <TableHead className="w-[20%]">Role</TableHead>
                     <TableHead className="w-[25%]">Expires In</TableHead>
@@ -284,14 +284,14 @@ export function UsersPanel() {
                 </TableHeader>
                 <TableBody>
                   {invites.map((inv) => (
-                    <TableRow key={inv.id} className="h-14 border-b border-border/60 hover:bg-muted/30 transition-colors">
+                    <TableRow key={inv.id} className="h-14 border-b border-border hover:bg-muted/30 transition-colors">
                       <TableCell className="font-mono font-medium text-foreground">
                         {inv.email}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
-                          className="font-mono text-xs uppercase border-border/60 bg-muted/30"
+                          className="font-mono text-xs uppercase border-border bg-muted/30"
                         >
                           {inv.role}
                         </Badge>

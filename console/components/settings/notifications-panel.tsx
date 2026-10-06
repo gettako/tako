@@ -60,7 +60,7 @@ export function NotificationsPanel() {
   return (
     <form onSubmit={handleSave} className="space-y-6">
       {/* 1. Email (SMTP) Channel */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Mail}
@@ -133,7 +133,7 @@ export function NotificationsPanel() {
       </Card>
 
       {/* 2. Slack Webhook Channel */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={MessageSquare}
@@ -189,7 +189,7 @@ export function NotificationsPanel() {
       </Card>
 
       {/* 3. Telegram Bot Channel */}
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Send}

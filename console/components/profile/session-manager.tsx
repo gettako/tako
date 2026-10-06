@@ -54,7 +54,7 @@ export function SessionManager() {
 
   return (
     <>
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Laptop}

@@ -48,18 +48,13 @@ export function MonitoringHeader({
 
       {/* Time Range Selector & Refresh Action */}
       <div className="flex items-center gap-2.5 shrink-0 self-start lg:self-auto">
-        <div className="flex items-center rounded-lg border border-border/70 bg-muted/40 p-1 text-xs">
+        <div className="flex items-center rounded-lg border border-border bg-muted/40 p-1 text-xs">
           {TIME_RANGES.map((r) => (
             <button
               key={r.id}
               type="button"
               onClick={() => onTimeRangeChange(r.id)}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium transition-all active:not-aria-[haspopup]:translate-y-px',
-                timeRange === r.id
-                  ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              )}
+              className={cn( 'px-2.5 py-1 rounded-md text-xs font-medium transition-all active:not-aria-[haspopup]:translate-y-px', timeRange === r.id ? 'bg-primary text-primary-foreground font-semibold ' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60' )}
             >
               {r.label}
             </button>

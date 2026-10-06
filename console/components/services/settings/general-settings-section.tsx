@@ -67,7 +67,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
-      <Card className="border-border/60 bg-card p-6">
+      <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
             icon={Settings}
@@ -93,7 +93,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
           </div>
 
           {/* Type / Environment Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-border/40">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-border">
             <div className="space-y-1">
               <span className="text-xs font-medium text-muted-foreground">Service Type</span>
               <div className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -121,7 +121,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
 
       {/* Build & Repository Settings for App / Compose */}
       {!isDatabase && (
-        <Card className="border-border/60 bg-card p-6">
+        <Card className="border-border bg-card p-6">
           <CardHeader className="px-0 pt-0 pb-4">
             <SectionHeader
               icon={FolderGit2}
@@ -197,7 +197,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
             </div>
           </CardContent>
 
-          <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border/40">
+          <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border">
             <Button
               type="button"
               variant="outline"

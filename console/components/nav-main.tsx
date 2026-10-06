@@ -65,16 +65,14 @@ export function NavMain({
                       tooltip={item.title}
                       isActive={active}
                       render={<Link href={item.url} onClick={handleNavigate} />}
-                      className={cn(
-                        "transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!",
+                      className={cn("transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!",
                         active
                           ? "bg-primary/10 text-primary font-medium hover:bg-primary/15 hover:text-primary dark:bg-primary/15 dark:text-primary-60 dark:hover:bg-primary/25"
                           : "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <Icon
-                        className={cn(
-                          "size-4 shrink-0",
+                        className={cn("size-4 shrink-0",
                           active ? "text-primary dark:text-primary-60" : "text-muted-foreground"
                         )}
                       />

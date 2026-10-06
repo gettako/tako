@@ -47,7 +47,7 @@ export function NodeCard({ node }: NodeCardProps) {
     <Link href={`/nodes/${node.id}`} className="block group outline-hidden h-[170px]">
       <Card
         size="sm"
-        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-border/80 group-hover:shadow-xs active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
+        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
       >
         <div className="p-4 pb-3 space-y-3">
           {/* Canonical CardHeader with CardAction */}
@@ -148,7 +148,7 @@ export function NodeCard({ node }: NodeCardProps) {
         </div>
 
         {/* Canonical CardFooter */}
-        <CardFooter className="px-4 py-2.5 border-t border-border/40 flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
+        <CardFooter className="px-4 py-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
           <span className="truncate text-[11px] font-normal pr-2">{node.os}</span>
 
           <div className="flex items-center gap-1.5 shrink-0">
