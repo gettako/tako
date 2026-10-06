@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { Header } from './header';
@@ -9,6 +10,22 @@ import { GlobalCommandPalette } from '@/components/command-palette/command-dialo
 import { ScenarioSwitcher } from '@/components/dev/scenario-switcher';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isAuthPage =
+    pathname === '/login' ||
+    pathname.startsWith('/login/') ||
+    pathname.startsWith('/invite/') ||
+    pathname === '/onboarding';
+
+  if (isAuthPage) {
+    return (
+      <main className="min-h-screen bg-background text-foreground">
+        {children}
+        <Toaster position="bottom-right" richColors />
+      </main>
+    );
+  }
+
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />

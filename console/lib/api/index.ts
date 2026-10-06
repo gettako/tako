@@ -8,3 +8,4 @@ export * from './audit';
 export * from './settings';
 export * from './crons';
 export * from './webhooks';
+export * from './auth';
