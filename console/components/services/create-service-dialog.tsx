@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectTrigger,
@@ -59,6 +60,22 @@ function GitHubIcon({ className }: { className?: string }) {
       <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
     </svg>
   );
+}
+
+// Helper to interpolate position index from a numeric value
+function getStepIndex(val: number, steps: number[]): number {
+  if (!steps.length) return 0;
+  if (val <= steps[0]) return 0;
+  if (val >= steps[steps.length - 1]) return steps.length - 1;
+
+  for (let i = 0; i < steps.length - 1; i++) {
+    if (val === steps[i]) return i;
+    if (val > steps[i] && val < steps[i + 1]) {
+      const frac = (val - steps[i]) / (steps[i + 1] - steps[i]);
+      return i + frac;
+    }
+  }
+  return steps.length - 1;
 }
 
 export interface CreateServiceDialogProps {
@@ -359,6 +376,64 @@ export function CreateServiceDialog({
   };
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+  const maxCpu = selectedNode?.cpuTotalCores || 16;
+  const maxMemoryMb = selectedNode?.memoryTotalMb || 32768;
+
+  // Clamp resource limits when selected node changes
+  useEffect(() => {
+    if (selectedNode) {
+      setCpuCores((prev) => (prev > selectedNode.cpuTotalCores ? selectedNode.cpuTotalCores : prev));
+      setMemoryMb((prev) => (prev > selectedNode.memoryTotalMb ? selectedNode.memoryTotalMb : prev));
+    }
+  }, [selectedNodeId, selectedNode]);
+
+  // Stepped milestones for CPU & Memory sliders
+  const availableCpuSteps = useMemo(() => {
+    const base = [0.5, 1, 2, 4, 8, 16];
+    const filtered = base.filter((c) => c <= maxCpu);
+    if (!filtered.includes(maxCpu) && maxCpu > 0) {
+      filtered.push(maxCpu);
+      filtered.sort((a, b) => a - b);
+    }
+    return filtered.length > 0 ? filtered : [0.5, 1, 2, 4];
+  }, [maxCpu]);
+
+  const availableMemorySteps = useMemo(() => {
+    const base = [
+      { mb: 512, label: '512M' },
+      { mb: 1024, label: '1G' },
+      { mb: 2048, label: '2G' },
+      { mb: 4096, label: '4G' },
+      { mb: 8192, label: '8G' },
+      { mb: 16384, label: '16G' },
+      { mb: 32768, label: '32G' },
+    ];
+    const filtered = base.filter((m) => m.mb <= maxMemoryMb);
+    if (!filtered.some((m) => m.mb === maxMemoryMb) && maxMemoryMb >= 512) {
+      const label =
+        maxMemoryMb >= 1024
+          ? `${Math.round(maxMemoryMb / 1024)}G`
+          : `${maxMemoryMb}M`;
+      filtered.push({ mb: maxMemoryMb, label });
+      filtered.sort((a, b) => a.mb - b.mb);
+    }
+    return filtered.length > 0 ? filtered : base.slice(0, 4);
+  }, [maxMemoryMb]);
+
+  const memoryStepNumbers = useMemo(
+    () => availableMemorySteps.map((m) => m.mb),
+    [availableMemorySteps]
+  );
+
+  const cpuStepIndex = useMemo(
+    () => getStepIndex(cpuCores, availableCpuSteps),
+    [cpuCores, availableCpuSteps]
+  );
+
+  const memoryStepIndex = useMemo(
+    () => getStepIndex(memoryMb, memoryStepNumbers),
+    [memoryMb, memoryStepNumbers]
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -949,63 +1024,232 @@ export function CreateServiceDialog({
                 </div>
               </div>
 
-              {/* Resource Allocation Quota */}
-              <div className="space-y-2.5 pt-2">
-                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Cpu className="size-3 text-primary" />
-                  Service Resource Allocation
-                </span>
+              {/* Resource Allocation Quota - Option C: Hybrid Slider & Quick Presets */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Cpu className="size-3 text-primary" />
+                    Resource Quota & Limits
+                  </span>
+                  {selectedNode && (
+                    <span className="text-[11px] font-mono text-muted-foreground">
+                      Node Capacity: {maxCpu} vCPU • {Math.round(maxMemoryMb / 1024)} GB
+                    </span>
+                  )}
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* CPU Quota */}
-                  <div className="rounded-lg border border-border/70 bg-card p-3 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground font-medium">CPU Cores Quota</span>
-                      <span className="font-mono font-semibold text-foreground">{cpuCores} vCPU</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* CPU Slider Card */}
+                  <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <Cpu className="size-3.5" />
+                        </div>
+                        <div>
+                          <Label htmlFor="cpu-custom-input" className="text-xs font-semibold text-foreground block cursor-pointer">
+                            CPU Limit
+                          </Label>
+                          <span className="text-[10px] text-muted-foreground">vCPU Cores quota</span>
+                        </div>
+                      </div>
+
+                      {/* Custom Input */}
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          id="cpu-custom-input"
+                          type="number"
+                          min="0.25"
+                          max={maxCpu}
+                          step="0.25"
+                          value={cpuCores}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val > 0) {
+                              setCpuCores(Math.min(maxCpu, Math.max(0.25, val)));
+                            }
+                          }}
+                          className="w-20 h-7.5 text-xs font-mono text-right py-1 px-2"
+                        />
+                        <span className="text-xs font-mono text-muted-foreground">vCPU</span>
+                      </div>
                     </div>
-                    <div className="flex gap-1.5 pt-1">
-                      {[0.5, 1, 2, 4].map((cores) => (
-                        <button
-                          key={cores}
-                          type="button"
-                          onClick={() => setCpuCores(cores)}
-                          className={cn(
-                            'flex-1 py-1 text-xs font-mono rounded border transition-all cursor-pointer',
-                            cpuCores === cores
-                              ? 'border-primary bg-primary/10 text-primary font-semibold ring-1 ring-primary/30'
-                              : 'border-border/60 hover:bg-muted text-muted-foreground'
-                          )}
-                        >
-                          {cores}
-                        </button>
-                      ))}
+
+                    {/* Stepped Slider with Clickable Tick Marks */}
+                    <div className="px-2 pt-2 pb-5">
+                      <div className="relative">
+                        <Slider
+                          value={[cpuStepIndex]}
+                          min={0}
+                          max={availableCpuSteps.length - 1}
+                          step={1}
+                          thumbAlignment="center"
+                          onValueChange={(val) => {
+                            const arr = Array.isArray(val) ? val : [val];
+                            const idx = arr[0];
+                            if (idx !== undefined) {
+                              const rounded = Math.round(idx);
+                              if (availableCpuSteps[rounded] !== undefined) {
+                                setCpuCores(availableCpuSteps[rounded]);
+                              }
+                            }
+                          }}
+                          className="py-1 cursor-pointer"
+                        />
+
+                        {/* Clickable Step Marks & Labels */}
+                        <div className="relative w-full h-7 mt-1.5 pointer-events-none select-none">
+                          {availableCpuSteps.map((stepVal, idx) => {
+                            const totalSteps = availableCpuSteps.length > 1 ? availableCpuSteps.length - 1 : 1;
+                            const percent = (idx / totalSteps) * 100;
+                            const isSelected = cpuCores === stepVal;
+                            const isPast = cpuCores >= stepVal;
+
+                            return (
+                              <button
+                                key={stepVal}
+                                type="button"
+                                onClick={() => setCpuCores(stepVal)}
+                                title={`Set CPU to ${stepVal} vCPU`}
+                                className="pointer-events-auto absolute -translate-x-1/2 flex flex-col items-center group cursor-pointer focus:outline-none"
+                                style={{ left: `${percent}%` }}
+                              >
+                                {/* Tick notch */}
+                                <span
+                                  className={cn(
+                                    "w-0.5 rounded-full transition-all mb-1",
+                                    isSelected
+                                      ? "bg-primary h-2 w-1"
+                                      : isPast
+                                      ? "bg-primary/70 h-1.5"
+                                      : "bg-muted-foreground/30 h-1.5",
+                                    "group-hover:bg-primary group-hover:h-2 group-hover:w-1"
+                                  )}
+                                />
+                                {/* Step label */}
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-mono leading-none transition-colors px-1 py-0.5 rounded",
+                                    isSelected
+                                      ? "text-primary font-bold bg-primary/10"
+                                      : "text-muted-foreground group-hover:text-foreground group-hover:bg-muted/60"
+                                  )}
+                                >
+                                  {stepVal}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Memory RAM Quota */}
-                  <div className="rounded-lg border border-border/70 bg-card p-3 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground font-medium">Memory RAM Limit</span>
-                      <span className="font-mono font-semibold text-foreground">
-                        {memoryMb >= 1024 ? `${memoryMb / 1024} GB` : `${memoryMb} MB`}
-                      </span>
+                  {/* Memory Slider Card */}
+                  <div className="rounded-xl border border-border/70 bg-card p-4 space-y-3.5 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="size-7 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <HardDrive className="size-3.5" />
+                        </div>
+                        <div>
+                          <Label htmlFor="memory-custom-input" className="text-xs font-semibold text-foreground block cursor-pointer">
+                            Memory Limit
+                          </Label>
+                          <span className="text-[10px] text-muted-foreground">RAM allocation</span>
+                        </div>
+                      </div>
+
+                      {/* Custom Input */}
+                      <div className="flex items-center gap-1.5">
+                        <Input
+                          id="memory-custom-input"
+                          type="number"
+                          min="128"
+                          max={maxMemoryMb}
+                          step="128"
+                          value={memoryMb}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val) && val > 0) {
+                              setMemoryMb(Math.min(maxMemoryMb, Math.max(128, val)));
+                            }
+                          }}
+                          className="w-24 h-7.5 text-xs font-mono text-right py-1 px-2"
+                        />
+                        <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                          MB {memoryMb >= 1024 ? `(${(memoryMb / 1024).toFixed(memoryMb % 1024 === 0 ? 0 : 1)}G)` : ''}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex gap-1.5 pt-1">
-                      {[512, 1024, 2048, 4096].map((mb) => (
-                        <button
-                          key={mb}
-                          type="button"
-                          onClick={() => setMemoryMb(mb)}
-                          className={cn(
-                            'flex-1 py-1 text-xs font-mono rounded border transition-all cursor-pointer',
-                            memoryMb === mb
-                              ? 'border-primary bg-primary/10 text-primary font-semibold ring-1 ring-primary/30'
-                              : 'border-border/60 hover:bg-muted text-muted-foreground'
-                          )}
-                        >
-                          {mb >= 1024 ? `${mb / 1024}G` : `${mb}M`}
-                        </button>
-                      ))}
+
+                    {/* Stepped Slider with Clickable Tick Marks */}
+                    <div className="px-2 pt-2 pb-5">
+                      <div className="relative">
+                        <Slider
+                          value={[memoryStepIndex]}
+                          min={0}
+                          max={availableMemorySteps.length - 1}
+                          step={1}
+                          thumbAlignment="center"
+                          onValueChange={(val) => {
+                            const arr = Array.isArray(val) ? val : [val];
+                            const idx = arr[0];
+                            if (idx !== undefined) {
+                              const rounded = Math.round(idx);
+                              if (availableMemorySteps[rounded] !== undefined) {
+                                setMemoryMb(availableMemorySteps[rounded].mb);
+                              }
+                            }
+                          }}
+                          className="py-1 cursor-pointer"
+                        />
+
+                        {/* Clickable Step Marks & Labels */}
+                        <div className="relative w-full h-7 mt-1.5 pointer-events-none select-none">
+                          {availableMemorySteps.map((stepItem, idx) => {
+                            const totalSteps = availableMemorySteps.length > 1 ? availableMemorySteps.length - 1 : 1;
+                            const percent = (idx / totalSteps) * 100;
+                            const isSelected = memoryMb === stepItem.mb;
+                            const isPast = memoryMb >= stepItem.mb;
+
+                            return (
+                              <button
+                                key={stepItem.mb}
+                                type="button"
+                                onClick={() => setMemoryMb(stepItem.mb)}
+                                title={`Set Memory to ${stepItem.label} (${stepItem.mb} MB)`}
+                                className="pointer-events-auto absolute -translate-x-1/2 flex flex-col items-center group cursor-pointer focus:outline-none"
+                                style={{ left: `${percent}%` }}
+                              >
+                                {/* Tick notch */}
+                                <span
+                                  className={cn(
+                                    "w-0.5 rounded-full transition-all mb-1",
+                                    isSelected
+                                      ? "bg-primary h-2 w-1"
+                                      : isPast
+                                      ? "bg-primary/70 h-1.5"
+                                      : "bg-muted-foreground/30 h-1.5",
+                                    "group-hover:bg-primary group-hover:h-2 group-hover:w-1"
+                                  )}
+                                />
+                                {/* Step label */}
+                                <span
+                                  className={cn(
+                                    "text-[10px] font-mono leading-none transition-colors px-1 py-0.5 rounded",
+                                    isSelected
+                                      ? "text-primary font-bold bg-primary/10"
+                                      : "text-muted-foreground group-hover:text-foreground group-hover:bg-muted/60"
+                                  )}
+                                >
+                                  {stepItem.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
