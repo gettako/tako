@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import {
-  ArrowLeft,
   Rocket,
   RotateCw,
   RefreshCw,
@@ -87,17 +85,9 @@ export function ServiceHeader({
         </div>
       )}
 
-      {/* Breadcrumb & Navigation */}
+      {/* Header Title & Info */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1.5 min-w-0">
-          <Link
-            href={`/projects/${projectId}`}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="size-3.5" />
-            <span>Back to {projectName}</span>
-          </Link>
-
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">{service.name}</h1>
             <StatusBadge status={service.status} />

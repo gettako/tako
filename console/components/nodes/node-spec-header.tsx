@@ -1,18 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { Node } from '@/lib/types';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +22,6 @@ import {
   HardDrive,
   Activity,
   Server,
-  ArrowLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -65,28 +55,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
 
   return (
     <div className="space-y-4">
-      {/* 1. Breadcrumbs Navigation */}
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink
-              href="/nodes"
-              className="text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
-            >
-              <ArrowLeft className="size-3" />
-              <span>Nodes</span>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage className="text-xs sm:text-sm font-semibold text-foreground">
-              {node.name}
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
-
-      {/* 2. Page Header */}
+      {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-3">

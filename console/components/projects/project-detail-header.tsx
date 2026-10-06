@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
-import { ArrowLeft, Plus, Server, Layers, Activity } from 'lucide-react';
+import { Plus, Server, Layers, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { StatCard } from '@/components/ui/stat-card';
@@ -29,14 +28,6 @@ export function ProjectDetailHeader({
       {/* 1. Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1 min-w-0 flex-1">
-          <Link
-            href="/projects"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors mb-0.5"
-          >
-            <ArrowLeft className="size-3.5" />
-            <span>Back to Projects</span>
-          </Link>
-
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">
               {project.name}

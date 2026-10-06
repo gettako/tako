@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Rocket, ArrowLeft, RefreshCw, Plus, Terminal } from 'lucide-react';
+import { Rocket, RefreshCw, Plus, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
