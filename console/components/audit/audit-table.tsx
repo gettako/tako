@@ -59,7 +59,7 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/40 border-b border-border">
-            <TableRow className="h-11 hover:bg-transparent">
+            <TableRow className="h-10 hover:bg-transparent">
               <TableHead className="w-[18%]">Timestamp</TableHead>
               <TableHead className="w-[22%]">Actor</TableHead>
               <TableHead className="w-[18%]">Action</TableHead>

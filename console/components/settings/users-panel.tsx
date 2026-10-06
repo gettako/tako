@@ -153,7 +153,7 @@ export function UsersPanel() {
           <div className="rounded-xl border border-border overflow-hidden bg-card">
             <Table>
               <TableHeader className="bg-muted/40 border-b border-border">
-                <TableRow className="h-11 hover:bg-transparent">
+                <TableRow className="h-10 hover:bg-transparent">
                   <TableHead className="w-[32%]">Member</TableHead>
                   <TableHead className="w-[20%]">Role</TableHead>
                   <TableHead className="w-[18%]">2FA Status</TableHead>
@@ -275,7 +275,7 @@ export function UsersPanel() {
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/40 border-b border-border">
-                  <TableRow className="border-b border-border hover:bg-transparent">
+                  <TableRow className="h-10 hover:bg-transparent">
                     <TableHead className="w-[35%]">Invited Email</TableHead>
                     <TableHead className="w-[20%]">Role</TableHead>
                     <TableHead className="w-[25%]">Expires In</TableHead>

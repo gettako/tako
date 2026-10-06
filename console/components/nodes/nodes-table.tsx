@@ -41,7 +41,7 @@ export function NodesTable({ nodes }: NodesTableProps) {
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
         <TableHeader className="bg-muted/40 border-b border-border">
-          <TableRow className="h-11 hover:bg-transparent">
+          <TableRow className="h-10 hover:bg-transparent">
             <TableHead className="w-[26%]">Node Hostname</TableHead>
             <TableHead className="w-[12%]">Status</TableHead>
             <TableHead className="w-[18%]">Network / IP Address</TableHead>

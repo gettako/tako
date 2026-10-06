@@ -93,7 +93,7 @@ export function DeploymentHistoryTable({
       {/* Table Data */}
       <Table>
         <TableHeader className="bg-muted/40 border-b border-border">
-          <TableRow className="h-11 hover:bg-transparent">
+          <TableRow className="h-10 hover:bg-transparent">
             <TableHead className="w-[180px]">Commit</TableHead>
             <TableHead>Message & Branch</TableHead>
             <TableHead className="w-[120px]">Status</TableHead>

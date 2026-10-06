@@ -39,7 +39,7 @@ export function WebhookDeliveriesTable({ deliveries }: WebhookDeliveriesTablePro
       <div className="rounded-xl border border-border overflow-hidden bg-card">
         <Table>
           <TableHeader className="bg-muted/40 border-b border-border">
-            <TableRow className="h-11 hover:bg-transparent">
+            <TableRow className="h-10 hover:bg-transparent">
               <TableHead className="w-[30%]">Timestamp</TableHead>
               <TableHead className="w-[20%]">Event</TableHead>
               <TableHead className="w-[20%]">Status</TableHead>

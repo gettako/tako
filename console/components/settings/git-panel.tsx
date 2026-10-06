@@ -141,7 +141,7 @@ export function GitPanel() {
           <div className="rounded-xl border border-border bg-card overflow-hidden">
             <Table>
               <TableHeader className="bg-muted/40 border-b border-border">
-                <TableRow className="border-b border-border hover:bg-transparent">
+                <TableRow className="h-10 hover:bg-transparent">
                   <TableHead className="w-[40%]">Repository</TableHead>
                   <TableHead className="w-[25%]">Default Branch</TableHead>
                   <TableHead className="w-[20%]">Visibility</TableHead>

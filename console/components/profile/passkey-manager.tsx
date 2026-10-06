@@ -110,7 +110,7 @@ export function PasskeyManager() {
             <div className="rounded-xl border border-border overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/40 border-b border-border">
-                  <TableRow className="h-11 hover:bg-transparent">
+                  <TableRow className="h-10 hover:bg-transparent">
                     <TableHead className="w-[40%]">Passkey Name</TableHead>
                     <TableHead className="w-[25%]">Created Date</TableHead>
                     <TableHead className="w-[20%]">Last Used</TableHead>

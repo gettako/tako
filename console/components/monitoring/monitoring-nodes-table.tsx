@@ -46,7 +46,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
         <div className="border-t border-border">
           <Table>
             <TableHeader className="bg-muted/40 border-b border-border">
-              <TableRow className="h-11 hover:bg-transparent">
+              <TableRow className="h-10 hover:bg-transparent">
                 <TableHead className="w-[28%]">Node Host</TableHead>
                 <TableHead className="w-[12%]">Status</TableHead>
                 <TableHead className="w-[18%]">IP Address</TableHead>

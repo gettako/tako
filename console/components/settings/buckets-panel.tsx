@@ -138,7 +138,7 @@ export function BucketsPanel() {
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/40 border-b border-border">
-                  <TableRow className="border-b border-border hover:bg-transparent">
+                  <TableRow className="h-10 hover:bg-transparent">
                     <TableHead className="w-[25%]">Storage Name</TableHead>
                     <TableHead className="w-[20%]">Bucket</TableHead>
                     <TableHead className="w-[30%]">Endpoint</TableHead>

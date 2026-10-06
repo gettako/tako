@@ -371,8 +371,8 @@ Control sizes stay as defined in Layout (36px default). Spaciousness comes from 
 
 - Page padding: `px-6 lg:px-8`, vertical `py-6 lg:py-8`.
 - Section gap: `gap-8`. Grid gap for cards: `gap-6`.
-- Card padding: `p-6` (stat cards `p-5`). Card header to content gap: `gap-4`.
-- Table rows: `h-14`. Show at most 6 columns on desktop; secondary data goes in a row detail or a tooltip.
+- Table headers: `h-10` (40px) with `bg-muted/40 border-b border-border text-xs font-semibold text-muted-foreground`.
+- Table body rows: `h-14` (56px). Show at most 6 columns on desktop; secondary data goes in a row detail or a tooltip.
 - Never stack more than 3 stat values in one card.
 
 ### Glass surfaces (subtle, selective)

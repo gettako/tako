@@ -173,7 +173,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
             <div className="rounded-xl border border-border bg-card overflow-hidden">
               <Table>
                 <TableHeader className="bg-muted/40 border-b border-border">
-                  <TableRow className="border-b border-border hover:bg-transparent">
+                  <TableRow className="h-10 hover:bg-transparent">
                     <TableHead className="w-[28%]">Name & Schedule</TableHead>
                     <TableHead className="w-[24%]">Command</TableHead>
                     <TableHead className="w-[10%]">Active</TableHead>

@@ -53,7 +53,7 @@ export function EnvTableView({ envVars, onChange }: EnvTableViewProps) {
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/40 border-b border-border">
-            <TableRow className="h-11 hover:bg-transparent">
+            <TableRow className="h-10 hover:bg-transparent">
               <TableHead className="w-[280px]">Key</TableHead>
               <TableHead>Value</TableHead>
               <TableHead className="w-[110px]">Type</TableHead>

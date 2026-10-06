@@ -84,7 +84,7 @@ export function NodeServicesTable({
           <div className="border-t border-border">
             <Table>
               <TableHeader className="bg-muted/40 border-b border-border">
-                <TableRow className="h-11 hover:bg-transparent">
+                <TableRow className="h-10 hover:bg-transparent">
                   <TableHead className="w-[32%]">Service</TableHead>
                   <TableHead className="w-[20%]">Parent Project</TableHead>
                   <TableHead className="w-[12%]">Type</TableHead>

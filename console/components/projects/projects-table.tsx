@@ -23,7 +23,7 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
         <TableHeader className="bg-muted/40 border-b border-border">
-          <TableRow className="h-11 hover:bg-transparent">
+          <TableRow className="h-10 hover:bg-transparent">
             <TableHead className="w-[280px]">Project</TableHead>
             <TableHead className="hidden sm:table-cell">Environment</TableHead>
             <TableHead>Status</TableHead>
