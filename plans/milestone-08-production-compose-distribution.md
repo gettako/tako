@@ -1,0 +1,64 @@
+# Milestone 08: Compose Orchestration & Node Installer Script
+
+---
+- **ID**: `M08`
+- **Status**: `todo`
+- **Blocking**: `[M07]`
+- **Target**: Menyediakan konfigurasi Docker Compose siap produksi untuk Master Node (Traefik, Master Server, Console, dan Local Agent) dan script installer satu baris (`install.sh`) untuk Worker Node yang secara otomatis mengunduh binary Agent, menjalankan Traefik, dan menghubungkan node ke Master via gRPC.
+---
+
+## Acceptance Criteria
+- [ ] Tersedia `compose.master.yml` yang siap dijalankan dengan 1 perintah: `docker compose -f compose.master.yml up -d`.
+- [ ] Master Node otomatis menjalankan 4 container dengan penamaan standar:
+  - `tako-console` (Next.js frontend)
+  - `tako-server` (Go master control plane & API)
+  - `tako-agent` (Local agent daemon)
+  - `tako-traefik` (Master reverse proxy)
+- [ ] Worker Node otomatis menjalankan 2 container dengan penamaan standar:
+  - `tako-agent` (Worker node agent daemon)
+  - `tako-traefik` (Worker node reverse proxy)
+- [ ] Dockerfile untuk `server`, `agent`, dan `console` mendukung multi-arch (`amd64` dan `arm64`) dengan binary Go static (`CGO_ENABLED=0`).
+- [ ] Tersedia universal installer script `install.sh` (`https://gettako.dev/install.sh`):
+  - **Mode Main Server (`curl -fsSL https://gettako.dev/install.sh | bash`)**:
+    - Auto install Docker jika belum ada
+    - Deteksi Public IP host otomatis (fallback `ifconfig.co`, `api.ipify.org`)
+    - Prompt interaktif via `/dev/tty` untuk email & password admin, atau non-interaktif via env (`TAKO_EMAIL`, `TAKO_PASSWORD`, `TAKO_DOMAIN`)
+    - Jalankan stack 4 container master dan cetak URL dashboard
+  - **Mode Node Server (`curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent`)**:
+    - Auto install Docker jika belum ada
+    - Prompt interaktif via `/dev/tty` untuk Master Server IP/URL dan Enrollment Token, atau non-interaktif via env (`TAKO_MASTER_URL`, `TAKO_AGENT_TOKEN`)
+    - Jalankan 2 container worker (`tako-traefik`, `tako-agent`) dan node langsung online di Console
+- [ ] Pengujian End-to-End (E2E) sukses dari pendaftaran node hingga live deployment aplikasi contoh.
+
+## Checklist
+- [ ] **Multi-stage Dockerfiles**:
+  - [ ] `server/Dockerfile`: Multi-stage Go build (`CGO_ENABLED=0`), output alpine/scratch image ultra-ringan (~20 MB)
+  - [ ] `agent/Dockerfile`: Multi-stage Go build (`CGO_ENABLED=0`)
+  - [ ] `console/Dockerfile`: Standalone Next.js runner
+- [ ] **Master Docker Compose (`deploy/compose.master.yml`)**:
+  - [ ] Konfigurasi service dengan penamaan eksplisit:
+    - `container_name: tako-traefik`
+    - `container_name: tako-server`
+    - `container_name: tako-console`
+    - `container_name: tako-agent`
+  - [ ] Setup volume persisten: `./data/sqlite:/data`, `./data/traefik/acme.json:/acme.json`
+  - [ ] Konfigurasi internal bridge network `tako-network`
+- [ ] **Worker Docker Compose (`deploy/compose.worker.yml`)**:
+  - [ ] Konfigurasi service worker dengan penamaan:
+    - `container_name: tako-traefik`
+    - `container_name: tako-agent`
+  - [ ] Konfigurasi bridge network `tako-network` di worker
+- [ ] **Universal Installer Script (`deploy/scripts/install.sh`)**:
+  - [ ] Flag parser: mode default (Master) vs flag `--agent` (Worker)
+  - [ ] Auto-detect OS & architecture (Ubuntu, Debian, CentOS, Alma, Alpine; x86_64, aarch64)
+  - [ ] Docker check & auto-installation script via `get.docker.com`
+  - [ ] Public IP auto-detection (fallback curl chain)
+  - [ ] TTY interactive input reader (`read -r ... < /dev/tty`) untuk mencegah stdin collision saat piping curl
+  - [ ] Support ENV overrides: `TAKO_EMAIL`, `TAKO_PASSWORD`, `TAKO_DOMAIN`, `TAKO_MASTER_URL`, `TAKO_AGENT_TOKEN`
+  - [ ] Auto generate environment file & docker compose up
+  - [ ] Verifikasi service health check & banner output login
+- [ ] **End-to-End (E2E) Testing & Validation**:
+  - [ ] Jalankan Master stack lokal
+  - [ ] Daftarkan simulated worker node
+  - [ ] Deploy satu container contoh (misal: `nginxdemos/hello`)
+  - [ ] Verifikasi routing domain via Traefik dan verifikasi stream log di UI Console
