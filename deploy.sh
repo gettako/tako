@@ -277,9 +277,14 @@ touch /etc/tako/traefik/acme.json
 chmod 600 /etc/tako/traefik/acme.json
 
 # 2. Bersihkan sisa rute ambigu/stale di console jika ada
-if [ -d \"${REMOTE_DIR}/console/app/services/[id]\" ]; then
+if [ -d "${REMOTE_DIR}/console/app/services/[id]" ]; then
   echo '==> Membersihkan rute lama yang bentrok: console/app/services/[id]'
-  rm -rf \"${REMOTE_DIR}/console/app/services/[id]\"
+  rm -rf "${REMOTE_DIR}/console/app/services/[id]"
+fi
+
+# 3. Bersihkan node ghost lama jika ada
+if [ -f "${REMOTE_DIR}/data/sqlite/tako.db" ]; then
+  sqlite3 "${REMOTE_DIR}/data/sqlite/tako.db" 'DELETE FROM nodes WHERE id = '\''node-master-01'\'';' 2>/dev/null || true
 fi
 
 # 3. Buat .env untuk docker compose di server

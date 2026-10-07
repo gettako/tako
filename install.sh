@@ -354,12 +354,14 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/os-release:/etc/os-release:ro
       - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ./data/agent:/data
     environment:
       - TAKO_SERVER_ADDR=tako-server:50051
       - TAKO_MASTER_URL=tako-server:50051
       - TAKO_ENROLL_TOKEN=local-master-token
+      - TAKO_NODE_ID=tako-master-01
       - TAKO_NODE_NAME=tako-master-01
       - TAKO_NODE_ROLE=leader
       - TAKO_STATE_FILE=/data/agent.json

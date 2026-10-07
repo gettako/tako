@@ -41,10 +41,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := orch.EnsureMasterNode(ctx, os.Getenv("TAKO_NODE_NAME")); err != nil {
-		log.Printf("[tako-server] warning: could not seed master node: %v", err)
-	}
-
 	orch.StartLivenessWatcher(ctx, 5*time.Second, 15)
 
 	router := api.NewRouter(db, orch)

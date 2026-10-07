@@ -79,4 +79,17 @@ func TestMasterGRPCServerAuthAndHandlers(t *testing.T) {
 	if !hbResp.GetAcknowledged() {
 		t.Errorf("expected acknowledged=true, got false")
 	}
+
+	// 4. Heartbeat with registered agent token (tako-agent-*) should also succeed
+	agentTokenCtx := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+regResp.GetAuthToken())
+	hbResp2, err := agentClient.Heartbeat(agentTokenCtx, &takov1.HeartbeatRequest{
+		NodeId:     "node-worker-1",
+		CpuPercent: 15.0,
+	})
+	if err != nil {
+		t.Fatalf("agent-token Heartbeat failed: %v", err)
+	}
+	if !hbResp2.GetAcknowledged() {
+		t.Errorf("expected acknowledged=true, got false")
+	}
 }

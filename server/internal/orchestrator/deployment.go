@@ -38,6 +38,30 @@ type CreateServiceParams struct {
 
 // CreateService creates a new service, associates domains and environment variables.
 func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams) (*db.Service, error) {
+	if p.ProjectID == "" {
+		p.ProjectID = "default"
+	}
+
+	// Ensure the project exists to avoid foreign key errors
+	if _, err := o.queries.GetProjectByID(ctx, p.ProjectID); err != nil {
+		_, _ = o.queries.CreateProject(ctx, db.CreateProjectParams{
+			ID:          p.ProjectID,
+			Name:        "Default Project",
+			Slug:        "default",
+			Description: "Default project",
+			Environment: "production",
+			Status:      "healthy",
+			Tags:        "[]",
+		})
+	}
+
+	// Ensure NodeID is populated if empty
+	if p.NodeID == "" {
+		if nodes, err := o.queries.ListNodes(ctx); err == nil && len(nodes) > 0 {
+			p.NodeID = nodes[0].ID
+		}
+	}
+
 	serviceID := "srv-" + randomHex(8)
 	if p.Type == "" {
 		p.Type = "app"

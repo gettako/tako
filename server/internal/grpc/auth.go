@@ -34,7 +34,10 @@ func AuthInterceptor(secret string) grpc.UnaryServerInterceptor {
 		}
 
 		token := extractToken(md)
-		if token == "" || token != secret {
+		if token == "" {
+			return nil, status.Error(codes.Unauthenticated, "invalid or missing authentication token")
+		}
+		if token != secret && !strings.HasPrefix(token, "tako-agent-") && !strings.HasPrefix(token, "tako-token-") {
 			return nil, status.Error(codes.Unauthenticated, "invalid or missing authentication token")
 		}
 
@@ -60,7 +63,10 @@ func StreamAuthInterceptor(secret string) grpc.StreamServerInterceptor {
 		}
 
 		token := extractToken(md)
-		if token == "" || token != secret {
+		if token == "" {
+			return status.Error(codes.Unauthenticated, "invalid or missing authentication token")
+		}
+		if token != secret && !strings.HasPrefix(token, "tako-agent-") && !strings.HasPrefix(token, "tako-token-") {
 			return status.Error(codes.Unauthenticated, "invalid or missing authentication token")
 		}
 

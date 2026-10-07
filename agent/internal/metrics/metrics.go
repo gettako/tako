@@ -3,7 +3,9 @@ package metrics
 import (
 	"context"
 	"math"
+	"os"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,6 +66,20 @@ func (c *Collector) GetSystemInfo(ctx context.Context) SystemInfo {
 	if hInfo, err := host.InfoWithContext(ctx); err == nil {
 		osName = hInfo.Platform + " " + hInfo.PlatformVersion
 		kernel = hInfo.KernelVersion
+	}
+
+	// Prefer host /etc/os-release PRETTY_NAME if mounted
+	if data, err := os.ReadFile("/etc/os-release"); err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			if strings.HasPrefix(line, "PRETTY_NAME=") {
+				val := strings.TrimPrefix(line, "PRETTY_NAME=")
+				val = strings.Trim(val, `"'`)
+				if val != "" {
+					osName = val
+					break
+				}
+			}
+		}
 	}
 
 	return SystemInfo{

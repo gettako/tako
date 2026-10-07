@@ -107,14 +107,10 @@ func (d *Daemon) saveState() error {
 	return os.WriteFile(d.cfg.StateFile, data, 0o600)
 }
 
-// EnsureRegistered performs handshake with Master if not already registered.
+// EnsureRegistered performs handshake with Master and refreshes node specs.
 func (d *Daemon) EnsureRegistered(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-
-	if d.state.NodeID != "" && d.state.AuthToken != "" {
-		return nil
-	}
 
 	sysInfo := d.collector.GetSystemInfo(ctx)
 	dockerVer := "unknown"
@@ -126,7 +122,11 @@ func (d *Daemon) EnsureRegistered(ctx context.Context) error {
 
 	nodeID := d.cfg.NodeID
 	if nodeID == "" {
-		nodeID = d.cfg.NodeName
+		if d.state.NodeID != "" {
+			nodeID = d.state.NodeID
+		} else {
+			nodeID = d.cfg.NodeName
+		}
 	}
 
 	req := &takov1.RegisterNodeRequest{

@@ -31,7 +31,7 @@ func (h *AgentHandler) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 		NodeId:       req.GetNodeId(),
 		Status:       "registered",
 		RegisteredAt: time.Now().UTC().Format(time.RFC3339),
-		AuthToken:    "tako-token-" + req.GetNodeId(),
+		AuthToken:    "tako-agent-" + req.GetNodeId(),
 	}, nil
 }
 

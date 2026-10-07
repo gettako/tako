@@ -65,7 +65,7 @@ export async function getServices(projectId?: string): Promise<Service[]> {
       const res = await fetch('/api/services');
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           const mapped = data.map(normalizeService);
           if (projectId) {
             return mapped.filter((s) => s.projectId === projectId);

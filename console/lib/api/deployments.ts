@@ -57,7 +57,7 @@ export async function getDeployments(serviceId?: string): Promise<Deployment[]> 
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           const mapped = data.map(normalizeDeployment);
           if (serviceId) {
             return mapped.filter((d) => d.serviceId === serviceId);

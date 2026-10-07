@@ -65,6 +65,17 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 		nodeID = req.GetName()
 	}
 
+	// Clean up any stale or dummy unmanaged master nodes (e.g. 'node-master-01' from earlier dummy seed)
+	if req.GetRole() == "leader" {
+		if allNodes, err := o.queries.ListNodes(ctx); err == nil {
+			for _, n := range allNodes {
+				if n.ID != nodeID && (n.Role == "leader" || n.ID == "node-master-01") {
+					_ = o.queries.DeleteNode(ctx, n.ID)
+				}
+			}
+		}
+	}
+
 	// Check if node exists
 	existing, err := o.queries.GetNodeByID(ctx, nodeID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -90,12 +101,36 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "failed to insert node: %v", err)
 		}
+		_, _ = o.db.ExecContext(ctx, "UPDATE nodes SET last_heartbeat = CURRENT_TIMESTAMP WHERE id = ?", nodeID)
 	} else {
-		// Existing node re-registering
-		_ = o.queries.UpdateNodeStatus(ctx, db.UpdateNodeStatusParams{
-			ID:     existing.ID,
-			Status: "online",
-		})
+		// Existing node re-registering: update metadata, status and heartbeat
+		_, _ = o.db.ExecContext(ctx, `UPDATE nodes SET
+			name = ?,
+			ip_address = ?,
+			public_ip = ?,
+			role = ?,
+			status = 'online',
+			cpu_total_cores = ?,
+			memory_total_mb = ?,
+			disk_total_gb = ?,
+			docker_version = ?,
+			os = ?,
+			kernel_version = ?,
+			last_heartbeat = CURRENT_TIMESTAMP,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`,
+			req.GetName(),
+			req.GetIpAddress(),
+			req.GetPublicIp(),
+			req.GetRole(),
+			int64(req.GetCpuTotalCores()),
+			req.GetMemoryTotalMb(),
+			req.GetDiskTotalGb(),
+			req.GetDockerVersion(),
+			req.GetOs(),
+			req.GetKernelVersion(),
+			existing.ID,
+		)
 	}
 
 	authToken := "tako-agent-" + nodeID
@@ -196,38 +231,5 @@ func (o *Orchestrator) StartLivenessWatcher(ctx context.Context, interval time.D
 			}
 		}
 	}()
-}
-
-// EnsureMasterNode checks if any nodes exist; if not, seeds the primary master node in the database.
-func (o *Orchestrator) EnsureMasterNode(ctx context.Context, defaultName string) error {
-	nodes, err := o.queries.ListNodes(ctx)
-	if err != nil {
-		return err
-	}
-	if len(nodes) > 0 {
-		return nil
-	}
-
-	name := defaultName
-	if name == "" {
-		name = "tako-master-01"
-	}
-
-	_, err = o.queries.CreateNode(ctx, db.CreateNodeParams{
-		ID:            "node-master-01",
-		Name:          name,
-		IpAddress:     "127.0.0.1",
-		PublicIp:      "",
-		Role:          "leader",
-		Status:        "online",
-		CpuTotalCores: 4,
-		MemoryTotalMb: 8192,
-		DiskTotalGb:   100,
-		DockerVersion: "26.1.0",
-		Os:            "Linux (Master)",
-		KernelVersion: "",
-		EnrollToken:   "",
-	})
-	return err
 }
 
