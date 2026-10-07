@@ -77,6 +77,13 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
     const fitAddonRef = useRef<FitAddonType | null>(null);
     const { resolvedTheme } = useTheme();
 
+    // Latest refs to prevent stale closure inside async terminal event listeners
+    const containerNameRef = useRef<string>(containerName);
+    containerNameRef.current = containerName;
+
+    const serviceRef = useRef<Service>(service);
+    serviceRef.current = service;
+
     // Persistent interactive state
     const inputBufferRef = useRef<string>('');
     const historyRef = useRef<string[]>([]);
@@ -86,6 +93,12 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
     // Standard root container shell prompt
     const getPrompt = () => {
       return '# ';
+    };
+
+    // Prints a clean single-line connection status
+    const printConnectedMessage = (term: XtermType, targetContainer: string) => {
+      term.writeln(`\x1b[32mConnected to container ${targetContainer}\x1b[0m\r\n`);
+      term.write(getPrompt());
     };
 
     // Forward ref methods
@@ -122,17 +135,17 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
       termRef.current.options.theme = themeConfig;
     }, [resolvedTheme]);
 
-    // Handle container changes without breaking session
+    // Handle container change cleanly without double-banner stacking
     const prevContainerRef = useRef<string>(containerName);
     useEffect(() => {
-      if (prevContainerRef.current !== containerName && termRef.current) {
-        prevContainerRef.current = containerName;
-        termRef.current.writeln(
-          `\r\n\x1b[32mConnected to container ${containerName}\x1b[0m\r\n`
-        );
-        termRef.current.write(getPrompt());
-        inputBufferRef.current = '';
-      }
+      if (!termRef.current) return;
+      if (prevContainerRef.current === containerName) return;
+
+      prevContainerRef.current = containerName;
+      // Clear previous container session and show clean connection line
+      termRef.current.clear();
+      printConnectedMessage(termRef.current, containerName);
+      inputBufferRef.current = '';
     }, [containerName]);
 
     // Initialize xterm.js once
@@ -153,7 +166,7 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
 
         const term = new Terminal({
           cursorBlink: true,
-          cursorStyle: 'block',
+          cursorStyle: 'underline',
           fontSize: 13,
           lineHeight: 1.4,
           fontFamily: 'Iosevka, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
@@ -204,9 +217,10 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
         });
         resizeObserver.observe(containerRef.current);
 
-        // Clean initial connection message without fake/meaningless text
-        term.writeln(`\x1b[32mConnected to container ${containerName}\x1b[0m\r\n`);
-        term.write(getPrompt());
+        // Clean initial connection message using active container reference
+        const currentTarget = containerNameRef.current;
+        prevContainerRef.current = currentTarget;
+        printConnectedMessage(term, currentTarget);
 
         // Command Execution Engine
         const executeCommand = async (cmdStr: string) => {
@@ -234,7 +248,8 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
 
           isProcessingRef.current = true;
           try {
-            const res = await execServiceCommand(service.id, trimmed, containerName);
+            const activeTarget = containerNameRef.current;
+            const res = await execServiceCommand(serviceRef.current.id, trimmed, activeTarget);
             const out = (res.output || '').trimEnd();
             if (out) {
               const formatted = out.replace(/\r?\n/g, '\r\n');
@@ -367,7 +382,7 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
           termRef.current = null;
         }
       };
-    }, []);
+    }, [resolvedTheme]);
 
     return (
       <div
