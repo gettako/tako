@@ -127,6 +127,19 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 		})
 	}
 
+	_, _ = o.RecordAudit(ctx, AuditLogInput{
+		Action:     "create_service",
+		TargetType: "service",
+		TargetID:   srv.ID,
+		TargetName: srv.Name,
+		Metadata: map[string]interface{}{
+			"projectId": srv.ProjectID,
+			"nodeId":    srv.NodeID,
+			"type":      srv.Type,
+			"image":     srv.Image,
+		},
+	})
+
 	return &srv, nil
 }
 
@@ -157,6 +170,17 @@ func (o *Orchestrator) TriggerDeploy(ctx context.Context, serviceID string) (*db
 	if err != nil {
 		return nil, fmt.Errorf("failed to create deployment record: %w", err)
 	}
+
+	_, _ = o.RecordAudit(ctx, AuditLogInput{
+		Action:     "deploy_service",
+		TargetType: "service",
+		TargetID:   srv.ID,
+		TargetName: srv.Name,
+		Metadata: map[string]interface{}{
+			"deploymentId": depID,
+			"commitHash":   srv.CommitHash,
+		},
+	})
 
 	// Run deployment pipeline asynchronously
 	go o.runDeploymentPipeline(srv, depID)

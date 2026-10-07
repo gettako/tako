@@ -13,6 +13,20 @@ export async function getTimeSeriesMetrics(
   entityId: string,
   timeRange: '1h' | '6h' | '24h' | '7d' = '1h'
 ): Promise<MetricPoint[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/metrics?nodeId=${encodeURIComponent(entityId)}&range=${encodeURIComponent(timeRange)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   await simulateDelay();
   const count = timeRange === '1h' ? 12 : timeRange === '6h' ? 24 : 30;
   const now = Date.now();
@@ -21,7 +35,6 @@ export async function getTimeSeriesMetrics(
   const points: MetricPoint[] = [];
   for (let i = count; i >= 0; i--) {
     const t = new Date(now - i * stepMs).toISOString();
-    // deterministic based on time
     const seed = (now - i * stepMs) % 100;
     points.push({
       timestamp: t,

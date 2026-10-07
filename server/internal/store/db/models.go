@@ -23,6 +23,12 @@ type AuditLog struct {
 	Timestamp  time.Time `json:"timestamp"`
 }
 
+type ClusterSetting struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type Deployment struct {
 	ID            string       `json:"id"`
 	ServiceID     string       `json:"service_id"`
@@ -62,6 +68,19 @@ type Node struct {
 	EnrollToken   string       `json:"enroll_token"`
 	CreatedAt     time.Time    `json:"created_at"`
 	UpdatedAt     time.Time    `json:"updated_at"`
+}
+
+type NodeMetric struct {
+	ID            int64     `json:"id"`
+	NodeID        string    `json:"node_id"`
+	CpuPercent    float64   `json:"cpu_percent"`
+	MemoryUsedMb  int64     `json:"memory_used_mb"`
+	MemoryTotalMb int64     `json:"memory_total_mb"`
+	DiskUsedGb    int64     `json:"disk_used_gb"`
+	DiskTotalGb   int64     `json:"disk_total_gb"`
+	NetworkRxKbps float64   `json:"network_rx_kbps"`
+	NetworkTxKbps float64   `json:"network_tx_kbps"`
+	RecordedAt    time.Time `json:"recorded_at"`
 }
 
 type Project struct {

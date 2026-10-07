@@ -108,6 +108,18 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "create_project",
+				TargetType: "project",
+				TargetID:   p.ID,
+				TargetName: p.Name,
+				Metadata: map[string]interface{}{
+					"environment": p.Environment,
+					"slug":        p.Slug,
+				},
+			})
+
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p))
@@ -133,10 +145,24 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
+			p, _ := orch.Queries().GetProjectByID(r.Context(), id)
+			targetName := id
+			if p.Name != "" {
+				targetName = p.Name
+			}
+
 			if err := orch.Queries().DeleteProject(r.Context(), id); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "delete_project",
+				TargetType: "project",
+				TargetID:   id,
+				TargetName: targetName,
+			})
+
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 		})

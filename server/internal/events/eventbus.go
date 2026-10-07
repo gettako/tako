@@ -10,6 +10,7 @@ const (
 	EventNodeStatusChanged EventType = "node.status_changed"
 	EventNodeMetrics       EventType = "node.metrics"
 	EventDeploymentLog     EventType = "deployment.log"
+	EventAuditCreated      EventType = "audit.created"
 )
 
 type Event struct {

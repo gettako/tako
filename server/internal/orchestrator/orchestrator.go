@@ -173,6 +173,17 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 		return nil, status.Errorf(codes.Internal, "failed to update heartbeat: %v", err)
 	}
 
+	_, _ = o.queries.RecordNodeMetric(ctx, db.RecordNodeMetricParams{
+		NodeID:        nodeID,
+		CpuPercent:    req.GetCpuPercent(),
+		MemoryUsedMb:  req.GetMemoryUsedMb(),
+		MemoryTotalMb: 0,
+		DiskUsedGb:    int64(req.GetDiskUsedGb()),
+		DiskTotalGb:   0,
+		NetworkRxKbps: req.GetNetworkRxKbps(),
+		NetworkTxKbps: req.GetNetworkTxKbps(),
+	})
+
 	o.bus.Publish(events.Event{
 		Type: events.EventNodeMetrics,
 		Payload: map[string]any{

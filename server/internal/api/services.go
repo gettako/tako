@@ -149,10 +149,24 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		// DELETE /api/v1/services/{id}
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
+			srv, _ := orch.Queries().GetServiceByID(r.Context(), id)
+			targetName := id
+			if srv.Name != "" {
+				targetName = srv.Name
+			}
+
 			if err := orch.Queries().DeleteService(r.Context(), id); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "delete_service",
+				TargetType: "service",
+				TargetID:   id,
+				TargetName: targetName,
+			})
+
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 		})

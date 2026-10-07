@@ -19,6 +19,25 @@ Every `tako-agent` collects hardware and container metrics directly via `gopsuti
 
 Metrics are pushed every 3 seconds to the Master Server and broadcast to the browser via Server-Sent Events (`/api/v1/events/nodes`).
 
+### Historical Time-Series Aggregation
+In addition to live telemetry, the master server automatically aggregates periodic snapshots into the `node_metrics` SQLite store. In the console's **Monitoring** view (`/monitoring`), you can inspect time-series charts across selectable ranges:
+- `1h`: High-resolution 1-hour view.
+- `6h`: 6-hour trend view.
+- `24h`: 24-hour day overview.
+- `7d`: 7-day multi-day resource utilization.
+
+---
+
+## Real-Time Audit Logs
+
+Tako features a built-in tamper-resistant audit trail (`/audit-logs`) that records every critical cluster activity:
+- Project creation and deletion.
+- Service deployment triggers, rollbacks, and configuration edits.
+- Node registrations and heartbeat status transitions.
+- Cluster settings changes (S3 backups, Git integrations, TLS configurations).
+
+Audit logs capture the initiating actor, IP address, timestamp, target resource, and full metadata payload.
+
 ---
 
 ## Live Build & Deployment Logs
@@ -26,8 +45,10 @@ Metrics are pushed every 3 seconds to the Master Server and broadcast to the bro
 During deployment, log chunks are streamed over gRPC from the agent directly to the master server's event bus.
 
 In the console, you can monitor the live log stream in real time. The console log viewer supports:
-- Automatic auto-scroll to the latest log line.
-- ANSI color highlighting.
+- Automatic auto-scroll (Follow mode) to the latest log line.
+- Real-time step grouping (Queued, Clone, Build, Push/Load, Deploy, Health check, Live).
+- Full text search across log output.
+- One-click copy of full compiler output.
 - Historical log inspection (`/api/v1/deployments/:id/logs/history`).
 
 ---

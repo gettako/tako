@@ -24,24 +24,31 @@ type Querier interface {
 	DeleteService(ctx context.Context, id string) error
 	DeleteServiceDomains(ctx context.Context, serviceID string) error
 	DeleteServiceEnvVars(ctx context.Context, serviceID string) error
+	DeleteSetting(ctx context.Context, key string) error
 	GetDeploymentByID(ctx context.Context, id string) (Deployment, error)
 	GetNodeByID(ctx context.Context, id string) (Node, error)
 	GetProjectByID(ctx context.Context, id string) (Project, error)
 	GetProjectBySlug(ctx context.Context, slug string) (Project, error)
 	GetServiceByID(ctx context.Context, id string) (Service, error)
+	GetSetting(ctx context.Context, key string) (ClusterSetting, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id string) (User, error)
 	ListAllServices(ctx context.Context) ([]Service, error)
 	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]AuditLog, error)
 	ListDeploymentsByService(ctx context.Context, serviceID string) ([]Deployment, error)
+	ListNodeMetrics(ctx context.Context, arg ListNodeMetricsParams) ([]NodeMetric, error)
 	ListNodes(ctx context.Context) ([]Node, error)
 	ListProjects(ctx context.Context) ([]Project, error)
+	ListRecentNodeMetrics(ctx context.Context, arg ListRecentNodeMetricsParams) ([]NodeMetric, error)
 	ListServiceDomains(ctx context.Context, serviceID string) ([]ServiceDomain, error)
 	ListServiceEnvVars(ctx context.Context, serviceID string) ([]ServiceEnvVar, error)
 	ListServicesByNode(ctx context.Context, nodeID string) ([]Service, error)
 	ListServicesByProject(ctx context.Context, projectID string) ([]Service, error)
+	ListSettings(ctx context.Context) ([]ClusterSetting, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	MarkInactiveNodesOffline(ctx context.Context, dollar_1 sql.NullString) ([]MarkInactiveNodesOfflineRow, error)
+	RecordNodeMetric(ctx context.Context, arg RecordNodeMetricParams) (NodeMetric, error)
+	SetSetting(ctx context.Context, arg SetSettingParams) (ClusterSetting, error)
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateNodeHeartbeat(ctx context.Context, arg UpdateNodeHeartbeatParams) error
 	UpdateNodeStatus(ctx context.Context, arg UpdateNodeStatusParams) error

@@ -224,6 +224,47 @@ paths:
               schema:
                 $ref: '#/components/schemas/Project'
 
+  /api/v1/projects/{id}:
+    get:
+      summary: Get project by ID or slug
+      operationId: getProject
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          description: Project not found
+    delete:
+      summary: Delete project
+      operationId: deleteProject
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Project deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
   /api/v1/services:
     get:
       summary: List all services
@@ -420,6 +461,143 @@ paths:
               schema:
                 type: string
 
+  /api/v1/audit-logs:
+    get:
+      summary: List audit logs
+      operationId: listAuditLogs
+      tags: [Audit]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditLog'
+
+  /api/v1/settings:
+    get:
+      summary: Get all cluster settings
+      operationId: getClusterSettings
+      tags: [Settings]
+      responses:
+        '200':
+          description: Key-value map of cluster settings
+          content:
+            application/json:
+              schema:
+                type: object
+    post:
+      summary: Batch update cluster settings
+      operationId: updateClusterSettingsBatch
+      tags: [Settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Settings successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+
+  /api/v1/settings/{key}:
+    get:
+      summary: Get cluster setting by key
+      operationId: getClusterSettingByKey
+      tags: [Settings]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Setting value
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: Setting not found
+    put:
+      summary: Update or create cluster setting by key
+      operationId: updateClusterSettingByKey
+      tags: [Settings]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: object
+      responses:
+        '200':
+          description: Setting updated
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/v1/metrics:
+    get:
+      summary: Get time-series node metrics
+      operationId: getNodeMetrics
+      tags: [Monitoring]
+      parameters:
+        - name: nodeId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: range
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['1h', '6h', '24h', '7d']
+            default: '1h'
+      responses:
+        '200':
+          description: Time-series metric points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MetricPoint'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -597,4 +775,56 @@ components:
         finishedAt:
           type: string
         durationMs:
+          type: integer
+
+    AuditActor:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        avatarUrl:
+          type: string
+
+    AuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+        actor:
+          $ref: '#/components/schemas/AuditActor'
+        action:
+          type: string
+          example: create_service
+        targetType:
+          type: string
+          enum: [service, project, node, user, settings]
+        targetId:
+          type: string
+        targetName:
+          type: string
+        metadata:
+          type: object
+        ipAddress:
+          type: string
+        timestamp:
+          type: string
+
+    MetricPoint:
+      type: object
+      properties:
+        timestamp:
+          type: string
+        cpu:
+          type: number
+        memory:
+          type: integer
+        networkRx:
+          type: number
+        networkTx:
+          type: number
+        disk:
           type: integer

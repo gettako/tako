@@ -1,41 +1,187 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, Copy, Check, ArrowDown } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Copy, Check, ArrowDown, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BuildLogSection } from './build-log-section';
 import { Deployment, DeploymentStepName, StepStatus } from '@/lib/types';
 import { getMockBuildLogs } from '@/lib/mock/log-streamer';
+import { LogLine } from '@/components/ui/log-viewer';
 
 export interface DeploymentLogViewerProps {
   deployment: Deployment;
   serviceName: string;
 }
 
+interface LiveLogChunk {
+  step: DeploymentStepName;
+  message: string;
+  timestamp: string;
+  isError?: boolean;
+}
+
+const ALL_STEPS: DeploymentStepName[] = [
+  'Queued',
+  'Clone',
+  'Build',
+  'Push/Load image',
+  'Deploy',
+  'Health check',
+  'Live',
+];
+
 export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogViewerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   const [autoFollow, setAutoFollow] = useState(true);
+  const [liveLogs, setLiveLogs] = useState<LiveLogChunk[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const mockGroups = getMockBuildLogs(serviceName, deployment.commitHash);
+  // Connect to SSE log stream
+  useEffect(() => {
+    let es: EventSource | null = null;
+    let mounted = true;
 
-  // Merge with deployment.steps
-  const sections = mockGroups.map((group) => {
-    const stepMeta = deployment.steps.find((s) => s.name === group.stepName);
-    const status: StepStatus = stepMeta?.status || (deployment.status === 'live' ? 'success' : 'pending');
+    try {
+      const url = `/api/sse/deployments/${deployment.id}/logs`;
+      es = new EventSource(url);
+      setIsStreaming(true);
 
-    // Filter logs if search query exists
-    const filteredLogs = searchQuery
-      ? group.logs.filter((l) => l.message.toLowerCase().includes(searchQuery.toLowerCase()))
-      : group.logs;
+      const handleLog = (event: MessageEvent) => {
+        if (!mounted || !event.data) return;
 
-    return {
-      stepName: group.stepName,
-      status,
-      logs: filteredLogs,
-      durationMs: stepMeta?.durationMs,
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed && (parsed.message || parsed.step)) {
+            const rawStep = parsed.step || 'Build';
+            const matchedStep: DeploymentStepName =
+              ALL_STEPS.find((s) => s.toLowerCase() === rawStep.toLowerCase()) || 'Build';
+
+            setLiveLogs((prev) => [
+              ...prev,
+              {
+                step: matchedStep,
+                message: parsed.message || '',
+                timestamp: new Date().toISOString(),
+                isError: parsed.status === 'failed' || parsed.is_error === true,
+              },
+            ]);
+            return;
+          }
+        } catch {
+          // Plain text line
+          const lines = event.data.split('\n');
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let step: DeploymentStepName = 'Build';
+            let message = line;
+
+            // Pattern like "[Build] something" or "[Clone] ..."
+            const match = line.match(/^\[(.*?)\]\s*(.*)$/);
+            if (match) {
+              const parsedName = match[1];
+              const found = ALL_STEPS.find((s) => s.toLowerCase() === parsedName.toLowerCase());
+              if (found) step = found;
+              message = match[2];
+            }
+
+            setLiveLogs((prev) => [
+              ...prev,
+              {
+                step,
+                message,
+                timestamp: new Date().toISOString(),
+              },
+            ]);
+          }
+        }
+      };
+
+      es.addEventListener('log', handleLog);
+      es.onmessage = handleLog;
+
+      es.onerror = () => {
+        if (mounted) {
+          setIsStreaming(false);
+        }
+        es?.close();
+      };
+    } catch {
+      setIsStreaming(false);
+    }
+
+    return () => {
+      mounted = false;
+      es?.close();
     };
-  });
+  }, [deployment.id]);
+
+  // Auto-scroll when logs change and autoFollow is active
+  useEffect(() => {
+    if (autoFollow && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [liveLogs, autoFollow]);
+
+  // Construct sections: if liveLogs exist, use them; otherwise use fallback mockGroups
+  let sections: {
+    stepName: DeploymentStepName;
+    status: StepStatus;
+    logs: LogLine[];
+    durationMs?: number;
+  }[] = [];
+
+  if (liveLogs.length > 0) {
+    // Group live logs by steps
+    sections = ALL_STEPS.map((step) => {
+      const stepLogs = liveLogs.filter((l) => l.step === step);
+      const stepMeta = deployment.steps?.find((s) => s.name === step);
+
+      let status: StepStatus = 'pending';
+      if (stepMeta?.status) {
+        status = stepMeta.status;
+      } else if (stepLogs.length > 0) {
+        const hasError = stepLogs.some((l) => l.isError);
+        status = hasError ? 'failed' : 'success';
+      }
+
+      const formattedLogs: LogLine[] = stepLogs.map((l) => ({
+        timestamp: l.timestamp,
+        message: l.message,
+        level: l.isError ? 'error' : 'info',
+      }));
+
+      const filteredLogs = searchQuery
+        ? formattedLogs.filter((l) => l.message.toLowerCase().includes(searchQuery.toLowerCase()))
+        : formattedLogs;
+
+      return {
+        stepName: step,
+        status,
+        logs: filteredLogs,
+        durationMs: stepMeta?.durationMs,
+      };
+    }).filter((s) => s.logs.length > 0 || s.status !== 'pending');
+  } else {
+    // Fallback to mock build logs
+    const mockGroups = getMockBuildLogs(serviceName, deployment.commitHash);
+    sections = mockGroups.map((group) => {
+      const stepMeta = deployment.steps?.find((s) => s.name === group.stepName);
+      const status: StepStatus = stepMeta?.status || (deployment.status === 'live' ? 'success' : 'pending');
+
+      const filteredLogs = searchQuery
+        ? group.logs.filter((l) => l.message.toLowerCase().includes(searchQuery.toLowerCase()))
+        : group.logs;
+
+      return {
+        stepName: group.stepName,
+        status,
+        logs: filteredLogs,
+        durationMs: stepMeta?.durationMs,
+      };
+    });
+  }
 
   const handleCopyAll = async () => {
     const allLines = sections
@@ -55,6 +201,12 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
           <span className="text-[11px] text-muted-foreground font-mono">
             commit {deployment.commitHash.substring(0, 7)}
           </span>
+          {isStreaming && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              <Radio className="size-2.5 animate-pulse" />
+              Live SSE
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -97,7 +249,10 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
       </div>
 
       {/* Sections Container */}
-      <div className="divide-y divide-border/60 max-h-[560px] overflow-y-auto bg-background">
+      <div
+        ref={scrollContainerRef}
+        className="divide-y divide-border/60 max-h-[560px] overflow-y-auto bg-background"
+      >
         {sections.map((section) => (
           <BuildLogSection
             key={section.stepName}

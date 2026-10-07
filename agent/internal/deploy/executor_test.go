@@ -2,6 +2,9 @@ package deploy_test
 
 import (
 	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -60,5 +63,56 @@ func TestExecuteDeploy(t *testing.T) {
 	lastChunk := chunks[len(chunks)-1]
 	if lastChunk.GetStep() != "Live" {
 		t.Errorf("expected final step Live, got %s", lastChunk.GetStep())
+	}
+}
+
+func TestExecuteDeploy_LocalGitRepo(t *testing.T) {
+	// Create a local git repo with a Dockerfile
+	repoDir, err := os.MkdirTemp("", "local-git-repo-*")
+	if err != nil {
+		t.Fatalf("failed to create temp repo dir: %v", err)
+	}
+	defer os.RemoveAll(repoDir)
+
+	_ = exec.Command("git", "init", repoDir).Run()
+	_ = exec.Command("git", "-C", repoDir, "config", "user.email", "test@example.com").Run()
+	_ = exec.Command("git", "-C", repoDir, "config", "user.name", "Test").Run()
+
+	dockerfilePath := filepath.Join(repoDir, "Dockerfile")
+	_ = os.WriteFile(dockerfilePath, []byte("FROM alpine:3.19\nCMD [\"echo\", \"hello world\"]\n"), 0o644)
+
+	_ = exec.Command("git", "-C", repoDir, "add", ".").Run()
+	_ = exec.Command("git", "-C", repoDir, "commit", "-m", "init").Run()
+
+	executor := deploy.NewExecutor(nil)
+	stream := &mockDeployStream{}
+	req := &takov1.DeployRequest{
+		DeploymentId: "dep-test-local",
+		ServiceId:    "srv-test-local",
+		ServiceName:  "local-app",
+		Repository:   repoDir,
+		Dockerfile:   "Dockerfile",
+		Image:        "local-app:latest",
+	}
+
+	err = executor.ExecuteDeploy(context.Background(), req, stream)
+	if err != nil {
+		t.Fatalf("ExecuteDeploy with local git repo failed: %v", err)
+	}
+
+	stream.mu.Lock()
+	chunks := stream.chunks
+	stream.mu.Unlock()
+
+	foundCloneSuccess := false
+	for _, c := range chunks {
+		if c.GetStep() == "Clone" && (c.GetMessage() == "Successfully cloned "+repoDir) {
+			foundCloneSuccess = true
+			break
+		}
+	}
+
+	if !foundCloneSuccess {
+		t.Errorf("expected successful clone log message for local repo")
 	}
 }

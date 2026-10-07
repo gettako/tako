@@ -35,6 +35,10 @@ func main() {
 	}
 	log.Printf("[tako-server] migrations completed successfully")
 
+	if err := store.SeedDefaultAdmin(context.Background(), db, cfg.AdminEmail, cfg.AdminPassword); err != nil {
+		log.Printf("[tako-server] warning: failed to seed default admin: %v", err)
+	}
+
 	eventBus := events.NewBus()
 	orch := orchestrator.New(db, eventBus, cfg.AgentSecret)
 

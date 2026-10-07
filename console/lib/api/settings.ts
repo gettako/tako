@@ -41,6 +41,37 @@ let domainSettings = { ...mockDomainSettings };
 let notificationSettings = { ...mockNotificationSettings };
 let notifications = [...mockNotifications];
 
+async function fetchSettingFromBFF<T>(key: string, fallback: T): Promise<T> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/settings/${key}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data !== undefined && data !== null) {
+          return data as T;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  return fallback;
+}
+
+async function saveSettingToBFF<T>(key: string, value: T): Promise<void> {
+  if (typeof window !== 'undefined') {
+    try {
+      await fetch(`/api/settings/${key}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      });
+    } catch {
+      // Fallback
+    }
+  }
+}
+
 /* --- Current User & Profile --- */
 export async function getCurrentUser(): Promise<User> {
   await simulateDelay(50, 150);
@@ -50,7 +81,6 @@ export async function getCurrentUser(): Promise<User> {
 export async function updateCurrentUser(input: Partial<User>): Promise<User> {
   await simulateDelay();
   currentUser = { ...currentUser, ...input };
-  // also update in users list
   const idx = users.findIndex((u) => u.id === currentUser.id);
   if (idx !== -1) users[idx] = { ...currentUser };
   return { ...currentUser };
@@ -143,6 +173,10 @@ export async function revokeUserInvite(inviteId: string): Promise<void> {
 
 /* --- S3 Buckets --- */
 export async function getS3Buckets(): Promise<S3Bucket[]> {
+  const remote = await fetchSettingFromBFF<S3Bucket[]>('s3_buckets', buckets);
+  if (Array.isArray(remote) && remote.length > 0) {
+    buckets = remote;
+  }
   await simulateDelay();
   return [...buckets];
 }
@@ -155,6 +189,7 @@ export async function addS3Bucket(input: Omit<S3Bucket, 'id' | 'createdAt'>): Pr
     createdAt: new Date().toISOString(),
   };
   buckets.push(newBucket);
+  await saveSettingToBFF('s3_buckets', buckets);
   return { ...newBucket };
 }
 
@@ -172,6 +207,10 @@ export async function testS3BucketConnection(bucket: Partial<S3Bucket>): Promise
 
 /* --- Git Integration --- */
 export async function getGitProviders(): Promise<GitProvider[]> {
+  const remote = await fetchSettingFromBFF<GitProvider[]>('git_providers', providers);
+  if (Array.isArray(remote) && remote.length > 0) {
+    providers = remote;
+  }
   await simulateDelay();
   return [...providers];
 }
@@ -188,6 +227,10 @@ export async function syncGitRepos(): Promise<SyncedRepo[]> {
 
 /* --- Backups --- */
 export async function getBackupSchedule(): Promise<ClusterBackupSchedule> {
+  const remote = await fetchSettingFromBFF<ClusterBackupSchedule>('backup_schedule', backupSchedule);
+  if (remote && remote.frequency) {
+    backupSchedule = remote;
+  }
   await simulateDelay();
   return { ...backupSchedule };
 }
@@ -195,6 +238,7 @@ export async function getBackupSchedule(): Promise<ClusterBackupSchedule> {
 export async function updateBackupSchedule(input: Partial<ClusterBackupSchedule>): Promise<ClusterBackupSchedule> {
   await simulateDelay();
   backupSchedule = { ...backupSchedule, ...input };
+  await saveSettingToBFF('backup_schedule', backupSchedule);
   return { ...backupSchedule };
 }
 
@@ -202,6 +246,7 @@ export async function triggerManualBackup(): Promise<{ ok: boolean; snapshotSize
   await simulateDelay(500, 900);
   backupSchedule.lastBackupAt = new Date().toISOString();
   backupSchedule.lastBackupStatus = 'success';
+  await saveSettingToBFF('backup_schedule', backupSchedule);
   return {
     ok: true,
     snapshotSizeMb: 142.5,
@@ -211,6 +256,10 @@ export async function triggerManualBackup(): Promise<{ ok: boolean; snapshotSize
 
 /* --- Domain --- */
 export async function getDomainSettings(): Promise<ClusterDomainSettings> {
+  const remote = await fetchSettingFromBFF<ClusterDomainSettings>('domain_settings', domainSettings);
+  if (remote && remote.domain) {
+    domainSettings = remote;
+  }
   await simulateDelay();
   return { ...domainSettings };
 }
@@ -218,11 +267,16 @@ export async function getDomainSettings(): Promise<ClusterDomainSettings> {
 export async function updateDomainSettings(input: Partial<ClusterDomainSettings>): Promise<ClusterDomainSettings> {
   await simulateDelay();
   domainSettings = { ...domainSettings, ...input };
+  await saveSettingToBFF('domain_settings', domainSettings);
   return { ...domainSettings };
 }
 
 /* --- Notifications --- */
 export async function getNotificationSettings(): Promise<NotificationSettings> {
+  const remote = await fetchSettingFromBFF<NotificationSettings>('notification_settings', notificationSettings);
+  if (remote && (remote.email || remote.slack || remote.telegram)) {
+    notificationSettings = remote;
+  }
   await simulateDelay();
   return { ...notificationSettings };
 }
@@ -230,6 +284,7 @@ export async function getNotificationSettings(): Promise<NotificationSettings> {
 export async function updateNotificationSettings(input: NotificationSettings): Promise<NotificationSettings> {
   await simulateDelay();
   notificationSettings = { ...input };
+  await saveSettingToBFF('notification_settings', notificationSettings);
   return { ...notificationSettings };
 }
 

@@ -9,7 +9,9 @@ type Config struct {
 	GRPCPort    string
 	DBPath      string
 	Env         string
-	AgentSecret string
+	AgentSecret   string
+	AdminEmail    string
+	AdminPassword string
 }
 
 func Load() *Config {
@@ -35,11 +37,23 @@ func Load() *Config {
 
 	agentSecret := os.Getenv("TAKO_AGENT_SECRET")
 
+	adminEmail := os.Getenv("TAKO_ADMIN_EMAIL")
+	if adminEmail == "" {
+		adminEmail = "admin@gettako.dev"
+	}
+
+	adminPassword := os.Getenv("TAKO_ADMIN_PASSWORD")
+	if adminPassword == "" {
+		adminPassword = "admin123456"
+	}
+
 	return &Config{
-		Port:        port,
-		GRPCPort:    grpcPort,
-		DBPath:      dbPath,
-		Env:         env,
-		AgentSecret: agentSecret,
+		Port:          port,
+		GRPCPort:      grpcPort,
+		DBPath:        dbPath,
+		Env:           env,
+		AgentSecret:   agentSecret,
+		AdminEmail:    adminEmail,
+		AdminPassword: adminPassword,
 	}
 }
