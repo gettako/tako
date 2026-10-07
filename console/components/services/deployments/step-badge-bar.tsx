@@ -3,7 +3,6 @@
 import React from 'react';
 import { StepBadge } from './step-badge';
 import { Deployment, DeploymentStepName } from '@/lib/types';
-import { ChevronRight } from 'lucide-react';
 
 export interface StepBadgeBarProps {
   deployment: Deployment;
@@ -87,19 +86,15 @@ export function StepBadgeBar({
   });
 
   return (
-    <div className="w-full overflow-x-auto p-1 pb-2 scrollbar-none">
-      <div className="flex items-center gap-2 min-w-max">
-        {fullSteps.map((step, idx) => (
-          <React.Fragment key={step.name}>
-            <StepBadge
-              step={step}
-              isActive={activeStepName === step.name}
-              onClick={() => onSelectStep?.(step.name)}
-            />
-            {idx < fullSteps.length - 1 && (
-              <ChevronRight className="size-3.5 text-muted-foreground/50 shrink-0" />
-            )}
-          </React.Fragment>
+    <div className="w-full overflow-x-auto py-2 scrollbar-none">
+      <div className="grid grid-cols-7 gap-2.5 sm:gap-3 min-w-[640px] w-full">
+        {fullSteps.map((step) => (
+          <StepBadge
+            key={step.name}
+            step={step}
+            isActive={activeStepName === step.name}
+            onClick={() => onSelectStep?.(step.name)}
+          />
         ))}
       </div>
     </div>
