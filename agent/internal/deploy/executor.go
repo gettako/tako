@@ -12,6 +12,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -103,8 +105,21 @@ func (e *Executor) ExecuteDeployWithCallback(
 		targetPort = int(req.GetPorts()[0])
 	}
 
-	// containerName is always tako-app-<slug> so Traefik can resolve within tako-network
-	containerName := fmt.Sprintf("tako-app-%s", serviceName)
+	commit8 := req.GetCommitHash()
+	if len(commit8) > 8 {
+		commit8 = commit8[:8]
+	}
+	if commit8 == "" || commit8 == "main" || commit8 == "master" {
+		cleanDep := strings.TrimPrefix(depID, "dep-")
+		if len(cleanDep) >= 8 {
+			commit8 = cleanDep[:8]
+		} else {
+			commit8 = "preview"
+		}
+	}
+
+	// containerName is tako-app-<slug>-<commit8> to isolate deployments
+	containerName := fmt.Sprintf("tako-app-%s-%s", serviceName, commit8)
 
 	// Determine whether any production (non-preview) custom domain is present
 	hasCustomDomain := false
@@ -115,31 +130,68 @@ func (e *Executor) ExecuteDeployWithCallback(
 		}
 	}
 
-	traefikCfg := traefik.RouteConfig{
-		ServiceName:   serviceName,
-		ContainerName: containerName,
-		Domains:       req.GetDomains(),
-		TargetPort:    targetPort,
-		EnableTLS:     hasCustomDomain, // only enable TLS when a real custom domain is attached
-		Network:       "tako-network",
+	// Separate preview domain for this commit from canonical/custom domains
+	var previewDomains []string
+	var canonicalDomains []string
+
+	for _, d := range req.GetDomains() {
+		trimmed := strings.TrimSpace(d)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, commit8+"-") && (strings.HasSuffix(trimmed, ".sslip.io") || strings.HasSuffix(trimmed, ".nip.io") || strings.HasSuffix(trimmed, ".xip.io")) {
+			previewDomains = append(previewDomains, trimmed)
+		} else {
+			canonicalDomains = append(canonicalDomains, trimmed)
+		}
 	}
 
-	traefikLabels := traefik.GenerateLabels(traefikCfg)
-	traefikLabels["tako.service.id"] = req.GetServiceId()
-	traefikLabels["tako.deployment.id"] = depID
+	if len(previewDomains) == 0 && len(req.GetDomains()) > 0 {
+		previewDomains = req.GetDomains()
+	}
 
-	// Write dynamic YAML file to /etc/tako/traefik/dynamic/*.yml if directory exists or configured
 	dynamicDir := os.Getenv("TAKO_TRAEFIK_DYNAMIC_DIR")
 	if dynamicDir == "" {
 		dynamicDir = "/etc/tako/traefik/dynamic"
 	}
-	_ = traefik.WriteDynamicConfig(dynamicDir, traefikCfg)
+
+	// 1. Write preview dynamic config specifically for this commit
+	previewCfg := traefik.RouteConfig{
+		ServiceName:   serviceName,
+		ConfigName:    fmt.Sprintf("%s-%s", serviceName, commit8),
+		ContainerName: containerName,
+		Domains:       previewDomains,
+		TargetPort:    targetPort,
+		EnableTLS:     false,
+		Network:       "tako-network",
+	}
+	_ = traefik.WriteDynamicConfig(dynamicDir, previewCfg)
+
+	// 2. Write canonical dynamic config (service-level, pointing to current active container)
+	if len(canonicalDomains) > 0 {
+		canonicalCfg := traefik.RouteConfig{
+			ServiceName:   serviceName,
+			ConfigName:    serviceName, // writes to <serviceName>.yml
+			ContainerName: containerName,
+			Domains:       canonicalDomains,
+			TargetPort:    targetPort,
+			EnableTLS:     hasCustomDomain,
+			Network:       "tako-network",
+		}
+		_ = traefik.WriteDynamicConfig(dynamicDir, canonicalCfg)
+	}
+
+	traefikLabels := traefik.GenerateLabels(previewCfg)
+	traefikLabels["tako.service.id"] = req.GetServiceId()
+	traefikLabels["tako.service.name"] = serviceName
+	traefikLabels["tako.deployment.id"] = depID
+	traefikLabels["tako.commit.prefix"] = commit8
 
 	sendLog("Deploy", fmt.Sprintf("Prepared Traefik routing rules for %d domains (port %d)", len(req.GetDomains()), targetPort), false)
 
 	// Step 3: Run Container
 	if e.dockerCli != nil {
-		// Stop & remove existing container if exists
+		// Stop & remove existing container with the same name if exists (re-deploying same commit)
 		_ = e.dockerCli.RawClient().ContainerStop(ctx, containerName, container.StopOptions{})
 		_ = e.dockerCli.RawClient().ContainerRemove(ctx, containerName, container.RemoveOptions{Force: true})
 
@@ -200,9 +252,101 @@ func (e *Executor) ExecuteDeployWithCallback(
 	// Step 4: Health Check & Live
 	sendLog("Health check", "Verifying service container status...", false)
 	time.Sleep(50 * time.Millisecond)
+
+	// Retention Pruning: enforce maximum number of retained preview deployments
+	e.pruneOldDeployments(ctx, req, dynamicDir, sendLog)
+
 	sendLog("Live", fmt.Sprintf("Service %s is live and ready to receive traffic!", serviceName), false)
 
 	return nil
+}
+
+func (e *Executor) pruneOldDeployments(
+	ctx context.Context,
+	req *takov1.DeployRequest,
+	dynamicDir string,
+	sendLog func(step, msg string, isError bool),
+) {
+	if e.dockerCli == nil {
+		return
+	}
+
+	retentionLimit := 2
+	if rStr, ok := req.GetEnvVars()["TAKO_PREVIEW_RETENTION"]; ok {
+		if rInt, err := strconv.Atoi(rStr); err == nil && rInt > 0 {
+			retentionLimit = rInt
+		}
+	} else if rStr := os.Getenv("TAKO_PREVIEW_RETENTION"); rStr != "" {
+		if rInt, err := strconv.Atoi(rStr); err == nil && rInt > 0 {
+			retentionLimit = rInt
+		}
+	}
+
+	serviceID := req.GetServiceId()
+	serviceName := req.GetServiceName()
+
+	allContainers, err := e.dockerCli.ListContainers(ctx, true)
+	if err != nil {
+		return
+	}
+
+	var serviceContainers []types.Container
+	prefix := fmt.Sprintf("/tako-app-%s-", serviceName)
+	exactLegacy := fmt.Sprintf("/tako-app-%s", serviceName)
+
+	for _, c := range allContainers {
+		isMatch := false
+		if c.Labels["tako.service.id"] == serviceID {
+			isMatch = true
+		} else {
+			for _, n := range c.Names {
+				if strings.HasPrefix(n, prefix) || n == exactLegacy {
+					isMatch = true
+					break
+				}
+			}
+		}
+		if isMatch {
+			serviceContainers = append(serviceContainers, c)
+		}
+	}
+
+	if len(serviceContainers) <= retentionLimit {
+		return
+	}
+
+	// Sort containers by Created timestamp descending (newest first)
+	sort.Slice(serviceContainers, func(i, j int) bool {
+		return serviceContainers[i].Created > serviceContainers[j].Created
+	})
+
+	for i := retentionLimit; i < len(serviceContainers); i++ {
+		c := serviceContainers[i]
+		commitPrefix := c.Labels["tako.commit.prefix"]
+		if commitPrefix == "" {
+			for _, n := range c.Names {
+				cleanName := strings.TrimPrefix(n, "/")
+				if strings.HasPrefix(cleanName, "tako-app-"+serviceName+"-") {
+					commitPrefix = strings.TrimPrefix(cleanName, "tako-app-"+serviceName+"-")
+					break
+				}
+			}
+		}
+
+		_ = e.dockerCli.RawClient().ContainerStop(ctx, c.ID, container.StopOptions{})
+		_ = e.dockerCli.RawClient().ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
+
+		if commitPrefix != "" {
+			previewConfigPath := filepath.Join(dynamicDir, fmt.Sprintf("%s-%s.yml", serviceName, commitPrefix))
+			_ = os.Remove(previewConfigPath)
+		}
+
+		shortID := c.ID
+		if len(shortID) > 12 {
+			shortID = shortID[:12]
+		}
+		sendLog("Health check", fmt.Sprintf("Pruned older container %s (revision: %s) to maintain retention quota of %d", shortID, commitPrefix, retentionLimit), false)
+	}
 }
 
 func (e *Executor) handleGitBuild(

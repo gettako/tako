@@ -212,6 +212,43 @@ export async function triggerDeployment(serviceId: string, branch = 'main'): Pro
 }
 
 export async function rollbackDeployment(deploymentId: string): Promise<Deployment> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/deployments/${deploymentId}/rollback`, { method: 'POST' });
+      if (res.ok) {
+        const triggerRes = await res.json();
+        const newDepId = triggerRes.deploymentId || `dep-${Date.now()}`;
+        const target = deployments.find((d) => d.id === deploymentId);
+        const rollbackDep: Deployment = {
+          id: newDepId,
+          serviceId: target?.serviceId || '',
+          serviceName: target?.serviceName || 'Service',
+          commitHash: target?.commitHash || '',
+          commitMessage: `rollback: revert to ${target?.commitHash || 'previous'} (${target?.commitMessage || ''})`,
+          branch: target?.branch || 'main',
+          author: 'Admin',
+          status: 'running',
+          startedAt: new Date().toISOString(),
+          rollbackFromId: deploymentId,
+          isRollback: true,
+          steps: [
+            { name: 'Queued', status: 'success', durationMs: 500 },
+            { name: 'Clone', status: 'running', logs: ['Reverting to revision...'] },
+            { name: 'Build', status: 'pending' },
+            { name: 'Push/Load image', status: 'pending' },
+            { name: 'Deploy', status: 'pending' },
+            { name: 'Health check', status: 'pending' },
+            { name: 'Live', status: 'pending' },
+          ],
+        };
+        deployments.unshift(rollbackDep);
+        return rollbackDep;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   await simulateDelay();
   const target = deployments.find((d) => d.id === deploymentId);
   if (!target) throw new Error(`Deployment ${deploymentId} not found`);

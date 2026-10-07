@@ -250,11 +250,30 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 	if sess != nil {
 		// Gather domains
 		domainsDB, _ := o.queries.ListServiceDomains(bgCtx, srv.ID)
-		domainList := make([]string, 0, len(domainsDB)+1)
+		domainList := make([]string, 0, len(domainsDB)+2)
 		for _, d := range domainsDB {
 			domainList = append(domainList, d.Domain)
 		}
-		if previewDomain != "" {
+
+		// Compute node IP & canonical domain (e.g. tako-demo-hello-43-156-243-241.sslip.io)
+		node, errNode := o.queries.GetNodeByID(bgCtx, srv.NodeID)
+		nodeIP := "127.0.0.1"
+		if errNode == nil {
+			if node.PublicIp != "" {
+				nodeIP = node.PublicIp
+			} else if node.IpAddress != "" {
+				nodeIP = node.IpAddress
+			}
+		}
+		cleanIP := "127.0.0.1"
+		if nodeIP != "" {
+			cleanIP = strings.Split(nodeIP, ":")[0]
+		}
+		dashedIP := strings.ReplaceAll(cleanIP, ".", "-")
+		canonicalDomain := fmt.Sprintf("%s-%s.sslip.io", srv.Slug, dashedIP)
+		domainList = append(domainList, canonicalDomain)
+
+		if previewDomain != "" && previewDomain != canonicalDomain {
 			domainList = append(domainList, previewDomain)
 		}
 
@@ -263,6 +282,13 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		envMap := make(map[string]string)
 		for _, ev := range envDB {
 			envMap[ev.Key] = ev.Value
+		}
+		if _, hasRetention := envMap["TAKO_PREVIEW_RETENTION"]; !hasRetention {
+			if setting, err := o.queries.GetSetting(bgCtx, "preview_retention"); err == nil && setting.Value != "" {
+				envMap["TAKO_PREVIEW_RETENTION"] = setting.Value
+			} else {
+				envMap["TAKO_PREVIEW_RETENTION"] = "2"
+			}
 		}
 
 		// Ports
@@ -537,6 +563,82 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 // GetDeployment retrieves deployment details.
 func (o *Orchestrator) GetDeployment(ctx context.Context, depID string) (db.Deployment, error) {
 	return o.queries.GetDeploymentByID(ctx, depID)
+}
+
+// RollbackDeployment reverts a service to the revision of a specified deployment.
+func (o *Orchestrator) RollbackDeployment(ctx context.Context, depID string) (*db.Deployment, error) {
+	targetDep, err := o.queries.GetDeploymentByID(ctx, depID)
+	if err != nil {
+		return nil, fmt.Errorf("deployment %s not found: %w", depID, err)
+	}
+
+	srv, err := o.queries.GetServiceByID(ctx, targetDep.ServiceID)
+	if err != nil {
+		return nil, fmt.Errorf("service not found: %w", err)
+	}
+
+	// Update service's active commit_hash to target's commit_hash
+	_, _ = o.db.ExecContext(ctx, "UPDATE services SET commit_hash = ?, branch = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", targetDep.CommitHash, targetDep.Branch, srv.ID)
+	srv.CommitHash = targetDep.CommitHash
+	srv.Branch = targetDep.Branch
+
+	newDepID := "dep-" + randomHex(8)
+	initialSteps := []DeploymentStepJSON{
+		{Name: "Queued", Status: "running", StartedAt: time.Now().UTC().Format(time.RFC3339)},
+	}
+	stepsJSON, _ := json.Marshal(initialSteps)
+
+	node, errNode := o.queries.GetNodeByID(ctx, srv.NodeID)
+	nodeIP := "127.0.0.1"
+	if errNode == nil {
+		if node.PublicIp != "" {
+			nodeIP = node.PublicIp
+		} else if node.IpAddress != "" {
+			nodeIP = node.IpAddress
+		}
+	}
+	previewDomain, previewURL := buildPreviewURL(srv.CommitHash, newDepID, nodeIP)
+
+	shortCommit := srv.CommitHash
+	if len(shortCommit) > 7 {
+		shortCommit = shortCommit[:7]
+	}
+	msg := fmt.Sprintf("Rollback to %s", shortCommit)
+	if targetDep.CommitMessage != "" {
+		msg = fmt.Sprintf("Rollback to %s (%s)", shortCommit, targetDep.CommitMessage)
+	}
+
+	dep, err := o.queries.CreateDeployment(ctx, db.CreateDeploymentParams{
+		ID:            newDepID,
+		ServiceID:     srv.ID,
+		CommitHash:    srv.CommitHash,
+		CommitMessage: msg,
+		Branch:        srv.Branch,
+		Author:        "system",
+		Status:        "queued",
+		Steps:         string(stepsJSON),
+		Logs:          fmt.Sprintf("[%s] Rollback deployment queued for service %s to %s\n", time.Now().Format("15:04:05"), srv.Name, shortCommit),
+		Url:           previewURL,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create rollback deployment record: %w", err)
+	}
+
+	_, _ = o.RecordAudit(ctx, AuditLogInput{
+		Action:     "rollback_service",
+		TargetType: "service",
+		TargetID:   srv.ID,
+		TargetName: srv.Name,
+		Metadata: map[string]interface{}{
+			"deploymentId": newDepID,
+			"targetCommit": srv.CommitHash,
+			"rollbackFrom": targetDep.ID,
+		},
+	})
+
+	go o.runDeploymentPipeline(srv, newDepID, previewDomain, previewURL)
+
+	return &dep, nil
 }
 
 func randomHex(n int) string {

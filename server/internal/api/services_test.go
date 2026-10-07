@@ -414,6 +414,26 @@ func TestServiceDeploymentsAndLogs(t *testing.T) {
 			t.Fatalf("unexpected history response: %s", historyLogs)
 		}
 	})
+
+	// 7. POST /api/v1/deployments/{id}/rollback
+	t.Run("Rollback Deployment", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/deployments/"+depID+"/rollback", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("expected 202 Accepted, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		var resp map[string]string
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("failed to parse JSON response: %v", err)
+		}
+
+		if resp["deploymentId"] == "" || resp["status"] != "queued" {
+			t.Fatalf("unexpected rollback response: %v", resp)
+		}
+	})
 }
 
 func TestServiceExecAndLogsWithAgentSession(t *testing.T) {

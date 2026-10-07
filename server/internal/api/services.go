@@ -471,6 +471,23 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			_ = json.NewEncoder(w).Encode(dep)
 		})
 
+		// POST /api/v1/deployments/{id}/rollback
+		r.Post("/{id}/rollback", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			dep, err := orch.RollbackDeployment(r.Context(), id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"deploymentId": dep.ID,
+				"status":       dep.Status,
+			})
+		})
+
 		// GET /api/v1/deployments/{id}/logs (SSE)
 		r.Get("/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")

@@ -122,8 +122,12 @@ export function DeploymentHistoryTable({
           ) : (
             filteredDeployments.map((dep, index) => {
               const isSelected = selectedDeploymentId === dep.id;
+              const isLatestActive = index === 0;
               const canRollback =
-                index < 5 && dep.status !== 'running' && dep.status !== 'queued';
+                !isLatestActive &&
+                index < 5 &&
+                dep.status !== 'running' &&
+                dep.status !== 'queued';
               const durationSec = dep.durationMs
                 ? Math.round(dep.durationMs / 1000)
                 : null;
@@ -239,35 +243,40 @@ export function DeploymentHistoryTable({
                           </Tooltip>
                         )}
 
-                        {canRollback ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onRequestRollback(dep)}
-                            className="h-7 px-2.5 text-xs border-border hover:bg-muted text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-                          >
-                            <RotateCcw className="size-3 text-muted-foreground" />
-                            <span className="hidden lg:inline">Rollback</span>
-                          </Button>
-                        ) : (
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled
-                                  className="h-7 px-2.5 text-xs opacity-40 cursor-not-allowed gap-1.5"
-                                />
-                              }
+                        {/* Rollback & Detail Actions */}
+                        {!isLatestActive && (
+                          canRollback ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onRequestRollback(dep)}
+                              className="h-7 px-2.5 text-xs border-border hover:bg-muted text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px"
                             >
-                              <RotateCcw className="size-3" />
+                              <RotateCcw className="size-3 text-muted-foreground" />
                               <span className="hidden lg:inline">Rollback</span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Rollback is only available for the 5 most recent deployments.
-                            </TooltipContent>
-                          </Tooltip>
+                            </Button>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled
+                                    className="h-7 px-2.5 text-xs opacity-40 cursor-not-allowed gap-1.5"
+                                  />
+                                }
+                              >
+                                <RotateCcw className="size-3" />
+                                <span className="hidden lg:inline">Rollback</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {dep.status === 'running' || dep.status === 'queued'
+                                  ? 'Deployment is in progress.'
+                                  : 'Rollback is only available for the 5 most recent deployments.'}
+                              </TooltipContent>
+                            </Tooltip>
+                          )
                         )}
 
                         <Button

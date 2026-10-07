@@ -25,6 +25,11 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 		name = "app"
 	}
 
+	configName := name
+	if cfg.ConfigName != "" {
+		configName = sanitizeName(cfg.ConfigName)
+	}
+
 	certResolver := cfg.CertResolver
 	if certResolver == "" {
 		certResolver = "letsencrypt"
@@ -78,11 +83,11 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 		tlsRule := buildHostRule(tlsDomains)
 
 		// HTTPS router
-		b.WriteString(fmt.Sprintf("    %s-secure:\n", name))
+		b.WriteString(fmt.Sprintf("    %s-secure:\n", configName))
 		b.WriteString(fmt.Sprintf("      rule: \"%s\"\n", tlsRule))
 		b.WriteString("      entryPoints:\n        - websecure\n")
 		b.WriteString(fmt.Sprintf("      tls:\n        certResolver: %s\n", certResolver))
-		b.WriteString(fmt.Sprintf("      service: %s\n", name))
+		b.WriteString(fmt.Sprintf("      service: %s\n", configName))
 		if len(cfg.Middlewares) > 0 {
 			b.WriteString("      middlewares:\n")
 			for _, m := range cfg.Middlewares {
@@ -91,15 +96,15 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 		}
 
 		// HTTP→HTTPS redirect router for custom domains
-		b.WriteString(fmt.Sprintf("    %s-web:\n", name))
+		b.WriteString(fmt.Sprintf("    %s-web:\n", configName))
 		b.WriteString(fmt.Sprintf("      rule: \"%s\"\n", tlsRule))
 		b.WriteString("      entryPoints:\n        - web\n")
-		b.WriteString(fmt.Sprintf("      middlewares:\n        - %s-redirect-ssl\n", name))
-		b.WriteString(fmt.Sprintf("      service: %s\n", name))
+		b.WriteString(fmt.Sprintf("      middlewares:\n        - %s-redirect-ssl\n", configName))
+		b.WriteString(fmt.Sprintf("      service: %s\n", configName))
 
 		// Redirect middleware definition
 		if _, err := b.WriteString("  middlewares:\n"); err == nil {
-			b.WriteString(fmt.Sprintf("    %s-redirect-ssl:\n", name))
+			b.WriteString(fmt.Sprintf("    %s-redirect-ssl:\n", configName))
 			b.WriteString("      redirectScheme:\n        scheme: https\n        permanent: true\n")
 		}
 	}
@@ -108,10 +113,10 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 	if len(httpDomains) > 0 {
 		httpRule := buildHostRule(httpDomains)
 
-		b.WriteString(fmt.Sprintf("    %s-preview:\n", name))
+		b.WriteString(fmt.Sprintf("    %s-preview:\n", configName))
 		b.WriteString(fmt.Sprintf("      rule: \"%s\"\n", httpRule))
 		b.WriteString("      entryPoints:\n        - web\n")
-		b.WriteString(fmt.Sprintf("      service: %s\n", name))
+		b.WriteString(fmt.Sprintf("      service: %s\n", configName))
 		if len(cfg.Middlewares) > 0 {
 			b.WriteString("      middlewares:\n")
 			for _, m := range cfg.Middlewares {
@@ -122,11 +127,11 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 
 	// Service backend — MUST use the actual Docker container hostname
 	b.WriteString("  services:\n")
-	b.WriteString(fmt.Sprintf("    %s:\n", name))
+	b.WriteString(fmt.Sprintf("    %s:\n", configName))
 	b.WriteString("      loadBalancer:\n        servers:\n")
 	b.WriteString(fmt.Sprintf("          - url: \"http://%s:%d\"\n", containerHost, cfg.TargetPort))
 
-	filePath := filepath.Join(dir, fmt.Sprintf("%s.yml", name))
+	filePath := filepath.Join(dir, fmt.Sprintf("%s.yml", configName))
 	return os.WriteFile(filePath, []byte(b.String()), 0644)
 }
 
