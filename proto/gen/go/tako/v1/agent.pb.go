@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v7.36.1
-// source: agent.proto
+// source: tako/v1/agent.proto
 
 package takov1
 
@@ -41,7 +41,7 @@ type RegisterNodeRequest struct {
 
 func (x *RegisterNodeRequest) Reset() {
 	*x = RegisterNodeRequest{}
-	mi := &file_agent_proto_msgTypes[0]
+	mi := &file_tako_v1_agent_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -53,7 +53,7 @@ func (x *RegisterNodeRequest) String() string {
 func (*RegisterNodeRequest) ProtoMessage() {}
 
 func (x *RegisterNodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_proto_msgTypes[0]
+	mi := &file_tako_v1_agent_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,7 +66,7 @@ func (x *RegisterNodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterNodeRequest.ProtoReflect.Descriptor instead.
 func (*RegisterNodeRequest) Descriptor() ([]byte, []int) {
-	return file_agent_proto_rawDescGZIP(), []int{0}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *RegisterNodeRequest) GetNodeId() string {
@@ -165,7 +165,7 @@ type RegisterNodeResponse struct {
 
 func (x *RegisterNodeResponse) Reset() {
 	*x = RegisterNodeResponse{}
-	mi := &file_agent_proto_msgTypes[1]
+	mi := &file_tako_v1_agent_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -177,7 +177,7 @@ func (x *RegisterNodeResponse) String() string {
 func (*RegisterNodeResponse) ProtoMessage() {}
 
 func (x *RegisterNodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_proto_msgTypes[1]
+	mi := &file_tako_v1_agent_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -190,7 +190,7 @@ func (x *RegisterNodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterNodeResponse.ProtoReflect.Descriptor instead.
 func (*RegisterNodeResponse) Descriptor() ([]byte, []int) {
-	return file_agent_proto_rawDescGZIP(), []int{1}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RegisterNodeResponse) GetNodeId() string {
@@ -237,7 +237,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_agent_proto_msgTypes[2]
+	mi := &file_tako_v1_agent_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -249,7 +249,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_proto_msgTypes[2]
+	mi := &file_tako_v1_agent_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -262,7 +262,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_agent_proto_rawDescGZIP(), []int{2}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *HeartbeatRequest) GetNodeId() string {
@@ -331,7 +331,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_agent_proto_msgTypes[3]
+	mi := &file_tako_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -343,7 +343,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_agent_proto_msgTypes[3]
+	mi := &file_tako_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -356,7 +356,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_agent_proto_rawDescGZIP(), []int{3}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *HeartbeatResponse) GetAcknowledged() bool {
@@ -373,11 +373,271 @@ func (x *HeartbeatResponse) GetTimestamp() int64 {
 	return 0
 }
 
-var File_agent_proto protoreflect.FileDescriptor
+type MasterTask struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	NodeId string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// Types that are valid to be assigned to Task:
+	//
+	//	*MasterTask_Deploy
+	//	*MasterTask_Exec
+	//	*MasterTask_ContainerAction
+	//	*MasterTask_ContainerLogs
+	Task          isMasterTask_Task `protobuf_oneof:"task"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_agent_proto_rawDesc = "" +
+func (x *MasterTask) Reset() {
+	*x = MasterTask{}
+	mi := &file_tako_v1_agent_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MasterTask) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MasterTask) ProtoMessage() {}
+
+func (x *MasterTask) ProtoReflect() protoreflect.Message {
+	mi := &file_tako_v1_agent_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MasterTask.ProtoReflect.Descriptor instead.
+func (*MasterTask) Descriptor() ([]byte, []int) {
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *MasterTask) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *MasterTask) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *MasterTask) GetTask() isMasterTask_Task {
+	if x != nil {
+		return x.Task
+	}
+	return nil
+}
+
+func (x *MasterTask) GetDeploy() *DeployRequest {
+	if x != nil {
+		if x, ok := x.Task.(*MasterTask_Deploy); ok {
+			return x.Deploy
+		}
+	}
+	return nil
+}
+
+func (x *MasterTask) GetExec() *ExecCommandRequest {
+	if x != nil {
+		if x, ok := x.Task.(*MasterTask_Exec); ok {
+			return x.Exec
+		}
+	}
+	return nil
+}
+
+func (x *MasterTask) GetContainerAction() *ContainerActionRequest {
+	if x != nil {
+		if x, ok := x.Task.(*MasterTask_ContainerAction); ok {
+			return x.ContainerAction
+		}
+	}
+	return nil
+}
+
+func (x *MasterTask) GetContainerLogs() *GetContainerLogsRequest {
+	if x != nil {
+		if x, ok := x.Task.(*MasterTask_ContainerLogs); ok {
+			return x.ContainerLogs
+		}
+	}
+	return nil
+}
+
+type isMasterTask_Task interface {
+	isMasterTask_Task()
+}
+
+type MasterTask_Deploy struct {
+	Deploy *DeployRequest `protobuf:"bytes,3,opt,name=deploy,proto3,oneof"`
+}
+
+type MasterTask_Exec struct {
+	Exec *ExecCommandRequest `protobuf:"bytes,4,opt,name=exec,proto3,oneof"`
+}
+
+type MasterTask_ContainerAction struct {
+	ContainerAction *ContainerActionRequest `protobuf:"bytes,5,opt,name=container_action,json=containerAction,proto3,oneof"`
+}
+
+type MasterTask_ContainerLogs struct {
+	ContainerLogs *GetContainerLogsRequest `protobuf:"bytes,6,opt,name=container_logs,json=containerLogs,proto3,oneof"`
+}
+
+func (*MasterTask_Deploy) isMasterTask_Task() {}
+
+func (*MasterTask_Exec) isMasterTask_Task() {}
+
+func (*MasterTask_ContainerAction) isMasterTask_Task() {}
+
+func (*MasterTask_ContainerLogs) isMasterTask_Task() {}
+
+type AgentTaskResult struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	TaskId string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	NodeId string                 `protobuf:"bytes,2,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// Types that are valid to be assigned to Result:
+	//
+	//	*AgentTaskResult_DeployLog
+	//	*AgentTaskResult_ExecResult
+	//	*AgentTaskResult_ContainerActionResult
+	//	*AgentTaskResult_ContainerLogsResult
+	Result        isAgentTaskResult_Result `protobuf_oneof:"result"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AgentTaskResult) Reset() {
+	*x = AgentTaskResult{}
+	mi := &file_tako_v1_agent_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AgentTaskResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AgentTaskResult) ProtoMessage() {}
+
+func (x *AgentTaskResult) ProtoReflect() protoreflect.Message {
+	mi := &file_tako_v1_agent_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AgentTaskResult.ProtoReflect.Descriptor instead.
+func (*AgentTaskResult) Descriptor() ([]byte, []int) {
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *AgentTaskResult) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *AgentTaskResult) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *AgentTaskResult) GetResult() isAgentTaskResult_Result {
+	if x != nil {
+		return x.Result
+	}
+	return nil
+}
+
+func (x *AgentTaskResult) GetDeployLog() *DeployLogChunk {
+	if x != nil {
+		if x, ok := x.Result.(*AgentTaskResult_DeployLog); ok {
+			return x.DeployLog
+		}
+	}
+	return nil
+}
+
+func (x *AgentTaskResult) GetExecResult() *ExecCommandResponse {
+	if x != nil {
+		if x, ok := x.Result.(*AgentTaskResult_ExecResult); ok {
+			return x.ExecResult
+		}
+	}
+	return nil
+}
+
+func (x *AgentTaskResult) GetContainerActionResult() *ContainerActionResponse {
+	if x != nil {
+		if x, ok := x.Result.(*AgentTaskResult_ContainerActionResult); ok {
+			return x.ContainerActionResult
+		}
+	}
+	return nil
+}
+
+func (x *AgentTaskResult) GetContainerLogsResult() *ContainerLogsResponse {
+	if x != nil {
+		if x, ok := x.Result.(*AgentTaskResult_ContainerLogsResult); ok {
+			return x.ContainerLogsResult
+		}
+	}
+	return nil
+}
+
+type isAgentTaskResult_Result interface {
+	isAgentTaskResult_Result()
+}
+
+type AgentTaskResult_DeployLog struct {
+	DeployLog *DeployLogChunk `protobuf:"bytes,3,opt,name=deploy_log,json=deployLog,proto3,oneof"`
+}
+
+type AgentTaskResult_ExecResult struct {
+	ExecResult *ExecCommandResponse `protobuf:"bytes,4,opt,name=exec_result,json=execResult,proto3,oneof"`
+}
+
+type AgentTaskResult_ContainerActionResult struct {
+	ContainerActionResult *ContainerActionResponse `protobuf:"bytes,5,opt,name=container_action_result,json=containerActionResult,proto3,oneof"`
+}
+
+type AgentTaskResult_ContainerLogsResult struct {
+	ContainerLogsResult *ContainerLogsResponse `protobuf:"bytes,6,opt,name=container_logs_result,json=containerLogsResult,proto3,oneof"`
+}
+
+func (*AgentTaskResult_DeployLog) isAgentTaskResult_Result() {}
+
+func (*AgentTaskResult_ExecResult) isAgentTaskResult_Result() {}
+
+func (*AgentTaskResult_ContainerActionResult) isAgentTaskResult_Result() {}
+
+func (*AgentTaskResult_ContainerLogsResult) isAgentTaskResult_Result() {}
+
+var File_tako_v1_agent_proto protoreflect.FileDescriptor
+
+const file_tako_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\vagent.proto\x12\atako.v1\"\x87\x03\n" +
+	"\x13tako/v1/agent.proto\x12\atako.v1\x1a\x18tako/v1/deployment.proto\x1a\x17tako/v1/container.proto\"\x87\x03\n" +
 	"\x13RegisterNodeRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
@@ -412,62 +672,116 @@ const file_agent_proto_rawDesc = "" +
 	"\ttimestamp\x18\b \x01(\x03R\ttimestamp\"U\n" +
 	"\x11HeartbeatResponse\x12\"\n" +
 	"\facknowledged\x18\x01 \x01(\bR\facknowledged\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp2\x9f\x01\n" +
+	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xc4\x02\n" +
+	"\n" +
+	"MasterTask\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x120\n" +
+	"\x06deploy\x18\x03 \x01(\v2\x16.tako.v1.DeployRequestH\x00R\x06deploy\x121\n" +
+	"\x04exec\x18\x04 \x01(\v2\x1b.tako.v1.ExecCommandRequestH\x00R\x04exec\x12L\n" +
+	"\x10container_action\x18\x05 \x01(\v2\x1f.tako.v1.ContainerActionRequestH\x00R\x0fcontainerAction\x12I\n" +
+	"\x0econtainer_logs\x18\x06 \x01(\v2 .tako.v1.GetContainerLogsRequestH\x00R\rcontainerLogsB\x06\n" +
+	"\x04task\"\xfa\x02\n" +
+	"\x0fAgentTaskResult\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
+	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x128\n" +
+	"\n" +
+	"deploy_log\x18\x03 \x01(\v2\x17.tako.v1.DeployLogChunkH\x00R\tdeployLog\x12?\n" +
+	"\vexec_result\x18\x04 \x01(\v2\x1c.tako.v1.ExecCommandResponseH\x00R\n" +
+	"execResult\x12Z\n" +
+	"\x17container_action_result\x18\x05 \x01(\v2 .tako.v1.ContainerActionResponseH\x00R\x15containerActionResult\x12T\n" +
+	"\x15container_logs_result\x18\x06 \x01(\v2\x1e.tako.v1.ContainerLogsResponseH\x00R\x13containerLogsResultB\b\n" +
+	"\x06result2\xe1\x01\n" +
 	"\fAgentService\x12K\n" +
 	"\fRegisterNode\x12\x1c.tako.v1.RegisterNodeRequest\x1a\x1d.tako.v1.RegisterNodeResponse\x12B\n" +
-	"\tHeartbeat\x12\x19.tako.v1.HeartbeatRequest\x1a\x1a.tako.v1.HeartbeatResponseB.Z,gettako.dev/tako/proto/gen/go/tako/v1;takov1b\x06proto3"
+	"\tHeartbeat\x12\x19.tako.v1.HeartbeatRequest\x1a\x1a.tako.v1.HeartbeatResponse\x12@\n" +
+	"\vStreamTasks\x12\x18.tako.v1.AgentTaskResult\x1a\x13.tako.v1.MasterTask(\x010\x01B.Z,gettako.dev/tako/proto/gen/go/tako/v1;takov1b\x06proto3"
 
 var (
-	file_agent_proto_rawDescOnce sync.Once
-	file_agent_proto_rawDescData []byte
+	file_tako_v1_agent_proto_rawDescOnce sync.Once
+	file_tako_v1_agent_proto_rawDescData []byte
 )
 
-func file_agent_proto_rawDescGZIP() []byte {
-	file_agent_proto_rawDescOnce.Do(func() {
-		file_agent_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_agent_proto_rawDesc), len(file_agent_proto_rawDesc)))
+func file_tako_v1_agent_proto_rawDescGZIP() []byte {
+	file_tako_v1_agent_proto_rawDescOnce.Do(func() {
+		file_tako_v1_agent_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tako_v1_agent_proto_rawDesc), len(file_tako_v1_agent_proto_rawDesc)))
 	})
-	return file_agent_proto_rawDescData
+	return file_tako_v1_agent_proto_rawDescData
 }
 
-var file_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_agent_proto_goTypes = []any{
-	(*RegisterNodeRequest)(nil),  // 0: tako.v1.RegisterNodeRequest
-	(*RegisterNodeResponse)(nil), // 1: tako.v1.RegisterNodeResponse
-	(*HeartbeatRequest)(nil),     // 2: tako.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),    // 3: tako.v1.HeartbeatResponse
+var file_tako_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_tako_v1_agent_proto_goTypes = []any{
+	(*RegisterNodeRequest)(nil),     // 0: tako.v1.RegisterNodeRequest
+	(*RegisterNodeResponse)(nil),    // 1: tako.v1.RegisterNodeResponse
+	(*HeartbeatRequest)(nil),        // 2: tako.v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil),       // 3: tako.v1.HeartbeatResponse
+	(*MasterTask)(nil),              // 4: tako.v1.MasterTask
+	(*AgentTaskResult)(nil),         // 5: tako.v1.AgentTaskResult
+	(*DeployRequest)(nil),           // 6: tako.v1.DeployRequest
+	(*ExecCommandRequest)(nil),      // 7: tako.v1.ExecCommandRequest
+	(*ContainerActionRequest)(nil),  // 8: tako.v1.ContainerActionRequest
+	(*GetContainerLogsRequest)(nil), // 9: tako.v1.GetContainerLogsRequest
+	(*DeployLogChunk)(nil),          // 10: tako.v1.DeployLogChunk
+	(*ExecCommandResponse)(nil),     // 11: tako.v1.ExecCommandResponse
+	(*ContainerActionResponse)(nil), // 12: tako.v1.ContainerActionResponse
+	(*ContainerLogsResponse)(nil),   // 13: tako.v1.ContainerLogsResponse
 }
-var file_agent_proto_depIdxs = []int32{
-	0, // 0: tako.v1.AgentService.RegisterNode:input_type -> tako.v1.RegisterNodeRequest
-	2, // 1: tako.v1.AgentService.Heartbeat:input_type -> tako.v1.HeartbeatRequest
-	1, // 2: tako.v1.AgentService.RegisterNode:output_type -> tako.v1.RegisterNodeResponse
-	3, // 3: tako.v1.AgentService.Heartbeat:output_type -> tako.v1.HeartbeatResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+var file_tako_v1_agent_proto_depIdxs = []int32{
+	6,  // 0: tako.v1.MasterTask.deploy:type_name -> tako.v1.DeployRequest
+	7,  // 1: tako.v1.MasterTask.exec:type_name -> tako.v1.ExecCommandRequest
+	8,  // 2: tako.v1.MasterTask.container_action:type_name -> tako.v1.ContainerActionRequest
+	9,  // 3: tako.v1.MasterTask.container_logs:type_name -> tako.v1.GetContainerLogsRequest
+	10, // 4: tako.v1.AgentTaskResult.deploy_log:type_name -> tako.v1.DeployLogChunk
+	11, // 5: tako.v1.AgentTaskResult.exec_result:type_name -> tako.v1.ExecCommandResponse
+	12, // 6: tako.v1.AgentTaskResult.container_action_result:type_name -> tako.v1.ContainerActionResponse
+	13, // 7: tako.v1.AgentTaskResult.container_logs_result:type_name -> tako.v1.ContainerLogsResponse
+	0,  // 8: tako.v1.AgentService.RegisterNode:input_type -> tako.v1.RegisterNodeRequest
+	2,  // 9: tako.v1.AgentService.Heartbeat:input_type -> tako.v1.HeartbeatRequest
+	5,  // 10: tako.v1.AgentService.StreamTasks:input_type -> tako.v1.AgentTaskResult
+	1,  // 11: tako.v1.AgentService.RegisterNode:output_type -> tako.v1.RegisterNodeResponse
+	3,  // 12: tako.v1.AgentService.Heartbeat:output_type -> tako.v1.HeartbeatResponse
+	4,  // 13: tako.v1.AgentService.StreamTasks:output_type -> tako.v1.MasterTask
+	11, // [11:14] is the sub-list for method output_type
+	8,  // [8:11] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
-func init() { file_agent_proto_init() }
-func file_agent_proto_init() {
-	if File_agent_proto != nil {
+func init() { file_tako_v1_agent_proto_init() }
+func file_tako_v1_agent_proto_init() {
+	if File_tako_v1_agent_proto != nil {
 		return
+	}
+	file_tako_v1_deployment_proto_init()
+	file_tako_v1_container_proto_init()
+	file_tako_v1_agent_proto_msgTypes[4].OneofWrappers = []any{
+		(*MasterTask_Deploy)(nil),
+		(*MasterTask_Exec)(nil),
+		(*MasterTask_ContainerAction)(nil),
+		(*MasterTask_ContainerLogs)(nil),
+	}
+	file_tako_v1_agent_proto_msgTypes[5].OneofWrappers = []any{
+		(*AgentTaskResult_DeployLog)(nil),
+		(*AgentTaskResult_ExecResult)(nil),
+		(*AgentTaskResult_ContainerActionResult)(nil),
+		(*AgentTaskResult_ContainerLogsResult)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_proto_rawDesc), len(file_agent_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tako_v1_agent_proto_rawDesc), len(file_tako_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_agent_proto_goTypes,
-		DependencyIndexes: file_agent_proto_depIdxs,
-		MessageInfos:      file_agent_proto_msgTypes,
+		GoTypes:           file_tako_v1_agent_proto_goTypes,
+		DependencyIndexes: file_tako_v1_agent_proto_depIdxs,
+		MessageInfos:      file_tako_v1_agent_proto_msgTypes,
 	}.Build()
-	File_agent_proto = out.File
-	file_agent_proto_goTypes = nil
-	file_agent_proto_depIdxs = nil
+	File_tako_v1_agent_proto = out.File
+	file_tako_v1_agent_proto_goTypes = nil
+	file_tako_v1_agent_proto_depIdxs = nil
 }

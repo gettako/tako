@@ -37,6 +37,20 @@ func (e *Executor) ExecuteDeploy(
 	req *takov1.DeployRequest,
 	stream takov1.DeploymentService_DeployServer,
 ) error {
+	var onLogChunk func(chunk *takov1.DeployLogChunk)
+	if stream != nil {
+		onLogChunk = func(chunk *takov1.DeployLogChunk) {
+			_ = stream.Send(chunk)
+		}
+	}
+	return e.ExecuteDeployWithCallback(ctx, req, onLogChunk)
+}
+
+func (e *Executor) ExecuteDeployWithCallback(
+	ctx context.Context,
+	req *takov1.DeployRequest,
+	onLogChunk func(chunk *takov1.DeployLogChunk),
+) error {
 	depID := req.GetDeploymentId()
 	serviceName := req.GetServiceName()
 	if serviceName == "" {
@@ -51,8 +65,8 @@ func (e *Executor) ExecuteDeploy(
 			Timestamp:    time.Now().Unix(),
 			IsError:      isError,
 		}
-		if stream != nil {
-			_ = stream.Send(chunk)
+		if onLogChunk != nil {
+			onLogChunk(chunk)
 		}
 		log.Printf("[deploy-%s] [%s] %s", depID, step, msg)
 	}
@@ -209,8 +223,16 @@ func (e *Executor) handleGitBuild(
 
 	dockerfilePath := filepath.Join(tmpDir, dockerfileName)
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
-		sendLog("Build", fmt.Sprintf("Warning: Dockerfile not found at %s, creating minimal Dockerfile", dockerfileName), false)
-		_ = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\nCMD [\"echo\", \"tako app running\"]\n"), 0o644)
+		if _, err := os.Stat(filepath.Join(tmpDir, "package.json")); err == nil {
+			sendLog("Build", "Notice: Dockerfile not found, auto-generated standard Node.js Dockerfile", false)
+			_ = os.WriteFile(dockerfilePath, []byte("FROM node:20-alpine\nWORKDIR /app\nCOPY package*.json ./\nRUN npm install --production\nCOPY . .\nEXPOSE 3000\nCMD [\"npm\", \"start\"]\n"), 0o644)
+		} else if _, err := os.Stat(filepath.Join(tmpDir, "go.mod")); err == nil {
+			sendLog("Build", "Notice: Dockerfile not found, auto-generated standard Go Dockerfile", false)
+			_ = os.WriteFile(dockerfilePath, []byte("FROM golang:1.24-alpine AS builder\nWORKDIR /app\nCOPY go.mod go.sum* ./\nRUN go mod download || true\nCOPY . .\nRUN CGO_ENABLED=0 go build -o /app/server .\nFROM alpine:3.20\nWORKDIR /app\nCOPY --from=builder /app/server /app/server\nEXPOSE 8080\nCMD [\"/app/server\"]\n"), 0o644)
+		} else {
+			sendLog("Build", fmt.Sprintf("Warning: Dockerfile not found at %s, creating minimal fallback Dockerfile", dockerfileName), false)
+			_ = os.WriteFile(dockerfilePath, []byte("FROM alpine:latest\nCMD [\"echo\", \"tako app running\"]\n"), 0o644)
+		}
 	}
 
 	sendLog("Build", fmt.Sprintf("Building Dockerfile %s with context %s...", dockerfileName, tmpDir), false)

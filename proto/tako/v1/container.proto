@@ -7,6 +7,8 @@ option go_package = "gettako.dev/tako/proto/gen/go/tako/v1;takov1";
 service ContainerService {
   rpc ListContainers (ListContainersRequest) returns (ListContainersResponse);
   rpc ContainerAction (ContainerActionRequest) returns (ContainerActionResponse);
+  rpc ExecCommand (ExecCommandRequest) returns (ExecCommandResponse);
+  rpc GetContainerLogs (GetContainerLogsRequest) returns (ContainerLogsResponse);
 }
 
 message ListContainersRequest {
@@ -34,4 +36,25 @@ message ContainerActionRequest {
 message ContainerActionResponse {
   bool success = 1;
   string message = 2;
+}
+
+message ExecCommandRequest {
+  string container_id = 1;
+  string command = 2;
+}
+
+message ExecCommandResponse {
+  int32 exit_code = 1;
+  string output = 2;
+  string error = 3;
+}
+
+message GetContainerLogsRequest {
+  string container_id = 1;
+  int32 tail_lines = 2;
+}
+
+message ContainerLogsResponse {
+  string logs = 1;
+  string error = 2;
 }

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.1
-// source: container.proto
+// source: tako/v1/container.proto
 
 package takov1
 
@@ -19,8 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ContainerService_ListContainers_FullMethodName  = "/tako.v1.ContainerService/ListContainers"
-	ContainerService_ContainerAction_FullMethodName = "/tako.v1.ContainerService/ContainerAction"
+	ContainerService_ListContainers_FullMethodName   = "/tako.v1.ContainerService/ListContainers"
+	ContainerService_ContainerAction_FullMethodName  = "/tako.v1.ContainerService/ContainerAction"
+	ContainerService_ExecCommand_FullMethodName      = "/tako.v1.ContainerService/ExecCommand"
+	ContainerService_GetContainerLogs_FullMethodName = "/tako.v1.ContainerService/GetContainerLogs"
 )
 
 // ContainerServiceClient is the client API for ContainerService service.
@@ -29,6 +31,8 @@ const (
 type ContainerServiceClient interface {
 	ListContainers(ctx context.Context, in *ListContainersRequest, opts ...grpc.CallOption) (*ListContainersResponse, error)
 	ContainerAction(ctx context.Context, in *ContainerActionRequest, opts ...grpc.CallOption) (*ContainerActionResponse, error)
+	ExecCommand(ctx context.Context, in *ExecCommandRequest, opts ...grpc.CallOption) (*ExecCommandResponse, error)
+	GetContainerLogs(ctx context.Context, in *GetContainerLogsRequest, opts ...grpc.CallOption) (*ContainerLogsResponse, error)
 }
 
 type containerServiceClient struct {
@@ -59,12 +63,34 @@ func (c *containerServiceClient) ContainerAction(ctx context.Context, in *Contai
 	return out, nil
 }
 
+func (c *containerServiceClient) ExecCommand(ctx context.Context, in *ExecCommandRequest, opts ...grpc.CallOption) (*ExecCommandResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ExecCommandResponse)
+	err := c.cc.Invoke(ctx, ContainerService_ExecCommand_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *containerServiceClient) GetContainerLogs(ctx context.Context, in *GetContainerLogsRequest, opts ...grpc.CallOption) (*ContainerLogsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ContainerLogsResponse)
+	err := c.cc.Invoke(ctx, ContainerService_GetContainerLogs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ContainerServiceServer is the server API for ContainerService service.
 // All implementations must embed UnimplementedContainerServiceServer
 // for forward compatibility.
 type ContainerServiceServer interface {
 	ListContainers(context.Context, *ListContainersRequest) (*ListContainersResponse, error)
 	ContainerAction(context.Context, *ContainerActionRequest) (*ContainerActionResponse, error)
+	ExecCommand(context.Context, *ExecCommandRequest) (*ExecCommandResponse, error)
+	GetContainerLogs(context.Context, *GetContainerLogsRequest) (*ContainerLogsResponse, error)
 	mustEmbedUnimplementedContainerServiceServer()
 }
 
@@ -80,6 +106,12 @@ func (UnimplementedContainerServiceServer) ListContainers(context.Context, *List
 }
 func (UnimplementedContainerServiceServer) ContainerAction(context.Context, *ContainerActionRequest) (*ContainerActionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ContainerAction not implemented")
+}
+func (UnimplementedContainerServiceServer) ExecCommand(context.Context, *ExecCommandRequest) (*ExecCommandResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ExecCommand not implemented")
+}
+func (UnimplementedContainerServiceServer) GetContainerLogs(context.Context, *GetContainerLogsRequest) (*ContainerLogsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetContainerLogs not implemented")
 }
 func (UnimplementedContainerServiceServer) mustEmbedUnimplementedContainerServiceServer() {}
 func (UnimplementedContainerServiceServer) testEmbeddedByValue()                          {}
@@ -138,6 +170,42 @@ func _ContainerService_ContainerAction_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContainerService_ExecCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecCommandRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).ExecCommand(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_ExecCommand_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).ExecCommand(ctx, req.(*ExecCommandRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContainerService_GetContainerLogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetContainerLogsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).GetContainerLogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_GetContainerLogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).GetContainerLogs(ctx, req.(*GetContainerLogsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ContainerService_ServiceDesc is the grpc.ServiceDesc for ContainerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -153,7 +221,15 @@ var ContainerService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "ContainerAction",
 			Handler:    _ContainerService_ContainerAction_Handler,
 		},
+		{
+			MethodName: "ExecCommand",
+			Handler:    _ContainerService_ExecCommand_Handler,
+		},
+		{
+			MethodName: "GetContainerLogs",
+			Handler:    _ContainerService_GetContainerLogs_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "container.proto",
+	Metadata: "tako/v1/container.proto",
 }

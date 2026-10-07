@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"gettako.dev/tako/internal/orchestrator"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"google.golang.org/grpc"
 )
@@ -11,6 +12,8 @@ import (
 type NodeOrchestrator interface {
 	RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error)
 	Heartbeat(ctx context.Context, req *takov1.HeartbeatRequest) (*takov1.HeartbeatResponse, error)
+	RegisterAgentSession(nodeID string, taskChan chan *takov1.MasterTask) *orchestrator.AgentSession
+	UnregisterAgentSession(nodeID string)
 }
 
 type ServerConfig struct {
@@ -43,6 +46,69 @@ func (h *AgentHandler) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 		Acknowledged: true,
 		Timestamp:    time.Now().Unix(),
 	}, nil
+}
+
+func (h *AgentHandler) StreamTasks(stream takov1.AgentService_StreamTasksServer) error {
+	taskChan := make(chan *takov1.MasterTask, 16)
+	var sess *orchestrator.AgentSession
+	nodeID := ""
+
+	// Read initial message from agent to learn node ID
+	firstMsg, err := stream.Recv()
+	if err != nil {
+		return err
+	}
+	nodeID = firstMsg.GetNodeId()
+	if nodeID == "" {
+		nodeID = "unknown"
+	}
+
+	if h.orchestrator != nil {
+		sess = h.orchestrator.RegisterAgentSession(nodeID, taskChan)
+		defer h.orchestrator.UnregisterAgentSession(nodeID)
+	}
+
+	ctx := stream.Context()
+	errChan := make(chan error, 2)
+
+	// Outbound tasks to agent
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case task, ok := <-taskChan:
+				if !ok {
+					return
+				}
+				if err := stream.Send(task); err != nil {
+					errChan <- err
+					return
+				}
+			}
+		}
+	}()
+
+	// Inbound task results from agent
+	go func() {
+		for {
+			res, err := stream.Recv()
+			if err != nil {
+				errChan <- err
+				return
+			}
+			if sess != nil {
+				sess.HandleResult(res)
+			}
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-errChan:
+		return err
+	}
 }
 
 type BaseDeploymentHandler struct {

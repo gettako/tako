@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v7.36.1
-// source: deployment.proto
+// source: tako/v1/deployment.proto
 
 package takov1
 
@@ -43,7 +43,7 @@ type DeployRequest struct {
 
 func (x *DeployRequest) Reset() {
 	*x = DeployRequest{}
-	mi := &file_deployment_proto_msgTypes[0]
+	mi := &file_tako_v1_deployment_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -55,7 +55,7 @@ func (x *DeployRequest) String() string {
 func (*DeployRequest) ProtoMessage() {}
 
 func (x *DeployRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployment_proto_msgTypes[0]
+	mi := &file_tako_v1_deployment_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -68,7 +68,7 @@ func (x *DeployRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeployRequest.ProtoReflect.Descriptor instead.
 func (*DeployRequest) Descriptor() ([]byte, []int) {
-	return file_deployment_proto_rawDescGZIP(), []int{0}
+	return file_tako_v1_deployment_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DeployRequest) GetDeploymentId() string {
@@ -182,7 +182,7 @@ type DeployLogChunk struct {
 
 func (x *DeployLogChunk) Reset() {
 	*x = DeployLogChunk{}
-	mi := &file_deployment_proto_msgTypes[1]
+	mi := &file_tako_v1_deployment_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -194,7 +194,7 @@ func (x *DeployLogChunk) String() string {
 func (*DeployLogChunk) ProtoMessage() {}
 
 func (x *DeployLogChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_deployment_proto_msgTypes[1]
+	mi := &file_tako_v1_deployment_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -207,7 +207,7 @@ func (x *DeployLogChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeployLogChunk.ProtoReflect.Descriptor instead.
 func (*DeployLogChunk) Descriptor() ([]byte, []int) {
-	return file_deployment_proto_rawDescGZIP(), []int{1}
+	return file_tako_v1_deployment_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *DeployLogChunk) GetDeploymentId() string {
@@ -255,7 +255,7 @@ type StreamLogsRequest struct {
 
 func (x *StreamLogsRequest) Reset() {
 	*x = StreamLogsRequest{}
-	mi := &file_deployment_proto_msgTypes[2]
+	mi := &file_tako_v1_deployment_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -267,7 +267,7 @@ func (x *StreamLogsRequest) String() string {
 func (*StreamLogsRequest) ProtoMessage() {}
 
 func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_deployment_proto_msgTypes[2]
+	mi := &file_tako_v1_deployment_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -280,7 +280,7 @@ func (x *StreamLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamLogsRequest.ProtoReflect.Descriptor instead.
 func (*StreamLogsRequest) Descriptor() ([]byte, []int) {
-	return file_deployment_proto_rawDescGZIP(), []int{2}
+	return file_tako_v1_deployment_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *StreamLogsRequest) GetDeploymentId() string {
@@ -309,7 +309,7 @@ type DeploymentStatusUpdate struct {
 
 func (x *DeploymentStatusUpdate) Reset() {
 	*x = DeploymentStatusUpdate{}
-	mi := &file_deployment_proto_msgTypes[3]
+	mi := &file_tako_v1_deployment_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -321,7 +321,7 @@ func (x *DeploymentStatusUpdate) String() string {
 func (*DeploymentStatusUpdate) ProtoMessage() {}
 
 func (x *DeploymentStatusUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_deployment_proto_msgTypes[3]
+	mi := &file_tako_v1_deployment_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -334,7 +334,7 @@ func (x *DeploymentStatusUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeploymentStatusUpdate.ProtoReflect.Descriptor instead.
 func (*DeploymentStatusUpdate) Descriptor() ([]byte, []int) {
-	return file_deployment_proto_rawDescGZIP(), []int{3}
+	return file_tako_v1_deployment_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *DeploymentStatusUpdate) GetDeploymentId() string {
@@ -365,11 +365,11 @@ func (x *DeploymentStatusUpdate) GetErrorMessage() string {
 	return ""
 }
 
-var File_deployment_proto protoreflect.FileDescriptor
+var File_tako_v1_deployment_proto protoreflect.FileDescriptor
 
-const file_deployment_proto_rawDesc = "" +
+const file_tako_v1_deployment_proto_rawDesc = "" +
 	"\n" +
-	"\x10deployment.proto\x12\atako.v1\"\x9b\x04\n" +
+	"\x18tako/v1/deployment.proto\x12\atako.v1\"\x9b\x04\n" +
 	"\rDeployRequest\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12\x1d\n" +
 	"\n" +
@@ -416,26 +416,26 @@ const file_deployment_proto_rawDesc = "" +
 	"StreamLogs\x12\x1a.tako.v1.StreamLogsRequest\x1a\x17.tako.v1.DeployLogChunk0\x01B.Z,gettako.dev/tako/proto/gen/go/tako/v1;takov1b\x06proto3"
 
 var (
-	file_deployment_proto_rawDescOnce sync.Once
-	file_deployment_proto_rawDescData []byte
+	file_tako_v1_deployment_proto_rawDescOnce sync.Once
+	file_tako_v1_deployment_proto_rawDescData []byte
 )
 
-func file_deployment_proto_rawDescGZIP() []byte {
-	file_deployment_proto_rawDescOnce.Do(func() {
-		file_deployment_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_deployment_proto_rawDesc), len(file_deployment_proto_rawDesc)))
+func file_tako_v1_deployment_proto_rawDescGZIP() []byte {
+	file_tako_v1_deployment_proto_rawDescOnce.Do(func() {
+		file_tako_v1_deployment_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tako_v1_deployment_proto_rawDesc), len(file_tako_v1_deployment_proto_rawDesc)))
 	})
-	return file_deployment_proto_rawDescData
+	return file_tako_v1_deployment_proto_rawDescData
 }
 
-var file_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_deployment_proto_goTypes = []any{
+var file_tako_v1_deployment_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_tako_v1_deployment_proto_goTypes = []any{
 	(*DeployRequest)(nil),          // 0: tako.v1.DeployRequest
 	(*DeployLogChunk)(nil),         // 1: tako.v1.DeployLogChunk
 	(*StreamLogsRequest)(nil),      // 2: tako.v1.StreamLogsRequest
 	(*DeploymentStatusUpdate)(nil), // 3: tako.v1.DeploymentStatusUpdate
 	nil,                            // 4: tako.v1.DeployRequest.EnvVarsEntry
 }
-var file_deployment_proto_depIdxs = []int32{
+var file_tako_v1_deployment_proto_depIdxs = []int32{
 	4, // 0: tako.v1.DeployRequest.env_vars:type_name -> tako.v1.DeployRequest.EnvVarsEntry
 	0, // 1: tako.v1.DeploymentService.Deploy:input_type -> tako.v1.DeployRequest
 	2, // 2: tako.v1.DeploymentService.StreamLogs:input_type -> tako.v1.StreamLogsRequest
@@ -448,26 +448,26 @@ var file_deployment_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_deployment_proto_init() }
-func file_deployment_proto_init() {
-	if File_deployment_proto != nil {
+func init() { file_tako_v1_deployment_proto_init() }
+func file_tako_v1_deployment_proto_init() {
+	if File_tako_v1_deployment_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_deployment_proto_rawDesc), len(file_deployment_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tako_v1_deployment_proto_rawDesc), len(file_tako_v1_deployment_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_deployment_proto_goTypes,
-		DependencyIndexes: file_deployment_proto_depIdxs,
-		MessageInfos:      file_deployment_proto_msgTypes,
+		GoTypes:           file_tako_v1_deployment_proto_goTypes,
+		DependencyIndexes: file_tako_v1_deployment_proto_depIdxs,
+		MessageInfos:      file_tako_v1_deployment_proto_msgTypes,
 	}.Build()
-	File_deployment_proto = out.File
-	file_deployment_proto_goTypes = nil
-	file_deployment_proto_depIdxs = nil
+	File_tako_v1_deployment_proto = out.File
+	file_tako_v1_deployment_proto_goTypes = nil
+	file_tako_v1_deployment_proto_depIdxs = nil
 }

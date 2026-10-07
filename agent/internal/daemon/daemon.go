@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gettako.dev/tako/agent/internal/client"
+	"gettako.dev/tako/agent/internal/deploy"
 	"gettako.dev/tako/agent/internal/docker"
 	"gettako.dev/tako/agent/internal/metrics"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
@@ -40,6 +41,7 @@ type Daemon struct {
 	grpcCli   *client.Client
 	dockerCli *docker.Client
 	collector *metrics.Collector
+	executor  *deploy.Executor
 	mu        sync.RWMutex
 	state     State
 }
@@ -70,6 +72,7 @@ func New(cfg Config) (*Daemon, error) {
 		grpcCli:   grpcCli,
 		dockerCli: dockerCli,
 		collector: metrics.NewCollector(),
+		executor:  deploy.NewExecutor(dockerCli),
 	}
 
 	d.loadState()
@@ -172,6 +175,9 @@ func (d *Daemon) Run(ctx context.Context) error {
 		go d.watchDockerEvents(ctx)
 	}
 
+	// Start bi-directional task streaming loop with master
+	go d.listenTasks(ctx)
+
 	log.Printf("[tako-agent] starting heartbeat loop (interval: %v)...", d.cfg.HeartbeatInterval)
 	ticker := time.NewTicker(d.cfg.HeartbeatInterval)
 	defer ticker.Stop()
@@ -250,4 +256,170 @@ func (d *Daemon) Close() error {
 		return d.grpcCli.Close()
 	}
 	return nil
+}
+
+func (d *Daemon) listenTasks(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		d.mu.RLock()
+		nodeID := d.state.NodeID
+		d.mu.RUnlock()
+
+		if nodeID == "" {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		log.Printf("[tako-agent] connecting to master task stream (node: %s)...", nodeID)
+		stream, err := d.grpcCli.AgentClient().StreamTasks(ctx)
+		if err != nil {
+			if !errors.Is(err, context.Canceled) {
+				log.Printf("[tako-agent] warning: failed to connect task stream: %v (retrying in 3s)", err)
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(3 * time.Second):
+				continue
+			}
+		}
+
+		// Initial greeting/handshake
+		_ = stream.Send(&takov1.AgentTaskResult{
+			TaskId: "handshake",
+			NodeId: nodeID,
+		})
+
+		log.Printf("[tako-agent] task stream established with master")
+
+		for {
+			task, err := stream.Recv()
+			if err != nil {
+				if !errors.Is(err, context.Canceled) {
+					log.Printf("[tako-agent] task stream interrupted: %v (reconnecting...)", err)
+				}
+				break
+			}
+
+			if task == nil {
+				continue
+			}
+
+			go d.handleTask(ctx, stream, task)
+		}
+	}
+}
+
+func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_StreamTasksClient, task *takov1.MasterTask) {
+	taskID := task.GetTaskId()
+	d.mu.RLock()
+	nodeID := d.state.NodeID
+	d.mu.RUnlock()
+
+	switch t := task.GetTask().(type) {
+	case *takov1.MasterTask_Deploy:
+		deployReq := t.Deploy
+		log.Printf("[tako-agent] executing deploy task %s for service %s", taskID, deployReq.GetServiceName())
+		err := d.executor.ExecuteDeployWithCallback(ctx, deployReq, func(chunk *takov1.DeployLogChunk) {
+			_ = stream.Send(&takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_DeployLog{
+					DeployLog: chunk,
+				},
+			})
+		})
+		if err != nil {
+			_ = stream.Send(&takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_DeployLog{
+					DeployLog: &takov1.DeployLogChunk{
+						DeploymentId: deployReq.GetDeploymentId(),
+						Step:         "Error",
+						Message:      fmt.Sprintf("Deployment failed: %v", err),
+						Timestamp:    time.Now().Unix(),
+						IsError:      true,
+					},
+				},
+			})
+		}
+
+	case *takov1.MasterTask_Exec:
+		execReq := t.Exec
+		containerID := execReq.GetContainerId()
+		cmd := execReq.GetCommand()
+		out, exitCode, err := "", 1, fmt.Errorf("docker client not available")
+		if d.dockerCli != nil {
+			out, exitCode, err = d.dockerCli.Exec(ctx, containerID, cmd)
+		}
+		errStr := ""
+		if err != nil {
+			errStr = err.Error()
+		}
+		_ = stream.Send(&takov1.AgentTaskResult{
+			TaskId: taskID,
+			NodeId: nodeID,
+			Result: &takov1.AgentTaskResult_ExecResult{
+				ExecResult: &takov1.ExecCommandResponse{
+					ExitCode: int32(exitCode),
+					Output:   out,
+					Error:    errStr,
+				},
+			},
+		})
+
+	case *takov1.MasterTask_ContainerAction:
+		actionReq := t.ContainerAction
+		containerID := actionReq.GetContainerId()
+		action := actionReq.GetAction()
+		var err error
+		if d.dockerCli != nil {
+			err = d.dockerCli.ContainerAction(ctx, containerID, action)
+		} else {
+			err = fmt.Errorf("docker client not available")
+		}
+		msg := "action executed successfully"
+		if err != nil {
+			msg = err.Error()
+		}
+		_ = stream.Send(&takov1.AgentTaskResult{
+			TaskId: taskID,
+			NodeId: nodeID,
+			Result: &takov1.AgentTaskResult_ContainerActionResult{
+				ContainerActionResult: &takov1.ContainerActionResponse{
+					Success: err == nil,
+					Message: msg,
+				},
+			},
+		})
+
+	case *takov1.MasterTask_ContainerLogs:
+		logsReq := t.ContainerLogs
+		containerID := logsReq.GetContainerId()
+		tail := int(logsReq.GetTailLines())
+		logs, err := "", fmt.Errorf("docker client not available")
+		if d.dockerCli != nil {
+			logs, err = d.dockerCli.Logs(ctx, containerID, tail)
+		}
+		errStr := ""
+		if err != nil {
+			errStr = err.Error()
+		}
+		_ = stream.Send(&takov1.AgentTaskResult{
+			TaskId: taskID,
+			NodeId: nodeID,
+			Result: &takov1.AgentTaskResult_ContainerLogsResult{
+				ContainerLogsResult: &takov1.ContainerLogsResponse{
+					Logs:  logs,
+					Error: errStr,
+				},
+			},
+		})
+	}
 }

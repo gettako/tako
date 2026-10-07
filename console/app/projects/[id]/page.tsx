@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Layers, SearchX, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -24,6 +25,7 @@ export default function ProjectDetailPage({
 }) {
   const resolvedParams = React.use(params);
   const projectId = resolvedParams.id;
+  const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -183,6 +185,9 @@ export default function ProjectDetailPage({
         open={createServiceOpen}
         onOpenChange={setCreateServiceOpen}
         projectId={projectId}
+        onSuccess={(newService) => {
+          router.push(`/projects/${projectId}/services/${newService.id}`);
+        }}
       />
     </>
   );

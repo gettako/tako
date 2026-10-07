@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"gettako.dev/tako/internal/events"
@@ -23,11 +24,64 @@ type Config struct {
 	LivenessTimeout   time.Duration
 }
 
+type AgentSession struct {
+	NodeID          string
+	TaskChan        chan *takov1.MasterTask
+	mu              sync.RWMutex
+	logCallbacks    map[string]func(chunk *takov1.DeployLogChunk)
+	resultCallbacks map[string]chan *takov1.AgentTaskResult
+}
+
+func (s *AgentSession) RegisterDeployLogCallback(taskID string, cb func(chunk *takov1.DeployLogChunk)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.logCallbacks[taskID] = cb
+}
+
+func (s *AgentSession) UnregisterDeployLogCallback(taskID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.logCallbacks, taskID)
+}
+
+func (s *AgentSession) RegisterResultChan(taskID string, ch chan *takov1.AgentTaskResult) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.resultCallbacks[taskID] = ch
+}
+
+func (s *AgentSession) UnregisterResultChan(taskID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.resultCallbacks, taskID)
+}
+
+func (s *AgentSession) HandleResult(res *takov1.AgentTaskResult) {
+	taskID := res.GetTaskId()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if chunk := res.GetDeployLog(); chunk != nil {
+		if cb, ok := s.logCallbacks[taskID]; ok {
+			cb(chunk)
+		}
+	}
+
+	if ch, ok := s.resultCallbacks[taskID]; ok {
+		select {
+		case ch <- res:
+		default:
+		}
+	}
+}
+
 type Orchestrator struct {
 	db          *sql.DB
 	queries     *db.Queries
 	bus         *events.Bus
 	enrollToken string
+	agentsMu    sync.RWMutex
+	agents      map[string]*AgentSession
 }
 
 func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
@@ -36,6 +90,7 @@ func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 		queries:     db.New(database),
 		bus:         bus,
 		enrollToken: enrollToken,
+		agents:      make(map[string]*AgentSession),
 	}
 }
 
@@ -45,6 +100,168 @@ func (o *Orchestrator) Queries() *db.Queries {
 
 func (o *Orchestrator) Bus() *events.Bus {
 	return o.bus
+}
+
+func (o *Orchestrator) RegisterAgentSession(nodeID string, taskChan chan *takov1.MasterTask) *AgentSession {
+	o.agentsMu.Lock()
+	defer o.agentsMu.Unlock()
+
+	sess := &AgentSession{
+		NodeID:          nodeID,
+		TaskChan:        taskChan,
+		logCallbacks:    make(map[string]func(chunk *takov1.DeployLogChunk)),
+		resultCallbacks: make(map[string]chan *takov1.AgentTaskResult),
+	}
+	o.agents[nodeID] = sess
+	log.Printf("[orchestrator] registered agent task session for node: %s", nodeID)
+	return sess
+}
+
+func (o *Orchestrator) UnregisterAgentSession(nodeID string) {
+	o.agentsMu.Lock()
+	defer o.agentsMu.Unlock()
+	delete(o.agents, nodeID)
+	log.Printf("[orchestrator] unregistered agent task session for node: %s", nodeID)
+}
+
+func (o *Orchestrator) GetAgentSession(nodeID string) *AgentSession {
+	o.agentsMu.RLock()
+	defer o.agentsMu.RUnlock()
+	if sess, ok := o.agents[nodeID]; ok {
+		return sess
+	}
+	if len(o.agents) == 1 {
+		for _, s := range o.agents {
+			return s
+		}
+	}
+	return nil
+}
+
+func (o *Orchestrator) DispatchExec(ctx context.Context, nodeID, containerID, cmd string) (string, int, error) {
+	sess := o.GetAgentSession(nodeID)
+	if sess == nil {
+		return "", 1, fmt.Errorf("node agent not connected: %s", nodeID)
+	}
+
+	taskID := "exec-" + randomHex(8)
+	resCh := make(chan *takov1.AgentTaskResult, 1)
+	sess.RegisterResultChan(taskID, resCh)
+	defer sess.UnregisterResultChan(taskID)
+
+	select {
+	case sess.TaskChan <- &takov1.MasterTask{
+		TaskId: taskID,
+		NodeId: sess.NodeID,
+		Task: &takov1.MasterTask_Exec{
+			Exec: &takov1.ExecCommandRequest{
+				ContainerId: containerID,
+				Command:     cmd,
+			},
+		},
+	}:
+	case <-ctx.Done():
+		return "", 1, ctx.Err()
+	}
+
+	select {
+	case res := <-resCh:
+		execRes := res.GetExecResult()
+		if execRes == nil {
+			return "", 1, fmt.Errorf("invalid response from agent")
+		}
+		if execRes.Error != "" && execRes.Output == "" {
+			return "", int(execRes.ExitCode), fmt.Errorf("%s", execRes.Error)
+		}
+		return execRes.Output, int(execRes.ExitCode), nil
+	case <-time.After(30 * time.Second):
+		return "", 1, fmt.Errorf("exec timed out waiting for agent response")
+	case <-ctx.Done():
+		return "", 1, ctx.Err()
+	}
+}
+
+func (o *Orchestrator) DispatchContainerLogs(ctx context.Context, nodeID, containerID string, tailLines int) (string, error) {
+	sess := o.GetAgentSession(nodeID)
+	if sess == nil {
+		return "", fmt.Errorf("node agent not connected: %s", nodeID)
+	}
+
+	taskID := "logs-" + randomHex(8)
+	resCh := make(chan *takov1.AgentTaskResult, 1)
+	sess.RegisterResultChan(taskID, resCh)
+	defer sess.UnregisterResultChan(taskID)
+
+	select {
+	case sess.TaskChan <- &takov1.MasterTask{
+		TaskId: taskID,
+		NodeId: sess.NodeID,
+		Task: &takov1.MasterTask_ContainerLogs{
+			ContainerLogs: &takov1.GetContainerLogsRequest{
+				ContainerId: containerID,
+				TailLines:   int32(tailLines),
+			},
+		},
+	}:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+
+	select {
+	case res := <-resCh:
+		logsRes := res.GetContainerLogsResult()
+		if logsRes == nil {
+			return "", fmt.Errorf("invalid response from agent")
+		}
+		if logsRes.Error != "" && logsRes.Logs == "" {
+			return "", fmt.Errorf("%s", logsRes.Error)
+		}
+		return logsRes.Logs, nil
+	case <-time.After(15 * time.Second):
+		return "", fmt.Errorf("logs timed out waiting for agent response")
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+}
+
+func (o *Orchestrator) DispatchContainerAction(ctx context.Context, nodeID, containerID, action string) error {
+	sess := o.GetAgentSession(nodeID)
+	if sess == nil {
+		return fmt.Errorf("node agent not connected: %s", nodeID)
+	}
+
+	taskID := "action-" + randomHex(8)
+	resCh := make(chan *takov1.AgentTaskResult, 1)
+	sess.RegisterResultChan(taskID, resCh)
+	defer sess.UnregisterResultChan(taskID)
+
+	select {
+	case sess.TaskChan <- &takov1.MasterTask{
+		TaskId: taskID,
+		NodeId: sess.NodeID,
+		Task: &takov1.MasterTask_ContainerAction{
+			ContainerAction: &takov1.ContainerActionRequest{
+				ContainerId: containerID,
+				Action:      action,
+			},
+		},
+	}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	select {
+	case res := <-resCh:
+		actRes := res.GetContainerActionResult()
+		if actRes != nil && !actRes.Success {
+			return fmt.Errorf("%s", actRes.Message)
+		}
+		return nil
+	case <-time.After(15 * time.Second):
+		return fmt.Errorf("container action timed out waiting for agent response")
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // GenerateEnrollToken creates a cryptographically random enrollment token.

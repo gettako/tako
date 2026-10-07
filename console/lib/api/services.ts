@@ -215,19 +215,109 @@ export async function updateService(id: string, input: UpdateServiceInput): Prom
 }
 
 export async function updateServiceStatus(id: string, status: Status): Promise<Service> {
-  await simulateDelay();
+  if (typeof window !== 'undefined') {
+    try {
+      await fetch(`/api/services/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+    } catch {
+      // ignore
+    }
+  }
   const index = services.findIndex((s) => s.id === id);
-  if (index === -1) throw new Error(`Service ${id} not found`);
-  services[index] = { ...services[index], status, updatedAt: new Date().toISOString() };
-  return { ...services[index] };
+  if (index !== -1) {
+    services[index] = { ...services[index], status, updatedAt: new Date().toISOString() };
+    return { ...services[index] };
+  }
+  return { id, status } as Service;
 }
 
 export async function updateServiceEnvVars(id: string, envVars: EnvVar[]): Promise<Service> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${id}/env`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          envVars.map((e) => ({
+            key: e.key,
+            value: e.value,
+            isSecret: e.isSecret,
+          }))
+        ),
+      });
+      if (res.ok) {
+        const updatedVars = await res.json();
+        const index = services.findIndex((s) => s.id === id);
+        if (index !== -1) {
+          services[index] = { ...services[index], envVars: updatedVars, updatedAt: new Date().toISOString() };
+          return { ...services[index] };
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   await simulateDelay();
   const index = services.findIndex((s) => s.id === id);
   if (index === -1) throw new Error(`Service ${id} not found`);
   services[index] = { ...services[index], envVars, updatedAt: new Date().toISOString() };
   return { ...services[index] };
+}
+
+export async function getServiceEnvVars(id: string): Promise<EnvVar[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${id}/env`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  const s = services.find((srv) => srv.id === id);
+  return s?.envVars || [];
+}
+
+export async function execServiceCommand(
+  id: string,
+  command: string
+): Promise<{ output: string; exitCode: number; error?: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${id}/exec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Execution failed';
+      return { output: msg, exitCode: 1, error: msg };
+    }
+  }
+  return { output: 'Container terminal service unavailable', exitCode: 1 };
+}
+
+export async function getServiceContainerLogs(id: string): Promise<string> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${id}/container-logs`);
+      if (res.ok) {
+        const data = await res.json();
+        return data.logs || '';
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  return '';
 }
 
 export async function deleteService(id: string): Promise<void> {

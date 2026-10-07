@@ -17,7 +17,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/tako-ag
 
 FROM alpine:3.20 AS runner
 
-RUN apk add --no-cache ca-certificates tzdata curl docker-cli
+RUN apk add --no-cache ca-certificates tzdata curl docker-cli git
 
 WORKDIR /app
 COPY --from=builder /bin/tako-agent /app/tako-agent

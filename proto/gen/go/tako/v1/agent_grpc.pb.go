@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.1
-// source: agent.proto
+// source: tako/v1/agent.proto
 
 package takov1
 
@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AgentService_RegisterNode_FullMethodName = "/tako.v1.AgentService/RegisterNode"
 	AgentService_Heartbeat_FullMethodName    = "/tako.v1.AgentService/Heartbeat"
+	AgentService_StreamTasks_FullMethodName  = "/tako.v1.AgentService/StreamTasks"
 )
 
 // AgentServiceClient is the client API for AgentService service.
@@ -29,6 +30,7 @@ const (
 type AgentServiceClient interface {
 	RegisterNode(ctx context.Context, in *RegisterNodeRequest, opts ...grpc.CallOption) (*RegisterNodeResponse, error)
 	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
+	StreamTasks(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[AgentTaskResult, MasterTask], error)
 }
 
 type agentServiceClient struct {
@@ -59,12 +61,26 @@ func (c *agentServiceClient) Heartbeat(ctx context.Context, in *HeartbeatRequest
 	return out, nil
 }
 
+func (c *agentServiceClient) StreamTasks(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[AgentTaskResult, MasterTask], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AgentService_ServiceDesc.Streams[0], AgentService_StreamTasks_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[AgentTaskResult, MasterTask]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AgentService_StreamTasksClient = grpc.BidiStreamingClient[AgentTaskResult, MasterTask]
+
 // AgentServiceServer is the server API for AgentService service.
 // All implementations must embed UnimplementedAgentServiceServer
 // for forward compatibility.
 type AgentServiceServer interface {
 	RegisterNode(context.Context, *RegisterNodeRequest) (*RegisterNodeResponse, error)
 	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
+	StreamTasks(grpc.BidiStreamingServer[AgentTaskResult, MasterTask]) error
 	mustEmbedUnimplementedAgentServiceServer()
 }
 
@@ -80,6 +96,9 @@ func (UnimplementedAgentServiceServer) RegisterNode(context.Context, *RegisterNo
 }
 func (UnimplementedAgentServiceServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
+}
+func (UnimplementedAgentServiceServer) StreamTasks(grpc.BidiStreamingServer[AgentTaskResult, MasterTask]) error {
+	return status.Error(codes.Unimplemented, "method StreamTasks not implemented")
 }
 func (UnimplementedAgentServiceServer) mustEmbedUnimplementedAgentServiceServer() {}
 func (UnimplementedAgentServiceServer) testEmbeddedByValue()                      {}
@@ -138,6 +157,13 @@ func _AgentService_Heartbeat_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AgentService_StreamTasks_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(AgentServiceServer).StreamTasks(&grpc.GenericServerStream[AgentTaskResult, MasterTask]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AgentService_StreamTasksServer = grpc.BidiStreamingServer[AgentTaskResult, MasterTask]
+
 // AgentService_ServiceDesc is the grpc.ServiceDesc for AgentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -154,6 +180,13 @@ var AgentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AgentService_Heartbeat_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "agent.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamTasks",
+			Handler:       _AgentService_StreamTasks_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "tako/v1/agent.proto",
 }

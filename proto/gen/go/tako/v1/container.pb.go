@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.12
 // 	protoc        v7.36.1
-// source: container.proto
+// source: tako/v1/container.proto
 
 package takov1
 
@@ -30,7 +30,7 @@ type ListContainersRequest struct {
 
 func (x *ListContainersRequest) Reset() {
 	*x = ListContainersRequest{}
-	mi := &file_container_proto_msgTypes[0]
+	mi := &file_tako_v1_container_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *ListContainersRequest) String() string {
 func (*ListContainersRequest) ProtoMessage() {}
 
 func (x *ListContainersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_container_proto_msgTypes[0]
+	mi := &file_tako_v1_container_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *ListContainersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContainersRequest.ProtoReflect.Descriptor instead.
 func (*ListContainersRequest) Descriptor() ([]byte, []int) {
-	return file_container_proto_rawDescGZIP(), []int{0}
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ListContainersRequest) GetNodeId() string {
@@ -79,7 +79,7 @@ type ContainerInfo struct {
 
 func (x *ContainerInfo) Reset() {
 	*x = ContainerInfo{}
-	mi := &file_container_proto_msgTypes[1]
+	mi := &file_tako_v1_container_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -91,7 +91,7 @@ func (x *ContainerInfo) String() string {
 func (*ContainerInfo) ProtoMessage() {}
 
 func (x *ContainerInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_container_proto_msgTypes[1]
+	mi := &file_tako_v1_container_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -104,7 +104,7 @@ func (x *ContainerInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContainerInfo.ProtoReflect.Descriptor instead.
 func (*ContainerInfo) Descriptor() ([]byte, []int) {
-	return file_container_proto_rawDescGZIP(), []int{1}
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ContainerInfo) GetContainerId() string {
@@ -158,7 +158,7 @@ type ListContainersResponse struct {
 
 func (x *ListContainersResponse) Reset() {
 	*x = ListContainersResponse{}
-	mi := &file_container_proto_msgTypes[2]
+	mi := &file_tako_v1_container_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -170,7 +170,7 @@ func (x *ListContainersResponse) String() string {
 func (*ListContainersResponse) ProtoMessage() {}
 
 func (x *ListContainersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_container_proto_msgTypes[2]
+	mi := &file_tako_v1_container_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -183,7 +183,7 @@ func (x *ListContainersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListContainersResponse.ProtoReflect.Descriptor instead.
 func (*ListContainersResponse) Descriptor() ([]byte, []int) {
-	return file_container_proto_rawDescGZIP(), []int{2}
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListContainersResponse) GetContainers() []*ContainerInfo {
@@ -203,7 +203,7 @@ type ContainerActionRequest struct {
 
 func (x *ContainerActionRequest) Reset() {
 	*x = ContainerActionRequest{}
-	mi := &file_container_proto_msgTypes[3]
+	mi := &file_tako_v1_container_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -215,7 +215,7 @@ func (x *ContainerActionRequest) String() string {
 func (*ContainerActionRequest) ProtoMessage() {}
 
 func (x *ContainerActionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_container_proto_msgTypes[3]
+	mi := &file_tako_v1_container_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -228,7 +228,7 @@ func (x *ContainerActionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContainerActionRequest.ProtoReflect.Descriptor instead.
 func (*ContainerActionRequest) Descriptor() ([]byte, []int) {
-	return file_container_proto_rawDescGZIP(), []int{3}
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ContainerActionRequest) GetContainerId() string {
@@ -255,7 +255,7 @@ type ContainerActionResponse struct {
 
 func (x *ContainerActionResponse) Reset() {
 	*x = ContainerActionResponse{}
-	mi := &file_container_proto_msgTypes[4]
+	mi := &file_tako_v1_container_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -267,7 +267,7 @@ func (x *ContainerActionResponse) String() string {
 func (*ContainerActionResponse) ProtoMessage() {}
 
 func (x *ContainerActionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_container_proto_msgTypes[4]
+	mi := &file_tako_v1_container_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -280,7 +280,7 @@ func (x *ContainerActionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContainerActionResponse.ProtoReflect.Descriptor instead.
 func (*ContainerActionResponse) Descriptor() ([]byte, []int) {
-	return file_container_proto_rawDescGZIP(), []int{4}
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ContainerActionResponse) GetSuccess() bool {
@@ -297,11 +297,227 @@ func (x *ContainerActionResponse) GetMessage() string {
 	return ""
 }
 
-var File_container_proto protoreflect.FileDescriptor
+type ExecCommandRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ContainerId   string                 `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_container_proto_rawDesc = "" +
+func (x *ExecCommandRequest) Reset() {
+	*x = ExecCommandRequest{}
+	mi := &file_tako_v1_container_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecCommandRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecCommandRequest) ProtoMessage() {}
+
+func (x *ExecCommandRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tako_v1_container_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecCommandRequest.ProtoReflect.Descriptor instead.
+func (*ExecCommandRequest) Descriptor() ([]byte, []int) {
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ExecCommandRequest) GetContainerId() string {
+	if x != nil {
+		return x.ContainerId
+	}
+	return ""
+}
+
+func (x *ExecCommandRequest) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+type ExecCommandResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExitCode      int32                  `protobuf:"varint,1,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	Output        string                 `protobuf:"bytes,2,opt,name=output,proto3" json:"output,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecCommandResponse) Reset() {
+	*x = ExecCommandResponse{}
+	mi := &file_tako_v1_container_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecCommandResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecCommandResponse) ProtoMessage() {}
+
+func (x *ExecCommandResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tako_v1_container_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecCommandResponse.ProtoReflect.Descriptor instead.
+func (*ExecCommandResponse) Descriptor() ([]byte, []int) {
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ExecCommandResponse) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
+func (x *ExecCommandResponse) GetOutput() string {
+	if x != nil {
+		return x.Output
+	}
+	return ""
+}
+
+func (x *ExecCommandResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type GetContainerLogsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ContainerId   string                 `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	TailLines     int32                  `protobuf:"varint,2,opt,name=tail_lines,json=tailLines,proto3" json:"tail_lines,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetContainerLogsRequest) Reset() {
+	*x = GetContainerLogsRequest{}
+	mi := &file_tako_v1_container_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetContainerLogsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetContainerLogsRequest) ProtoMessage() {}
+
+func (x *GetContainerLogsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tako_v1_container_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetContainerLogsRequest.ProtoReflect.Descriptor instead.
+func (*GetContainerLogsRequest) Descriptor() ([]byte, []int) {
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetContainerLogsRequest) GetContainerId() string {
+	if x != nil {
+		return x.ContainerId
+	}
+	return ""
+}
+
+func (x *GetContainerLogsRequest) GetTailLines() int32 {
+	if x != nil {
+		return x.TailLines
+	}
+	return 0
+}
+
+type ContainerLogsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Logs          string                 `protobuf:"bytes,1,opt,name=logs,proto3" json:"logs,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContainerLogsResponse) Reset() {
+	*x = ContainerLogsResponse{}
+	mi := &file_tako_v1_container_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContainerLogsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContainerLogsResponse) ProtoMessage() {}
+
+func (x *ContainerLogsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tako_v1_container_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContainerLogsResponse.ProtoReflect.Descriptor instead.
+func (*ContainerLogsResponse) Descriptor() ([]byte, []int) {
+	return file_tako_v1_container_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ContainerLogsResponse) GetLogs() string {
+	if x != nil {
+		return x.Logs
+	}
+	return ""
+}
+
+func (x *ContainerLogsResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+var File_tako_v1_container_proto protoreflect.FileDescriptor
+
+const file_tako_v1_container_proto_rawDesc = "" +
 	"\n" +
-	"\x0fcontainer.proto\x12\atako.v1\"0\n" +
+	"\x17tako/v1/container.proto\x12\atako.v1\"0\n" +
 	"\x15ListContainersRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\"\xa9\x01\n" +
 	"\rContainerInfo\x12!\n" +
@@ -321,64 +537,88 @@ const file_container_proto_rawDesc = "" +
 	"\x06action\x18\x02 \x01(\tR\x06action\"M\n" +
 	"\x17ContainerActionResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage2\xbb\x01\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"Q\n" +
+	"\x12ExecCommandRequest\x12!\n" +
+	"\fcontainer_id\x18\x01 \x01(\tR\vcontainerId\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\"`\n" +
+	"\x13ExecCommandResponse\x12\x1b\n" +
+	"\texit_code\x18\x01 \x01(\x05R\bexitCode\x12\x16\n" +
+	"\x06output\x18\x02 \x01(\tR\x06output\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"[\n" +
+	"\x17GetContainerLogsRequest\x12!\n" +
+	"\fcontainer_id\x18\x01 \x01(\tR\vcontainerId\x12\x1d\n" +
+	"\n" +
+	"tail_lines\x18\x02 \x01(\x05R\ttailLines\"A\n" +
+	"\x15ContainerLogsResponse\x12\x12\n" +
+	"\x04logs\x18\x01 \x01(\tR\x04logs\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error2\xdb\x02\n" +
 	"\x10ContainerService\x12Q\n" +
 	"\x0eListContainers\x12\x1e.tako.v1.ListContainersRequest\x1a\x1f.tako.v1.ListContainersResponse\x12T\n" +
-	"\x0fContainerAction\x12\x1f.tako.v1.ContainerActionRequest\x1a .tako.v1.ContainerActionResponseB.Z,gettako.dev/tako/proto/gen/go/tako/v1;takov1b\x06proto3"
+	"\x0fContainerAction\x12\x1f.tako.v1.ContainerActionRequest\x1a .tako.v1.ContainerActionResponse\x12H\n" +
+	"\vExecCommand\x12\x1b.tako.v1.ExecCommandRequest\x1a\x1c.tako.v1.ExecCommandResponse\x12T\n" +
+	"\x10GetContainerLogs\x12 .tako.v1.GetContainerLogsRequest\x1a\x1e.tako.v1.ContainerLogsResponseB.Z,gettako.dev/tako/proto/gen/go/tako/v1;takov1b\x06proto3"
 
 var (
-	file_container_proto_rawDescOnce sync.Once
-	file_container_proto_rawDescData []byte
+	file_tako_v1_container_proto_rawDescOnce sync.Once
+	file_tako_v1_container_proto_rawDescData []byte
 )
 
-func file_container_proto_rawDescGZIP() []byte {
-	file_container_proto_rawDescOnce.Do(func() {
-		file_container_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_container_proto_rawDesc), len(file_container_proto_rawDesc)))
+func file_tako_v1_container_proto_rawDescGZIP() []byte {
+	file_tako_v1_container_proto_rawDescOnce.Do(func() {
+		file_tako_v1_container_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tako_v1_container_proto_rawDesc), len(file_tako_v1_container_proto_rawDesc)))
 	})
-	return file_container_proto_rawDescData
+	return file_tako_v1_container_proto_rawDescData
 }
 
-var file_container_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_container_proto_goTypes = []any{
+var file_tako_v1_container_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_tako_v1_container_proto_goTypes = []any{
 	(*ListContainersRequest)(nil),   // 0: tako.v1.ListContainersRequest
 	(*ContainerInfo)(nil),           // 1: tako.v1.ContainerInfo
 	(*ListContainersResponse)(nil),  // 2: tako.v1.ListContainersResponse
 	(*ContainerActionRequest)(nil),  // 3: tako.v1.ContainerActionRequest
 	(*ContainerActionResponse)(nil), // 4: tako.v1.ContainerActionResponse
+	(*ExecCommandRequest)(nil),      // 5: tako.v1.ExecCommandRequest
+	(*ExecCommandResponse)(nil),     // 6: tako.v1.ExecCommandResponse
+	(*GetContainerLogsRequest)(nil), // 7: tako.v1.GetContainerLogsRequest
+	(*ContainerLogsResponse)(nil),   // 8: tako.v1.ContainerLogsResponse
 }
-var file_container_proto_depIdxs = []int32{
+var file_tako_v1_container_proto_depIdxs = []int32{
 	1, // 0: tako.v1.ListContainersResponse.containers:type_name -> tako.v1.ContainerInfo
 	0, // 1: tako.v1.ContainerService.ListContainers:input_type -> tako.v1.ListContainersRequest
 	3, // 2: tako.v1.ContainerService.ContainerAction:input_type -> tako.v1.ContainerActionRequest
-	2, // 3: tako.v1.ContainerService.ListContainers:output_type -> tako.v1.ListContainersResponse
-	4, // 4: tako.v1.ContainerService.ContainerAction:output_type -> tako.v1.ContainerActionResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
+	5, // 3: tako.v1.ContainerService.ExecCommand:input_type -> tako.v1.ExecCommandRequest
+	7, // 4: tako.v1.ContainerService.GetContainerLogs:input_type -> tako.v1.GetContainerLogsRequest
+	2, // 5: tako.v1.ContainerService.ListContainers:output_type -> tako.v1.ListContainersResponse
+	4, // 6: tako.v1.ContainerService.ContainerAction:output_type -> tako.v1.ContainerActionResponse
+	6, // 7: tako.v1.ContainerService.ExecCommand:output_type -> tako.v1.ExecCommandResponse
+	8, // 8: tako.v1.ContainerService.GetContainerLogs:output_type -> tako.v1.ContainerLogsResponse
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_container_proto_init() }
-func file_container_proto_init() {
-	if File_container_proto != nil {
+func init() { file_tako_v1_container_proto_init() }
+func file_tako_v1_container_proto_init() {
+	if File_tako_v1_container_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_container_proto_rawDesc), len(file_container_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tako_v1_container_proto_rawDesc), len(file_tako_v1_container_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_container_proto_goTypes,
-		DependencyIndexes: file_container_proto_depIdxs,
-		MessageInfos:      file_container_proto_msgTypes,
+		GoTypes:           file_tako_v1_container_proto_goTypes,
+		DependencyIndexes: file_tako_v1_container_proto_depIdxs,
+		MessageInfos:      file_tako_v1_container_proto_msgTypes,
 	}.Build()
-	File_container_proto = out.File
-	file_container_proto_goTypes = nil
-	file_container_proto_depIdxs = nil
+	File_tako_v1_container_proto = out.File
+	file_tako_v1_container_proto_goTypes = nil
+	file_tako_v1_container_proto_depIdxs = nil
 }

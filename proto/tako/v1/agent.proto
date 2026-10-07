@@ -4,9 +4,13 @@ package tako.v1;
 
 option go_package = "gettako.dev/tako/proto/gen/go/tako/v1;takov1";
 
+import "tako/v1/deployment.proto";
+import "tako/v1/container.proto";
+
 service AgentService {
   rpc RegisterNode (RegisterNodeRequest) returns (RegisterNodeResponse);
   rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+  rpc StreamTasks (stream AgentTaskResult) returns (stream MasterTask);
 }
 
 message RegisterNodeRequest {
@@ -45,4 +49,26 @@ message HeartbeatRequest {
 message HeartbeatResponse {
   bool acknowledged = 1;
   int64 timestamp = 2;
+}
+
+message MasterTask {
+  string task_id = 1;
+  string node_id = 2;
+  oneof task {
+    DeployRequest deploy = 3;
+    ExecCommandRequest exec = 4;
+    ContainerActionRequest container_action = 5;
+    GetContainerLogsRequest container_logs = 6;
+  }
+}
+
+message AgentTaskResult {
+  string task_id = 1;
+  string node_id = 2;
+  oneof result {
+    DeployLogChunk deploy_log = 3;
+    ExecCommandResponse exec_result = 4;
+    ContainerActionResponse container_action_result = 5;
+    ContainerLogsResponse container_logs_result = 6;
+  }
 }

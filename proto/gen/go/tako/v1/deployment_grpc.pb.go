@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.2
 // - protoc             v7.36.1
-// source: deployment.proto
+// source: tako/v1/deployment.proto
 
 package takov1
 
@@ -161,5 +161,5 @@ var DeploymentService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "deployment.proto",
+	Metadata: "tako/v1/deployment.proto",
 }

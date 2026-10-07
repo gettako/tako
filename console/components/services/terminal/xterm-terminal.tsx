@@ -5,6 +5,7 @@ import type { Terminal as XtermType } from '@xterm/xterm';
 import type { FitAddon as FitAddonType } from '@xterm/addon-fit';
 import { useTheme } from 'next-themes';
 import { Service } from '@/lib/types';
+import { execServiceCommand } from '@/lib/api/services';
 
 export interface XtermTerminalRef {
   clear: () => void;
@@ -213,140 +214,35 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
           historyRef.current.push(trimmed);
           historyIndexRef.current = -1;
 
-          const [command, ...args] = trimmed.split(/\s+/);
-          const lowerCmd = command.toLowerCase();
-
-          switch (lowerCmd) {
-            case 'help':
-              term.writeln('\x1b[1mAvailable diagnostic commands:\x1b[0m');
-              term.writeln('  \x1b[36mhelp\x1b[0m                  Show this help reference');
-              term.writeln('  \x1b[36mls [-la]\x1b[0m              List directory contents');
-              term.writeln('  \x1b[36mps [aux]\x1b[0m              List active container processes');
-              term.writeln('  \x1b[36menv\x1b[0m                   Print container environment variables');
-              term.writeln('  \x1b[36mwhoami\x1b[0m                Print effective user id');
-              term.writeln('  \x1b[36mpwd\x1b[0m                   Print working directory name');
-              term.writeln('  \x1b[36muname -a\x1b[0m              Print kernel and operating system info');
-              term.writeln('  \x1b[36muptime\x1b[0m                Show container uptime and system load');
-              term.writeln('  \x1b[36mcat <file>\x1b[0m            Print file contents (e.g. package.json)');
-              term.writeln('  \x1b[36mping <host>\x1b[0m           Send ICMP packets to test connectivity');
-              term.writeln('  \x1b[36mtop\x1b[0m                   Display live container CPU & memory');
-              term.writeln('  \x1b[36mdate\x1b[0m                  Display current UTC time');
-              term.writeln('  \x1b[36mclear\x1b[0m                 Clear terminal screen');
-              break;
-
-            case 'clear':
-              term.clear();
-              break;
-
-            case 'whoami':
-              term.writeln('root');
-              break;
-
-            case 'pwd':
-              term.writeln('/app');
-              break;
-
-            case 'date':
-              term.writeln(new Date().toUTCString());
-              break;
-
-            case 'uname':
-              term.writeln('Linux tako-host 6.6.32-linuxkit #1 SMP aarch64 Linux');
-              break;
-
-            case 'uptime':
-              term.writeln(
-                '14:26:08 up 14 days,  4:32,  1 user,  load average: 0.12, 0.18, 0.14'
-              );
-              break;
-
-            case 'ls':
-              if (args.includes('-la') || args.includes('-l') || args.includes('-a')) {
-                term.writeln('total 48');
-                term.writeln('drwxr-xr-x   14 root     root          4096 Oct  6 04:12 \x1b[1;34m.\x1b[0m');
-                term.writeln('drwxr-xr-x    3 root     root          4096 Oct  6 04:00 \x1b[1;34m..\x1b[0m');
-                term.writeln('-rw-r--r--    1 root     root           340 Oct  6 04:10 Dockerfile');
-                term.writeln('-rw-r--r--    1 root     root          1240 Oct  6 04:10 README.md');
-                term.writeln('drwxr-xr-x    8 root     root          4096 Oct  6 04:12 \x1b[1;34mapp\x1b[0m');
-                term.writeln('drwxr-xr-x  820 root     root          4096 Oct  6 04:11 \x1b[1;34mnode_modules\x1b[0m');
-                term.writeln('-rw-r--r--    1 root     root          1101 Oct  6 04:10 package.json');
-                term.writeln('drwxr-xr-x    2 root     root          4096 Oct  6 04:10 \x1b[1;34mpublic\x1b[0m');
-                term.writeln('-rw-r--r--    1 root     root           538 Oct  6 04:10 tsconfig.json');
-              } else {
-                term.writeln(
-                  'Dockerfile  README.md  \x1b[1;34mapp\x1b[0m  \x1b[1;34mnode_modules\x1b[0m  package.json  \x1b[1;34mpublic\x1b[0m  tsconfig.json'
-                );
-              }
-              break;
-
-            case 'ps':
-              term.writeln('PID   USER     TIME  COMMAND');
-              term.writeln('  1   root     4:12  node server.js');
-              term.writeln(' 18   root     0:01  takod --worker-runtime');
-              term.writeln(' 24   root     0:00  /bin/sh');
-              term.writeln(' 48   root     0:00  ps ' + args.join(' '));
-              break;
-
-            case 'env':
-              const envList = service.envVars || [];
-              if (envList.length > 0) {
-                envList.forEach((ev) => {
-                  const val = ev.isSecret ? '••••••••••••' : ev.value;
-                  term.writeln(`\x1b[36m${ev.key}\x1b[0m=${val}`);
-                });
-              } else {
-                term.writeln('\x1b[36mNODE_ENV\x1b[0m=production');
-                term.writeln('\x1b[36mPORT\x1b[0m=3000');
-                term.writeln(`\x1b[36mHOSTNAME\x1b[0m=${containerName}`);
-              }
-              break;
-
-            case 'cat':
-              const filename = args[0];
-              if (!filename) {
-                term.writeln('\x1b[31mcat: missing file operand\x1b[0m');
-              } else if (filename === 'package.json') {
-                term.writeln('{\n  "name": "' + service.slug + '",\n  "version": "1.0.0",\n  "scripts": {\n    "start": "node server.js"\n  }\n}');
-              } else if (filename === 'Dockerfile') {
-                term.writeln('FROM node:20-alpine\nWORKDIR /app\nCOPY package*.json ./\nRUN npm install --production\nCOPY . .\nEXPOSE 3000\nCMD ["node", "server.js"]');
-              } else if (filename === 'README.md') {
-                term.writeln('# ' + service.name + '\nManaged container service deployed on Takō Cloud.');
-              } else {
-                term.writeln(`\x1b[31mcat: ${filename}: No such file or directory\x1b[0m`);
-              }
-              break;
-
-            case 'ping':
-              const host = args[0] || '1.1.1.1';
-              term.writeln(`PING ${host} (${host}): 56 data bytes`);
-              isProcessingRef.current = true;
-              for (let i = 0; i < 3; i++) {
-                await new Promise((r) => setTimeout(r, 400));
-                term.writeln(`64 bytes from ${host}: seq=${i} ttl=58 time=${(12.4 + i * 1.8).toFixed(2)} ms`);
-              }
-              term.writeln(`--- ${host} ping statistics ---`);
-              term.writeln('3 packets transmitted, 3 packets received, 0% packet loss');
-              isProcessingRef.current = false;
-              break;
-
-            case 'top':
-              term.writeln('Mem: 142MB used, 370MB free, 8MB buff, 52MB cached');
-              term.writeln('CPU:  2.4% usr  1.2% sys  0.0% nic 96.4% idle  0.0% io');
-              term.writeln('Load average: 0.12 0.18 0.14 2/84 52');
-              term.writeln('  PID  PPID USER     STAT   VSZ %VSZ CPU %CPU COMMAND');
-              term.writeln('    1     0 root     S     320m  6.2   0  2.1 node server.js');
-              term.writeln('   18     1 root     S      45m  0.9   1  0.2 takod');
-              break;
-
-            case 'exit':
-              term.writeln('\x1b[33mContainer session is persistent. To close, use the Minimize or Fullscreen controls.\x1b[0m');
-              break;
-
-            default:
-              term.writeln(`\x1b[31msh: ${command}: command not found. Type "help" for a list.\x1b[0m`);
+          if (trimmed.toLowerCase() === 'clear') {
+            term.clear();
+            term.write(getPrompt());
+            return;
           }
 
-          term.write(getPrompt());
+          if (trimmed.toLowerCase() === 'exit') {
+            term.writeln('\x1b[33mContainer session is persistent. To close, use the Minimize or Fullscreen controls.\x1b[0m');
+            term.write(getPrompt());
+            return;
+          }
+
+          isProcessingRef.current = true;
+          try {
+            const res = await execServiceCommand(service.id, trimmed);
+            const out = (res.output || '').trimEnd();
+            if (out) {
+              const formatted = out.replace(/\r?\n/g, '\r\n');
+              term.writeln(formatted);
+            } else if (res.exitCode !== 0) {
+              term.writeln(`\x1b[31mProcess exited with code ${res.exitCode}\x1b[0m`);
+            }
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Execution failed';
+            term.writeln(`\x1b[31m[error] ${message}\x1b[0m`);
+          } finally {
+            isProcessingRef.current = false;
+            term.write(getPrompt());
+          }
         };
 
         // Handle raw keyboard events in terminal
