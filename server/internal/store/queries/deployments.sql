@@ -6,9 +6,9 @@ SELECT * FROM deployments WHERE id = ? LIMIT 1;
 
 -- name: CreateDeployment :one
 INSERT INTO deployments (
-    id, service_id, commit_hash, commit_message, branch, author, status, steps, logs
+    id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, url
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 ) RETURNING *;
 
 -- name: UpdateDeploymentStatus :exec
@@ -17,7 +17,8 @@ UPDATE deployments SET
     duration_ms = ?,
     finished_at = ?,
     steps = ?,
-    logs = ?
+    logs = ?,
+    url = ?
 WHERE id = ?;
 
 -- name: AppendDeploymentLog :exec

@@ -43,4 +43,5 @@ export interface Deployment {
   rollbackFromId?: string;
   isRollback?: boolean;
   logs?: string;
+  previewUrl?: string;
 }

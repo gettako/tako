@@ -37,10 +37,10 @@ func (q *Queries) AppendDeploymentLog(ctx context.Context, arg AppendDeploymentL
 
 const createDeployment = `-- name: CreateDeployment :one
 INSERT INTO deployments (
-    id, service_id, commit_hash, commit_message, branch, author, status, steps, logs
+    id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, url
 ) VALUES (
-    ?, ?, ?, ?, ?, ?, ?, ?, ?
-) RETURNING id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, duration_ms, started_at, finished_at, created_at
+    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+) RETURNING id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, duration_ms, started_at, finished_at, created_at, url
 `
 
 type CreateDeploymentParams struct {
@@ -53,6 +53,7 @@ type CreateDeploymentParams struct {
 	Status        string `json:"status"`
 	Steps         string `json:"steps"`
 	Logs          string `json:"logs"`
+	Url           string `json:"url"`
 }
 
 func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (Deployment, error) {
@@ -66,6 +67,7 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		arg.Status,
 		arg.Steps,
 		arg.Logs,
+		arg.Url,
 	)
 	var i Deployment
 	err := row.Scan(
@@ -82,12 +84,13 @@ func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentPara
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.CreatedAt,
+		&i.Url,
 	)
 	return i, err
 }
 
 const getDeploymentByID = `-- name: GetDeploymentByID :one
-SELECT id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, duration_ms, started_at, finished_at, created_at FROM deployments WHERE id = ? LIMIT 1
+SELECT id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, duration_ms, started_at, finished_at, created_at, url FROM deployments WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetDeploymentByID(ctx context.Context, id string) (Deployment, error) {
@@ -107,12 +110,13 @@ func (q *Queries) GetDeploymentByID(ctx context.Context, id string) (Deployment,
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.CreatedAt,
+		&i.Url,
 	)
 	return i, err
 }
 
 const listDeploymentsByService = `-- name: ListDeploymentsByService :many
-SELECT id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, duration_ms, started_at, finished_at, created_at FROM deployments WHERE service_id = ? ORDER BY created_at DESC
+SELECT id, service_id, commit_hash, commit_message, branch, author, status, steps, logs, duration_ms, started_at, finished_at, created_at, url FROM deployments WHERE service_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListDeploymentsByService(ctx context.Context, serviceID string) ([]Deployment, error) {
@@ -138,6 +142,7 @@ func (q *Queries) ListDeploymentsByService(ctx context.Context, serviceID string
 			&i.StartedAt,
 			&i.FinishedAt,
 			&i.CreatedAt,
+			&i.Url,
 		); err != nil {
 			return nil, err
 		}
@@ -158,7 +163,8 @@ UPDATE deployments SET
     duration_ms = ?,
     finished_at = ?,
     steps = ?,
-    logs = ?
+    logs = ?,
+    url = ?
 WHERE id = ?
 `
 
@@ -168,6 +174,7 @@ type UpdateDeploymentStatusParams struct {
 	FinishedAt sql.NullTime `json:"finished_at"`
 	Steps      string       `json:"steps"`
 	Logs       string       `json:"logs"`
+	Url        string       `json:"url"`
 	ID         string       `json:"id"`
 }
 
@@ -178,6 +185,7 @@ func (q *Queries) UpdateDeploymentStatus(ctx context.Context, arg UpdateDeployme
 		arg.FinishedAt,
 		arg.Steps,
 		arg.Logs,
+		arg.Url,
 		arg.ID,
 	)
 	return err

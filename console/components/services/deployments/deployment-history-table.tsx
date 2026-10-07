@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { GitCommit, GitBranch, RotateCcw, Clock, ChevronRight, Search, X } from 'lucide-react';
+import { GitCommit, GitBranch, RotateCcw, Clock, ChevronRight, Search, X, ExternalLink } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -215,6 +215,30 @@ export function DeploymentHistoryTable({
                         className="flex items-center justify-end gap-1.5"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        {dep.previewUrl && (
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs border-border hover:bg-muted text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    window.open(dep.previewUrl, '_blank', 'noopener,noreferrer');
+                                  }}
+                                />
+                              }
+                            >
+                              <ExternalLink className="size-3 text-primary" />
+                              <span className="hidden xl:inline">Preview</span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Open deployment preview ({dep.previewUrl.replace(/^https?:\/\//, '')})
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+
                         {canRollback ? (
                           <Button
                             variant="outline"

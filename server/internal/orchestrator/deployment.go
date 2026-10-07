@@ -198,6 +198,17 @@ func (o *Orchestrator) TriggerDeploy(ctx context.Context, serviceID string) (*db
 	}
 	stepsJSON, _ := json.Marshal(initialSteps)
 
+	node, errNode := o.queries.GetNodeByID(ctx, srv.NodeID)
+	nodeIP := "127.0.0.1"
+	if errNode == nil {
+		if node.PublicIp != "" {
+			nodeIP = node.PublicIp
+		} else if node.IpAddress != "" {
+			nodeIP = node.IpAddress
+		}
+	}
+	previewDomain, previewURL := buildPreviewURL(srv.CommitHash, depID, nodeIP)
+
 	dep, err := o.queries.CreateDeployment(ctx, db.CreateDeploymentParams{
 		ID:            depID,
 		ServiceID:     srv.ID,
@@ -208,6 +219,7 @@ func (o *Orchestrator) TriggerDeploy(ctx context.Context, serviceID string) (*db
 		Status:        "queued",
 		Steps:         string(stepsJSON),
 		Logs:          fmt.Sprintf("[%s] Deployment queued for service %s\n", time.Now().Format("15:04:05"), srv.Name),
+		Url:           previewURL,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create deployment record: %w", err)
@@ -225,12 +237,12 @@ func (o *Orchestrator) TriggerDeploy(ctx context.Context, serviceID string) (*db
 	})
 
 	// Run deployment pipeline asynchronously
-	go o.runDeploymentPipeline(srv, depID)
+	go o.runDeploymentPipeline(srv, depID, previewDomain, previewURL)
 
 	return &dep, nil
 }
 
-func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
+func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomain, previewURL string) {
 	bgCtx := context.Background()
 
 	// Check if active agent is connected for this node
@@ -238,9 +250,12 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
 	if sess != nil {
 		// Gather domains
 		domainsDB, _ := o.queries.ListServiceDomains(bgCtx, srv.ID)
-		domainList := make([]string, 0, len(domainsDB))
+		domainList := make([]string, 0, len(domainsDB)+1)
 		for _, d := range domainsDB {
 			domainList = append(domainList, d.Domain)
+		}
+		if previewDomain != "" {
+			domainList = append(domainList, previewDomain)
 		}
 
 		// Gather env vars
@@ -431,6 +446,7 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
 					FinishedAt: sql.NullTime{Time: now, Valid: true},
 					Steps:      string(finalStepsBytes),
 					Logs:       curDep.Logs,
+					Url:        previewURL,
 				})
 			}
 			return
@@ -507,6 +523,7 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
 			FinishedAt: sql.NullTime{Time: now, Valid: true},
 			Steps:      string(finalStepsBytes),
 			Logs:       curDep.Logs,
+			Url:        previewURL,
 		})
 	}
 
@@ -527,3 +544,47 @@ func randomHex(n int) string {
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
 }
+
+func buildPreviewURL(commitHash, depID, nodeIP string) (domain string, url string) {
+	cleanIP := "127.0.0.1"
+	if nodeIP != "" {
+		cleanIP = strings.Split(nodeIP, ":")[0]
+	}
+	dashedIP := strings.ReplaceAll(cleanIP, ".", "-")
+
+	var sb strings.Builder
+	for _, r := range strings.ToLower(commitHash) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			sb.WriteRune(r)
+		}
+	}
+	cleanCommit := sb.String()
+
+	commit8 := ""
+	if len(cleanCommit) >= 8 {
+		commit8 = cleanCommit[:8]
+	} else if cleanCommit != "" && cleanCommit != "main" {
+		commit8 = cleanCommit
+		for len(commit8) < 8 {
+			commit8 += "0"
+		}
+	} else {
+		cleanDep := strings.TrimPrefix(depID, "dep-")
+		var depSb strings.Builder
+		for _, r := range strings.ToLower(cleanDep) {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+				depSb.WriteRune(r)
+			}
+		}
+		if depSb.Len() >= 8 {
+			commit8 = depSb.String()[:8]
+		} else {
+			commit8 = "abc123ef"
+		}
+	}
+
+	domain = fmt.Sprintf("%s-%s.sslip.io", commit8, dashedIP)
+	url = fmt.Sprintf("http://%s", domain)
+	return domain, url
+}
+

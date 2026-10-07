@@ -105,7 +105,7 @@ export function ServiceHeader({
               {service.nodeName}
             </span>
 
-            {primaryDomain && (
+            {primaryDomain ? (
               <a
                 href={`https://${primaryDomain.domain}`}
                 target="_blank"
@@ -116,7 +116,19 @@ export function ServiceHeader({
                 <span>{primaryDomain.domain}</span>
                 <ExternalLink className="size-3" />
               </a>
-            )}
+            ) : service.commitHash ? (
+              <a
+                href={`http://${(service.commitHash.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'preview')}-127-0-0-1.sslip.io`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 text-primary hover:underline transition-colors"
+                title="Preview URL (sslip.io)"
+              >
+                <Globe className="size-3.5" />
+                <span>{(service.commitHash.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'preview')}-127-0-0-1.sslip.io</span>
+                <ExternalLink className="size-3" />
+              </a>
+            ) : null}
 
             {service.commitHash && (
               <span className="flex items-center gap-1">
@@ -132,6 +144,26 @@ export function ServiceHeader({
         <div className="flex items-center gap-2 shrink-0">
           {service.type !== 'database' && (
             <>
+              <Button
+                variant="outline"
+                size="sm"
+                render={
+                  <a
+                    href={
+                      primaryDomain
+                        ? `https://${primaryDomain.domain}`
+                        : `http://${(service.commitHash?.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'preview')}-127-0-0-1.sslip.io`
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  />
+                }
+                className="gap-1.5 text-sm h-9 border-border text-foreground hover:bg-muted"
+              >
+                <ExternalLink className="size-3.5 text-primary" />
+                <span>Preview</span>
+              </Button>
+
               <Button
                 size="sm"
                 onClick={() => handleAction('deploy')}

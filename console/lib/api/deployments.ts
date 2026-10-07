@@ -63,6 +63,19 @@ function normalizeDeployment(d: Record<string, unknown>): Deployment {
     }
   }
 
+function generatePreviewUrl(commitHash?: string, depId?: string): string {
+  let commit8 = (commitHash || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (commit8.length >= 8) {
+    commit8 = commit8.slice(0, 8);
+  } else if (commit8 && commit8 !== 'main') {
+    commit8 = (commit8 + '00000000').slice(0, 8);
+  } else {
+    const cleanId = (depId || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^dep/, '');
+    commit8 = cleanId.length >= 8 ? cleanId.slice(0, 8) : 'abc123ef';
+  }
+  return `http://${commit8}-127-0-0-1.sslip.io`;
+}
+
   return {
     id: String(d.id),
     serviceId: (d.serviceId as string) || (d.service_id as string) || '',
@@ -79,6 +92,14 @@ function normalizeDeployment(d: Record<string, unknown>): Deployment {
     rollbackFromId: d.rollbackFromId as string | undefined,
     isRollback: Boolean(d.isRollback),
     logs: (d.logs as string) || undefined,
+    previewUrl:
+      (d.url as string) ||
+      (d.previewUrl as string) ||
+      (d.preview_url as string) ||
+      generatePreviewUrl(
+        (d.commitHash as string) || (d.commit_hash as string),
+        String(d.id)
+      ),
   };
 }
 

@@ -43,6 +43,7 @@ type Deployment struct {
 	StartedAt     time.Time    `json:"started_at"`
 	FinishedAt    sql.NullTime `json:"finished_at"`
 	CreatedAt     time.Time    `json:"created_at"`
+	Url           string       `json:"url"`
 }
 
 type Node struct {

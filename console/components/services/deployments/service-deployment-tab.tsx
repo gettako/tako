@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Rocket, RefreshCw, Plus, Terminal } from 'lucide-react';
+import { Rocket, RefreshCw, Plus, Terminal, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -135,7 +135,25 @@ export function ServiceDeploymentTab({
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {selectedDeployment.previewUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  render={
+                    <a
+                      href={selectedDeployment.previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={selectedDeployment.previewUrl}
+                    />
+                  }
+                  className="h-7 text-xs gap-1.5 border-border hover:bg-muted text-foreground"
+                >
+                  <ExternalLink className="size-3.5 text-primary" />
+                  <span>Preview</span>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
