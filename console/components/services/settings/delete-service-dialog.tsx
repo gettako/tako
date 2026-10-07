@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { Service } from '@/lib/types';
 import { deleteService } from '@/lib/api/services';
 import {
@@ -30,6 +31,7 @@ export function DeleteServiceDialog({
   service,
 }: DeleteServiceDialogProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [confirmationName, setConfirmationName] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -41,11 +43,23 @@ export function DeleteServiceDialog({
     try {
       setIsDeleting(true);
       await deleteService(service.id);
+
+      // Instantly remove service from React Query caches
+      queryClient.setQueriesData<Service[]>({ queryKey: ['services'] }, (old) =>
+        old ? old.filter((s) => s.id !== service.id && s.slug !== service.slug) : []
+      );
+      queryClient.removeQueries({ queryKey: ['service', service.id] });
+
+      // Invalidate queries so fresh data is loaded
+      await queryClient.invalidateQueries({ queryKey: ['services'] });
+      await queryClient.invalidateQueries({ queryKey: ['project-services', service.projectId] });
+      await queryClient.invalidateQueries({ queryKey: ['projects'] });
+
       toast.success(`Service "${service.name}" was permanently deleted`);
       onOpenChange(false);
       router.push(`/projects/${service.projectId}`);
-    } catch {
-      toast.error('Failed to delete service');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete service');
       setIsDeleting(false);
     }
   };

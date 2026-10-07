@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -159,6 +160,13 @@ func (c *Client) ContainerAction(ctx context.Context, containerName string, acti
 		return c.cli.ContainerStop(ctx, containerName, container.StopOptions{})
 	case "restart":
 		return c.cli.ContainerRestart(ctx, containerName, container.StopOptions{})
+	case "remove", "delete":
+		_ = c.cli.ContainerStop(ctx, containerName, container.StopOptions{})
+		err := c.cli.ContainerRemove(ctx, containerName, container.RemoveOptions{Force: true})
+		if err != nil && (strings.Contains(err.Error(), "No such container") || strings.Contains(err.Error(), "not found")) {
+			return nil
+		}
+		return err
 	default:
 		return fmt.Errorf("unsupported action: %s", action)
 	}

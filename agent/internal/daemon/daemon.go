@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"gettako.dev/tako/agent/internal/deploy"
 	"gettako.dev/tako/agent/internal/docker"
 	"gettako.dev/tako/agent/internal/metrics"
+	"gettako.dev/tako/agent/internal/traefik"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
@@ -381,6 +383,14 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 		var err error
 		if d.dockerCli != nil {
 			err = d.dockerCli.ContainerAction(ctx, containerID, action)
+			if action == "remove" || action == "delete" {
+				dynamicDir := os.Getenv("TAKO_TRAEFIK_DYNAMIC_DIR")
+				if dynamicDir == "" {
+					dynamicDir = "/etc/tako/traefik/dynamic"
+				}
+				serviceName := strings.TrimPrefix(containerID, "tako-app-")
+				_ = traefik.RemoveDynamicConfig(dynamicDir, serviceName)
+			}
 		} else {
 			err = fmt.Errorf("docker client not available")
 		}

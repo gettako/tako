@@ -329,9 +329,15 @@ export async function getServiceContainerLogs(id: string): Promise<string> {
 export async function deleteService(id: string): Promise<void> {
   if (typeof window !== 'undefined') {
     try {
-      await fetch(`/api/services/${id}`, { method: 'DELETE' });
-    } catch {
-      // Fallback
+      const res = await fetch(`/api/services/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete service');
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message !== 'Failed to fetch') {
+        throw err;
+      }
     }
   }
   await simulateDelay();

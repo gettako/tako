@@ -201,6 +201,12 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				targetName = srv.Name
 			}
 
+			// Clean up running container and Traefik routing on the agent node
+			if srv.ID != "" && srv.NodeID != "" && srv.Slug != "" {
+				containerName := "tako-app-" + srv.Slug
+				_ = orch.DispatchContainerAction(r.Context(), srv.NodeID, containerName, "remove")
+			}
+
 			if err := orch.Queries().DeleteService(r.Context(), id); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
