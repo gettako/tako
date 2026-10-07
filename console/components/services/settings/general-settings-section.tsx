@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Service, UpdateServiceInput } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,17 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     dockerfile !== (service.dockerfile || 'Dockerfile') ||
     buildCommand !== (service.buildCommand || '') ||
     repository !== (service.repository || '');
+
+  useEffect(() => {
+    if (!isDirty) {
+      setName(service.name);
+      setBranch(service.branch || 'main');
+      setCommitHash(service.commitHash || '');
+      setDockerfile(service.dockerfile || 'Dockerfile');
+      setBuildCommand(service.buildCommand || '');
+      setRepository(service.repository || '');
+    }
+  }, [service, isDirty]);
 
   const handleReset = () => {
     setName(service.name);

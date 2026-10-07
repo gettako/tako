@@ -5,7 +5,46 @@ import { Webhook, WebhookDelivery } from '@/lib/types';
 let webhooks = [...mockWebhooks];
 let deliveries = [...mockWebhookDeliveries];
 
+async function fetchFromBFF<T>(key: string, fallback: T): Promise<T> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/settings/${key}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data !== undefined && data !== null) {
+          return data as T;
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
+  return fallback;
+}
+
+async function saveToBFF<T>(key: string, value: T): Promise<void> {
+  if (typeof window !== 'undefined') {
+    try {
+      await fetch(`/api/settings/${key}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      });
+    } catch {
+      // fallback
+    }
+  }
+}
+
 export async function getWebhookByService(serviceId: string): Promise<Webhook | null> {
+  const remote = await fetchFromBFF<Webhook | null>(`webhook_${serviceId}`, null);
+  if (remote) {
+    const idx = webhooks.findIndex((w) => w.id === remote.id);
+    if (idx !== -1) webhooks[idx] = remote;
+    else webhooks.push(remote);
+    return remote;
+  }
+
   await simulateDelay();
   const wh = webhooks.find((w) => w.serviceId === serviceId);
   if (!wh) {
@@ -21,12 +60,22 @@ export async function getWebhookByService(serviceId: string): Promise<Webhook | 
       createdAt: new Date().toISOString(),
     };
     webhooks.push(defaultWh);
+    await saveToBFF(`webhook_${serviceId}`, defaultWh);
     return { ...defaultWh };
   }
   return { ...wh };
 }
 
 export async function getWebhookDeliveries(webhookId: string): Promise<WebhookDelivery[]> {
+  const remote = await fetchFromBFF<WebhookDelivery[] | null>(`webhook_deliveries_${webhookId}`, null);
+  if (remote && Array.isArray(remote)) {
+    deliveries = [
+      ...deliveries.filter((d) => d.webhookId !== webhookId),
+      ...remote,
+    ];
+    return remote.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
   await simulateDelay();
   return deliveries
     .filter((d) => d.webhookId === webhookId)
@@ -42,7 +91,9 @@ export async function updateWebhookEvents(webhookId: string, events: string[]): 
     ...webhooks[index],
     events,
   };
-  return { ...webhooks[index] };
+  const updated = { ...webhooks[index] };
+  await saveToBFF(`webhook_${updated.serviceId}`, updated);
+  return updated;
 }
 
 export async function regenerateWebhookSecret(webhookId: string): Promise<Webhook> {
@@ -55,7 +106,9 @@ export async function regenerateWebhookSecret(webhookId: string): Promise<Webhoo
     ...webhooks[index],
     secret: newSecret,
   };
-  return { ...webhooks[index] };
+  const updated = { ...webhooks[index] };
+  await saveToBFF(`webhook_${updated.serviceId}`, updated);
+  return updated;
 }
 
 export async function testWebhookDelivery(webhookId: string, event: string = 'manual'): Promise<WebhookDelivery> {
@@ -97,6 +150,11 @@ export async function testWebhookDelivery(webhookId: string, event: string = 'ma
 
   deliveries.unshift(delivery);
   webhooks[index].lastTriggeredAt = delivery.timestamp;
+  const updatedWh = { ...webhooks[index] };
+
+  await saveToBFF(`webhook_${updatedWh.serviceId}`, updatedWh);
+  const currentDeliveries = deliveries.filter((d) => d.webhookId === webhookId);
+  await saveToBFF(`webhook_deliveries_${webhookId}`, currentDeliveries);
 
   return { ...delivery };
 }

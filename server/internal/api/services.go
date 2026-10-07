@@ -31,6 +31,24 @@ type CreateServiceRequest struct {
 	PublishToHost   *bool             `json:"publishToHost,omitempty"`
 }
 
+type ServiceLimitsResponse struct {
+	CPUCores float64 `json:"cpuCores"`
+	MemoryMB int64   `json:"memoryMb"`
+	DiskGB   float64 `json:"diskGb,omitempty"`
+	SwapMB   int64   `json:"swapMb,omitempty"`
+}
+
+type ServiceDomainResponse struct {
+	ID              string `json:"id"`
+	Domain          string `json:"domain"`
+	SSL             bool   `json:"ssl"`
+	Primary         bool   `json:"primary"`
+	Port            int64  `json:"port"`
+	Path            string `json:"path"`
+	CertificateType string `json:"certificateType"`
+	CreatedAt       string `json:"createdAt"`
+}
+
 type ServiceEnvVarResponse struct {
 	ID       string `json:"id"`
 	Key      string `json:"key"`
@@ -39,45 +57,77 @@ type ServiceEnvVarResponse struct {
 }
 
 type ServiceResponse struct {
-	ID         string                  `json:"id"`
-	ProjectID  string                  `json:"projectId"`
-	NodeID     string                  `json:"nodeId"`
-	Name       string                  `json:"name"`
-	Slug       string                  `json:"slug"`
-	Type       string                  `json:"type"`
-	Status     string                  `json:"status"`
-	Repository string                  `json:"repository,omitempty"`
-	Branch     string                  `json:"branch,omitempty"`
-	Image      string                  `json:"image,omitempty"`
-	Ports         []int32                 `json:"ports"`
-	Domains       []string                `json:"domains"`
-	PublishToHost bool                    `json:"publishToHost"`
-	EnvVars       []ServiceEnvVarResponse `json:"envVars,omitempty"`
-	CreatedAt     string                  `json:"createdAt"`
-	UpdatedAt     string                  `json:"updatedAt"`
+	ID               string                  `json:"id"`
+	ProjectID        string                  `json:"projectId"`
+	NodeID           string                  `json:"nodeId"`
+	NodeName         string                  `json:"nodeName,omitempty"`
+	Name             string                  `json:"name"`
+	Slug             string                  `json:"slug"`
+	Type             string                  `json:"type"`
+	Status           string                  `json:"status"`
+	Repository       string                  `json:"repository,omitempty"`
+	Branch           string                  `json:"branch,omitempty"`
+	CommitHash       string                  `json:"commitHash,omitempty"`
+	Dockerfile       string                  `json:"dockerfile,omitempty"`
+	BuildCommand     string                  `json:"buildCommand,omitempty"`
+	ComposeFile      string                  `json:"composeFile,omitempty"`
+	Image            string                  `json:"image,omitempty"`
+	DatabaseType     string                  `json:"databaseType,omitempty"`
+	DatabaseVersion  string                  `json:"databaseVersion,omitempty"`
+	ConnectionString string                  `json:"connectionString,omitempty"`
+	Ports            []int32                 `json:"ports"`
+	Domains          []string                `json:"domains"`
+	DomainDetails    []ServiceDomainResponse `json:"domainDetails,omitempty"`
+	PublishToHost    bool                    `json:"publishToHost"`
+	Replicas         int64                   `json:"replicas"`
+	Limits           ServiceLimitsResponse   `json:"limits"`
+	EnvVars          []ServiceEnvVarResponse `json:"envVars,omitempty"`
+	CreatedAt        string                  `json:"createdAt"`
+	UpdatedAt        string                  `json:"updatedAt"`
 }
 
-func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVarResponse) ServiceResponse {
+func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVarResponse, domainDetails ...[]ServiceDomainResponse) ServiceResponse {
 	var ports []int32
 	_ = json.Unmarshal([]byte(s.Ports), &ports)
+	if ports == nil {
+		ports = []int32{80}
+	}
+
+	var details []ServiceDomainResponse
+	if len(domainDetails) > 0 {
+		details = domainDetails[0]
+	}
 
 	return ServiceResponse{
-		ID:         s.ID,
-		ProjectID:  s.ProjectID,
-		NodeID:     s.NodeID,
-		Name:       s.Name,
-		Slug:       s.Slug,
-		Type:       s.Type,
-		Status:     s.Status,
-		Repository: s.Repository,
-		Branch:     s.Branch,
-		Image:      s.Image,
-		Ports:         ports,
-		Domains:       domains,
-		PublishToHost: s.PublishToHost != 0,
-		EnvVars:       envVars,
-		CreatedAt:     s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:     s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:               s.ID,
+		ProjectID:        s.ProjectID,
+		NodeID:           s.NodeID,
+		Name:             s.Name,
+		Slug:             s.Slug,
+		Type:             s.Type,
+		Status:           s.Status,
+		Repository:       s.Repository,
+		Branch:           s.Branch,
+		CommitHash:       s.CommitHash,
+		Dockerfile:       s.Dockerfile,
+		BuildCommand:     s.BuildCommand,
+		ComposeFile:      s.ComposeFile,
+		Image:            s.Image,
+		DatabaseType:     s.DatabaseType,
+		DatabaseVersion:  s.DatabaseVersion,
+		ConnectionString: s.ConnectionString,
+		Ports:            ports,
+		Domains:          domains,
+		DomainDetails:    details,
+		PublishToHost:    s.PublishToHost != 0,
+		Replicas:         s.Replicas,
+		Limits: ServiceLimitsResponse{
+			CPUCores: s.CpuLimit,
+			MemoryMB: s.MemoryLimitMb,
+		},
+		EnvVars:   envVars,
+		CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt: s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 
@@ -173,8 +223,19 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			domainsDB, _ := orch.Queries().ListServiceDomains(r.Context(), srv.ID)
 			domains := make([]string, 0, len(domainsDB))
+			domainDetails := make([]ServiceDomainResponse, 0, len(domainsDB))
 			for _, d := range domainsDB {
 				domains = append(domains, d.Domain)
+				domainDetails = append(domainDetails, ServiceDomainResponse{
+					ID:              d.ID,
+					Domain:          d.Domain,
+					SSL:             d.Ssl != 0,
+					Primary:         d.IsPrimary != 0,
+					Port:            d.Port,
+					Path:            d.Path,
+					CertificateType: d.CertificateType,
+					CreatedAt:       d.CreatedAt.Format(time.RFC3339),
+				})
 			}
 
 			envDB, _ := orch.Queries().ListServiceEnvVars(r.Context(), srv.ID)
@@ -189,7 +250,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domains, envVars))
+			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domains, envVars, domainDetails))
 		})
 
 		// DELETE /api/v1/services/{id}
@@ -234,6 +295,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			var req struct {
 				Status        string  `json:"status"`
+				Action        string  `json:"action"`
 				Name          string  `json:"name"`
 				Repository    *string `json:"repository"`
 				Branch        string  `json:"branch"`
@@ -243,15 +305,21 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Image         *string `json:"image"`
 				Replicas      *int64  `json:"replicas"`
 				PublishToHost *bool   `json:"publishToHost"`
+				Limits        *struct {
+					CPUCores *float64 `json:"cpuCores"`
+					MemoryMB *int64   `json:"memoryMb"`
+					SwapMB   *int64   `json:"swapMb"`
+				} `json:"limits"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, "invalid request body", http.StatusBadRequest)
 				return
 			}
 
+			hasLimitsUpdate := req.Limits != nil && (req.Limits.CPUCores != nil || req.Limits.MemoryMB != nil)
 			hasConfigUpdate := req.Name != "" || req.Repository != nil || req.Branch != "" ||
 				req.CommitHash != nil || req.Dockerfile != "" || req.BuildCommand != nil ||
-				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil
+				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil || hasLimitsUpdate
 
 			if hasConfigUpdate {
 				var namePtr, branchPtr, dfPtr *string
@@ -264,6 +332,12 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				if req.Dockerfile != "" {
 					dfPtr = &req.Dockerfile
 				}
+				var cpuPtr *float64
+				var memPtr *int64
+				if req.Limits != nil {
+					cpuPtr = req.Limits.CPUCores
+					memPtr = req.Limits.MemoryMB
+				}
 
 				updated, updateErr := orch.UpdateService(r.Context(), id, orchestrator.UpdateServiceParams{
 					Name:          namePtr,
@@ -275,6 +349,8 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					Image:         req.Image,
 					Replicas:      req.Replicas,
 					PublishToHost: req.PublishToHost,
+					CPULimit:      cpuPtr,
+					MemoryLimitMB: memPtr,
 				})
 				if updateErr != nil {
 					http.Error(w, updateErr.Error(), http.StatusInternalServerError)
@@ -283,23 +359,50 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				srv = *updated
 			}
 
-			if req.Status != "" {
+			targetStatus := req.Status
+			action := strings.ToLower(strings.TrimSpace(req.Action))
+
+			if action == "start" {
+				targetStatus = "healthy"
+			} else if action == "stop" {
+				targetStatus = "stopped"
+			} else if action == "restart" {
+				targetStatus = "healthy"
+			}
+
+			if targetStatus != "" {
 				_ = orch.Queries().UpdateServiceStatus(r.Context(), db.UpdateServiceStatusParams{
 					ID:     id,
-					Status: req.Status,
+					Status: targetStatus,
 				})
 				containerName := "tako-app-" + srv.Slug
-				if req.Status == "stopped" {
+				if targetStatus == "stopped" || action == "stop" {
 					_ = orch.DispatchContainerAction(r.Context(), srv.NodeID, containerName, "stop")
-				} else if req.Status == "healthy" || req.Status == "running" {
-					_ = orch.DispatchContainerAction(r.Context(), srv.NodeID, containerName, "restart")
+				} else if targetStatus == "healthy" || targetStatus == "running" {
+					dispatchAction := "restart"
+					if srv.Status == "stopped" || action == "start" {
+						dispatchAction = "start"
+					}
+					_ = orch.DispatchContainerAction(r.Context(), srv.NodeID, containerName, dispatchAction)
 				}
+				srv.Status = targetStatus
 			}
 
 			domains, _ := orch.Queries().ListServiceDomains(r.Context(), id)
 			domainStrings := make([]string, len(domains))
+			domainDetails := make([]ServiceDomainResponse, len(domains))
 			for i, d := range domains {
 				domainStrings[i] = d.Domain
+				domainDetails[i] = ServiceDomainResponse{
+					ID:              d.ID,
+					Domain:          d.Domain,
+					SSL:             d.Ssl != 0,
+					Primary:         d.IsPrimary != 0,
+					Port:            d.Port,
+					Path:            d.Path,
+					CertificateType: d.CertificateType,
+					CreatedAt:       d.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				}
 			}
 			envVars, _ := orch.Queries().ListServiceEnvVars(r.Context(), id)
 			envResponses := make([]ServiceEnvVarResponse, len(envVars))
@@ -313,7 +416,178 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domainStrings, envResponses))
+			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domainStrings, envResponses, domainDetails))
+		})
+
+		// GET /api/v1/services/{id}/domains
+		r.Get("/{id}/domains", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			domainsDB, err := orch.Queries().ListServiceDomains(r.Context(), id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			res := make([]ServiceDomainResponse, 0, len(domainsDB))
+			for _, d := range domainsDB {
+				res = append(res, ServiceDomainResponse{
+					ID:              d.ID,
+					Domain:          d.Domain,
+					SSL:             d.Ssl != 0,
+					Primary:         d.IsPrimary != 0,
+					Port:            d.Port,
+					Path:            d.Path,
+					CertificateType: d.CertificateType,
+					CreatedAt:       d.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+				})
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(res)
+		})
+
+		// POST /api/v1/services/{id}/domains
+		r.Post("/{id}/domains", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
+			if err != nil {
+				http.Error(w, "service not found", http.StatusNotFound)
+				return
+			}
+
+			var req struct {
+				Domain          string `json:"domain"`
+				Port            int64  `json:"port"`
+				Path            string `json:"path"`
+				SSL             *bool  `json:"ssl"`
+				Primary         bool   `json:"primary"`
+				CertificateType string `json:"certificateType"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, "invalid request body", http.StatusBadRequest)
+				return
+			}
+
+			req.Domain = strings.TrimSpace(strings.ToLower(req.Domain))
+			if req.Domain == "" {
+				http.Error(w, "domain is required", http.StatusBadRequest)
+				return
+			}
+			if req.Port <= 0 {
+				req.Port = 80
+			}
+			if req.Path == "" {
+				req.Path = "/"
+			}
+			sslVal := int64(1)
+			if req.SSL != nil && !*req.SSL {
+				sslVal = 0
+			}
+			certType := req.CertificateType
+			if certType == "" {
+				certType = "letsencrypt"
+			}
+
+			existing, _ := orch.Queries().ListServiceDomains(r.Context(), id)
+			isPrimary := int64(0)
+			if req.Primary || len(existing) == 0 {
+				isPrimary = 1
+				_, _ = orch.DB().ExecContext(r.Context(), "UPDATE service_domains SET is_primary = 0 WHERE service_id = ?", id)
+			}
+
+			domID := "dom-" + randomHexID(8)
+			created, err := orch.Queries().CreateServiceDomain(r.Context(), db.CreateServiceDomainParams{
+				ID:              domID,
+				ServiceID:       id,
+				Domain:          req.Domain,
+				Ssl:             sslVal,
+				IsPrimary:       isPrimary,
+				Port:            req.Port,
+				Path:            req.Path,
+				CertificateType: certType,
+			})
+			if err != nil {
+				http.Error(w, fmt.Sprintf("failed to create domain: %v", err), http.StatusBadRequest)
+				return
+			}
+
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "create_service_domain",
+				TargetType: "service",
+				TargetID:   srv.ID,
+				TargetName: srv.Name,
+				Metadata: map[string]interface{}{
+					"domain":  req.Domain,
+					"primary": isPrimary == 1,
+				},
+			})
+
+			if srv.Status == "healthy" || srv.Status == "running" {
+				_, _ = orch.TriggerDeploy(r.Context(), id)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(ServiceDomainResponse{
+				ID:              created.ID,
+				Domain:          created.Domain,
+				SSL:             created.Ssl != 0,
+				Primary:         created.IsPrimary != 0,
+				Port:            created.Port,
+				Path:            created.Path,
+				CertificateType: created.CertificateType,
+				CreatedAt:       created.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			})
+		})
+
+		// DELETE /api/v1/services/{id}/domains/{domainId}
+		r.Delete("/{id}/domains/{domainId}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			domID := chi.URLParam(r, "domainId")
+			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
+			if err != nil {
+				http.Error(w, "service not found", http.StatusNotFound)
+				return
+			}
+
+			var wasPrimary int64
+			_ = orch.DB().QueryRowContext(r.Context(), "SELECT is_primary FROM service_domains WHERE id = ? AND service_id = ?", domID, id).Scan(&wasPrimary)
+
+			_, err = orch.DB().ExecContext(r.Context(), "DELETE FROM service_domains WHERE id = ? AND service_id = ?", domID, id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if wasPrimary == 1 {
+				_, _ = orch.DB().ExecContext(r.Context(), "UPDATE service_domains SET is_primary = 1 WHERE id = (SELECT id FROM service_domains WHERE service_id = ? LIMIT 1)", id)
+			}
+
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "delete_service_domain",
+				TargetType: "service",
+				TargetID:   srv.ID,
+				TargetName: srv.Name,
+				Metadata: map[string]interface{}{
+					"domainId": domID,
+				},
+			})
+
+			if srv.Status == "healthy" || srv.Status == "running" {
+				_, _ = orch.TriggerDeploy(r.Context(), id)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+		})
+
+		// PATCH /api/v1/services/{id}/domains/{domainId}/primary
+		r.Patch("/{id}/domains/{domainId}/primary", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			domID := chi.URLParam(r, "domainId")
+
+			_, _ = orch.DB().ExecContext(r.Context(), "UPDATE service_domains SET is_primary = CASE WHEN id = ? THEN 1 ELSE 0 END WHERE service_id = ?", domID, id)
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 		})
 
 		// POST /api/v1/services/{id}/deploy

@@ -9,19 +9,31 @@ export function setServicesMockData(newServices: Service[]): void {
 }
 
 function normalizeService(s: Record<string, unknown>): Service {
-  const domains: ServiceDomain[] = Array.isArray(s.domains)
-    ? s.domains.map((d: unknown, idx: number) =>
-        typeof d === 'string'
-          ? {
-              id: `dom-${s.id}-${idx}`,
-              domain: d,
-              ssl: true,
-              primary: idx === 0,
-              createdAt: (s.createdAt as string) || new Date().toISOString(),
-            }
-          : (d as ServiceDomain)
-      )
-    : [];
+  const rawDomains = (Array.isArray(s.domainDetails) && s.domainDetails.length > 0)
+    ? s.domainDetails
+    : (Array.isArray(s.domains) ? s.domains : []);
+
+  const domains: ServiceDomain[] = rawDomains.map((d: unknown, idx: number) =>
+    typeof d === 'string'
+      ? {
+          id: `dom-${s.id}-${idx}`,
+          domain: d,
+          ssl: true,
+          primary: idx === 0,
+          createdAt: (s.createdAt as string) || new Date().toISOString(),
+        }
+      : (d as ServiceDomain)
+  );
+
+  const limitsRaw = (s.limits && typeof s.limits === 'object') ? (s.limits as Record<string, unknown>) : null;
+  const limits: Service['limits'] = limitsRaw
+    ? {
+        cpuCores: limitsRaw.cpuCores !== undefined ? Number(limitsRaw.cpuCores) : 1,
+        memoryMb: limitsRaw.memoryMb !== undefined ? Number(limitsRaw.memoryMb) : 1024,
+        diskGb: limitsRaw.diskGb !== undefined ? Number(limitsRaw.diskGb) : 10,
+        swapMb: limitsRaw.swapMb !== undefined ? Number(limitsRaw.swapMb) : 0,
+      }
+    : { cpuCores: 1, memoryMb: 1024, diskGb: 10 };
 
   return {
     id: String(s.id),
@@ -50,13 +62,13 @@ function normalizeService(s: Record<string, unknown>): Service {
         ? Boolean(s.publish_to_host)
         : true,
     replicas: (s.replicas as number) || 1,
-    limits: (s.limits as Service['limits']) || { cpuCores: 1, memoryMb: 1024, diskGb: 10 },
+    limits,
     usage: (s.usage as Service['usage']) || {
       cpuPercent: 5,
       memoryUsedMb: 120,
-      memoryLimitMb: 1024,
+      memoryLimitMb: limits.memoryMb || 1024,
       diskUsedGb: 0.5,
-      diskTotalGb: 10,
+      diskTotalGb: limits.diskGb || 10,
     },
     envVars: Array.isArray(s.envVars) ? (s.envVars as EnvVar[]) : [],
     createdAt: (s.createdAt as string) || new Date().toISOString(),
@@ -241,14 +253,27 @@ export async function updateService(id: string, input: UpdateServiceInput): Prom
   return { ...updated };
 }
 
-export async function updateServiceStatus(id: string, status: Status): Promise<Service> {
+export async function updateServiceStatus(
+  id: string,
+  status: Status,
+  action?: 'start' | 'stop' | 'restart'
+): Promise<Service> {
   if (typeof window !== 'undefined') {
     try {
-      await fetch(`/api/services/${id}`, {
+      const res = await fetch(`/api/services/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, action }),
       });
+      if (res.ok) {
+        const s = await res.json();
+        const norm = normalizeService(s);
+        const index = services.findIndex((item) => item.id === id);
+        if (index !== -1) {
+          services[index] = { ...services[index], ...norm };
+        }
+        return norm;
+      }
     } catch {
       // ignore
     }
@@ -259,6 +284,147 @@ export async function updateServiceStatus(id: string, status: Status): Promise<S
     return { ...services[index] };
   }
   return { id, status } as Service;
+}
+
+export async function getServiceDomains(serviceId: string): Promise<ServiceDomain[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${serviceId}/domains`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          return data.map((d: any, idx: number) => ({
+            id: d.id || `dom-${serviceId}-${idx}`,
+            domain: d.domain,
+            ssl: d.ssl !== false,
+            primary: Boolean(d.primary),
+            port: d.port || 80,
+            path: d.path || '/',
+            certificateType: d.certificateType || 'letsencrypt',
+            createdAt: d.createdAt || new Date().toISOString(),
+          }));
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  const s = services.find((srv) => srv.id === serviceId);
+  return s?.domains || [];
+}
+
+export async function addServiceDomain(
+  serviceId: string,
+  input: { domain: string; port?: number; path?: string; ssl?: boolean; primary?: boolean }
+): Promise<ServiceDomain> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${serviceId}/domains`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        const dom: ServiceDomain = {
+          id: created.id,
+          domain: created.domain,
+          ssl: created.ssl !== false,
+          primary: Boolean(created.primary),
+          port: created.port || 80,
+          path: created.path || '/',
+          certificateType: created.certificateType || 'letsencrypt',
+          createdAt: created.createdAt || new Date().toISOString(),
+        };
+        const s = services.find((srv) => srv.id === serviceId);
+        if (s) {
+          if (dom.primary) {
+            s.domains.forEach((d) => (d.primary = false));
+          }
+          s.domains.push(dom);
+        }
+        return dom;
+      }
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to add domain');
+    } catch (err) {
+      if (err instanceof Error && err.message !== 'Failed to fetch') {
+        throw err;
+      }
+    }
+  }
+  await simulateDelay();
+  const newDomain: ServiceDomain = {
+    id: `dom-${Date.now()}`,
+    domain: input.domain,
+    port: input.port || 80,
+    path: input.path || '/',
+    ssl: input.ssl !== false,
+    primary: Boolean(input.primary),
+    createdAt: new Date().toISOString(),
+  };
+  const s = services.find((srv) => srv.id === serviceId);
+  if (s) {
+    if (newDomain.primary) {
+      s.domains.forEach((d) => (d.primary = false));
+    }
+    s.domains.push(newDomain);
+  }
+  return newDomain;
+}
+
+export async function deleteServiceDomain(serviceId: string, domainId: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${serviceId}/domains/${domainId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete domain');
+      }
+      return;
+    } catch (err) {
+      if (err instanceof Error && err.message !== 'Failed to fetch') {
+        throw err;
+      }
+    }
+  }
+  await simulateDelay();
+  const s = services.find((srv) => srv.id === serviceId);
+  if (s) {
+    const wasPrimary = s.domains.find((d) => d.id === domainId)?.primary;
+    s.domains = s.domains.filter((d) => d.id !== domainId);
+    if (wasPrimary && s.domains.length > 0) {
+      s.domains[0].primary = true;
+    }
+  }
+}
+
+export async function setPrimaryServiceDomain(serviceId: string, domainId: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${serviceId}/domains/${domainId}`, {
+        method: 'PATCH',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to set primary domain');
+      }
+      return;
+    } catch (err) {
+      if (err instanceof Error && err.message !== 'Failed to fetch') {
+        throw err;
+      }
+    }
+  }
+  await simulateDelay();
+  const s = services.find((srv) => srv.id === serviceId);
+  if (s) {
+    s.domains.forEach((d) => {
+      d.primary = d.id === domainId;
+    });
+  }
 }
 
 export async function updateServiceEnvVars(id: string, envVars: EnvVar[]): Promise<Service> {

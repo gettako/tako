@@ -98,6 +98,10 @@ func (o *Orchestrator) Queries() *db.Queries {
 	return o.queries
 }
 
+func (o *Orchestrator) DB() *sql.DB {
+	return o.db
+}
+
 func (o *Orchestrator) Bus() *events.Bus {
 	return o.bus
 }

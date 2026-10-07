@@ -15,6 +15,7 @@ interface ServiceSettingsTabProps {
   service: Service;
   onUpdateService: (input: UpdateServiceInput) => Promise<void>;
   onRestartService?: () => Promise<void>;
+  onStartService?: () => Promise<void>;
   onRebuildService?: () => Promise<void>;
 }
 
@@ -22,6 +23,7 @@ export function ServiceSettingsTab({
   service,
   onUpdateService,
   onRestartService,
+  onStartService,
   onRebuildService,
 }: ServiceSettingsTabProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
@@ -69,6 +71,7 @@ export function ServiceSettingsTab({
           <DangerZoneSection
             service={service}
             onRestart={onRestartService}
+            onStart={onStartService}
             onRebuild={onRebuildService}
           />
         )}

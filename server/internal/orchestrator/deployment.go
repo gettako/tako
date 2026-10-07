@@ -51,6 +51,8 @@ type UpdateServiceParams struct {
 	Image         *string
 	Replicas      *int64
 	PublishToHost *bool
+	CPULimit      *float64
+	MemoryLimitMB *int64
 }
 
 // UpdateService updates service configuration attributes and metadata in database.
@@ -100,6 +102,14 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 			publishToHost = 0
 		}
 	}
+	cpuLimit := srv.CpuLimit
+	if p.CPULimit != nil && *p.CPULimit > 0 {
+		cpuLimit = *p.CPULimit
+	}
+	memoryLimit := srv.MemoryLimitMb
+	if p.MemoryLimitMB != nil && *p.MemoryLimitMB > 0 {
+		memoryLimit = *p.MemoryLimitMB
+	}
 
 	_, err = o.db.ExecContext(ctx, `
 		UPDATE services SET
@@ -112,9 +122,11 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 			image = ?,
 			replicas = ?,
 			publish_to_host = ?,
+			cpu_limit = ?,
+			memory_limit_mb = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`,
-		name, repo, branch, commitHash, dockerfile, buildCommand, img, replicas, publishToHost, id,
+		name, repo, branch, commitHash, dockerfile, buildCommand, img, replicas, publishToHost, cpuLimit, memoryLimit, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update service: %w", err)

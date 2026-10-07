@@ -6,23 +6,42 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DeleteServiceDialog } from './delete-service-dialog';
 import { SectionHeader } from '@/components/ui/section-header';
-import { AlertTriangle, Trash2, RotateCw, RefreshCw, Loader2 } from 'lucide-react';
+import { AlertTriangle, Trash2, RotateCw, RefreshCw, Loader2, Play } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface DangerZoneSectionProps {
   service: Service;
   onRestart?: () => Promise<void>;
+  onStart?: () => Promise<void>;
   onRebuild?: () => Promise<void>;
 }
 
 export function DangerZoneSection({
   service,
   onRestart,
+  onStart,
   onRebuild,
 }: DangerZoneSectionProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
+
+  const isStopped = service.status === 'stopped';
+
+  const handleStart = async () => {
+    try {
+      setIsStarting(true);
+      if (onStart) {
+        await onStart();
+      }
+      toast.success('Service containers successfully started');
+    } catch {
+      toast.error('Failed to start service');
+    } finally {
+      setIsStarting(false);
+    }
+  };
 
   const handleForceRestart = async () => {
     try {
@@ -67,29 +86,50 @@ export function DangerZoneSection({
         </CardHeader>
 
         <CardContent className="px-0 divide-y divide-border/60">
-          {/* Action 1: Force Restart Service */}
+          {/* Action 1: Start or Force Restart Service */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 py-6 first:pt-6">
             <div className="space-y-1.5 sm:max-w-xl">
-              <div className="text-sm font-semibold text-foreground">Force Restart Containers</div>
+              <div className="text-sm font-semibold text-foreground">
+                {isStopped ? 'Start Service Containers' : 'Force Restart Containers'}
+              </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Tears down all active container replicas for this service and spins up fresh instances.
+                {isStopped
+                  ? 'Spins up container instances for this stopped service and binds routing.'
+                  : 'Tears down all active container replicas for this service and spins up fresh instances.'}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleForceRestart}
-              disabled={isRestarting}
-              className="text-sm h-9 px-4 border-border hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
-            >
-              {isRestarting ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <RotateCw className="size-3.5" />
-              )}
-              Force Restart
-            </Button>
+            {isStopped ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleStart}
+                disabled={isStarting}
+                className="text-sm h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700 gap-1.5 shrink-0 font-medium"
+              >
+                {isStarting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Play className="size-3.5 fill-current" />
+                )}
+                <span>Start Service</span>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleForceRestart}
+                disabled={isRestarting}
+                className="text-sm h-9 px-4 border-border hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
+              >
+                {isRestarting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RotateCw className="size-3.5" />
+                )}
+                <span>Force Restart</span>
+              </Button>
+            )}
           </div>
 
           {/* Action 2: Rebuild Without Cache (App / Compose only) */}

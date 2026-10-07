@@ -14,6 +14,7 @@ import {
   Box,
   Layers,
   CheckCircle2,
+  Play,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -28,6 +29,7 @@ export interface ServiceHeaderProps {
   onRebuild?: () => void;
   onRestart?: () => void;
   onStop?: () => void;
+  onStart?: () => void;
 }
 
 export function ServiceHeader({
@@ -38,12 +40,15 @@ export function ServiceHeader({
   onRebuild,
   onRestart,
   onStop,
+  onStart,
 }: ServiceHeaderProps) {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   const primaryDomain = service.domains.find((d) => d.primary) || service.domains[0];
+  const isStopped = service.status === 'stopped';
+  const isDeploying = service.status === 'deploying' || service.status === 'queued';
 
-  const handleAction = (type: 'deploy' | 'rebuild' | 'restart' | 'stop') => {
+  const handleAction = (type: 'deploy' | 'rebuild' | 'restart' | 'stop' | 'start') => {
     let msg = '';
     if (type === 'deploy') {
       msg = `Deployment triggered for ${service.name}`;
@@ -54,6 +59,9 @@ export function ServiceHeader({
     } else if (type === 'restart') {
       msg = `Restarting containers for ${service.name}...`;
       onRestart?.();
+    } else if (type === 'start') {
+      msg = `Starting containers for ${service.name}...`;
+      onStart?.();
     } else {
       msg = `Stopping containers for ${service.name}...`;
       onStop?.();
@@ -185,25 +193,43 @@ export function ServiceHeader({
             </>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleAction('restart')}
-            className="gap-1.5 text-sm h-9"
-          >
-            <RotateCw className="size-3.5" />
-            <span>Restart</span>
-          </Button>
+          {/* Hide restart button if stopped */}
+          {!isStopped && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleAction('restart')}
+              disabled={isDeploying}
+              className="gap-1.5 text-sm h-9 border-border text-foreground hover:bg-muted"
+            >
+              <RotateCw className="size-3.5" />
+              <span>Restart</span>
+            </Button>
+          )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleAction('stop')}
-            className="gap-1.5 text-sm h-9 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Square className="size-3.5" />
-            <span>Stop</span>
-          </Button>
+          {/* If stopped, show Start button; otherwise show Stop button */}
+          {isStopped ? (
+            <Button
+              size="sm"
+              onClick={() => handleAction('start')}
+              disabled={isDeploying}
+              className="gap-1.5 text-sm h-9 bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700 font-medium"
+            >
+              <Play className="size-3.5 fill-current" />
+              <span>Start</span>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleAction('stop')}
+              disabled={isDeploying}
+              className="gap-1.5 text-sm h-9 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+            >
+              <Square className="size-3.5" />
+              <span>Stop</span>
+            </Button>
+          )}
         </div>
       </div>
     </div>

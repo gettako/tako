@@ -83,15 +83,21 @@ export default function ServiceDetailPage({
     refetchDeployments();
   };
 
+  const handleStart = async () => {
+    if (!service) return;
+    await updateServiceStatus(service.id, 'healthy', 'start');
+    refetchService();
+  };
+
   const handleRestart = async () => {
     if (!service) return;
-    await updateServiceStatus(service.id, 'healthy');
+    await updateServiceStatus(service.id, 'healthy', 'restart');
     refetchService();
   };
 
   const handleStop = async () => {
     if (!service) return;
-    await updateServiceStatus(service.id, 'stopped');
+    await updateServiceStatus(service.id, 'stopped', 'stop');
     refetchService();
   };
 
@@ -146,6 +152,7 @@ export default function ServiceDetailPage({
         onRebuild={handleRebuild}
         onRestart={handleRestart}
         onStop={handleStop}
+        onStart={handleStart}
       />
 
       {/* Dynamic Tabs Navigation Bar */}
@@ -167,7 +174,14 @@ export default function ServiceDetailPage({
           />
         )}
 
-        {activeTab === 'env' && <ServiceEnvTab service={service} />}
+        {activeTab === 'env' && (
+          <ServiceEnvTab
+            service={service}
+            onSaved={() => {
+              refetchService();
+            }}
+          />
+        )}
 
         {activeTab === 'logs' && <RuntimeLogsTab service={service} />}
 
@@ -178,7 +192,14 @@ export default function ServiceDetailPage({
           onNavigateToTerminalTab={() => setActiveTab('terminal')}
         />
 
-        {activeTab === 'domains' && <ServiceDomainTab service={service} />}
+        {activeTab === 'domains' && (
+          <ServiceDomainTab
+            service={service}
+            onDomainsUpdated={() => {
+              refetchService();
+            }}
+          />
+        )}
 
         {activeTab === 'connection' && <ConnectionTab service={service} />}
 
@@ -200,6 +221,7 @@ export default function ServiceDetailPage({
             service={service}
             onUpdateService={handleUpdateService}
             onRestartService={handleRestart}
+            onStartService={handleStart}
             onRebuildService={handleRebuild}
           />
         )}

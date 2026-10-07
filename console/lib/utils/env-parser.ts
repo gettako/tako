@@ -1,4 +1,4 @@
-import { EnvVar } from '@/lib/types';
+import type { EnvVar } from '../types';
 
 export function parseDotEnv(content: string): Partial<EnvVar>[] {
   const lines = content.split('\n');

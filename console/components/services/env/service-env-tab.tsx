@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Save, Check, FileCode, Table as TableIcon, KeyRound } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Check, FileCode, Table as TableIcon, KeyRound, Loader2, Info } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Button } from '@/components/ui/button';
 import { EnvTableView } from './env-table-view';
@@ -9,6 +9,7 @@ import { EnvRawView } from './env-raw-view';
 import { EnvVar, Service } from '@/lib/types';
 import { parseDotEnv, formatDotEnv } from '@/lib/utils/env-parser';
 import { updateServiceEnvVars } from '@/lib/api/services';
+import { toast } from 'sonner';
 
 export interface ServiceEnvTabProps {
   service: Service;
@@ -22,6 +23,13 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  useEffect(() => {
+    if (!isDirty && service.envVars) {
+      setEnvVars(service.envVars);
+      setRawText(formatDotEnv(service.envVars));
+    }
+  }, [service.envVars, isDirty]);
 
   const handleTableChange = (newVars: EnvVar[]) => {
     setEnvVars(newVars);
@@ -50,8 +58,12 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
       await updateServiceEnvVars(service.id, envVars);
       setIsDirty(false);
       setSavedSuccess(true);
+      toast.success('Environment variables saved successfully');
       onSaved?.(envVars);
       setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update environment variables';
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
@@ -72,7 +84,7 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
                 onClick={() => setMode('table')}
                 className={`inline-flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-all ${
                   mode === 'table'
-                    ? 'bg-background text-foreground '
+                    ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -84,7 +96,7 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
                 onClick={() => setMode('raw')}
                 className={`inline-flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-all ${
                   mode === 'raw'
-                    ? 'bg-background text-foreground '
+                    ? 'bg-background text-foreground shadow-xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -98,9 +110,14 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
               size="sm"
               onClick={handleSave}
               disabled={!isDirty || isSaving}
-              className="gap-1.5 text-xs h-8"
+              className="gap-1.5 text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
             >
-              {savedSuccess ? (
+              {isSaving ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : savedSuccess ? (
                 <>
                   <Check className="size-3.5 text-emerald-300" />
                   <span>Saved!</span>
@@ -108,13 +125,20 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
               ) : (
                 <>
                   <Save className="size-3.5" />
-                  <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                  <span>Save Changes</span>
                 </>
               )}
             </Button>
           </div>
         }
       />
+
+      <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/20 px-3.5 py-2.5 text-xs text-muted-foreground">
+        <Info className="size-4 shrink-0 text-primary" />
+        <span>
+          Environment changes are securely encrypted and injected at container initialization. Restart or redeploy the service to apply new variables to running instances.
+        </span>
+      </div>
 
       {/* Editor View */}
       {mode === 'table' ? (

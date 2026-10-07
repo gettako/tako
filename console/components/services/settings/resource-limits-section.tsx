@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Service, UpdateServiceInput } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,15 @@ export function ResourceLimitsSection({
     memoryMb !== initialMem ||
     effectiveSwap !== initialSwap;
 
+  useEffect(() => {
+    if (!isDirty) {
+      setCpuCores(service.limits.cpuCores || 1);
+      setMemoryMb(service.limits.memoryMb || 1024);
+      setEnableSwap((service.limits.swapMb || 0) > 0);
+      setSwapMb(service.limits.swapMb || 512);
+    }
+  }, [service.limits, isDirty]);
+
   const handleReset = () => {
     setCpuCores(initialCpu);
     setMemoryMb(initialMem);
@@ -74,7 +83,7 @@ export function ResourceLimitsSection({
     try {
       setIsRestarting(true);
       await onRestart();
-      toast.success('Service restarted. New resource limits applied.');
+      toast.success('Service updated and restarted with new limits');
     } catch {
       toast.error('Failed to restart service');
     } finally {
@@ -116,7 +125,7 @@ export function ResourceLimitsSection({
             ) : (
               <RotateCw className="size-3.5" />
             )}
-            Restart Now
+            {service.status === 'stopped' ? 'Apply & Start' : 'Restart Now'}
           </Button>
         )}
       </div>

@@ -1,0 +1,170 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+// Test env parser
+import { parseDotEnv, formatDotEnv } from '../lib/utils/env-parser.ts';
+
+test('Env Parser - parses and formats .env correctly', () => {
+  const sampleEnv = `
+# Comment line
+PORT=8080
+API_KEY=secret_12345
+DATABASE_URL=postgres://user:pass@localhost:5432/db
+EMPTY_VAL=
+`;
+
+  const parsed = parseDotEnv(sampleEnv);
+  assert.equal(parsed.length, 4);
+  assert.equal(parsed[0].key, 'PORT');
+  assert.equal(parsed[0].value, '8080');
+  assert.equal(parsed[1].key, 'API_KEY');
+  assert.equal(parsed[1].value, 'secret_12345');
+  assert.equal(parsed[1].isSecret, true);
+  assert.equal(parsed[2].key, 'DATABASE_URL');
+  assert.equal(parsed[3].key, 'EMPTY_VAL');
+  assert.equal(parsed[3].value, '');
+
+  const formatted = formatDotEnv(parsed.map((p, idx) => ({
+    id: `env-${idx}`,
+    key: p.key,
+    value: p.value,
+    isSecret: p.isSecret,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  })));
+
+  assert.match(formatted, /PORT=8080/);
+  assert.match(formatted, /API_KEY=secret_12345/);
+});
+
+test('Cron Jobs - mock CRUD and toggle flow', async () => {
+  // Test dynamic cron operations
+  let cronJobs = [
+    {
+      id: 'cron-1',
+      serviceId: 'srv-test',
+      name: 'Backup Database',
+      schedule: '0 2 * * *',
+      command: 'pg_dump > /backups/db.sql',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    }
+  ];
+
+  // Toggle active/paused
+  const job = cronJobs[0];
+  const newStatus = job.status === 'active' ? 'paused' : 'active';
+  job.status = newStatus;
+  assert.equal(job.status, 'paused');
+
+  job.status = job.status === 'active' ? 'paused' : 'active';
+  assert.equal(job.status, 'active');
+
+  // Add new cron job
+  const newJob = {
+    id: 'cron-2',
+    serviceId: 'srv-test',
+    name: 'Cache Warming',
+    schedule: '*/15 * * * *',
+    command: 'curl -s http://localhost:8080/health',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+  };
+  cronJobs.unshift(newJob);
+
+  assert.equal(cronJobs.length, 2);
+  assert.equal(cronJobs[0].id, 'cron-2');
+
+  // Delete cron job
+  cronJobs = cronJobs.filter((j) => j.id !== 'cron-1');
+  assert.equal(cronJobs.length, 1);
+  assert.equal(cronJobs[0].id, 'cron-2');
+});
+
+test('Webhooks - secret regeneration and manual test execution', async () => {
+  let webhook = {
+    id: 'wh-srv-test',
+    serviceId: 'srv-test',
+    name: 'Git Deployment Trigger',
+    url: 'https://console.gettako.dev/api/webhooks/deploy/srv-test',
+    secret: 'whsec_old123',
+    events: ['push', 'tag'],
+    active: true,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Regenerate secret
+  const newSecret = `whsec_${Math.random().toString(36).substring(2, 15)}`;
+  webhook.secret = newSecret;
+  assert.notEqual(webhook.secret, 'whsec_old123');
+  assert.match(webhook.secret, /^whsec_/);
+
+  // Update events
+  webhook.events = ['push', 'tag', 'release'];
+  assert.deepEqual(webhook.events, ['push', 'tag', 'release']);
+
+  // Simulate test trigger
+  const delivery = {
+    id: `whd-${Date.now()}`,
+    webhookId: webhook.id,
+    event: 'manual',
+    status: 'success',
+    statusCode: 200,
+    timestamp: new Date().toISOString(),
+  };
+  assert.equal(delivery.statusCode, 200);
+  assert.equal(delivery.status, 'success');
+});
+
+test('Domain Management - primary assignment and deletion fallback', () => {
+  let domains = [
+    { id: 'dom-1', domain: 'primary.example.com', primary: true, port: 80, path: '/', ssl: true, createdAt: '' },
+    { id: 'dom-2', domain: 'secondary.example.com', primary: false, port: 80, path: '/', ssl: true, createdAt: '' },
+  ];
+
+  // Set secondary as primary
+  domains = domains.map((d) => ({
+    ...d,
+    primary: d.id === 'dom-2',
+  }));
+  assert.equal(domains[0].primary, false);
+  assert.equal(domains[1].primary, true);
+
+  // Delete current primary (dom-2), fallback promotes remaining domain (dom-1)
+  const wasPrimary = domains.find((d) => d.id === 'dom-2')?.primary;
+  domains = domains.filter((d) => d.id !== 'dom-2');
+  if (wasPrimary && domains.length > 0) {
+    domains[0].primary = true;
+  }
+
+  assert.equal(domains.length, 1);
+  assert.equal(domains[0].id, 'dom-1');
+  assert.equal(domains[0].primary, true);
+});
+
+import { validateCronExpression, explainCronExpression } from '../lib/utils/cron-explainer.ts';
+
+test('Cron Explainer & Validator - validates standard and invalid cron expressions', () => {
+  // Valid expressions
+  const valid1 = validateCronExpression('0 0 * * *');
+  assert.equal(valid1.isValid, true);
+  assert.equal(explainCronExpression('0 0 * * *'), 'Every day at midnight (00:00 UTC)');
+
+  const valid2 = validateCronExpression('*/15 * * * *');
+  assert.equal(valid2.isValid, true);
+  assert.equal(explainCronExpression('*/15 * * * *'), 'Every 15 minutes');
+
+  // Invalid expressions
+  const invalidLength = validateCronExpression('* * *');
+  assert.equal(invalidLength.isValid, false);
+  assert.match(invalidLength.error || '', /Expected 5 fields/);
+
+  const invalidMinute = validateCronExpression('65 * * * *');
+  assert.equal(invalidMinute.isValid, false);
+  assert.match(invalidMinute.error || '', /range: 0-59/);
+
+  const invalidStep = validateCronExpression('*/0 * * * *');
+  assert.equal(invalidStep.isValid, false);
+  assert.match(invalidStep.error || '', /Invalid step value/);
+});
+

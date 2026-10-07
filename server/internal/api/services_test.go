@@ -605,3 +605,207 @@ func TestServiceValidationAndEdgeCases(t *testing.T) {
 		}
 	})
 }
+
+func TestServiceDomainsAPI(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := context.Background()
+
+	_, _ = orch.Queries().CreateProject(ctx, db.CreateProjectParams{
+		ID:          "prj-dom-test",
+		Name:        "Domain Project",
+		Slug:        "domain-project",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+
+	srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
+		ProjectID: "prj-dom-test",
+		NodeID:    "node-control",
+		Name:      "Domain App",
+		Slug:      "domain-app",
+		Type:      "app",
+	})
+	if err != nil {
+		t.Fatalf("failed to create test service: %v", err)
+	}
+
+	var createdDomainID string
+
+	// 1. POST /api/v1/services/{id}/domains - Add domain
+	t.Run("Add Domain", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"domain":  "myapp.example.com",
+			"port":    3000,
+			"path":    "/",
+			"ssl":     true,
+			"primary": true,
+		}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/services/"+srv.ID+"/domains", bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created, got %d: %s", rec.Code, rec.Body.String())
+		}
+
+		var dom api.ServiceDomainResponse
+		_ = json.NewDecoder(rec.Body).Decode(&dom)
+		if dom.Domain != "myapp.example.com" {
+			t.Fatalf("expected myapp.example.com, got %s", dom.Domain)
+		}
+		if !dom.Primary {
+			t.Fatalf("expected domain to be primary")
+		}
+		createdDomainID = dom.ID
+	})
+
+	// 2. GET /api/v1/services/{id}/domains - List domains
+	t.Run("List Domains", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srv.ID+"/domains", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+
+		var list []api.ServiceDomainResponse
+		_ = json.NewDecoder(rec.Body).Decode(&list)
+		if len(list) != 1 {
+			t.Fatalf("expected 1 domain, got %d", len(list))
+		}
+	})
+
+	// 3. Add second domain and PATCH primary
+	t.Run("Add Second and Set Primary", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"domain": "second.example.com",
+			"port":   8080,
+		}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/services/"+srv.ID+"/domains", bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		var secondDom api.ServiceDomainResponse
+		_ = json.NewDecoder(rec.Body).Decode(&secondDom)
+
+		// Set second as primary
+		reqPatch := httptest.NewRequest(http.MethodPatch, "/api/v1/services/"+srv.ID+"/domains/"+secondDom.ID+"/primary", nil)
+		recPatch := httptest.NewRecorder()
+		router.ServeHTTP(recPatch, reqPatch)
+		if recPatch.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", recPatch.Code)
+		}
+
+		// Verify list
+		reqList := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srv.ID+"/domains", nil)
+		recList := httptest.NewRecorder()
+		router.ServeHTTP(recList, reqList)
+
+		var updatedList []api.ServiceDomainResponse
+		_ = json.NewDecoder(recList.Body).Decode(&updatedList)
+		for _, d := range updatedList {
+			if d.ID == secondDom.ID && !d.Primary {
+				t.Fatalf("expected second domain to be primary")
+			}
+			if d.ID == createdDomainID && d.Primary {
+				t.Fatalf("expected first domain to not be primary")
+			}
+		}
+
+		// 4. DELETE /api/v1/services/{id}/domains/{domainId}
+		reqDel := httptest.NewRequest(http.MethodDelete, "/api/v1/services/"+srv.ID+"/domains/"+createdDomainID, nil)
+		recDel := httptest.NewRecorder()
+		router.ServeHTTP(recDel, reqDel)
+		if recDel.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", recDel.Code)
+		}
+	})
+}
+
+func TestServiceActionsAndLimits(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := context.Background()
+
+	_, _ = orch.Queries().CreateProject(ctx, db.CreateProjectParams{
+		ID:          "prj-act-test",
+		Name:        "Action Project",
+		Slug:        "action-project",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+
+	srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
+		ProjectID: "prj-act-test",
+		NodeID:    "node-control",
+		Name:      "Action App",
+		Slug:      "action-app",
+		Type:      "app",
+	})
+	if err != nil {
+		t.Fatalf("failed to create test service: %v", err)
+	}
+
+	// 1. PATCH with action: stop
+	t.Run("Stop Action", func(t *testing.T) {
+		payload := map[string]string{"action": "stop"}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/services/"+srv.ID, bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if res.Status != "stopped" {
+			t.Fatalf("expected status stopped, got %s", res.Status)
+		}
+	})
+
+	// 2. PATCH with action: start
+	t.Run("Start Action", func(t *testing.T) {
+		payload := map[string]string{"action": "start"}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/services/"+srv.ID, bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if res.Status != "healthy" {
+			t.Fatalf("expected status healthy, got %s", res.Status)
+		}
+	})
+
+	// 3. PATCH with limits
+	t.Run("Update Limits", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"limits": map[string]interface{}{
+				"cpuCores": 2.5,
+				"memoryMb": 2048,
+			},
+		}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/services/"+srv.ID, bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if res.Limits.CPUCores != 2.5 || res.Limits.MemoryMB != 2048 {
+			t.Fatalf("expected cpu 2.5 and mem 2048, got %+v", res.Limits)
+		}
+	})
+}
