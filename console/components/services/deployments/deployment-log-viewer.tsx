@@ -11,6 +11,7 @@ import { LogLine } from '@/components/ui/log-viewer';
 export interface DeploymentLogViewerProps {
   deployment: Deployment;
   serviceName: string;
+  onLiveStepUpdate?: (step: DeploymentStepName) => void;
 }
 
 interface LiveLogChunk {
@@ -30,7 +31,11 @@ const ALL_STEPS: DeploymentStepName[] = [
   'Live',
 ];
 
-export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogViewerProps) {
+export function DeploymentLogViewer({
+  deployment,
+  serviceName,
+  onLiveStepUpdate,
+}: DeploymentLogViewerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   const [autoFollow, setAutoFollow] = useState(true);
@@ -57,6 +62,7 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
             const rawStep = parsed.step || 'Build';
             const matchedStep: DeploymentStepName =
               ALL_STEPS.find((s) => s.toLowerCase() === rawStep.toLowerCase()) || 'Build';
+            onLiveStepUpdate?.(matchedStep);
 
             let cleanMsg = parsed.message || '';
             const msgMatch = cleanMsg.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[.*?\]\s*)?(.*)$/);
@@ -87,9 +93,13 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
             if (match) {
               if (match[1]) {
                 const found = ALL_STEPS.find((s) => s.toLowerCase() === match[1].toLowerCase());
-                if (found) step = found;
+                if (found) {
+                  step = found;
+                  onLiveStepUpdate?.(found);
+                }
               } else if (/queue/i.test(line)) {
                 step = 'Queued';
+                onLiveStepUpdate?.('Queued');
               }
               if (match[2]) {
                 message = match[2].trim();
@@ -174,18 +184,41 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
     durationMs?: number;
   }[] = [];
 
+  const isDeploymentFinished = deployment.status === 'live';
+
   if (effectiveLogs.length > 0) {
+    // Find the latest step that has logs
+    const latestLoggedStepIdx = Math.max(
+      -1,
+      ...effectiveLogs.map((l) => ALL_STEPS.indexOf(l.step))
+    );
+
     // Group logs by steps
-    sections = ALL_STEPS.map((step) => {
+    sections = ALL_STEPS.map((step, idx) => {
       const stepLogs = effectiveLogs.filter((l) => l.step === step);
       const stepMeta = deployment.steps?.find((s) => s.name === step);
+      const hasError = stepLogs.some((l) => l.isError) || stepMeta?.status === 'failed';
 
       let status: StepStatus = 'pending';
-      if (stepMeta?.status) {
-        status = stepMeta.status;
-      } else if (stepLogs.length > 0) {
-        const hasError = stepLogs.some((l) => l.isError);
-        status = hasError ? 'failed' : 'success';
+
+      if (hasError) {
+        status = 'failed';
+      } else if (isDeploymentFinished) {
+        // Entire deployment is finished successfully
+        status = stepLogs.length > 0 || (stepMeta && stepMeta.status !== 'pending') ? 'success' : 'pending';
+      } else if (stepLogs.length > 0 || (stepMeta && stepMeta.status !== 'pending')) {
+        // Deployment still in progress
+        if (idx < latestLoggedStepIdx) {
+          status = 'success';
+        } else if (idx === latestLoggedStepIdx) {
+          if (step === 'Live' || !isStreaming) {
+            status = 'success';
+          } else {
+            status = 'running';
+          }
+        } else {
+          status = 'pending';
+        }
       }
 
       const formattedLogs: LogLine[] = stepLogs.map((l) => ({
@@ -210,7 +243,14 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
     const mockGroups = getMockBuildLogs(serviceName, deployment.commitHash);
     sections = mockGroups.map((group) => {
       const stepMeta = deployment.steps?.find((s) => s.name === group.stepName);
-      const status: StepStatus = stepMeta?.status || (deployment.status === 'live' ? 'success' : 'pending');
+      let status: StepStatus = 'pending';
+      if (isDeploymentFinished) {
+        status = 'success';
+      } else if (stepMeta?.status) {
+        status = stepMeta.status;
+      } else {
+        status = 'pending';
+      }
 
       const filteredLogs = searchQuery
         ? group.logs.filter((l) => l.message.toLowerCase().includes(searchQuery.toLowerCase()))

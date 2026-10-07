@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -283,18 +284,53 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
 				}
 			}
 			if !stepFound {
+				now := time.Now().UTC()
+				nowStr := now.Format(time.RFC3339)
+
+				// Mark any previously running step as completed / success if it didn't fail
+				for i, st := range stepsState {
+					if st.Status == "running" {
+						stepsState[i].Status = "success"
+						stepsState[i].FinishedAt = nowStr
+						if st.StartedAt != "" {
+							if startTime, err := time.Parse(time.RFC3339, st.StartedAt); err == nil {
+								stepsState[i].DurationMS = now.Sub(startTime).Milliseconds()
+							}
+						}
+					}
+				}
+
 				stepStatus := "running"
 				if chunk.IsError {
 					stepStatus = "failed"
 				} else if chunk.Step == "Live" {
 					stepStatus = "success"
 				}
+
+				finishedAtStr := ""
+				if stepStatus == "success" {
+					finishedAtStr = nowStr
+				}
+
 				stepsState = append(stepsState, DeploymentStepJSON{
-					Name:      chunk.Step,
-					Status:    stepStatus,
-					StartedAt: time.Now().UTC().Format(time.RFC3339),
-					Logs:      []string{chunk.Message},
+					Name:       chunk.Step,
+					Status:     stepStatus,
+					StartedAt:  nowStr,
+					FinishedAt: finishedAtStr,
+					Logs:       []string{chunk.Message},
 				})
+			}
+
+			if chunk.Step == "Live" {
+				nowStr := time.Now().UTC().Format(time.RFC3339)
+				for i := range stepsState {
+					if stepsState[i].Status != "failed" {
+						stepsState[i].Status = "success"
+						if stepsState[i].FinishedAt == "" {
+							stepsState[i].FinishedAt = nowStr
+						}
+					}
+				}
 			}
 
 			stepsBytes, _ := json.Marshal(stepsState)
@@ -376,6 +412,27 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
 
 		select {
 		case <-doneCh:
+			now := time.Now().UTC()
+			finalStatus := "live"
+			for _, s := range stepsState {
+				if s.Status == "failed" {
+					finalStatus = "failed"
+					break
+				}
+			}
+			finalStepsBytes, _ := json.Marshal(stepsState)
+			curDep, err := o.queries.GetDeploymentByID(bgCtx, depID)
+			if err == nil {
+				durationMs := now.Sub(curDep.CreatedAt).Milliseconds()
+				_ = o.queries.UpdateDeploymentStatus(bgCtx, db.UpdateDeploymentStatusParams{
+					ID:         depID,
+					Status:     finalStatus,
+					DurationMs: durationMs,
+					FinishedAt: sql.NullTime{Time: now, Valid: true},
+					Steps:      string(finalStepsBytes),
+					Logs:       curDep.Logs,
+				})
+			}
 			return
 		case <-time.After(15 * time.Minute):
 			logMsg := fmt.Sprintf("[%s] Error: Deployment timeout after 15 minutes\n", time.Now().Format("15:04:05"))
@@ -435,6 +492,21 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
 				"message":       logMsg,
 				"status":        status,
 			},
+		})
+	}
+
+	curDep, err := o.queries.GetDeploymentByID(bgCtx, depID)
+	if err == nil {
+		now := time.Now().UTC()
+		durationMs := now.Sub(curDep.CreatedAt).Milliseconds()
+		finalStepsBytes, _ := json.Marshal(stepsState)
+		_ = o.queries.UpdateDeploymentStatus(bgCtx, db.UpdateDeploymentStatusParams{
+			ID:         depID,
+			Status:     "live",
+			DurationMs: durationMs,
+			FinishedAt: sql.NullTime{Time: now, Valid: true},
+			Steps:      string(finalStepsBytes),
+			Logs:       curDep.Logs,
 		})
 	}
 

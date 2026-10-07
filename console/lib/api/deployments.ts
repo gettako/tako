@@ -20,6 +20,8 @@ function normalizeDeployment(d: Record<string, unknown>): Deployment {
     }
   }
 
+  const rawStatus = ((d.status as string)?.toLowerCase() as DeploymentStatus) || 'live';
+
   if (steps.length === 0) {
     steps = [
       { name: 'Queued', status: 'success', durationMs: 800 },
@@ -30,6 +32,35 @@ function normalizeDeployment(d: Record<string, unknown>): Deployment {
       { name: 'Health check', status: 'success', durationMs: 500 },
       { name: 'Live', status: 'success', durationMs: 100 },
     ];
+  } else {
+    if (rawStatus === 'live') {
+      steps = steps.map((s) => ({
+        ...s,
+        status: s.status === 'failed' ? 'failed' : 'success',
+      }));
+    } else {
+      const stepOrder = [
+        'Queued',
+        'Clone',
+        'Build',
+        'Push/Load image',
+        'Deploy',
+        'Health check',
+        'Live',
+      ];
+      const activeIdx = Math.max(
+        ...steps.map((s) => (s.status === 'running' ? stepOrder.indexOf(s.name) : -1))
+      );
+      if (activeIdx > -1) {
+        steps = steps.map((s) => {
+          const idx = stepOrder.indexOf(s.name);
+          if (idx > -1 && idx < activeIdx && s.status !== 'failed') {
+            return { ...s, status: 'success' };
+          }
+          return s;
+        });
+      }
+    }
   }
 
   return {
@@ -40,7 +71,7 @@ function normalizeDeployment(d: Record<string, unknown>): Deployment {
     commitMessage: (d.commitMessage as string) || (d.commit_message as string) || 'Trigger deployment',
     branch: (d.branch as string) || 'main',
     author: (d.author as string) || 'Admin',
-    status: ((d.status as string)?.toLowerCase() as DeploymentStatus) || 'live',
+    status: rawStatus,
     steps,
     startedAt: (d.startedAt as string) || (d.created_at as string) || new Date().toISOString(),
     finishedAt: (d.finishedAt as string) || (d.finished_at as string) || undefined,

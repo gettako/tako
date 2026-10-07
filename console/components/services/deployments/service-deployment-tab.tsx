@@ -163,6 +163,7 @@ export function ServiceDeploymentTab({
             <DeploymentLogViewer
               deployment={selectedDeployment}
               serviceName={service.name}
+              onLiveStepUpdate={(step) => setActiveStep(step)}
             />
           )}
         </div>

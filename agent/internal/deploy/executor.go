@@ -82,6 +82,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 
 	if req.GetRepository() != "" {
 		e.handleGitBuild(ctx, req, targetImage, sendLog)
+		sendLog("Push/Load image", fmt.Sprintf("Image %s ready for deployment", targetImage), false)
 	} else if e.dockerCli != nil && req.GetImage() != "" {
 		sendLog("Push/Load image", fmt.Sprintf("Pulling image %s...", targetImage), false)
 		reader, err := e.dockerCli.RawClient().ImagePull(ctx, targetImage, image.PullOptions{})
