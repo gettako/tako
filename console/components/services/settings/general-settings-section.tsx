@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { GitBranch, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings } from 'lucide-react';
+import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
 
@@ -18,6 +18,7 @@ interface GeneralSettingsSectionProps {
 export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSectionProps) {
   const [name, setName] = useState(service.name);
   const [branch, setBranch] = useState(service.branch || 'main');
+  const [commitHash, setCommitHash] = useState(service.commitHash || '');
   const [dockerfile, setDockerfile] = useState(service.dockerfile || 'Dockerfile');
   const [buildCommand, setBuildCommand] = useState(service.buildCommand || '');
   const [repository, setRepository] = useState(service.repository || '');
@@ -26,6 +27,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
   const isDirty =
     name !== service.name ||
     branch !== (service.branch || 'main') ||
+    commitHash !== (service.commitHash || '') ||
     dockerfile !== (service.dockerfile || 'Dockerfile') ||
     buildCommand !== (service.buildCommand || '') ||
     repository !== (service.repository || '');
@@ -33,6 +35,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
   const handleReset = () => {
     setName(service.name);
     setBranch(service.branch || 'main');
+    setCommitHash(service.commitHash || '');
     setDockerfile(service.dockerfile || 'Dockerfile');
     setBuildCommand(service.buildCommand || '');
     setRepository(service.repository || '');
@@ -50,6 +53,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
       await onUpdate({
         name: name.trim(),
         branch: branch.trim(),
+        commitHash: commitHash.trim() || undefined,
         dockerfile: dockerfile.trim(),
         buildCommand: buildCommand.trim(),
         repository: repository.trim() || undefined,
@@ -161,6 +165,24 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Auto-deployments and webhooks will listen to pushes targeting this branch.
+              </p>
+            </div>
+
+            {/* Commit Hash */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <GitCommit className="size-3.5 text-muted-foreground" />
+                Pinned Commit Hash (Optional)
+              </Label>
+              <Input
+                value={commitHash}
+                onChange={(e) => setCommitHash(e.target.value)}
+                placeholder="e.g. 2919db3 (leave empty for latest HEAD)"
+                className="max-w-md font-mono text-sm"
+                disabled={isSaving}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Pin a specific git commit hash to deploy. Leave empty to automatically build the latest HEAD on {branch || 'main'}.
               </p>
             </div>
 

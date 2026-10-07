@@ -160,10 +160,18 @@ export async function getDeploymentById(id: string): Promise<Deployment | null> 
   return dep ? { ...dep } : null;
 }
 
-export async function triggerDeployment(serviceId: string, branch = 'main'): Promise<Deployment> {
+export async function triggerDeployment(
+  serviceId: string, 
+  branch = 'main',
+  commitHash?: string
+): Promise<Deployment> {
   if (typeof window !== 'undefined') {
     try {
-      const res = await fetch(`/api/services/${serviceId}/deploy`, { method: 'POST' });
+      const res = await fetch(`/api/services/${serviceId}/deploy`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ branch, commitHash }),
+      });
       if (res.ok) {
         const triggerRes = await res.json();
         const depId = triggerRes.deploymentId || `dep-${Date.now()}`;
@@ -171,7 +179,7 @@ export async function triggerDeployment(serviceId: string, branch = 'main'): Pro
           id: depId,
           serviceId,
           serviceName: 'Service',
-          commitHash: Math.random().toString(16).substring(2, 9),
+          commitHash: commitHash || '',
           commitMessage: `deploy: pipeline triggered via console (${branch})`,
           branch,
           author: 'Admin',

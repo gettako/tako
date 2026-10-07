@@ -77,7 +77,7 @@ export default function ServiceDetailPage({
 
   const handleDeploy = async () => {
     if (!service) return;
-    await triggerDeployment(service.id, service.branch || 'main');
+    await triggerDeployment(service.id, service.branch || 'main', service.commitHash);
     await updateServiceStatus(service.id, 'deploying');
     refetchService();
     refetchDeployments();
@@ -103,7 +103,7 @@ export default function ServiceDetailPage({
 
   const handleRebuild = async () => {
     if (!service) return;
-    await triggerDeployment(service.id, service.branch || 'main');
+    await triggerDeployment(service.id, service.branch || 'main', service.commitHash);
     await updateServiceStatus(service.id, 'deploying');
     refetchService();
     refetchDeployments();
@@ -163,6 +163,7 @@ export default function ServiceDetailPage({
             latestDeployment={latestDeployment}
             deployments={deployments}
             onNavigateTab={setActiveTab}
+            onRetryDeploy={handleDeploy}
           />
         )}
 

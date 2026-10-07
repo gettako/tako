@@ -186,6 +186,26 @@ export async function createService(input: CreateServiceInput): Promise<Service>
 }
 
 export async function updateService(id: string, input: UpdateServiceInput): Promise<Service> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (res.ok) {
+        const updatedService = await res.json();
+        const index = services.findIndex((s) => s.id === id || s.slug === id);
+        if (index !== -1) {
+          services[index] = { ...services[index], ...updatedService };
+        }
+        return updatedService;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
   await simulateDelay();
   const index = services.findIndex((s) => s.id === id || s.slug === id);
   if (index === -1) throw new Error(`Service ${id} not found`);
@@ -196,6 +216,7 @@ export async function updateService(id: string, input: UpdateServiceInput): Prom
     name: input.name !== undefined ? input.name : current.name,
     repository: input.repository !== undefined ? input.repository : current.repository,
     branch: input.branch !== undefined ? input.branch : current.branch,
+    commitHash: input.commitHash !== undefined ? input.commitHash : current.commitHash,
     dockerfile: input.dockerfile !== undefined ? input.dockerfile : current.dockerfile,
     buildCommand: input.buildCommand !== undefined ? input.buildCommand : current.buildCommand,
     composeFile: input.composeFile !== undefined ? input.composeFile : current.composeFile,

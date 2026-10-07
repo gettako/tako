@@ -3,7 +3,6 @@
 import React from 'react';
 import {
   Server,
-  Network,
   ShieldCheck,
   GitBranch,
   Calendar,
@@ -11,6 +10,9 @@ import {
   Box,
   Settings,
   ArrowRight,
+  Database,
+  HardDrive,
+  Network,
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -23,20 +25,29 @@ export interface QuickInfoCardProps {
 }
 
 export function QuickInfoCard({ service, onNavigateTab }: QuickInfoCardProps) {
+  const isDatabase = service.type === 'database';
+
   const buildSpec =
     service.dockerfile ||
     service.composeFile ||
     service.buildCommand ||
     (service.image ? `Image: ${service.image}` : 'Standard Dockerfile');
 
+  const dbPort = service.ports[0] || (service.databaseType === 'redis' ? 6379 : 5432);
+  const dbName = service.name.replace(/-/g, '_');
+
   return (
     <Card className="p-6 flex flex-col justify-between">
       <div>
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
-            icon={Server}
-            title="Runtime & Configuration"
-            description="Node placement, build specification, and runtime policies"
+            icon={isDatabase ? Database : Server}
+            title={isDatabase ? 'Database Instance Spec' : 'Runtime & Configuration'}
+            description={
+              isDatabase
+                ? 'Engine specifications, storage mount, and cluster placement'
+                : 'Node placement, build specification, and runtime policies'
+            }
             action={
               onNavigateTab ? (
                 <Button
@@ -67,31 +78,77 @@ export function QuickInfoCard({ service, onNavigateTab }: QuickInfoCardProps) {
               </dd>
             </div>
 
-            {/* Build / Runtime Spec */}
-            <div className="py-2.5 flex items-center justify-between">
-              <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
-                <Box className="size-3.5 text-muted-foreground" />
-                Build Target
-              </dt>
-              <dd className="font-mono text-foreground truncate max-w-[200px]" title={buildSpec}>
-                {buildSpec}
-              </dd>
-            </div>
+            {isDatabase ? (
+              <>
+                {/* Database Engine */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <Database className="size-3.5 text-muted-foreground" />
+                    Engine
+                  </dt>
+                  <dd className="font-mono text-foreground capitalize">
+                    {service.databaseType || 'postgresql'} {service.databaseVersion || '16'}
+                  </dd>
+                </div>
 
-            {/* Repository & Branch */}
-            {service.repository && (
-              <div className="py-2.5 flex items-center justify-between">
-                <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
-                  <GitBranch className="size-3.5 text-muted-foreground" />
-                  Git Branch
-                </dt>
-                <dd
-                  className="font-mono text-foreground truncate max-w-[200px]"
-                  title={`${service.repository} (${service.branch || 'main'})`}
-                >
-                  {service.branch || 'main'}
-                </dd>
-              </div>
+                {/* Default Database Name */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <Box className="size-3.5 text-muted-foreground" />
+                    Default Database
+                  </dt>
+                  <dd className="font-mono text-foreground">{dbName}</dd>
+                </div>
+
+                {/* Internal Port */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <Network className="size-3.5 text-muted-foreground" />
+                    Internal Port
+                  </dt>
+                  <dd className="font-mono text-foreground">{dbPort} / TCP</dd>
+                </div>
+
+                {/* Data Directory / Mount */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <HardDrive className="size-3.5 text-muted-foreground" />
+                    Volume Mount
+                  </dt>
+                  <dd className="font-mono text-muted-foreground text-[11px]">
+                    /var/lib/{service.databaseType || 'database'}/data
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Build / Runtime Spec */}
+                <div className="py-2.5 flex items-center justify-between">
+                  <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                    <Box className="size-3.5 text-muted-foreground" />
+                    Build Target
+                  </dt>
+                  <dd className="font-mono text-foreground truncate max-w-[200px]" title={buildSpec}>
+                    {buildSpec}
+                  </dd>
+                </div>
+
+                {/* Repository & Branch */}
+                {service.repository && (
+                  <div className="py-2.5 flex items-center justify-between">
+                    <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                      <GitBranch className="size-3.5 text-muted-foreground" />
+                      Git Branch
+                    </dt>
+                    <dd
+                      className="font-mono text-foreground truncate max-w-[200px]"
+                      title={`${service.repository} (${service.branch || 'main'})`}
+                    >
+                      {service.branch || 'main'}
+                    </dd>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Environment Variables */}
@@ -145,7 +202,7 @@ export function QuickInfoCard({ service, onNavigateTab }: QuickInfoCardProps) {
 
       {onNavigateTab && (
         <div className="pt-3 mt-3 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Manage deployment hooks and build flags</span>
+          <span>{isDatabase ? 'Tune engine parameters & memory limits' : 'Manage deployment hooks and build flags'}</span>
           <button
             type="button"
             onClick={() => onNavigateTab('settings')}

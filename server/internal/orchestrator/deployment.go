@@ -41,6 +41,92 @@ type CreateServiceParams struct {
 	PublishToHost   *bool
 }
 
+type UpdateServiceParams struct {
+	Name          *string
+	Repository    *string
+	Branch        *string
+	CommitHash    *string
+	Dockerfile    *string
+	BuildCommand  *string
+	Image         *string
+	Replicas      *int64
+	PublishToHost *bool
+}
+
+// UpdateService updates service configuration attributes and metadata in database.
+func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateServiceParams) (*db.Service, error) {
+	srv, err := o.queries.GetServiceByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("service not found: %w", err)
+	}
+
+	name := srv.Name
+	if p.Name != nil && *p.Name != "" {
+		name = *p.Name
+	}
+	repo := srv.Repository
+	if p.Repository != nil {
+		repo = *p.Repository
+	}
+	branch := srv.Branch
+	if p.Branch != nil && *p.Branch != "" {
+		branch = *p.Branch
+	}
+	commitHash := srv.CommitHash
+	if p.CommitHash != nil {
+		commitHash = *p.CommitHash
+	}
+	dockerfile := srv.Dockerfile
+	if p.Dockerfile != nil && *p.Dockerfile != "" {
+		dockerfile = *p.Dockerfile
+	}
+	buildCommand := srv.BuildCommand
+	if p.BuildCommand != nil {
+		buildCommand = *p.BuildCommand
+	}
+	img := srv.Image
+	if p.Image != nil {
+		img = *p.Image
+	}
+	replicas := srv.Replicas
+	if p.Replicas != nil && *p.Replicas > 0 {
+		replicas = *p.Replicas
+	}
+	publishToHost := srv.PublishToHost
+	if p.PublishToHost != nil {
+		if *p.PublishToHost {
+			publishToHost = 1
+		} else {
+			publishToHost = 0
+		}
+	}
+
+	_, err = o.db.ExecContext(ctx, `
+		UPDATE services SET
+			name = ?,
+			repository = ?,
+			branch = ?,
+			commit_hash = ?,
+			dockerfile = ?,
+			build_command = ?,
+			image = ?,
+			replicas = ?,
+			publish_to_host = ?,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`,
+		name, repo, branch, commitHash, dockerfile, buildCommand, img, replicas, publishToHost, id,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update service: %w", err)
+	}
+
+	updated, err := o.queries.GetServiceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return &updated, nil
+}
+
 // CreateService creates a new service, associates domains and environment variables.
 func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams) (*db.Service, error) {
 	if p.ProjectID == "" {
@@ -187,9 +273,31 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 
 // TriggerDeploy initiates a new deployment pipeline for a given service.
 func (o *Orchestrator) TriggerDeploy(ctx context.Context, serviceID string) (*db.Deployment, error) {
+	return o.TriggerDeployWithParams(ctx, serviceID, "", "")
+}
+
+// TriggerDeployWithParams initiates a new deployment pipeline with optional branch and commitHash overrides.
+func (o *Orchestrator) TriggerDeployWithParams(ctx context.Context, serviceID, branch, commitHash string) (*db.Deployment, error) {
 	srv, err := o.queries.GetServiceByID(ctx, serviceID)
 	if err != nil {
 		return nil, fmt.Errorf("service not found: %w", err)
+	}
+
+	targetBranch := srv.Branch
+	if branch != "" {
+		targetBranch = branch
+	}
+
+	targetCommit := commitHash
+	if targetCommit != "" {
+		srv.CommitHash = targetCommit
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET commit_hash = ?, branch = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", targetCommit, targetBranch, srv.ID)
+	} else if srv.Repository != "" {
+		// When deploying a Git repo without a pinned commit, leave targetCommit empty
+		// so agent git clone pulls the latest HEAD of targetBranch instead of reusing old image cache!
+		targetCommit = ""
+	} else {
+		targetCommit = srv.CommitHash
 	}
 
 	depID := "dep-" + randomHex(8)
@@ -207,14 +315,14 @@ func (o *Orchestrator) TriggerDeploy(ctx context.Context, serviceID string) (*db
 			nodeIP = node.IpAddress
 		}
 	}
-	previewDomain, previewURL := buildPreviewURL(srv.CommitHash, depID, nodeIP)
+	previewDomain, previewURL := buildPreviewURL(targetCommit, depID, nodeIP)
 
 	dep, err := o.queries.CreateDeployment(ctx, db.CreateDeploymentParams{
 		ID:            depID,
 		ServiceID:     srv.ID,
-		CommitHash:    srv.CommitHash,
+		CommitHash:    targetCommit,
 		CommitMessage: "Manual deployment trigger",
-		Branch:        srv.Branch,
+		Branch:        targetBranch,
 		Author:        "system",
 		Status:        "queued",
 		Steps:         string(stepsJSON),
@@ -232,11 +340,13 @@ func (o *Orchestrator) TriggerDeploy(ctx context.Context, serviceID string) (*db
 		TargetName: srv.Name,
 		Metadata: map[string]interface{}{
 			"deploymentId": depID,
-			"commitHash":   srv.CommitHash,
+			"commitHash":   targetCommit,
 		},
 	})
 
-	// Run deployment pipeline asynchronously
+	// Run deployment pipeline asynchronously with updated service object
+	srv.CommitHash = targetCommit
+	srv.Branch = targetBranch
 	go o.runDeploymentPipeline(srv, depID, previewDomain, previewURL)
 
 	return &dep, nil

@@ -12,6 +12,7 @@ export interface ServiceOverviewTabProps {
   latestDeployment?: Deployment | null;
   deployments?: Deployment[];
   onNavigateTab?: (tabId: string) => void;
+  onRetryDeploy?: () => void;
 }
 
 export function ServiceOverviewTab({
@@ -19,6 +20,7 @@ export function ServiceOverviewTab({
   latestDeployment,
   deployments,
   onNavigateTab,
+  onRetryDeploy,
 }: ServiceOverviewTabProps) {
   const activeDeployment = latestDeployment || deployments?.[0] || null;
 
@@ -30,10 +32,14 @@ export function ServiceOverviewTab({
         latestDeployment={activeDeployment}
         onViewAllDeployments={() => onNavigateTab?.('deployments')}
         onNavigateTab={onNavigateTab}
+        onRetryDeploy={onRetryDeploy}
       />
 
       {/* 2. Live Telemetry & Resource Utilization (CPU, RAM, Disk, Replicas) */}
-      <ResourceMetricsCard service={service} />
+      <ResourceMetricsCard
+        service={service}
+        onNavigateTab={onNavigateTab}
+      />
 
       {/* 3. Networking Endpoints & Runtime Configuration Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

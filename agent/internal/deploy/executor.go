@@ -99,7 +99,14 @@ func (e *Executor) ExecuteDeployWithCallback(
 	}
 
 	if req.GetRepository() != "" {
-		e.handleGitBuild(ctx, req, targetImage, sendLog)
+		actualHash := e.handleGitBuild(ctx, req, targetImage, sendLog)
+		if actualHash != "" && (req.GetCommitHash() == "" || req.GetCommitHash() == "main" || req.GetCommitHash() == "master") {
+			commit8 = actualHash
+			if len(commit8) > 8 {
+				commit8 = commit8[:8]
+			}
+			containerName = fmt.Sprintf("tako-app-%s-%s", serviceName, commit8)
+		}
 		sendLog("Push/Load image", fmt.Sprintf("Image %s ready for deployment", targetImage), false)
 	} else if e.dockerCli != nil && req.GetImage() != "" {
 		sendLog("Push/Load image", fmt.Sprintf("Pulling image %s...", targetImage), false)
@@ -536,14 +543,14 @@ func (e *Executor) handleGitBuild(
 	req *takov1.DeployRequest,
 	targetImage string,
 	sendLog func(step, msg string, isError bool),
-) {
+) string {
 	commitHash := req.GetCommitHash()
 
-	// 1. Reuse existing cached image for this commit if already built locally
-	if e.dockerCli != nil && commitHash != "" {
+	// 1. Reuse existing cached image for this commit if explicitly specified (not main/master) and already built locally
+	if e.dockerCli != nil && commitHash != "" && commitHash != "main" && commitHash != "master" {
 		if _, _, err := e.dockerCli.RawClient().ImageInspectWithRaw(ctx, targetImage); err == nil {
 			sendLog("Build", fmt.Sprintf("Using cached local image %s for commit %s", targetImage, commitHash), false)
-			return
+			return commitHash
 		}
 	}
 
@@ -561,7 +568,7 @@ func (e *Executor) handleGitBuild(
 		sendLog("Clone", fmt.Sprintf("Notice: temp dir error (%v), falling back to simulated clone", err), false)
 		sendLog("Build", fmt.Sprintf("Building Dockerfile %s...", dockerfileName), false)
 		sendLog("Build", fmt.Sprintf("Successfully tagged %s", targetImage), false)
-		return
+		return commitHash
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -577,7 +584,7 @@ func (e *Executor) handleGitBuild(
 		sendLog("Clone", fmt.Sprintf("Notice: git clone output: %s (%v)", strings.TrimSpace(string(out)), err), false)
 		sendLog("Build", fmt.Sprintf("Building Dockerfile %s (simulated context)...", dockerfileName), false)
 		sendLog("Build", fmt.Sprintf("Successfully tagged %s", targetImage), false)
-		return
+		return commitHash
 	}
 
 	sendLog("Clone", fmt.Sprintf("Successfully cloned %s", repoURL), false)
@@ -629,14 +636,19 @@ func (e *Executor) handleGitBuild(
 		tarStream, err := createTarArchive(tmpDir)
 		if err != nil {
 			sendLog("Build", fmt.Sprintf("Failed to archive build context: %v", err), true)
-			return
+			return actualHash
+		}
+
+		buildTags := []string{
+			targetImage,
+			fmt.Sprintf("tako/%s:latest", req.GetServiceName()),
+		}
+		if actualHash != "" && len(actualHash) >= 8 {
+			buildTags = append(buildTags, fmt.Sprintf("tako/%s:%s", req.GetServiceName(), actualHash[:8]))
 		}
 
 		buildOpts := types.ImageBuildOptions{
-			Tags: []string{
-				targetImage,
-				fmt.Sprintf("tako/%s:latest", req.GetServiceName()),
-			},
+			Tags:       buildTags,
 			Dockerfile: dockerfileName,
 			Remove:     true,
 		}
@@ -667,6 +679,7 @@ func (e *Executor) handleGitBuild(
 	}
 
 	sendLog("Build", fmt.Sprintf("Successfully tagged %s", targetImage), false)
+	return actualHash
 }
 
 func createTarArchive(srcDir string) (io.Reader, error) {

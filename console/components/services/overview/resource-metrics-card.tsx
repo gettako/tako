@@ -1,26 +1,27 @@
 'use client';
 
 import React from 'react';
-import { Cpu, HardDrive, Activity, Server, Radio } from 'lucide-react';
+import { Cpu, HardDrive, Activity, Server, Radio, ArrowRight } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { ResourceBar } from '@/components/ui/resource-bar';
 import { Service } from '@/lib/types';
-import { cn } from '@/lib/utils';
 
 export interface ResourceMetricsCardProps {
   service: Service;
+  onNavigateTab?: (tabId: string) => void;
 }
 
-export function ResourceMetricsCard({ service }: ResourceMetricsCardProps) {
-  const memoryPercent = Math.min(
-    100,
-    Math.round((service.usage.memoryUsedMb / Math.max(1, service.limits.memoryMb)) * 100)
-  );
+export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsCardProps) {
+  const hasMemoryLimit = (service.limits?.memoryMb || 0) > 0;
+  const memoryPercent = hasMemoryLimit
+    ? Math.min(100, Math.round((service.usage.memoryUsedMb / service.limits.memoryMb) * 100))
+    : 0;
 
-  const diskLimit = service.limits.diskGb || 10;
+  const hasCpuLimit = (service.limits?.cpuCores || 0) > 0;
+  const diskLimit = service.limits?.diskGb || 10;
   const diskUsed = service.usage.diskUsedGb || 1;
-  const diskPercent = Math.min(100, Math.round((diskUsed / diskLimit) * 100));
+  const diskPercent = Math.min(100, Math.round((diskUsed / Math.max(1, diskLimit)) * 100));
 
   const getLoadBadge = (pct: number) => {
     if (pct >= 90) {
@@ -85,7 +86,9 @@ export function ResourceMetricsCard({ service }: ResourceMetricsCardProps) {
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground font-mono">
-                Limit: {service.limits.cpuCores} {service.limits.cpuCores === 1 ? 'Core' : 'Cores'}
+                {hasCpuLimit
+                  ? `Limit: ${service.limits.cpuCores} ${service.limits.cpuCores === 1 ? 'Core' : 'Cores'}`
+                  : 'Shared host compute'}
               </p>
             </div>
 
@@ -107,9 +110,13 @@ export function ResourceMetricsCard({ service }: ResourceMetricsCardProps) {
                 <HardDrive className="size-3.5 text-muted-foreground" />
                 Memory (RAM)
               </span>
-              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/50">
-                {memoryPercent}%
-              </span>
+              {hasMemoryLimit ? (
+                getLoadBadge(memoryPercent)
+              ) : (
+                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/50">
+                  Shared
+                </span>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -120,14 +127,16 @@ export function ResourceMetricsCard({ service }: ResourceMetricsCardProps) {
                 <span className="text-xs text-muted-foreground font-mono">MB</span>
               </div>
               <p className="text-[11px] text-muted-foreground font-mono">
-                Limit: {service.limits.memoryMb} MB
+                {hasMemoryLimit
+                  ? `Limit: ${service.limits.memoryMb} MB (${memoryPercent}%)`
+                  : 'Shared with host node'}
               </p>
             </div>
 
             <div className="pt-1">
               <ResourceBar
                 value={service.usage.memoryUsedMb}
-                max={service.limits.memoryMb}
+                max={hasMemoryLimit ? service.limits.memoryMb : Math.max(service.usage.memoryUsedMb, 1024)}
                 unit="MB"
                 showPercentage={false}
                 size="sm"
@@ -180,9 +189,22 @@ export function ResourceMetricsCard({ service }: ResourceMetricsCardProps) {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 font-mono text-[11px]">
-            <Radio className="size-3 text-emerald-500" />
-            <span>Agent daemon telemetry synced</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5 font-mono text-[11px]">
+              <Radio className="size-3 text-emerald-500" />
+              <span>Daemon synced</span>
+            </div>
+
+            {onNavigateTab && (
+              <button
+                type="button"
+                onClick={() => onNavigateTab('settings')}
+                className="text-foreground hover:underline font-medium inline-flex items-center gap-1 text-[11px]"
+              >
+                <span>Adjust Limits</span>
+                <ArrowRight className="size-3" />
+              </button>
+            )}
           </div>
         </div>
       </CardContent>

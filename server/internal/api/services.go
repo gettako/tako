@@ -233,11 +233,54 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			var req struct {
-				Status string `json:"status"`
+				Status        string  `json:"status"`
+				Name          string  `json:"name"`
+				Repository    *string `json:"repository"`
+				Branch        string  `json:"branch"`
+				CommitHash    *string `json:"commitHash"`
+				Dockerfile    string  `json:"dockerfile"`
+				BuildCommand  *string `json:"buildCommand"`
+				Image         *string `json:"image"`
+				Replicas      *int64  `json:"replicas"`
+				PublishToHost *bool   `json:"publishToHost"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				http.Error(w, "invalid request body", http.StatusBadRequest)
 				return
+			}
+
+			hasConfigUpdate := req.Name != "" || req.Repository != nil || req.Branch != "" ||
+				req.CommitHash != nil || req.Dockerfile != "" || req.BuildCommand != nil ||
+				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil
+
+			if hasConfigUpdate {
+				var namePtr, branchPtr, dfPtr *string
+				if req.Name != "" {
+					namePtr = &req.Name
+				}
+				if req.Branch != "" {
+					branchPtr = &req.Branch
+				}
+				if req.Dockerfile != "" {
+					dfPtr = &req.Dockerfile
+				}
+
+				updated, updateErr := orch.UpdateService(r.Context(), id, orchestrator.UpdateServiceParams{
+					Name:          namePtr,
+					Repository:    req.Repository,
+					Branch:        branchPtr,
+					CommitHash:    req.CommitHash,
+					Dockerfile:    dfPtr,
+					BuildCommand:  req.BuildCommand,
+					Image:         req.Image,
+					Replicas:      req.Replicas,
+					PublishToHost: req.PublishToHost,
+				})
+				if updateErr != nil {
+					http.Error(w, updateErr.Error(), http.StatusInternalServerError)
+					return
+				}
+				srv = *updated
 			}
 
 			if req.Status != "" {
@@ -253,14 +296,36 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
+			domains, _ := orch.Queries().ListServiceDomains(r.Context(), id)
+			domainStrings := make([]string, len(domains))
+			for i, d := range domains {
+				domainStrings[i] = d.Domain
+			}
+			envVars, _ := orch.Queries().ListServiceEnvVars(r.Context(), id)
+			envResponses := make([]ServiceEnvVarResponse, len(envVars))
+			for i, ev := range envVars {
+				envResponses[i] = ServiceEnvVarResponse{
+					ID:       ev.ID,
+					Key:      ev.Key,
+					Value:    ev.Value,
+					IsSecret: ev.IsSecret != 0,
+				}
+			}
+
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domainStrings, envResponses))
 		})
 
 		// POST /api/v1/services/{id}/deploy
 		r.Post("/{id}/deploy", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			dep, err := orch.TriggerDeploy(r.Context(), id)
+			var req struct {
+				Branch     string `json:"branch"`
+				CommitHash string `json:"commitHash"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+
+			dep, err := orch.TriggerDeployWithParams(r.Context(), id, req.Branch, req.CommitHash)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

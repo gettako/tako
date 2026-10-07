@@ -74,6 +74,7 @@ export interface UpdateServiceInput {
   name?: string;
   repository?: string;
   branch?: string;
+  commitHash?: string;
   dockerfile?: string;
   buildCommand?: string;
   composeFile?: string;
