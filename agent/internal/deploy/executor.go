@@ -97,18 +97,31 @@ func (e *Executor) ExecuteDeployWithCallback(
 		sendLog("Push/Load image", fmt.Sprintf("Using specified image %s", targetImage), false)
 	}
 
-	// Step 2: Prepare Traefik Labels
+	// Step 2: Prepare Traefik Labels & Dynamic Config
 	targetPort := 80
 	if len(req.GetPorts()) > 0 && req.GetPorts()[0] > 0 {
 		targetPort = int(req.GetPorts()[0])
 	}
 
+	// containerName is always tako-app-<slug> so Traefik can resolve within tako-network
+	containerName := fmt.Sprintf("tako-app-%s", serviceName)
+
+	// Determine whether any production (non-preview) custom domain is present
+	hasCustomDomain := false
+	for _, d := range req.GetDomains() {
+		if !strings.HasSuffix(d, ".sslip.io") && !strings.HasSuffix(d, ".nip.io") && !strings.HasSuffix(d, ".xip.io") {
+			hasCustomDomain = true
+			break
+		}
+	}
+
 	traefikCfg := traefik.RouteConfig{
-		ServiceName: serviceName,
-		Domains:     req.GetDomains(),
-		TargetPort:  targetPort,
-		EnableTLS:   true,
-		Network:     "tako-network",
+		ServiceName:   serviceName,
+		ContainerName: containerName,
+		Domains:       req.GetDomains(),
+		TargetPort:    targetPort,
+		EnableTLS:     hasCustomDomain, // only enable TLS when a real custom domain is attached
+		Network:       "tako-network",
 	}
 
 	traefikLabels := traefik.GenerateLabels(traefikCfg)
@@ -125,7 +138,6 @@ func (e *Executor) ExecuteDeployWithCallback(
 	sendLog("Deploy", fmt.Sprintf("Prepared Traefik routing rules for %d domains (port %d)", len(req.GetDomains()), targetPort), false)
 
 	// Step 3: Run Container
-	containerName := fmt.Sprintf("tako-app-%s", serviceName)
 	if e.dockerCli != nil {
 		// Stop & remove existing container if exists
 		_ = e.dockerCli.RawClient().ContainerStop(ctx, containerName, container.StopOptions{})

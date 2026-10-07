@@ -2,6 +2,7 @@
 # Physical host location: /etc/tako/traefik/tako.yml
 http:
   routers:
+    # HTTPS: Console served on websecure
     tako-console-secure:
       rule: "PathPrefix(`/`)"
       entryPoints:
@@ -11,12 +12,21 @@ http:
         certResolver: letsencrypt
       service: tako-console
 
-    tako-console:
+    # HTTP: Redirect console to HTTPS
+    tako-console-redirect:
       rule: "PathPrefix(`/`)"
       entryPoints:
         - web
       priority: 1
+      middlewares:
+        - tako-redirect-ssl
       service: tako-console
+
+  middlewares:
+    tako-redirect-ssl:
+      redirectScheme:
+        scheme: https
+        permanent: true
 
   services:
     tako-console:

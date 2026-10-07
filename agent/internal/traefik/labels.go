@@ -9,14 +9,22 @@ import (
 var nameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_\-]`)
 
 type RouteConfig struct {
-	ServiceName  string
-	Domains      []string
-	TargetPort   int
-	EnableTLS    bool
-	CertResolver string
-	Network      string
-	Middlewares  []string
-	PathPrefix   string
+	ServiceName   string
+	ContainerName string
+	Domains       []string
+	TargetPort    int
+	EnableTLS     bool
+	ForceHTTPS    bool
+	CertResolver  string
+	Network       string
+	Middlewares   []string
+	PathPrefix    string
+}
+
+// SanitizeName cleans up service name for Traefik router/service identifiers.
+func SanitizeName(s string) string {
+	s = nameSanitizer.ReplaceAllString(s, "-")
+	return strings.Trim(s, "-")
 }
 
 // GenerateLabels builds a standard map of Traefik v3 Docker container labels.
@@ -111,6 +119,5 @@ func appendMiddleware(labels map[string]string, routerName, mwName string) {
 }
 
 func sanitizeName(s string) string {
-	s = nameSanitizer.ReplaceAllString(s, "-")
-	return strings.Trim(s, "-")
+	return SanitizeName(s)
 }
