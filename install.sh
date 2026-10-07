@@ -90,12 +90,19 @@ fi
 # 3. Detect Host Public IP
 detect_public_ip() {
   local ip=""
-  ip=$(curl -s -4 --connect-timeout 3 https://ifconfig.co 2>/dev/null) || true
+  if [[ -n "${TAKO_PUBLIC_IP:-}" ]]; then
+    echo "$TAKO_PUBLIC_IP"
+    return
+  fi
+  ip=$(curl -s -4 --connect-timeout 2 https://ifconfig.co 2>/dev/null) || true
   if [[ -z "$ip" ]]; then
-    ip=$(curl -s -4 --connect-timeout 3 https://api.ipify.org 2>/dev/null) || true
+    ip=$(curl -s -4 --connect-timeout 2 https://api.ipify.org 2>/dev/null) || true
   fi
   if [[ -z "$ip" ]]; then
-    ip=$(curl -s -4 --connect-timeout 3 https://icanhazip.com 2>/dev/null) || true
+    ip=$(curl -s -4 --connect-timeout 2 https://icanhazip.com 2>/dev/null) || true
+  fi
+  if [[ -z "$ip" ]]; then
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}') || true
   fi
   if [[ -z "$ip" ]]; then
     ip="127.0.0.1"
@@ -192,6 +199,7 @@ if [[ $IS_AGENT -eq 1 ]]; then
   MASTER_URL="${TAKO_MASTER_URL:-}"
   AGENT_TOKEN="${TAKO_AGENT_TOKEN:-}"
   NODE_NAME="${TAKO_NODE_NAME:-$(hostname)}"
+  NODE_IP="${TAKO_PUBLIC_IP:-$PUBLIC_IP}"
 
   if [[ -z "$MASTER_URL" ]]; then
     prompt_input "Enter Master gRPC URL (<master-ip>:50051)" "${PUBLIC_IP}:50051" MASTER_URL
@@ -199,6 +207,10 @@ if [[ $IS_AGENT -eq 1 ]]; then
 
   if [[ -z "$AGENT_TOKEN" ]]; then
     prompt_secret "Enter Agent Enrollment Token" "master-enroll-token" AGENT_TOKEN
+  fi
+
+  if [[ -z "${TAKO_PUBLIC_IP:-}" ]]; then
+    prompt_input "Enter Node Public IP" "$NODE_IP" NODE_IP
   fi
 
   cat << EOF > "${TAKO_DIR}/docker-compose.yml"
@@ -230,6 +242,8 @@ services:
       - TAKO_SERVER_ADDR=${MASTER_URL}
       - TAKO_ENROLL_TOKEN=${AGENT_TOKEN}
       - TAKO_NODE_NAME=${NODE_NAME}
+      - TAKO_PUBLIC_IP=${NODE_IP}
+      - TAKO_IP_ADDRESS=${NODE_IP}
       - TAKO_METRICS_INTERVAL=3s
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
     networks:
@@ -257,6 +271,7 @@ echo -e "\n${BOLD}=== Configuring Tako Master Server ===${NC}\n"
 ADMIN_EMAIL="${TAKO_EMAIL:-}"
 ADMIN_PASSWORD="${TAKO_PASSWORD:-}"
 AUTH_SECRET="${TAKO_AUTH_SECRET:-$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)}"
+SERVER_IP="${TAKO_PUBLIC_IP:-$PUBLIC_IP}"
 
 if [[ -z "$ADMIN_EMAIL" ]]; then
   prompt_input "Enter Admin Email" "admin@gettako.dev" ADMIN_EMAIL
@@ -264,6 +279,10 @@ fi
 
 if [[ -z "$ADMIN_PASSWORD" ]]; then
   prompt_secret "Enter Admin Password" "admin123456" ADMIN_PASSWORD
+fi
+
+if [[ -z "${TAKO_PUBLIC_IP:-}" ]]; then
+  prompt_input "Enter Server Public IP" "$SERVER_IP" SERVER_IP
 fi
 
 # Write dynamic Tako Console routing config for Traefik
@@ -342,7 +361,7 @@ services:
       - "3000:3000"
     environment:
       - TAKO_SERVER_URL=http://tako-server:8080
-      - NEXT_PUBLIC_TAKO_SERVER_URL=http://${PUBLIC_IP}:3000
+      - NEXT_PUBLIC_TAKO_SERVER_URL=http://${SERVER_IP}:3000
     depends_on:
       - server
     networks:
@@ -364,6 +383,8 @@ services:
       - TAKO_NODE_ID=tako-master-01
       - TAKO_NODE_NAME=tako-master-01
       - TAKO_NODE_ROLE=leader
+      - TAKO_PUBLIC_IP=${SERVER_IP}
+      - TAKO_IP_ADDRESS=${SERVER_IP}
       - TAKO_STATE_FILE=/data/agent.json
       - TAKO_METRICS_INTERVAL=3s
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic

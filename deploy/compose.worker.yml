@@ -31,6 +31,8 @@ services:
       - TAKO_ENROLL_TOKEN=${TAKO_AGENT_TOKEN}
       - TAKO_NODE_NAME=${TAKO_NODE_NAME}
       - TAKO_NODE_ROLE=worker
+      - TAKO_PUBLIC_IP=${TAKO_PUBLIC_IP:-}
+      - TAKO_IP_ADDRESS=${TAKO_PUBLIC_IP:-127.0.0.1}
       - TAKO_STATE_FILE=/data/agent.json
       - TAKO_METRICS_INTERVAL=3s
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic

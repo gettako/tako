@@ -52,7 +52,7 @@ services:
       - "3000:3000"
     environment:
       - TAKO_SERVER_URL=http://tako-server:8080
-      - NEXT_PUBLIC_TAKO_SERVER_URL=http://localhost:3000
+      - NEXT_PUBLIC_TAKO_SERVER_URL=http://${TAKO_PUBLIC_IP:-localhost}:3000
     depends_on:
       - server
     networks:
@@ -77,6 +77,8 @@ services:
       - TAKO_NODE_ID=${TAKO_NODE_ID:-tako-master-01}
       - TAKO_NODE_NAME=${TAKO_NODE_NAME:-tako-master-01}
       - TAKO_NODE_ROLE=leader
+      - TAKO_PUBLIC_IP=${TAKO_PUBLIC_IP:-}
+      - TAKO_IP_ADDRESS=${TAKO_PUBLIC_IP:-127.0.0.1}
       - TAKO_STATE_FILE=/data/agent.json
       - TAKO_METRICS_INTERVAL=3s
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
