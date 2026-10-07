@@ -161,6 +161,7 @@ export default function ServiceDetailPage({
           <ServiceOverviewTab
             service={service}
             latestDeployment={latestDeployment}
+            deployments={deployments}
             onNavigateTab={setActiveTab}
           />
         )}
