@@ -172,6 +172,7 @@ export default function ServiceDetailPage({
 
         <TerminalTab
           service={service}
+          deployments={deployments}
           isTabActive={activeTab === 'terminal'}
           onNavigateToTerminalTab={() => setActiveTab('terminal')}
         />

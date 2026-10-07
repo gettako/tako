@@ -142,8 +142,14 @@ func RemoveDynamicConfig(dir, serviceName string) error {
 	}
 	name := sanitizeName(serviceName)
 	filePath := filepath.Join(dir, fmt.Sprintf("%s.yml", name))
-	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
-		return err
+	_ = os.Remove(filePath)
+
+	// Clean up any preview configs (e.g. <name>-<commit8>.yml)
+	pattern := filepath.Join(dir, fmt.Sprintf("%s-*.yml", name))
+	if matches, err := filepath.Glob(pattern); err == nil {
+		for _, m := range matches {
+			_ = os.Remove(m)
+		}
 	}
 	return nil
 }

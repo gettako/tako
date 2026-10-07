@@ -14,22 +14,83 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Service } from '@/lib/types';
+import { Service, Deployment } from '@/lib/types';
 import { XtermTerminal, XtermTerminalRef } from './xterm-terminal';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 
 export interface TerminalTabProps {
   service: Service;
+  deployments?: Deployment[];
   isTabActive?: boolean;
   onNavigateToTerminalTab?: () => void;
 }
 
 export function TerminalTab({ 
   service, 
+  deployments,
   isTabActive = true,
   onNavigateToTerminalTab 
 }: TerminalTabProps) {
-  const [selectedContainer, setSelectedContainer] = useState(`tako-app-${service.slug}`);
+  const containerOptions = React.useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    const seen = new Set<string>();
+
+    if (deployments && deployments.length > 0) {
+      deployments.forEach((dep, idx) => {
+        const rawCommit = dep.commitHash || '';
+        let commit8 = rawCommit.length > 8 ? rawCommit.slice(0, 8) : rawCommit;
+        if (!commit8 || commit8 === 'main' || commit8 === 'master') {
+          const cleanDep = dep.id.replace('dep-', '');
+          commit8 = cleanDep.length >= 8 ? cleanDep.slice(0, 8) : 'preview';
+        }
+        const name = `tako-app-${service.slug}-${commit8}`;
+        if (!seen.has(name)) {
+          seen.add(name);
+          opts.push({
+            value: name,
+            label: idx === 0 ? `${name} (Active)` : `${name} (rev: ${commit8})`,
+          });
+        }
+      });
+    }
+
+    const baseName = `tako-app-${service.slug}`;
+    if (!seen.has(baseName)) {
+      opts.push({
+        value: baseName,
+        label: `${baseName} (Auto-resolve)`,
+      });
+    }
+
+    if (service.replicas > 1) {
+      opts.push({
+        value: `tako-app-${service.slug}-2`,
+        label: `tako-app-${service.slug}-2`,
+      });
+    }
+
+    return opts;
+  }, [deployments, service.slug, service.replicas]);
+
+  const [selectedContainer, setSelectedContainer] = useState(() => {
+    if (deployments && deployments.length > 0) {
+      const rawCommit = deployments[0].commitHash || '';
+      let commit8 = rawCommit.length > 8 ? rawCommit.slice(0, 8) : rawCommit;
+      if (!commit8 || commit8 === 'main' || commit8 === 'master') {
+        const cleanDep = deployments[0].id.replace('dep-', '');
+        commit8 = cleanDep.length >= 8 ? cleanDep.slice(0, 8) : 'preview';
+      }
+      return `tako-app-${service.slug}-${commit8}`;
+    }
+    return `tako-app-${service.slug}`;
+  });
+
+  useEffect(() => {
+    if (containerOptions.length > 0 && selectedContainer === `tako-app-${service.slug}`) {
+      setSelectedContainer(containerOptions[0].value);
+    }
+  }, [containerOptions, selectedContainer, service.slug]);
+
   const [viewMode, setViewMode] = useState<'inline' | 'fullscreen' | 'minimized'>('inline');
   const termRef = useRef<XtermTerminalRef>(null);
 
@@ -159,12 +220,7 @@ export function TerminalTab({
                 <SearchableSelect
                   value={selectedContainer}
                   onValueChange={setSelectedContainer}
-                  options={[
-                    { value: `tako-app-${service.slug}`, label: `tako-app-${service.slug}` },
-                    ...(service.replicas > 1
-                      ? [{ value: `tako-app-${service.slug}-2`, label: `tako-app-${service.slug}-2` }]
-                      : []),
-                  ]}
+                  options={containerOptions}
                   size="sm"
                   className="h-8 font-mono text-xs w-52 bg-background"
                 />
@@ -219,12 +275,7 @@ export function TerminalTab({
                 <SearchableSelect
                   value={selectedContainer}
                   onValueChange={setSelectedContainer}
-                  options={[
-                    { value: `tako-app-${service.slug}`, label: `tako-app-${service.slug}` },
-                    ...(service.replicas > 1
-                      ? [{ value: `tako-app-${service.slug}-2`, label: `tako-app-${service.slug}-2` }]
-                      : []),
-                  ]}
+                  options={containerOptions}
                   size="sm"
                   className="h-8 font-mono text-xs w-52 bg-card"
                 />

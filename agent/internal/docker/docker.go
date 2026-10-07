@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -67,11 +68,123 @@ func (c *Client) Events(ctx context.Context) (<-chan events.Message, <-chan erro
 	})
 }
 
+// ResolveContainer resolves a container name or service identifier to an active Docker container name/ID.
+// If exact containerName exists directly, it is returned. Otherwise, it searches for matching
+// containers created for this service (e.g. tako-app-<slug>-<commit>), prioritizing running containers
+// and the most recently created one.
+func (c *Client) ResolveContainer(ctx context.Context, containerName string) string {
+	if c.cli == nil || containerName == "" {
+		return containerName
+	}
+
+	// 1. Direct inspect check
+	if _, err := c.cli.ContainerInspect(ctx, containerName); err == nil {
+		return containerName
+	}
+
+	// 2. Query matching containers
+	containers := c.ResolveAllContainers(ctx, containerName)
+	if len(containers) > 0 {
+		return containers[0]
+	}
+
+	return containerName
+}
+
+// ResolveAllContainers returns all container IDs or names matching the given identifier or service slug,
+// prioritizing running containers and sorting by newest created timestamp first.
+func (c *Client) ResolveAllContainers(ctx context.Context, nameOrSlug string) []string {
+	if c.cli == nil || nameOrSlug == "" {
+		if nameOrSlug != "" {
+			return []string{nameOrSlug}
+		}
+		return nil
+	}
+
+	all, err := c.cli.ContainerList(ctx, container.ListOptions{All: true})
+	if err != nil {
+		return []string{nameOrSlug}
+	}
+
+	slug := strings.TrimPrefix(nameOrSlug, "/")
+	slug = strings.TrimPrefix(slug, "tako-app-")
+
+	prefixSlash := fmt.Sprintf("/tako-app-%s-", slug)
+	prefixClean := fmt.Sprintf("tako-app-%s-", slug)
+	legacySlash := fmt.Sprintf("/tako-app-%s", slug)
+	legacyClean := fmt.Sprintf("tako-app-%s", slug)
+
+	var matched []types.Container
+
+	for _, cont := range all {
+		isMatch := false
+
+		// Match by labels
+		if cont.Labels["tako.service.name"] == slug || cont.Labels["tako.service.id"] == nameOrSlug {
+			isMatch = true
+		}
+
+		// Match by container names
+		if !isMatch {
+			for _, n := range cont.Names {
+				if strings.HasPrefix(n, prefixSlash) || strings.HasPrefix(n, prefixClean) ||
+					n == legacySlash || n == legacyClean || n == "/"+nameOrSlug || n == nameOrSlug {
+					isMatch = true
+					break
+				}
+			}
+		}
+
+		if isMatch {
+			matched = append(matched, cont)
+		}
+	}
+
+	if len(matched) == 0 {
+		for _, cont := range all {
+			for _, n := range cont.Names {
+				clean := strings.TrimPrefix(n, "/")
+				if clean == nameOrSlug || clean == slug {
+					matched = append(matched, cont)
+					break
+				}
+			}
+		}
+	}
+
+	if len(matched) == 0 {
+		return []string{nameOrSlug}
+	}
+
+	// Sort: running containers first, then newest Created timestamp first
+	sort.Slice(matched, func(i, j int) bool {
+		iRunning := matched[i].State == "running"
+		jRunning := matched[j].State == "running"
+		if iRunning != jRunning {
+			return iRunning
+		}
+		return matched[i].Created > matched[j].Created
+	})
+
+	var result []string
+	for _, m := range matched {
+		name := m.ID
+		if len(m.Names) > 0 {
+			name = strings.TrimPrefix(m.Names[0], "/")
+		}
+		result = append(result, name)
+	}
+
+	return result
+}
+
 // Exec runs a command inside a running container and returns stdout/stderr and exit code.
 func (c *Client) Exec(ctx context.Context, containerName string, cmd string) (string, int, error) {
 	if c.cli == nil {
 		return "", 1, fmt.Errorf("docker client not available")
 	}
+
+	target := c.ResolveContainer(ctx, containerName)
 
 	execCfg := types.ExecConfig{
 		AttachStdout: true,
@@ -79,7 +192,7 @@ func (c *Client) Exec(ctx context.Context, containerName string, cmd string) (st
 		Cmd:          []string{"/bin/sh", "-c", cmd},
 	}
 
-	execIDResp, err := c.cli.ContainerExecCreate(ctx, containerName, execCfg)
+	execIDResp, err := c.cli.ContainerExecCreate(ctx, target, execCfg)
 	if err != nil {
 		return "", 1, fmt.Errorf("failed to create exec: %w", err)
 	}
@@ -117,12 +230,14 @@ func (c *Client) Logs(ctx context.Context, containerName string, tailLines int) 
 		return "", fmt.Errorf("docker client not available")
 	}
 
+	target := c.ResolveContainer(ctx, containerName)
+
 	tail := "100"
 	if tailLines > 0 {
 		tail = fmt.Sprintf("%d", tailLines)
 	}
 
-	reader, err := c.cli.ContainerLogs(ctx, containerName, container.LogsOptions{
+	reader, err := c.cli.ContainerLogs(ctx, target, container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Tail:       tail,
@@ -155,18 +270,31 @@ func (c *Client) ContainerAction(ctx context.Context, containerName string, acti
 
 	switch action {
 	case "start":
-		return c.cli.ContainerStart(ctx, containerName, container.StartOptions{})
+		target := c.ResolveContainer(ctx, containerName)
+		return c.cli.ContainerStart(ctx, target, container.StartOptions{})
 	case "stop":
-		return c.cli.ContainerStop(ctx, containerName, container.StopOptions{})
-	case "restart":
-		return c.cli.ContainerRestart(ctx, containerName, container.StopOptions{})
-	case "remove", "delete":
-		_ = c.cli.ContainerStop(ctx, containerName, container.StopOptions{})
-		err := c.cli.ContainerRemove(ctx, containerName, container.RemoveOptions{Force: true})
-		if err != nil && (strings.Contains(err.Error(), "No such container") || strings.Contains(err.Error(), "not found")) {
-			return nil
+		targets := c.ResolveAllContainers(ctx, containerName)
+		var lastErr error
+		for _, t := range targets {
+			if err := c.cli.ContainerStop(ctx, t, container.StopOptions{}); err != nil {
+				lastErr = err
+			}
 		}
-		return err
+		return lastErr
+	case "restart":
+		target := c.ResolveContainer(ctx, containerName)
+		return c.cli.ContainerRestart(ctx, target, container.StopOptions{})
+	case "remove", "delete":
+		targets := c.ResolveAllContainers(ctx, containerName)
+		var lastErr error
+		for _, t := range targets {
+			_ = c.cli.ContainerStop(ctx, t, container.StopOptions{})
+			err := c.cli.ContainerRemove(ctx, t, container.RemoveOptions{Force: true})
+			if err != nil && !strings.Contains(err.Error(), "No such container") && !strings.Contains(err.Error(), "not found") {
+				lastErr = err
+			}
+		}
+		return lastErr
 	default:
 		return fmt.Errorf("unsupported action: %s", action)
 	}

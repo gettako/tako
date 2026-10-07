@@ -284,7 +284,8 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			var req struct {
-				Command string `json:"command"`
+				Command       string `json:"command"`
+				ContainerName string `json:"containerName"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Command == "" {
 				http.Error(w, "command required", http.StatusBadRequest)
@@ -292,6 +293,9 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			containerName := "tako-app-" + srv.Slug
+			if req.ContainerName != "" {
+				containerName = req.ContainerName
+			}
 			out, code, err := orch.DispatchExec(r.Context(), srv.NodeID, containerName, req.Command)
 			res := map[string]any{
 				"output":   out,
@@ -322,6 +326,9 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			containerName := "tako-app-" + srv.Slug
+			if cName := r.URL.Query().Get("containerName"); cName != "" {
+				containerName = cName
+			}
 			logs, err := orch.DispatchContainerLogs(r.Context(), srv.NodeID, containerName, 100)
 			if err != nil {
 				logs = fmt.Sprintf("[%s] Notice: container not active or offline (%v)\n", time.Now().Format("15:04:05"), err)

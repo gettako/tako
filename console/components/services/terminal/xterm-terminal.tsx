@@ -234,7 +234,7 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
 
           isProcessingRef.current = true;
           try {
-            const res = await execServiceCommand(service.id, trimmed);
+            const res = await execServiceCommand(service.id, trimmed, containerName);
             const out = (res.output || '').trimEnd();
             if (out) {
               const formatted = out.replace(/\r?\n/g, '\r\n');

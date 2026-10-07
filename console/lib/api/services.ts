@@ -291,14 +291,15 @@ export async function getServiceEnvVars(id: string): Promise<EnvVar[]> {
 
 export async function execServiceCommand(
   id: string,
-  command: string
+  command: string,
+  containerName?: string
 ): Promise<{ output: string; exitCode: number; error?: string }> {
   if (typeof window !== 'undefined') {
     try {
       const res = await fetch(`/api/services/${id}/exec`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command }),
+        body: JSON.stringify({ command, containerName }),
       });
       if (res.ok) {
         return await res.json();
@@ -311,10 +312,13 @@ export async function execServiceCommand(
   return { output: 'Container terminal service unavailable', exitCode: 1 };
 }
 
-export async function getServiceContainerLogs(id: string): Promise<string> {
+export async function getServiceContainerLogs(id: string, containerName?: string): Promise<string> {
   if (typeof window !== 'undefined') {
     try {
-      const res = await fetch(`/api/services/${id}/container-logs`);
+      const url = containerName
+        ? `/api/services/${id}/container-logs?containerName=${encodeURIComponent(containerName)}`
+        : `/api/services/${id}/container-logs`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         return data.logs || '';
