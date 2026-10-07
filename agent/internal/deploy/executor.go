@@ -137,7 +137,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 		}
 	}
 
-	// Separate preview domain for this commit from canonical/custom domains
+	// Separate preview domain (sslip.io / nip.io / xip.io) from canonical/custom domains
 	var previewDomains []string
 	var canonicalDomains []string
 
@@ -146,15 +146,25 @@ func (e *Executor) ExecuteDeployWithCallback(
 		if trimmed == "" {
 			continue
 		}
-		if strings.HasPrefix(trimmed, commit8+"-") && (strings.HasSuffix(trimmed, ".sslip.io") || strings.HasSuffix(trimmed, ".nip.io") || strings.HasSuffix(trimmed, ".xip.io")) {
-			previewDomains = append(previewDomains, trimmed)
+		isWildcard := strings.HasSuffix(trimmed, ".sslip.io") || strings.HasSuffix(trimmed, ".nip.io") || strings.HasSuffix(trimmed, ".xip.io")
+		if isWildcard {
+			if strings.HasPrefix(trimmed, commit8+"-") {
+				previewDomains = append(previewDomains, trimmed)
+			}
+			canonicalDomains = append(canonicalDomains, trimmed)
 		} else {
 			canonicalDomains = append(canonicalDomains, trimmed)
 		}
 	}
 
-	if len(previewDomains) == 0 && len(req.GetDomains()) > 0 {
-		previewDomains = req.GetDomains()
+	// If no commit-specific preview domain was found, fallback to wildcard preview domains only
+	if len(previewDomains) == 0 {
+		for _, d := range req.GetDomains() {
+			trimmed := strings.TrimSpace(d)
+			if strings.HasSuffix(trimmed, ".sslip.io") || strings.HasSuffix(trimmed, ".nip.io") || strings.HasSuffix(trimmed, ".xip.io") {
+				previewDomains = append(previewDomains, trimmed)
+			}
+		}
 	}
 
 	dynamicDir := os.Getenv("TAKO_TRAEFIK_DYNAMIC_DIR")

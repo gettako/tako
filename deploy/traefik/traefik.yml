@@ -25,16 +25,12 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: ${TAKO_ACME_EMAIL:-admin@gettako.dev}
+      email: admin@gettako.dev
       storage: /acme.json
       httpChallenge:
         entryPoint: web
 
 providers:
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
-    network: "tako-network"
   file:
     directory: "/etc/traefik/dynamic"
     watch: true

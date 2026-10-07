@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:latest
     container_name: tako-traefik
     restart: unless-stopped
     ports:
@@ -13,6 +13,7 @@ services:
       - /etc/tako/traefik/acme.json:/acme.json
     environment:
       - TAKO_ACME_EMAIL=${TAKO_ACME_EMAIL:-admin@gettako.dev}
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=${TAKO_ACME_EMAIL:-admin@gettako.dev}
     networks:
       - tako-network
 

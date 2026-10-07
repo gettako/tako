@@ -216,7 +216,7 @@ if [[ $IS_AGENT -eq 1 ]]; then
   cat << EOF > "${TAKO_DIR}/docker-compose.yml"
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:latest
     container_name: tako-traefik
     restart: unless-stopped
     ports:
@@ -315,7 +315,7 @@ EOF
 cat << EOF > "${TAKO_DIR}/docker-compose.yml"
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:latest
     container_name: tako-traefik
     restart: unless-stopped
     ports:

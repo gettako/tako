@@ -86,6 +86,7 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 		b.WriteString(fmt.Sprintf("    %s-secure:\n", configName))
 		b.WriteString(fmt.Sprintf("      rule: \"%s\"\n", tlsRule))
 		b.WriteString("      entryPoints:\n        - websecure\n")
+		b.WriteString("      priority: 100\n")
 		b.WriteString(fmt.Sprintf("      tls:\n        certResolver: %s\n", certResolver))
 		b.WriteString(fmt.Sprintf("      service: %s\n", configName))
 		if len(cfg.Middlewares) > 0 {
@@ -99,14 +100,9 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 		b.WriteString(fmt.Sprintf("    %s-web:\n", configName))
 		b.WriteString(fmt.Sprintf("      rule: \"%s\"\n", tlsRule))
 		b.WriteString("      entryPoints:\n        - web\n")
+		b.WriteString("      priority: 100\n")
 		b.WriteString(fmt.Sprintf("      middlewares:\n        - %s-redirect-ssl\n", configName))
 		b.WriteString(fmt.Sprintf("      service: %s\n", configName))
-
-		// Redirect middleware definition
-		if _, err := b.WriteString("  middlewares:\n"); err == nil {
-			b.WriteString(fmt.Sprintf("    %s-redirect-ssl:\n", configName))
-			b.WriteString("      redirectScheme:\n        scheme: https\n        permanent: true\n")
-		}
 	}
 
 	// Plain HTTP routers for sslip.io / nip.io preview domains
@@ -123,6 +119,13 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 				b.WriteString(fmt.Sprintf("        - %s\n", m))
 			}
 		}
+	}
+
+	// Middleware definitions (must be after all routers)
+	if len(tlsDomains) > 0 {
+		b.WriteString("  middlewares:\n")
+		b.WriteString(fmt.Sprintf("    %s-redirect-ssl:\n", configName))
+		b.WriteString("      redirectScheme:\n        scheme: https\n        permanent: true\n")
 	}
 
 	// Service backend — MUST use the actual Docker container hostname
