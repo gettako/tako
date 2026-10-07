@@ -23,7 +23,7 @@ import {
   Network,
   Loader2,
 } from 'lucide-react';
-import { createNode } from '@/lib/api/nodes';
+import { createNode, createNodeEnrollToken } from '@/lib/api/nodes';
 import { Node } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -44,8 +44,7 @@ export function CreateNodeDialog({
 
   React.useEffect(() => {
     if (open) {
-      fetch('/api/nodes/enroll-token', { method: 'POST' })
-        .then((res) => res.json())
+      createNodeEnrollToken()
         .then((data) => {
           if (data?.token) setToken(data.token);
         })

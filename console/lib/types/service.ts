@@ -82,3 +82,12 @@ export interface UpdateServiceInput {
   limits?: Partial<ResourceLimit>;
   replicas?: number;
 }
+
+export interface BackupItem {
+  id: string;
+  name: string;
+  sizeMb: number;
+  status: 'completed' | 'in_progress' | 'failed';
+  createdAt: string;
+}
+

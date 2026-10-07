@@ -297,3 +297,8 @@ export async function rollbackDeployment(deploymentId: string): Promise<Deployme
   deployments.unshift(rollbackDep);
   return rollbackDep;
 }
+
+export function getDeploymentLogsStreamUrl(deploymentId: string): string {
+  return `/api/sse/deployments/${deploymentId}/logs`;
+}
+

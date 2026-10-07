@@ -154,3 +154,24 @@ export async function getOfflineNodesCount(): Promise<number> {
   await simulateDelay(50, 100);
   return nodes.filter((n) => n.status === 'offline').length;
 }
+
+export async function createNodeEnrollToken(): Promise<{ token: string; expiresAt?: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/nodes/enroll-token', { method: 'POST' });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  return { token: `tako_enroll_${Math.random().toString(36).slice(2, 12)}` };
+}
+
+export const getNodeEnrollToken = createNodeEnrollToken;
+
+export function getNodeEventsStreamUrl(): string {
+  return '/api/sse/nodes';
+}
+

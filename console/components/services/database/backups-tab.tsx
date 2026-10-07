@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Archive, Plus, RotateCcw, CheckCircle2, Download, Trash2, Database } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Button } from '@/components/ui/button';
@@ -13,101 +14,73 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Service } from '@/lib/types';
+import {
+  getServiceBackups,
+  createServiceBackup,
+  deleteServiceBackup,
+  restoreServiceBackup,
+  type BackupItem,
+} from '@/lib/api/backups';
 
-interface BackupItem {
-  id: string;
-  name: string;
-  sizeMb: number;
-  status: 'completed' | 'in_progress' | 'failed';
-  createdAt: string;
-}
+export type { BackupItem };
 
 export interface BackupsTabProps {
   service: Service;
 }
 
 export function BackupsTab({ service }: BackupsTabProps) {
-  const initialBackups: BackupItem[] = [
-    {
-      id: 'bk-1',
-      name: `backup-${service.slug}-2026-10-05-0300.sql.gz`,
-      sizeMb: 48.2,
-      status: 'completed',
-      createdAt: '2026-10-05T03:00:00Z',
-    },
-    {
-      id: 'bk-2',
-      name: `backup-${service.slug}-2026-10-04-0300.sql.gz`,
-      sizeMb: 47.9,
-      status: 'completed',
-      createdAt: '2026-10-04T03:00:00Z',
-    },
-  ];
-
-  const [backups, setBackups] = useState<BackupItem[]>(initialBackups);
-  const [isCreating, setIsCreating] = useState(false);
+  const queryClient = useQueryClient();
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    async function loadBackups() {
-      try {
-        const res = await fetch(`/api/settings/service_backups_${service.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setBackups(data);
-          }
-        }
-      } catch {
-        // fallback
-      }
-    }
-    loadBackups();
-  }, [service.id]);
+  const { data: backups = [] } = useQuery({
+    queryKey: ['service-backups', service.id],
+    queryFn: () => getServiceBackups(service.id, service.slug),
+  });
 
-  const saveBackups = async (newBackups: BackupItem[]) => {
-    try {
-      await fetch(`/api/settings/service_backups_${service.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: newBackups }),
-      });
-    } catch {
-      // fallback
-    }
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['service-backups', service.id] });
   };
 
-  const handleCreateBackup = () => {
-    setIsCreating(true);
-    setTimeout(async () => {
-      const newBackup: BackupItem = {
-        id: `bk-${Date.now()}`,
-        name: `manual-${service.slug}-${new Date().toISOString().slice(0, 10)}.sql.gz`,
-        sizeMb: 48.4,
-        status: 'completed',
-        createdAt: new Date().toISOString(),
-      };
-      const updated = [newBackup, ...backups];
-      setBackups(updated);
-      await saveBackups(updated);
-      setIsCreating(false);
+  const createMutation = useMutation({
+    mutationFn: () => createServiceBackup(service.id, service.slug),
+    onSuccess: () => {
+      invalidate();
       setActionNotice('Database backup created and saved to S3 target.');
       setTimeout(() => setActionNotice(null), 3000);
-    }, 1200);
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (name: string) => restoreServiceBackup(service.id, name),
+    onSuccess: (_, name) => {
+      setActionNotice(`Restore initiated from ${name}...`);
+      setTimeout(() => setActionNotice(null), 4000);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteServiceBackup(service.id, id, service.slug),
+    onSuccess: () => {
+      invalidate();
+    },
+  });
+
+  const handleCreateBackup = () => {
+    createMutation.mutate();
   };
 
   const handleRestore = (name: string) => {
     if (confirm(`Are you sure you want to restore database from ${name}? Current state will be overwritten.`)) {
-      setActionNotice(`Restore initiated from ${name}...`);
-      setTimeout(() => setActionNotice(null), 4000);
+      restoreMutation.mutate(name);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const updated = backups.filter((b) => b.id !== id);
-    setBackups(updated);
-    await saveBackups(updated);
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
   };
+
+  const isCreating = createMutation.isPending;
+
 
   return (
     <div className="space-y-6">

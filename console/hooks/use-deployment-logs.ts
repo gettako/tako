@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getDeploymentLogsStreamUrl } from '@/lib/api/deployments';
 
 export interface DeploymentLogEvent {
   deployment_id: string;
@@ -19,7 +20,7 @@ export function useDeploymentLogs(deploymentId: string | null) {
     if (!deploymentId || typeof window === 'undefined') return;
 
     setIsLive(true);
-    const es = new EventSource(`/api/sse/deployments/${deploymentId}/logs`);
+    const es = new EventSource(getDeploymentLogsStreamUrl(deploymentId));
 
     es.addEventListener('log', (e) => {
       try {

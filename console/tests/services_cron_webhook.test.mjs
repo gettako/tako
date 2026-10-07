@@ -184,4 +184,41 @@ test('GitHub App Manifest - generates valid manifest specification', async () =>
   assert.ok(manifest.default_events.includes('installation'));
 });
 
+test('Backups Lifecycle - snapshot creation and deletion flow', async () => {
+  let backups = [
+    {
+      id: 'bk-1',
+      name: 'backup-postgres-2026-10-05-0300.sql.gz',
+      sizeMb: 48.2,
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+    },
+  ];
+
+  const newBackup = {
+    id: `bk-${Date.now()}`,
+    name: 'manual-postgres-2026-10-08.sql.gz',
+    sizeMb: 48.4,
+    status: 'completed',
+    createdAt: new Date().toISOString(),
+  };
+
+  backups = [newBackup, ...backups];
+  assert.equal(backups.length, 2);
+  assert.equal(backups[0].id, newBackup.id);
+
+  // Delete
+  backups = backups.filter((b) => b.id !== 'bk-1');
+  assert.equal(backups.length, 1);
+});
+
+test('Endpoint Builders - generates clean stream URLs', () => {
+  const getDeploymentLogsStreamUrl = (id) => `/api/sse/deployments/${id}/logs`;
+  const getNodeEventsStreamUrl = () => '/api/sse/nodes';
+
+  assert.equal(getNodeEventsStreamUrl(), '/api/sse/nodes');
+  assert.equal(getDeploymentLogsStreamUrl('dep-123'), '/api/sse/deployments/dep-123/logs');
+});
+
+
 

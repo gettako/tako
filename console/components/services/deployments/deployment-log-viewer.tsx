@@ -5,6 +5,7 @@ import { Search, Copy, Check, ArrowDown, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BuildLogSection } from './build-log-section';
 import { Deployment, DeploymentStepName, StepStatus } from '@/lib/types';
+import { getDeploymentLogsStreamUrl } from '@/lib/api/deployments';
 import { getMockBuildLogs } from '@/lib/mock/log-streamer';
 import { LogLine } from '@/components/ui/log-viewer';
 
@@ -49,7 +50,7 @@ export function DeploymentLogViewer({
     let mounted = true;
 
     try {
-      const url = `/api/sse/deployments/${deployment.id}/logs`;
+      const url = getDeploymentLogsStreamUrl(deployment.id);
       es = new EventSource(url);
       setIsStreaming(true);
 

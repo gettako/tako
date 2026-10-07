@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Node } from '@/lib/types';
+import { getNodeEventsStreamUrl } from '@/lib/api/nodes';
 
 export function useNodeEvents() {
   const queryClient = useQueryClient();
@@ -11,7 +12,7 @@ export function useNodeEvents() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const es = new EventSource('/api/sse/nodes');
+    const es = new EventSource(getNodeEventsStreamUrl());
     eventSourceRef.current = es;
 
     // Handle initial snapshot
