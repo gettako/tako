@@ -36,6 +36,9 @@ func GenerateLabels(cfg RouteConfig) map[string]string {
 	}
 
 	routerName := sanitizeName(cfg.ServiceName)
+	if cfg.ConfigName != "" {
+		routerName = sanitizeName(cfg.ConfigName)
+	}
 	if routerName == "" {
 		routerName = "app"
 	}

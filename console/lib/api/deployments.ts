@@ -76,11 +76,26 @@ function generatePreviewUrl(commitHash?: string, depId?: string): string {
   return `http://${commit8}-127-0-0-1.sslip.io`;
 }
 
+  let resolvedCommit = ((d.commitHash as string) || (d.commit_hash as string) || '').trim();
+  const previewUrlCandidate = (d.url as string) || (d.previewUrl as string) || (d.preview_url as string) || '';
+  if (!resolvedCommit || resolvedCommit === 'main' || resolvedCommit === 'master') {
+    const urlMatch = previewUrlCandidate.match(/https?:\/\/([a-f0-9]{7,40})[-.]/i);
+    if (urlMatch && urlMatch[1]) {
+      resolvedCommit = urlMatch[1];
+    } else if (d.id) {
+      const cleanId = String(d.id).replace(/^dep-/, '');
+      if (cleanId.length >= 7) {
+        resolvedCommit = cleanId.slice(0, 8);
+      }
+    }
+  }
+  if (!resolvedCommit) resolvedCommit = 'main';
+
   return {
     id: String(d.id),
     serviceId: (d.serviceId as string) || (d.service_id as string) || '',
     serviceName: (d.serviceName as string) || 'Service',
-    commitHash: (d.commitHash as string) || (d.commit_hash as string) || 'main',
+    commitHash: resolvedCommit,
     commitMessage: (d.commitMessage as string) || (d.commit_message as string) || 'Trigger deployment',
     branch: (d.branch as string) || 'main',
     author: (d.author as string) || 'Admin',
@@ -93,13 +108,8 @@ function generatePreviewUrl(commitHash?: string, depId?: string): string {
     isRollback: Boolean(d.isRollback),
     logs: (d.logs as string) || undefined,
     previewUrl:
-      (d.url as string) ||
-      (d.previewUrl as string) ||
-      (d.preview_url as string) ||
-      generatePreviewUrl(
-        (d.commitHash as string) || (d.commit_hash as string),
-        String(d.id)
-      ),
+      previewUrlCandidate ||
+      generatePreviewUrl(resolvedCommit, String(d.id)),
   };
 }
 

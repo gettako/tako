@@ -76,10 +76,26 @@ func (e *Executor) ExecuteDeployWithCallback(
 
 	sendLog("Queued", fmt.Sprintf("Deployment %s initialized for service %s", depID, serviceName), false)
 
+	commit8 := req.GetCommitHash()
+	if len(commit8) > 8 {
+		commit8 = commit8[:8]
+	}
+	if commit8 == "" || commit8 == "main" || commit8 == "master" {
+		cleanDep := strings.TrimPrefix(depID, "dep-")
+		if len(cleanDep) >= 8 {
+			commit8 = cleanDep[:8]
+		} else {
+			commit8 = "preview"
+		}
+	}
+
+	// containerName is tako-app-<slug>-<commit8> to isolate deployments
+	containerName := fmt.Sprintf("tako-app-%s-%s", serviceName, commit8)
+
 	// Step 1: Pull or Build Image
 	targetImage := req.GetImage()
 	if targetImage == "" {
-		targetImage = fmt.Sprintf("tako/%s:latest", serviceName)
+		targetImage = fmt.Sprintf("tako/%s:%s", serviceName, commit8)
 	}
 
 	if req.GetRepository() != "" {
@@ -104,22 +120,6 @@ func (e *Executor) ExecuteDeployWithCallback(
 	if len(req.GetPorts()) > 0 && req.GetPorts()[0] > 0 {
 		targetPort = int(req.GetPorts()[0])
 	}
-
-	commit8 := req.GetCommitHash()
-	if len(commit8) > 8 {
-		commit8 = commit8[:8]
-	}
-	if commit8 == "" || commit8 == "main" || commit8 == "master" {
-		cleanDep := strings.TrimPrefix(depID, "dep-")
-		if len(cleanDep) >= 8 {
-			commit8 = cleanDep[:8]
-		} else {
-			commit8 = "preview"
-		}
-	}
-
-	// containerName is tako-app-<slug>-<commit8> to isolate deployments
-	containerName := fmt.Sprintf("tako-app-%s-%s", serviceName, commit8)
 
 	// Determine whether any production (non-preview) custom domain is present
 	hasCustomDomain := false
@@ -205,6 +205,9 @@ func (e *Executor) ExecuteDeployWithCallback(
 		portBindings := make(nat.PortMap)
 
 		if req.GetPublishToHost() && targetPort > 0 {
+			// Proactively release the host port from any other running preview containers of this service
+			e.releaseServiceHostPort(ctx, req.GetServiceId(), serviceName, containerName, targetPort, sendLog)
+
 			portKey := nat.Port(fmt.Sprintf("%d/tcp", targetPort))
 			exposedPorts[portKey] = struct{}{}
 			portBindings[portKey] = []nat.PortBinding{
@@ -237,8 +240,73 @@ func (e *Executor) ExecuteDeployWithCallback(
 			containerName,
 		)
 		if err == nil {
-			if startErr := e.dockerCli.RawClient().ContainerStart(ctx, resp.ID, container.StartOptions{}); startErr != nil {
-				sendLog("Deploy", fmt.Sprintf("Warning: could not start container %s: %v", resp.ID[:12], startErr), true)
+			startErr := e.dockerCli.RawClient().ContainerStart(ctx, resp.ID, container.StartOptions{})
+			if startErr != nil && strings.Contains(startErr.Error(), "port is already allocated") {
+				sendLog("Deploy", fmt.Sprintf("Host port %d conflict detected on start, attempting resolution...", targetPort), false)
+
+				// Find and stop any container of this service occupying this port
+				running, _ := e.dockerCli.ListContainers(ctx, false)
+				for _, rc := range running {
+					if rc.ID == resp.ID {
+						continue
+					}
+					isServiceMatch := rc.Labels["tako.service.id"] == req.GetServiceId()
+					for _, n := range rc.Names {
+						if strings.HasPrefix(n, "/tako-app-"+serviceName) {
+							isServiceMatch = true
+							break
+						}
+					}
+					for _, p := range rc.Ports {
+						if p.PublicPort == uint16(targetPort) && isServiceMatch {
+							confName := rc.ID[:12]
+							if len(rc.Names) > 0 {
+								confName = strings.TrimPrefix(rc.Names[0], "/")
+							}
+							sendLog("Deploy", fmt.Sprintf("Stopping conflicting container %s occupying host port %d...", confName, targetPort), false)
+							_ = e.dockerCli.RawClient().ContainerStop(ctx, rc.ID, container.StopOptions{})
+							break
+						}
+					}
+				}
+
+				startErr = e.dockerCli.RawClient().ContainerStart(ctx, resp.ID, container.StartOptions{})
+			}
+
+			// If still failing because host port is occupied (e.g. by an external process or another service):
+			if startErr != nil && strings.Contains(startErr.Error(), "port is already allocated") {
+				sendLog("Deploy", fmt.Sprintf("Notice: host port %d is occupied by another process. Falling back to Traefik domain routing.", targetPort), false)
+
+				_ = e.dockerCli.RawClient().ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
+				respFallback, createFallbackErr := e.dockerCli.RawClient().ContainerCreate(
+					ctx,
+					&container.Config{
+						Image:        targetImage,
+						Env:          envList,
+						Labels:       traefikLabels,
+						ExposedPorts: exposedPorts,
+					},
+					&container.HostConfig{
+						RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+						PortBindings:  nil,
+					},
+					&network.NetworkingConfig{
+						EndpointsConfig: map[string]*network.EndpointSettings{
+							"tako-network": {},
+						},
+					},
+					nil,
+					containerName,
+				)
+				if createFallbackErr == nil {
+					resp = respFallback
+					startErr = e.dockerCli.RawClient().ContainerStart(ctx, resp.ID, container.StartOptions{})
+				}
+			}
+
+			if startErr != nil {
+				sendLog("Deploy", fmt.Sprintf("Error: could not start container %s: %v", resp.ID[:12], startErr), true)
+				return fmt.Errorf("failed to start container %s: %w", resp.ID[:12], startErr)
 			} else {
 				sendLog("Deploy", fmt.Sprintf("Container %s started successfully", resp.ID[:12]), false)
 			}
@@ -349,15 +417,138 @@ func (e *Executor) pruneOldDeployments(
 	}
 }
 
+func (e *Executor) releaseServiceHostPort(
+	ctx context.Context,
+	serviceID string,
+	serviceName string,
+	currentContainerName string,
+	targetPort int,
+	sendLog func(step, msg string, isError bool),
+) {
+	if e.dockerCli == nil || targetPort <= 0 {
+		return
+	}
+
+	runningContainers, err := e.dockerCli.ListContainers(ctx, false)
+	if err != nil {
+		return
+	}
+
+	prefix := fmt.Sprintf("/tako-app-%s-", serviceName)
+	exactLegacy := fmt.Sprintf("/tako-app-%s", serviceName)
+
+	for _, c := range runningContainers {
+		// Skip container being currently created/deployed
+		isCurrent := false
+		for _, n := range c.Names {
+			cleanN := strings.TrimPrefix(n, "/")
+			if cleanN == currentContainerName {
+				isCurrent = true
+				break
+			}
+		}
+		if isCurrent {
+			continue
+		}
+
+		// Check if it belongs to this service
+		isServiceContainer := false
+		if c.Labels["tako.service.id"] == serviceID {
+			isServiceContainer = true
+		} else {
+			for _, n := range c.Names {
+				if strings.HasPrefix(n, prefix) || n == exactLegacy {
+					isServiceContainer = true
+					break
+				}
+			}
+		}
+
+		if !isServiceContainer {
+			continue
+		}
+
+		// Check if it currently binds targetPort on the host
+		hasPortBinding := false
+		for _, p := range c.Ports {
+			if p.PublicPort == uint16(targetPort) {
+				hasPortBinding = true
+				break
+			}
+		}
+
+		if !hasPortBinding {
+			continue
+		}
+
+		cName := ""
+		if len(c.Names) > 0 {
+			cName = strings.TrimPrefix(c.Names[0], "/")
+		} else {
+			cName = c.ID[:12]
+		}
+
+		inspect, inspectErr := e.dockerCli.RawClient().ContainerInspect(ctx, c.ID)
+		if inspectErr != nil {
+			_ = e.dockerCli.RawClient().ContainerStop(ctx, c.ID, container.StopOptions{})
+			sendLog("Deploy", fmt.Sprintf("Stopped conflicting container %s to release host port %d", cName, targetPort), false)
+			continue
+		}
+
+		// Stop and remove container currently holding the host port
+		_ = e.dockerCli.RawClient().ContainerStop(ctx, c.ID, container.StopOptions{})
+		_ = e.dockerCli.RawClient().ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
+
+		// Recreate container without host port bindings so it remains alive on Traefik network
+		cfg := inspect.Config
+		if cfg != nil {
+			cfg.Hostname = ""
+			if inspect.Image != "" {
+				cfg.Image = inspect.Image
+			}
+		}
+		recreated, createErr := e.dockerCli.RawClient().ContainerCreate(
+			ctx,
+			cfg,
+			&container.HostConfig{
+				RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+				PortBindings:  nil, // No host port binding
+			},
+			&network.NetworkingConfig{
+				EndpointsConfig: map[string]*network.EndpointSettings{
+					"tako-network": {},
+				},
+			},
+			nil,
+			cName,
+		)
+		if createErr == nil {
+			_ = e.dockerCli.RawClient().ContainerStart(ctx, recreated.ID, container.StartOptions{})
+			sendLog("Deploy", fmt.Sprintf("Released host port %d from preview container %s (kept active on Traefik network)", targetPort, cName), false)
+		} else {
+			sendLog("Deploy", fmt.Sprintf("Released host port %d by stopping preview container %s", targetPort, cName), false)
+		}
+	}
+}
+
 func (e *Executor) handleGitBuild(
 	ctx context.Context,
 	req *takov1.DeployRequest,
 	targetImage string,
 	sendLog func(step, msg string, isError bool),
 ) {
+	commitHash := req.GetCommitHash()
+
+	// 1. Reuse existing cached image for this commit if already built locally
+	if e.dockerCli != nil && commitHash != "" {
+		if _, _, err := e.dockerCli.RawClient().ImageInspectWithRaw(ctx, targetImage); err == nil {
+			sendLog("Build", fmt.Sprintf("Using cached local image %s for commit %s", targetImage, commitHash), false)
+			return
+		}
+	}
+
 	repoURL := req.GetRepository()
 	branch := req.GetBranch()
-	commitHash := req.GetCommitHash()
 	dockerfileName := req.GetDockerfile()
 	if dockerfileName == "" {
 		dockerfileName = "Dockerfile"
@@ -393,7 +584,29 @@ func (e *Executor) handleGitBuild(
 
 	if commitHash != "" {
 		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", commitHash)
-		_ = checkoutCmd.Run()
+		if err := checkoutCmd.Run(); err != nil {
+			// In shallow clone depth 1, commitHash might not be fetched yet. Fetch it explicitly.
+			fetchCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--depth", "1", "origin", commitHash)
+			if err := fetchCmd.Run(); err == nil {
+				_ = exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "FETCH_HEAD").Run()
+			} else {
+				// Fallback: unshallow and checkout
+				_ = exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--unshallow").Run()
+				_ = exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", commitHash).Run()
+			}
+		}
+	}
+
+	// Extract actual commit metadata from repository
+	headCommitOut, _ := exec.CommandContext(ctx, "git", "-C", tmpDir, "rev-parse", "HEAD").Output()
+	actualHash := strings.TrimSpace(string(headCommitOut))
+	msgOut, _ := exec.CommandContext(ctx, "git", "-C", tmpDir, "log", "-1", "--format=%s").Output()
+	actualMsg := strings.TrimSpace(string(msgOut))
+	authorOut, _ := exec.CommandContext(ctx, "git", "-C", tmpDir, "log", "-1", "--format=%an").Output()
+	actualAuthor := strings.TrimSpace(string(authorOut))
+
+	if actualHash != "" {
+		sendLog("Clone", fmt.Sprintf("HEAD commit %s: %s (by %s)", actualHash, actualMsg, actualAuthor), false)
 	}
 
 	dockerfilePath := filepath.Join(tmpDir, dockerfileName)
@@ -420,7 +633,10 @@ func (e *Executor) handleGitBuild(
 		}
 
 		buildOpts := types.ImageBuildOptions{
-			Tags:       []string{targetImage},
+			Tags: []string{
+				targetImage,
+				fmt.Sprintf("tako/%s:latest", req.GetServiceName()),
+			},
 			Dockerfile: dockerfileName,
 			Remove:     true,
 		}

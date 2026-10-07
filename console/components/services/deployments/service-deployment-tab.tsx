@@ -189,12 +189,22 @@ export function ServiceDeploymentTab({
 
       {/* Deployment History Table */}
       <div className="pt-2">
-        <DeploymentHistoryTable
-          deployments={deployments}
-          selectedDeploymentId={selectedDeployment?.id}
-          onSelectDeployment={(dep) => setSelectedDeployment(dep)}
-          onRequestRollback={(dep) => setRollbackTarget(dep)}
-        />
+        {(() => {
+          const retentionEnv = service.envVars?.find(
+            (e) => e.key === 'TAKO_PREVIEW_RETENTION'
+          )?.value;
+          const retentionLimit = retentionEnv ? parseInt(retentionEnv, 10) || 2 : 2;
+
+          return (
+            <DeploymentHistoryTable
+              deployments={deployments}
+              selectedDeploymentId={selectedDeployment?.id}
+              retentionLimit={retentionLimit}
+              onSelectDeployment={(dep) => setSelectedDeployment(dep)}
+              onRequestRollback={(dep) => setRollbackTarget(dep)}
+            />
+          );
+        })()}
       </div>
 
       {/* Rollback Confirmation Modal */}

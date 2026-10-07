@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { GitCommit, GitBranch, RotateCcw, Clock, ChevronRight, Search, X, ExternalLink } from 'lucide-react';
+import { GitCommit, GitBranch, RotateCcw, Clock, Search, X, ExternalLink } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 export interface DeploymentHistoryTableProps {
   deployments: Deployment[];
   selectedDeploymentId?: string;
+  retentionLimit?: number;
   onSelectDeployment: (deployment: Deployment) => void;
   onRequestRollback: (deployment: Deployment) => void;
 }
@@ -28,6 +29,7 @@ export interface DeploymentHistoryTableProps {
 export function DeploymentHistoryTable({
   deployments,
   selectedDeploymentId,
+  retentionLimit = 2,
   onSelectDeployment,
   onRequestRollback,
 }: DeploymentHistoryTableProps) {
@@ -99,7 +101,7 @@ export function DeploymentHistoryTable({
             <TableHead className="w-[120px]">Status</TableHead>
             <TableHead className="hidden sm:table-cell w-[150px]">Triggered</TableHead>
             <TableHead className="hidden md:table-cell w-[110px]">Duration</TableHead>
-            <TableHead className="text-right w-[140px]">Actions</TableHead>
+            <TableHead className="text-right w-[110px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-border/40">
@@ -123,6 +125,7 @@ export function DeploymentHistoryTable({
             filteredDeployments.map((dep, index) => {
               const isSelected = selectedDeploymentId === dep.id;
               const isLatestActive = index === 0;
+              const isRetentionPruned = index >= retentionLimit;
               const canRollback =
                 !isLatestActive &&
                 index < 5 &&
@@ -145,9 +148,12 @@ export function DeploymentHistoryTable({
                     )}
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 font-mono text-xs font-semibold px-1.5 py-0.5 rounded-md border border-border bg-muted/40 text-foreground">
+                        <span
+                          className="inline-flex items-center gap-1 font-mono text-xs font-semibold px-1.5 py-0.5 rounded-md border border-border bg-muted/40 text-foreground"
+                          title={`Commit: ${dep.commitHash}`}
+                        >
                           <GitCommit className="size-3 text-muted-foreground" />
-                          {dep.commitHash.substring(0, 7)}
+                          {dep.commitHash.length > 7 ? dep.commitHash.slice(0, 7) : dep.commitHash}
                         </span>
                         {dep.isRollback && (
                           <Badge
@@ -220,27 +226,48 @@ export function DeploymentHistoryTable({
                         onClick={(e) => e.stopPropagation()}
                       >
                         {dep.previewUrl && (
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 px-2 text-xs border-border hover:bg-muted text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    window.open(dep.previewUrl, '_blank', 'noopener,noreferrer');
-                                  }}
-                                />
-                              }
-                            >
-                              <ExternalLink className="size-3 text-primary" />
-                              <span className="hidden xl:inline">Preview</span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              Open deployment preview ({dep.previewUrl.replace(/^https?:\/\//, '')})
-                            </TooltipContent>
-                          </Tooltip>
+                          isRetentionPruned ? (
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled
+                                    className="h-7 px-2 text-xs opacity-40 cursor-not-allowed text-muted-foreground gap-1.5"
+                                  />
+                                }
+                              >
+                                <ExternalLink className="size-3 text-muted-foreground" />
+                                <span className="hidden xl:inline">Expired</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Preview container stopped (retention limit {retentionLimit} releases).
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2 text-xs border-border hover:bg-muted text-foreground gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(dep.previewUrl, '_blank', 'noopener,noreferrer');
+                                    }}
+                                  />
+                                }
+                              >
+                                <ExternalLink className="size-3 text-primary" />
+                                <span className="hidden xl:inline">Preview</span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                Open deployment preview ({dep.previewUrl.replace(/^https?:\/\//, '')})
+                              </TooltipContent>
+                            </Tooltip>
+                          )
                         )}
 
                         {/* Rollback & Detail Actions */}
@@ -278,16 +305,6 @@ export function DeploymentHistoryTable({
                             </Tooltip>
                           )
                         )}
-
-                        <Button
-                          variant={isSelected ? 'secondary' : 'ghost'}
-                          size="icon"
-                          onClick={() => onSelectDeployment(dep)}
-                          className={cn( 'size-7 transition-colors active:not-aria-[haspopup]:translate-y-px', isSelected ? 'bg-primary/10 text-primary hover:bg-primary/15 font-semibold' : 'text-muted-foreground hover:text-foreground' )}
-                          title={isSelected ? 'Currently inspecting' : 'Inspect deployment & logs'}
-                        >
-                          <ChevronRight className="size-4" />
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

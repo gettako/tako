@@ -116,3 +116,32 @@ func TestExecuteDeploy_LocalGitRepo(t *testing.T) {
 		t.Errorf("expected successful clone log message for local repo")
 	}
 }
+
+func TestExecuteDeploy_PublishToHost(t *testing.T) {
+	executor := deploy.NewExecutor(nil) // nil docker client for simulated run
+
+	stream := &mockDeployStream{}
+	req := &takov1.DeployRequest{
+		DeploymentId:  "dep-test-host",
+		ServiceId:     "srv-test-host",
+		ServiceName:   "host-service",
+		CommitHash:    "f3e9a3a1",
+		Ports:         []int32{1337},
+		PublishToHost: true,
+		Domains:       []string{"host-service.sslip.io"},
+	}
+
+	err := executor.ExecuteDeploy(context.Background(), req, stream)
+	if err != nil {
+		t.Fatalf("ExecuteDeploy failed: %v", err)
+	}
+
+	stream.mu.Lock()
+	chunks := stream.chunks
+	stream.mu.Unlock()
+
+	lastChunk := chunks[len(chunks)-1]
+	if lastChunk.GetStep() != "Live" {
+		t.Errorf("expected final step Live, got %s", lastChunk.GetStep())
+	}
+}

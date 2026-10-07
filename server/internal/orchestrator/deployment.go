@@ -324,6 +324,30 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 					break
 				}
 			}
+
+			// Automatically update deployment and service commit metadata when reported by agent
+			if chunk.Step == "Clone" && strings.HasPrefix(chunk.Message, "HEAD commit ") {
+				parts := strings.TrimPrefix(chunk.Message, "HEAD commit ")
+				hashAndRest := strings.SplitN(parts, ": ", 2)
+				if len(hashAndRest) > 0 {
+					extractedHash := strings.TrimSpace(hashAndRest[0])
+					if len(extractedHash) >= 7 {
+						extractedMsg := "Manual deployment trigger"
+						extractedAuthor := "system"
+						if len(hashAndRest) == 2 {
+							rest := hashAndRest[1]
+							if idx := strings.LastIndex(rest, " (by "); idx != -1 {
+								extractedMsg = strings.TrimSpace(rest[:idx])
+								extractedAuthor = strings.TrimSuffix(strings.TrimSpace(rest[idx+5:]), ")")
+							} else {
+								extractedMsg = strings.TrimSpace(rest)
+							}
+						}
+						_, _ = o.db.ExecContext(bgCtx, "UPDATE deployments SET commit_hash = ?, commit_message = ?, author = ? WHERE id = ?", extractedHash, extractedMsg, extractedAuthor, depID)
+						_, _ = o.db.ExecContext(bgCtx, "UPDATE services SET commit_hash = ? WHERE id = ?", extractedHash, srv.ID)
+					}
+				}
+			}
 			if !stepFound {
 				now := time.Now().UTC()
 				nowStr := now.Format(time.RFC3339)

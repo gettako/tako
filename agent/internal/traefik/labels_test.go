@@ -74,4 +74,21 @@ func TestGenerateLabels(t *testing.T) {
 			t.Errorf("expected rate limit average 100")
 		}
 	})
+
+	t.Run("ConfigName Overrides Router and Service Identifier", func(t *testing.T) {
+		labels := traefik.GenerateLabels(traefik.RouteConfig{
+			ServiceName: "hello-app",
+			ConfigName:  "hello-app-55d94782",
+			Domains:     []string{"55d94782.example.com"},
+			TargetPort:  1337,
+			EnableTLS:   false,
+		})
+
+		if labels["traefik.http.routers.hello-app-55d94782.rule"] != "Host(`55d94782.example.com`)" {
+			t.Errorf("expected router hello-app-55d94782 rule, got %s", labels["traefik.http.routers.hello-app-55d94782.rule"])
+		}
+		if labels["traefik.http.services.hello-app-55d94782.loadbalancer.server.port"] != "1337" {
+			t.Errorf("expected service hello-app-55d94782, got %s", labels["traefik.http.services.hello-app-55d94782.loadbalancer.server.port"])
+		}
+	})
 }
