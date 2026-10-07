@@ -83,14 +83,9 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
     const historyIndexRef = useRef<number>(-1);
     const isProcessingRef = useRef<boolean>(false);
 
-    // Prompt generator
+    // Standard root container shell prompt
     const getPrompt = () => {
-      const isDark = resolvedTheme !== 'light';
-      const userHost = isDark
-        ? '\x1b[1;38;2;91;99;211mroot@tako\x1b[0m'
-        : '\x1b[1;38;2;67;45;215mroot@tako\x1b[0m';
-      const path = isDark ? '\x1b[1;36m/app\x1b[0m' : '\x1b[1;34m/app\x1b[0m';
-      return `${userHost}:${path}# `;
+      return '# ';
     };
 
     // Forward ref methods
@@ -133,7 +128,7 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
       if (prevContainerRef.current !== containerName && termRef.current) {
         prevContainerRef.current = containerName;
         termRef.current.writeln(
-          `\r\n\x1b[36m[*] Switched target container to: ${containerName}\x1b[0m`
+          `\r\n\x1b[32mConnected to container ${containerName}\x1b[0m\r\n`
         );
         termRef.current.write(getPrompt());
         inputBufferRef.current = '';
@@ -186,6 +181,19 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
           }
         }, 30);
 
+        // Auto-fit after webfonts are fully ready
+        if (typeof document !== 'undefined' && 'fonts' in document) {
+          document.fonts.ready.then(() => {
+            if (isMounted) {
+              try {
+                fitAddon.fit();
+              } catch {
+                // ignore
+              }
+            }
+          });
+        }
+
         // ResizeObserver to automatically refit when card/dialog resizes
         resizeObserver = new ResizeObserver(() => {
           try {
@@ -196,10 +204,8 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
         });
         resizeObserver.observe(containerRef.current);
 
-        // Initial welcome message
-        term.writeln(`\x1b[1;32mConnected to container ${containerName} (Alpine Linux 3.20.3)\x1b[0m`);
-        term.writeln(`\x1b[90mLinux 6.6.32-linuxkit #1 SMP aarch64 • Takō Container Namespace\x1b[0m`);
-        term.writeln(`Type \x1b[1mhelp\x1b[0m to inspect available commands.\r\n`);
+        // Clean initial connection message without fake/meaningless text
+        term.writeln(`\x1b[32mConnected to container ${containerName}\x1b[0m\r\n`);
         term.write(getPrompt());
 
         // Command Execution Engine
@@ -318,7 +324,6 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
           // Tab (Autocomplete)
           else if (data === '\t') {
             const commands = [
-              'help',
               'ls',
               'ps',
               'env',
@@ -366,10 +371,11 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
 
     return (
       <div
-        ref={containerRef}
         className={`w-full h-full min-h-[360px] p-3 font-mono text-xs select-text focus:outline-none ${className || ''}`}
         onClick={() => termRef.current?.focus()}
-      />
+      >
+        <div ref={containerRef} className="w-full h-full" />
+      </div>
     );
   }
 );

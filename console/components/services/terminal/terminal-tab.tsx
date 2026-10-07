@@ -29,7 +29,7 @@ export function TerminalTab({
   isTabActive = true,
   onNavigateToTerminalTab 
 }: TerminalTabProps) {
-  const [selectedContainer, setSelectedContainer] = useState(`tako-${service.slug}-1`);
+  const [selectedContainer, setSelectedContainer] = useState(`tako-app-${service.slug}`);
   const [viewMode, setViewMode] = useState<'inline' | 'fullscreen' | 'minimized'>('inline');
   const termRef = useRef<XtermTerminalRef>(null);
 
@@ -146,7 +146,7 @@ export function TerminalTab({
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Running session inside container namespace • Press ESC to exit full screen
+                  Connected to container • Press ESC to exit full screen
                 </p>
               </div>
             </div>
@@ -160,13 +160,13 @@ export function TerminalTab({
                   value={selectedContainer}
                   onValueChange={setSelectedContainer}
                   options={[
-                    { value: `tako-${service.slug}-1`, label: `tako-${service.slug}-1 (leader)` },
+                    { value: `tako-app-${service.slug}`, label: `tako-app-${service.slug}` },
                     ...(service.replicas > 1
-                      ? [{ value: `tako-${service.slug}-2`, label: `tako-${service.slug}-2 (worker)` }]
+                      ? [{ value: `tako-app-${service.slug}-2`, label: `tako-app-${service.slug}-2` }]
                       : []),
                   ]}
                   size="sm"
-                  className="h-8 font-mono text-xs w-48 bg-background"
+                  className="h-8 font-mono text-xs w-52 bg-background"
                 />
               </div>
 
@@ -210,7 +210,7 @@ export function TerminalTab({
         <SectionHeader
           icon={TerminalIcon}
           title="Interactive Shell"
-          description="Execute diagnostic commands directly inside the container namespace with full PTY emulation"
+          description="Execute diagnostic commands directly inside the container"
           action={
             <div className="flex items-center gap-1.5">
               {/* Container selector */}
@@ -220,13 +220,13 @@ export function TerminalTab({
                   value={selectedContainer}
                   onValueChange={setSelectedContainer}
                   options={[
-                    { value: `tako-${service.slug}-1`, label: `tako-${service.slug}-1 (leader)` },
+                    { value: `tako-app-${service.slug}`, label: `tako-app-${service.slug}` },
                     ...(service.replicas > 1
-                      ? [{ value: `tako-${service.slug}-2`, label: `tako-${service.slug}-2 (worker)` }]
+                      ? [{ value: `tako-app-${service.slug}-2`, label: `tako-app-${service.slug}-2` }]
                       : []),
                   ]}
                   size="sm"
-                  className="h-8 font-mono text-xs w-48 bg-card"
+                  className="h-8 font-mono text-xs w-52 bg-card"
                 />
               </div>
 
