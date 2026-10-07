@@ -2,13 +2,19 @@ import type { GitHubAppManifest, GitHubAppConfig, SyncedRepo } from '../types';
 import { simulateDelay } from './delay';
 import { buildGitHubAppManifest } from '../utils/github-manifest';
 
-export async function getGitHubAppManifest(customName?: string): Promise<GitHubAppManifest> {
+export async function getGitHubAppManifest(customName?: string, customSlug?: string): Promise<GitHubAppManifest> {
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://console.gettako.dev';
-  const appName = customName || `Takō Cloud (${typeof window !== 'undefined' ? window.location.hostname : 'Local'})`;
+  const appName = customName || 'Tako';
+  const appSlug = customSlug || `tako-${Math.floor(10000 + Math.random() * 90000)}`;
 
   if (typeof window !== 'undefined') {
     try {
-      const res = await fetch(`/api/github/manifest?baseUrl=${encodeURIComponent(origin)}&appName=${encodeURIComponent(appName)}`);
+      const query = new URLSearchParams({
+        baseUrl: origin,
+        appName,
+        appSlug,
+      });
+      const res = await fetch(`/api/github/manifest?${query.toString()}`);
       if (res.ok) {
         return await res.json();
       }
@@ -17,7 +23,7 @@ export async function getGitHubAppManifest(customName?: string): Promise<GitHubA
     }
   }
 
-  return buildGitHubAppManifest({ name: appName, baseUrl: origin });
+  return buildGitHubAppManifest({ name: appName, slug: appSlug, baseUrl: origin });
 }
 
 export function submitGitHubAppManifestForm(manifest: GitHubAppManifest, targetOrg?: string): void {
@@ -42,44 +48,19 @@ export function submitGitHubAppManifestForm(manifest: GitHubAppManifest, targetO
 
 export async function convertGitHubAppManifestCode(code: string): Promise<GitHubAppConfig> {
   if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/github/manifest-conversion', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
-      if (res.ok) {
-        return await res.json();
-      }
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Failed to convert manifest code');
-    } catch (err) {
-      if (err instanceof Error && err.message !== 'Failed to fetch') {
-        throw err;
-      }
+    const res = await fetch('/api/github/manifest-conversion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (res.ok) {
+      return await res.json();
     }
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to convert manifest code with GitHub API');
   }
 
-  // Fallback for mock/preview
-  await simulateDelay(300, 600);
-  const slug = `tako-cloud-${Date.now().toString(36)}`;
-  return {
-    appId: 100000 + Math.floor(Math.random() * 900000),
-    slug,
-    name: 'Takō Cloud (Automated App)',
-    clientId: `Iv1.${Math.random().toString(36).substring(2, 10)}`,
-    htmlUrl: `https://github.com/apps/${slug}`,
-    installUrl: `https://github.com/apps/${slug}/installations/new`,
-    owner: {
-      login: 'SupianIDz',
-      avatarUrl: 'https://avatars.githubusercontent.com/u/1000001?v=4',
-      type: 'User',
-      htmlUrl: 'https://github.com/SupianIDz',
-    },
-    installations: [],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  throw new Error('Manifest conversion must be run in browser environment');
 }
 
 export async function getGitHubAppConfig(): Promise<GitHubAppConfig | null> {
@@ -97,7 +78,6 @@ export async function getGitHubAppConfig(): Promise<GitHubAppConfig | null> {
     }
   }
 
-  await simulateDelay(50, 100);
   return null;
 }
 
@@ -120,27 +100,17 @@ export async function syncGitHubInstallation(installationId?: number): Promise<S
     }
   }
 
-  await simulateDelay(300, 500);
   return [];
 }
 
 export async function disconnectGitHubApp(): Promise<void> {
   if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch('/api/github/app', {
-        method: 'DELETE',
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to disconnect GitHub App');
-      }
-      return;
-    } catch (err) {
-      if (err instanceof Error && err.message !== 'Failed to fetch') {
-        throw err;
-      }
+    const res = await fetch('/api/github/app', {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to disconnect GitHub App');
     }
   }
-
-  await simulateDelay(200, 400);
 }

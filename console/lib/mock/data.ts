@@ -752,38 +752,9 @@ export const mockS3Buckets: S3Bucket[] = [
   },
 ];
 
-export const mockGitProviders: GitProvider[] = [
-  {
-    id: 'git-1',
-    type: 'github',
-    name: 'GitHub (Personal)',
-    username: 'SupianIDz',
-    connected: true,
-    avatarUrl: 'https://avatars.githubusercontent.com/u/1000001?v=4',
-    connectedAt: '2026-08-01T10:00:00Z',
-  },
-  {
-    id: 'git-2',
-    type: 'github',
-    name: 'GitHub (Organization)',
-    username: 'gettako',
-    connected: true,
-    avatarUrl: 'https://avatars.githubusercontent.com/u/1000002?v=4',
-    connectedAt: '2026-08-15T14:30:00Z',
-  },
-];
+export const mockGitProviders: GitProvider[] = [];
 
-export const mockSyncedRepos: SyncedRepo[] = [
-  // Personal repos
-  { id: 'repo-p1', providerId: 'git-1', name: 'api-gateway-service', fullName: 'SupianIDz/api-gateway-service', defaultBranch: 'main', private: false, htmlUrl: 'https://github.com/SupianIDz/api-gateway-service', updatedAt: '2026-10-06T12:00:00Z' },
-  { id: 'repo-p2', providerId: 'git-1', name: 'auth-vault-microservice', fullName: 'SupianIDz/auth-vault-microservice', defaultBranch: 'master', private: true, htmlUrl: 'https://github.com/SupianIDz/auth-vault-microservice', updatedAt: '2026-10-05T09:30:00Z' },
-  { id: 'repo-p3', providerId: 'git-1', name: 'dev-compose-stack', fullName: 'SupianIDz/dev-compose-stack', defaultBranch: 'main', private: false, htmlUrl: 'https://github.com/SupianIDz/dev-compose-stack', updatedAt: '2026-10-04T20:10:00Z' },
-  // Organization repos
-  { id: 'repo-1', providerId: 'git-2', name: 'storefront-next', fullName: 'gettako/storefront-next', defaultBranch: 'main', private: true, htmlUrl: 'https://github.com/gettako/storefront-next', updatedAt: '2026-10-04T18:15:00Z' },
-  { id: 'repo-2', providerId: 'git-2', name: 'order-service-go', fullName: 'gettako/order-service-go', defaultBranch: 'main', private: true, htmlUrl: 'https://github.com/gettako/order-service-go', updatedAt: '2026-10-04T16:00:00Z' },
-  { id: 'repo-3', providerId: 'git-2', name: 'payment-engine', fullName: 'gettako/payment-engine', defaultBranch: 'main', private: true, htmlUrl: 'https://github.com/gettako/payment-engine', updatedAt: '2026-10-05T04:45:00Z' },
-  { id: 'repo-4', providerId: 'git-2', name: 'tako-fullstack-compose', fullName: 'gettako/tako-fullstack-compose', defaultBranch: 'main', private: false, htmlUrl: 'https://github.com/gettako/tako-fullstack-compose', updatedAt: '2026-10-06T08:00:00Z' },
-];
+export const mockSyncedRepos: SyncedRepo[] = [];
 
 export const mockNotifications: Notification[] = [
   {

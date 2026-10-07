@@ -34,8 +34,8 @@ let invites = [...mockUserInvites];
 let sessions = [...mockSessions];
 let passkeys = [...mockPasskeys];
 let buckets = [...mockS3Buckets];
-let providers = [...mockGitProviders];
-let syncedRepos = [...mockSyncedRepos];
+let providers: GitProvider[] = [];
+let syncedRepos: SyncedRepo[] = [];
 let backupSchedule = { ...mockBackupSchedule };
 let domainSettings = { ...mockDomainSettings };
 let notificationSettings = { ...mockNotificationSettings };
@@ -207,21 +207,21 @@ export async function testS3BucketConnection(bucket: Partial<S3Bucket>): Promise
 
 /* --- Git Integration --- */
 export async function getGitProviders(): Promise<GitProvider[]> {
-  const remote = await fetchSettingFromBFF<GitProvider[]>('git_providers', providers);
-  if (Array.isArray(remote) && remote.length > 0) {
+  const remote = await fetchSettingFromBFF<GitProvider[]>('git_providers', []);
+  if (Array.isArray(remote)) {
     providers = remote;
+    return [...remote];
   }
-  await simulateDelay();
-  return [...providers];
+  return [];
 }
 
 export async function getSyncedRepos(): Promise<SyncedRepo[]> {
-  const remote = await fetchSettingFromBFF<SyncedRepo[]>('synced_repos', syncedRepos);
-  if (Array.isArray(remote) && remote.length > 0) {
+  const remote = await fetchSettingFromBFF<SyncedRepo[]>('synced_repos', []);
+  if (Array.isArray(remote)) {
     syncedRepos = remote;
+    return [...remote];
   }
-  await simulateDelay();
-  return [...syncedRepos];
+  return [];
 }
 
 export async function syncGitRepos(): Promise<SyncedRepo[]> {
@@ -234,7 +234,7 @@ export async function syncGitRepos(): Promise<SyncedRepo[]> {
       });
       if (res.ok) {
         const repos = await res.json();
-        if (Array.isArray(repos) && repos.length > 0) {
+        if (Array.isArray(repos)) {
           syncedRepos = repos;
           return repos;
         }
@@ -243,7 +243,6 @@ export async function syncGitRepos(): Promise<SyncedRepo[]> {
       // fallback
     }
   }
-  await simulateDelay(350, 600);
   return [...syncedRepos];
 }
 
