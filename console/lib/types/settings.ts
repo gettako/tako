@@ -105,3 +105,49 @@ export interface NotificationSettings {
     chatId: string;
   };
 }
+
+export interface GitHubAppManifest {
+  name: string;
+  url: string;
+  hook_attributes: {
+    url: string;
+    active?: boolean;
+    secret?: string;
+  };
+  redirect_url: string;
+  callback_urls?: string[];
+  setup_url?: string;
+  public?: boolean;
+  default_permissions: Record<string, string>;
+  default_events: string[];
+}
+
+export interface GitHubAppOwner {
+  login: string;
+  avatarUrl?: string;
+  type: string;
+  htmlUrl?: string;
+}
+
+export interface GitHubAppConfig {
+  appId: number;
+  slug: string;
+  name: string;
+  clientId: string;
+  clientSecret?: string;
+  webhookSecret?: string;
+  privateKey?: string;
+  owner?: GitHubAppOwner;
+  htmlUrl: string;
+  installUrl: string;
+  installationId?: number;
+  installations?: Array<{
+    id: number;
+    account: GitHubAppOwner;
+    repositorySelection?: 'all' | 'selected';
+    installedAt: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+

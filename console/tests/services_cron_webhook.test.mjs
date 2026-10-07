@@ -168,3 +168,20 @@ test('Cron Explainer & Validator - validates standard and invalid cron expressio
   assert.match(invalidStep.error || '', /Invalid step value/);
 });
 
+import { buildGitHubAppManifest } from '../lib/utils/github-manifest.ts';
+
+test('GitHub App Manifest - generates valid manifest specification', async () => {
+  const manifest = buildGitHubAppManifest({ name: 'Takō Production Cluster', baseUrl: 'https://console.gettako.dev' });
+  assert.equal(manifest.name, 'Takō Production Cluster');
+  assert.match(manifest.redirect_url, /\/settings\?tab=git&setup=github/);
+  assert.match(manifest.hook_attributes.url, /\/api\/webhooks\/github/);
+  assert.equal(manifest.hook_attributes.active, true);
+  assert.equal(manifest.default_permissions.contents, 'read');
+  assert.equal(manifest.default_permissions.statuses, 'write');
+  assert.equal(manifest.default_permissions.deployments, 'write');
+  assert.ok(manifest.default_events.includes('push'));
+  assert.ok(manifest.default_events.includes('pull_request'));
+  assert.ok(manifest.default_events.includes('installation'));
+});
+
+

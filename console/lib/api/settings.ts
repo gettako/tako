@@ -216,11 +216,33 @@ export async function getGitProviders(): Promise<GitProvider[]> {
 }
 
 export async function getSyncedRepos(): Promise<SyncedRepo[]> {
+  const remote = await fetchSettingFromBFF<SyncedRepo[]>('synced_repos', syncedRepos);
+  if (Array.isArray(remote) && remote.length > 0) {
+    syncedRepos = remote;
+  }
   await simulateDelay();
   return [...syncedRepos];
 }
 
 export async function syncGitRepos(): Promise<SyncedRepo[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/github/installations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const repos = await res.json();
+        if (Array.isArray(repos) && repos.length > 0) {
+          syncedRepos = repos;
+          return repos;
+        }
+      }
+    } catch {
+      // fallback
+    }
+  }
   await simulateDelay(350, 600);
   return [...syncedRepos];
 }
