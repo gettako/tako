@@ -47,6 +47,7 @@ function normalizeDeployment(d: Record<string, unknown>): Deployment {
     durationMs: (d.durationMs as number) || (d.duration_ms as number) || undefined,
     rollbackFromId: d.rollbackFromId as string | undefined,
     isRollback: Boolean(d.isRollback),
+    logs: (d.logs as string) || undefined,
   };
 }
 

@@ -14,13 +14,15 @@ INSERT INTO services (
     id, project_id, node_id, name, slug, type, status,
     repository, branch, commit_hash, dockerfile, build_command,
     compose_file, image, database_type, database_version,
-    connection_string, ports, replicas, cpu_limit, memory_limit_mb
+    connection_string, ports, replicas, cpu_limit, memory_limit_mb,
+    publish_to_host
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?,
     ?, ?, ?, ?,
-    ?, ?, ?, ?, ?
-) RETURNING id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at
+    ?, ?, ?, ?, ?,
+    ?
+) RETURNING id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host
 `
 
 type CreateServiceParams struct {
@@ -45,6 +47,7 @@ type CreateServiceParams struct {
 	Replicas         int64   `json:"replicas"`
 	CpuLimit         float64 `json:"cpu_limit"`
 	MemoryLimitMb    int64   `json:"memory_limit_mb"`
+	PublishToHost    int64   `json:"publish_to_host"`
 }
 
 func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (Service, error) {
@@ -70,6 +73,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		arg.Replicas,
 		arg.CpuLimit,
 		arg.MemoryLimitMb,
+		arg.PublishToHost,
 	)
 	var i Service
 	err := row.Scan(
@@ -96,6 +100,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.MemoryLimitMb,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PublishToHost,
 	)
 	return i, err
 }
@@ -210,7 +215,7 @@ func (q *Queries) DeleteServiceEnvVars(ctx context.Context, serviceID string) er
 }
 
 const getServiceByID = `-- name: GetServiceByID :one
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at FROM services WHERE id = ? LIMIT 1
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetServiceByID(ctx context.Context, id string) (Service, error) {
@@ -240,12 +245,13 @@ func (q *Queries) GetServiceByID(ctx context.Context, id string) (Service, error
 		&i.MemoryLimitMb,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PublishToHost,
 	)
 	return i, err
 }
 
 const listAllServices = `-- name: ListAllServices :many
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at FROM services ORDER BY created_at DESC
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services ORDER BY created_at DESC
 `
 
 func (q *Queries) ListAllServices(ctx context.Context) ([]Service, error) {
@@ -281,6 +287,7 @@ func (q *Queries) ListAllServices(ctx context.Context) ([]Service, error) {
 			&i.MemoryLimitMb,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PublishToHost,
 		); err != nil {
 			return nil, err
 		}
@@ -368,7 +375,7 @@ func (q *Queries) ListServiceEnvVars(ctx context.Context, serviceID string) ([]S
 }
 
 const listServicesByNode = `-- name: ListServicesByNode :many
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at FROM services WHERE node_id = ? ORDER BY created_at DESC
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services WHERE node_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListServicesByNode(ctx context.Context, nodeID string) ([]Service, error) {
@@ -404,6 +411,7 @@ func (q *Queries) ListServicesByNode(ctx context.Context, nodeID string) ([]Serv
 			&i.MemoryLimitMb,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PublishToHost,
 		); err != nil {
 			return nil, err
 		}
@@ -419,7 +427,7 @@ func (q *Queries) ListServicesByNode(ctx context.Context, nodeID string) ([]Serv
 }
 
 const listServicesByProject = `-- name: ListServicesByProject :many
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at FROM services WHERE project_id = ? ORDER BY created_at DESC
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services WHERE project_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListServicesByProject(ctx context.Context, projectID string) ([]Service, error) {
@@ -455,6 +463,7 @@ func (q *Queries) ListServicesByProject(ctx context.Context, projectID string) (
 			&i.MemoryLimitMb,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PublishToHost,
 		); err != nil {
 			return nil, err
 		}

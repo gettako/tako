@@ -32,9 +32,21 @@ export function ServiceDeploymentTab({
   const [isTriggering, setIsTriggering] = useState(false);
   const [showLogsManual, setShowLogsManual] = useState(false);
 
+  React.useEffect(() => {
+    if (deployments.length > 0) {
+      setSelectedDeployment((prev) => {
+        if (!prev) return deployments[0];
+        const updated = deployments.find((d) => d.id === prev.id);
+        return updated || deployments[0];
+      });
+    }
+  }, [deployments]);
+
   const isDeploying =
     selectedDeployment?.status === 'running' ||
     selectedDeployment?.status === 'queued' ||
+    selectedDeployment?.status === 'building' ||
+    selectedDeployment?.status === 'deploying' ||
     isTriggering ||
     service.status === 'deploying';
 

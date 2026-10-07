@@ -28,6 +28,7 @@ type CreateServiceRequest struct {
 	Ports           []int32           `json:"ports"`
 	Domains         []string          `json:"domains"`
 	EnvironmentVars map[string]string `json:"environmentVars"`
+	PublishToHost   *bool             `json:"publishToHost,omitempty"`
 }
 
 type ServiceEnvVarResponse struct {
@@ -48,11 +49,12 @@ type ServiceResponse struct {
 	Repository string                  `json:"repository,omitempty"`
 	Branch     string                  `json:"branch,omitempty"`
 	Image      string                  `json:"image,omitempty"`
-	Ports      []int32                 `json:"ports"`
-	Domains    []string                `json:"domains"`
-	EnvVars    []ServiceEnvVarResponse `json:"envVars,omitempty"`
-	CreatedAt  string                  `json:"createdAt"`
-	UpdatedAt  string                  `json:"updatedAt"`
+	Ports         []int32                 `json:"ports"`
+	Domains       []string                `json:"domains"`
+	PublishToHost bool                    `json:"publishToHost"`
+	EnvVars       []ServiceEnvVarResponse `json:"envVars,omitempty"`
+	CreatedAt     string                  `json:"createdAt"`
+	UpdatedAt     string                  `json:"updatedAt"`
 }
 
 func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVarResponse) ServiceResponse {
@@ -70,11 +72,12 @@ func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVa
 		Repository: s.Repository,
 		Branch:     s.Branch,
 		Image:      s.Image,
-		Ports:      ports,
-		Domains:    domains,
-		EnvVars:    envVars,
-		CreatedAt:  s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:  s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Ports:         ports,
+		Domains:       domains,
+		PublishToHost: s.PublishToHost != 0,
+		EnvVars:       envVars,
+		CreatedAt:     s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:     s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 
@@ -101,6 +104,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Ports:           req.Ports,
 				Domains:         req.Domains,
 				EnvironmentVars: req.EnvironmentVars,
+				PublishToHost:   req.PublishToHost,
 			})
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

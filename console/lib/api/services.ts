@@ -41,9 +41,14 @@ function normalizeService(s: Record<string, unknown>): Service {
     image: s.image as string | undefined,
     databaseType: s.databaseType as Service['databaseType'],
     databaseVersion: s.databaseVersion as string | undefined,
-    connectionString: s.connectionString as string | undefined,
     ports: Array.isArray(s.ports) ? (s.ports as number[]) : [80],
     domains,
+    publishToHost:
+      s.publishToHost !== undefined
+        ? Boolean(s.publishToHost)
+        : s.publish_to_host !== undefined
+        ? Boolean(s.publish_to_host)
+        : true,
     replicas: (s.replicas as number) || 1,
     limits: (s.limits as Service['limits']) || { cpuCores: 1, memoryMb: 1024, diskGb: 10 },
     usage: (s.usage as Service['usage']) || {
@@ -124,6 +129,7 @@ export async function createService(input: CreateServiceInput): Promise<Service>
           ports: input.ports || [80],
           domains: [],
           environmentVars: {},
+          publishToHost: input.publishToHost !== undefined ? input.publishToHost : true,
         }),
       });
       if (res.ok) {

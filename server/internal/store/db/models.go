@@ -119,6 +119,7 @@ type Service struct {
 	MemoryLimitMb    int64     `json:"memory_limit_mb"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+	PublishToHost    int64     `json:"publish_to_host"`
 }
 
 type ServiceDomain struct {

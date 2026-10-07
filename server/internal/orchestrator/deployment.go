@@ -37,6 +37,7 @@ type CreateServiceParams struct {
 	Ports           []int32
 	Domains         []string
 	EnvironmentVars map[string]string
+	PublishToHost   *bool
 }
 
 // CreateService creates a new service, associates domains and environment variables.
@@ -98,6 +99,15 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 
 	portsJSON, _ := json.Marshal(p.Ports)
 
+	publishToHostVal := int64(1)
+	if p.PublishToHost != nil {
+		if !*p.PublishToHost {
+			publishToHostVal = 0
+		}
+	} else if len(p.Domains) > 0 {
+		publishToHostVal = 0
+	}
+
 	srv, err := o.queries.CreateService(ctx, db.CreateServiceParams{
 		ID:               serviceID,
 		ProjectID:        p.ProjectID,
@@ -120,6 +130,7 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 		DatabaseType:     "",
 		DatabaseVersion:  "",
 		ConnectionString: "",
+		PublishToHost:    publishToHostVal,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create service: %w", err)
@@ -337,6 +348,7 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID string) {
 			EnvVars:       envMap,
 			CpuLimit:      srv.CpuLimit,
 			MemoryLimitMb: srv.MemoryLimitMb,
+			PublishToHost: srv.PublishToHost != 0,
 		}
 
 		select {

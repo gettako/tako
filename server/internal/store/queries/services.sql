@@ -15,12 +15,14 @@ INSERT INTO services (
     id, project_id, node_id, name, slug, type, status,
     repository, branch, commit_hash, dockerfile, build_command,
     compose_file, image, database_type, database_version,
-    connection_string, ports, replicas, cpu_limit, memory_limit_mb
+    connection_string, ports, replicas, cpu_limit, memory_limit_mb,
+    publish_to_host
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?,
     ?, ?, ?, ?, ?,
     ?, ?, ?, ?,
-    ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?,
+    ?
 ) RETURNING *;
 
 -- name: UpdateServiceStatus :exec

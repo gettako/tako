@@ -76,6 +76,48 @@ func TestServiceCRUDAndLifecycle(t *testing.T) {
 		serviceID = res.ID
 	})
 
+	t.Run("Create Service with PublishToHost Default and Explicit", func(t *testing.T) {
+		// When no domains provided, default PublishToHost should be true
+		payload1 := api.CreateServiceRequest{
+			ProjectID: "prj-test-crud",
+			Name:      "Service No Domain",
+			Ports:     []int32{1337},
+		}
+		d1, _ := json.Marshal(payload1)
+		req1 := httptest.NewRequest(http.MethodPost, "/api/v1/services", bytes.NewReader(d1))
+		rec1 := httptest.NewRecorder()
+		router.ServeHTTP(rec1, req1)
+		if rec1.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created, got %d: %s", rec1.Code, rec1.Body.String())
+		}
+		var res1 api.ServiceResponse
+		_ = json.NewDecoder(rec1.Body).Decode(&res1)
+		if !res1.PublishToHost {
+			t.Fatalf("expected PublishToHost to be true by default for service without domain")
+		}
+
+		// When explicitly false
+		f := false
+		payload2 := api.CreateServiceRequest{
+			ProjectID:     "prj-test-crud",
+			Name:          "Service Internal Only",
+			Ports:         []int32{3000},
+			PublishToHost: &f,
+		}
+		d2, _ := json.Marshal(payload2)
+		req2 := httptest.NewRequest(http.MethodPost, "/api/v1/services", bytes.NewReader(d2))
+		rec2 := httptest.NewRecorder()
+		router.ServeHTTP(rec2, req2)
+		if rec2.Code != http.StatusCreated {
+			t.Fatalf("expected 201 Created, got %d: %s", rec2.Code, rec2.Body.String())
+		}
+		var res2 api.ServiceResponse
+		_ = json.NewDecoder(rec2.Body).Decode(&res2)
+		if res2.PublishToHost {
+			t.Fatalf("expected PublishToHost to be false")
+		}
+	})
+
 	// 3. GET /api/v1/services/{id} - Get single service
 	t.Run("Get Service By ID", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+serviceID, nil)

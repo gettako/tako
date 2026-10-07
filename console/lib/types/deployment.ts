@@ -20,6 +20,8 @@ export interface DeploymentStep {
 
 export type DeploymentStatus =
   | 'queued'
+  | 'building'
+  | 'deploying'
   | 'running'
   | 'live'
   | 'failed'
@@ -40,4 +42,5 @@ export interface Deployment {
   durationMs?: number;
   rollbackFromId?: string;
   isRollback?: boolean;
+  logs?: string;
 }

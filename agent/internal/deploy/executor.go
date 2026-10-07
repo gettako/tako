@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/go-connections/nat"
 	"gettako.dev/tako/agent/internal/docker"
 	"gettako.dev/tako/agent/internal/traefik"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
@@ -135,15 +136,32 @@ func (e *Executor) ExecuteDeployWithCallback(
 			envList = append(envList, fmt.Sprintf("%s=%s", k, v))
 		}
 
+		exposedPorts := make(nat.PortSet)
+		portBindings := make(nat.PortMap)
+
+		if req.GetPublishToHost() && targetPort > 0 {
+			portKey := nat.Port(fmt.Sprintf("%d/tcp", targetPort))
+			exposedPorts[portKey] = struct{}{}
+			portBindings[portKey] = []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: fmt.Sprintf("%d", targetPort),
+				},
+			}
+			sendLog("Deploy", fmt.Sprintf("Publishing host port 0.0.0.0:%d -> %d/tcp", targetPort, targetPort), false)
+		}
+
 		resp, err := e.dockerCli.RawClient().ContainerCreate(
 			ctx,
 			&container.Config{
-				Image:  targetImage,
-				Env:    envList,
-				Labels: traefikLabels,
+				Image:        targetImage,
+				Env:          envList,
+				Labels:       traefikLabels,
+				ExposedPorts: exposedPorts,
 			},
 			&container.HostConfig{
 				RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
+				PortBindings:  portBindings,
 			},
 			&network.NetworkingConfig{
 				EndpointsConfig: map[string]*network.EndpointSettings{

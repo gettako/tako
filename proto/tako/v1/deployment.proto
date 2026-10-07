@@ -24,6 +24,7 @@ message DeployRequest {
   map<string, string> env_vars = 12;
   double cpu_limit = 13;
   int64 memory_limit_mb = 14;
+  bool publish_to_host = 15;
 }
 
 message DeployLogChunk {

@@ -46,6 +46,10 @@ export default function ServiceDetailPage({
   } = useQuery({
     queryKey: ['service', serviceId],
     queryFn: () => getServiceById(serviceId),
+    refetchInterval: (query) => {
+      const s = query.state.data;
+      return s?.status === 'deploying' ? 2000 : false;
+    },
   });
 
   const {
@@ -56,6 +60,17 @@ export default function ServiceDetailPage({
     queryKey: ['deployments', serviceId],
     queryFn: () => getDeployments(serviceId),
     enabled: !!service,
+    refetchInterval: (query) => {
+      const list = query.state.data;
+      const isPending = list?.some(
+        (d) =>
+          d.status === 'building' ||
+          d.status === 'queued' ||
+          d.status === 'running' ||
+          d.status === 'deploying'
+      );
+      return isPending || service?.status === 'deploying' ? 2000 : false;
+    },
   });
 
   const latestDeployment = deployments[0] || null;

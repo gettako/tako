@@ -139,6 +139,7 @@ export function CreateServiceDialog({
 
   // App specific config
   const [port, setPort] = useState<string>('3000');
+  const [publishToHost, setPublishToHost] = useState<boolean>(true);
   const [dockerfilePath, setDockerfilePath] = useState<string>('Dockerfile');
 
   // Compose specific config
@@ -189,6 +190,7 @@ export function CreateServiceDialog({
     setSlug('');
     setIsSlugTouched(false);
     setPort('3000');
+    setPublishToHost(true);
     setDockerfilePath('Dockerfile');
     setComposeFilePath('docker-compose.yml');
     setCpuCores(1);
@@ -369,6 +371,7 @@ export function CreateServiceDialog({
       dockerfile: serviceType === 'app' ? dockerfilePath.trim() : undefined,
       composeFile: serviceType === 'compose' ? composeFilePath.trim() : undefined,
       ports: serviceType === 'app' ? [parseInt(port, 10) || 80] : [80],
+      publishToHost: serviceType === 'app' ? publishToHost : false,
       limits: {
         cpuCores,
         memoryMb,
@@ -776,9 +779,18 @@ export function CreateServiceDialog({
                       placeholder="3000"
                       className="h-9 text-xs sm:text-sm font-mono"
                     />
-                    <p className="text-[11px] text-muted-foreground">
-                      Internal TCP port application listens on (e.g. 3000, 8080).
-                    </p>
+                    <div className="flex items-center space-x-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="publish-to-host"
+                        checked={publishToHost}
+                        onChange={(e) => setPublishToHost(e.target.checked)}
+                        className="h-4 w-4 rounded border-border text-primary accent-primary cursor-pointer"
+                      />
+                      <label htmlFor="publish-to-host" className="text-[11px] font-medium text-foreground cursor-pointer select-none">
+                        Publish to Host IP (port {port || '3000'})
+                      </label>
+                    </div>
                   </div>
 
                   {/* Dockerfile Path */}

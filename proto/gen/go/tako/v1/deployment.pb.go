@@ -37,6 +37,7 @@ type DeployRequest struct {
 	EnvVars       map[string]string      `protobuf:"bytes,12,rep,name=env_vars,json=envVars,proto3" json:"env_vars,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	CpuLimit      float64                `protobuf:"fixed64,13,opt,name=cpu_limit,json=cpuLimit,proto3" json:"cpu_limit,omitempty"`
 	MemoryLimitMb int64                  `protobuf:"varint,14,opt,name=memory_limit_mb,json=memoryLimitMb,proto3" json:"memory_limit_mb,omitempty"`
+	PublishToHost bool                   `protobuf:"varint,15,opt,name=publish_to_host,json=publishToHost,proto3" json:"publish_to_host,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,6 +168,13 @@ func (x *DeployRequest) GetMemoryLimitMb() int64 {
 		return x.MemoryLimitMb
 	}
 	return 0
+}
+
+func (x *DeployRequest) GetPublishToHost() bool {
+	if x != nil {
+		return x.PublishToHost
+	}
+	return false
 }
 
 type DeployLogChunk struct {
@@ -369,7 +377,7 @@ var File_tako_v1_deployment_proto protoreflect.FileDescriptor
 
 const file_tako_v1_deployment_proto_rawDesc = "" +
 	"\n" +
-	"\x18tako/v1/deployment.proto\x12\atako.v1\"\x9b\x04\n" +
+	"\x18tako/v1/deployment.proto\x12\atako.v1\"\xc3\x04\n" +
 	"\rDeployRequest\x12#\n" +
 	"\rdeployment_id\x18\x01 \x01(\tR\fdeploymentId\x12\x1d\n" +
 	"\n" +
@@ -391,7 +399,8 @@ const file_tako_v1_deployment_proto_rawDesc = "" +
 	"\adomains\x18\v \x03(\tR\adomains\x12>\n" +
 	"\benv_vars\x18\f \x03(\v2#.tako.v1.DeployRequest.EnvVarsEntryR\aenvVars\x12\x1b\n" +
 	"\tcpu_limit\x18\r \x01(\x01R\bcpuLimit\x12&\n" +
-	"\x0fmemory_limit_mb\x18\x0e \x01(\x03R\rmemoryLimitMb\x1a:\n" +
+	"\x0fmemory_limit_mb\x18\x0e \x01(\x03R\rmemoryLimitMb\x12&\n" +
+	"\x0fpublish_to_host\x18\x0f \x01(\bR\rpublishToHost\x1a:\n" +
 	"\fEnvVarsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9c\x01\n" +

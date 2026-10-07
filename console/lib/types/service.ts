@@ -40,6 +40,7 @@ export interface Service {
   // Networking & scale
   ports: number[];
   domains: ServiceDomain[];
+  publishToHost?: boolean;
   replicas: number;
   
   // Resources & Config
@@ -65,6 +66,7 @@ export interface CreateServiceInput {
   image?: string;
   databaseType?: 'postgresql' | 'mysql' | 'redis' | 'mongodb';
   ports?: number[];
+  publishToHost?: boolean;
   limits?: Partial<ResourceLimit>;
 }
 

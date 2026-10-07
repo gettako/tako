@@ -58,11 +58,17 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
             const matchedStep: DeploymentStepName =
               ALL_STEPS.find((s) => s.toLowerCase() === rawStep.toLowerCase()) || 'Build';
 
+            let cleanMsg = parsed.message || '';
+            const msgMatch = cleanMsg.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[.*?\]\s*)?(.*)$/);
+            if (msgMatch && msgMatch[1]) {
+              cleanMsg = msgMatch[1].trim();
+            }
+
             setLiveLogs((prev) => [
               ...prev,
               {
                 step: matchedStep,
-                message: parsed.message || '',
+                message: cleanMsg,
                 timestamp: new Date().toISOString(),
                 isError: parsed.status === 'failed' || parsed.is_error === true,
               },
@@ -75,15 +81,19 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
           for (const line of lines) {
             if (!line.trim()) continue;
             let step: DeploymentStepName = 'Build';
-            let message = line;
+            let message = line.trim();
 
-            // Pattern like "[Build] something" or "[Clone] ..."
-            const match = line.match(/^\[(.*?)\]\s*(.*)$/);
+            const match = line.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[(.*?)\]\s*)?(.*)$/);
             if (match) {
-              const parsedName = match[1];
-              const found = ALL_STEPS.find((s) => s.toLowerCase() === parsedName.toLowerCase());
-              if (found) step = found;
-              message = match[2];
+              if (match[1]) {
+                const found = ALL_STEPS.find((s) => s.toLowerCase() === match[1].toLowerCase());
+                if (found) step = found;
+              } else if (/queue/i.test(line)) {
+                step = 'Queued';
+              }
+              if (match[2]) {
+                message = match[2].trim();
+              }
             }
 
             setLiveLogs((prev) => [
@@ -124,7 +134,39 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
     }
   }, [liveLogs, autoFollow]);
 
-  // Construct sections: if liveLogs exist, use them; otherwise use fallback mockGroups
+  // Determine logs source: liveLogs > stored deployment.logs > mock
+  let effectiveLogs = liveLogs;
+  if (effectiveLogs.length === 0 && deployment.logs) {
+    const rawLines = deployment.logs.split('\n');
+    const parsedStored: LiveLogChunk[] = [];
+    for (const line of rawLines) {
+      if (!line.trim()) continue;
+      let step: DeploymentStepName = 'Build';
+      let message = line.trim();
+      const match = line.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[(.*?)\]\s*)?(.*)$/);
+      if (match) {
+        if (match[1]) {
+          const found = ALL_STEPS.find((s) => s.toLowerCase() === match[1].toLowerCase());
+          if (found) step = found;
+        } else if (/queue/i.test(line)) {
+          step = 'Queued';
+        }
+        if (match[2]) {
+          message = match[2].trim();
+        }
+      }
+      parsedStored.push({
+        step,
+        message,
+        timestamp: deployment.startedAt || new Date().toISOString(),
+      });
+    }
+    if (parsedStored.length > 0) {
+      effectiveLogs = parsedStored;
+    }
+  }
+
+  // Construct sections
   let sections: {
     stepName: DeploymentStepName;
     status: StepStatus;
@@ -132,10 +174,10 @@ export function DeploymentLogViewer({ deployment, serviceName }: DeploymentLogVi
     durationMs?: number;
   }[] = [];
 
-  if (liveLogs.length > 0) {
-    // Group live logs by steps
+  if (effectiveLogs.length > 0) {
+    // Group logs by steps
     sections = ALL_STEPS.map((step) => {
-      const stepLogs = liveLogs.filter((l) => l.step === step);
+      const stepLogs = effectiveLogs.filter((l) => l.step === step);
       const stepMeta = deployment.steps?.find((s) => s.name === step);
 
       let status: StepStatus = 'pending';
