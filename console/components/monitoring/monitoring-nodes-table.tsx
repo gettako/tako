@@ -47,12 +47,13 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
           <Table>
             <TableHeader className="bg-muted/40 border-b border-border">
               <TableRow className="h-10 hover:bg-transparent">
-                <TableHead className="w-[28%]">Node Host</TableHead>
-                <TableHead className="w-[12%]">Status</TableHead>
-                <TableHead className="w-[18%]">IP Address</TableHead>
-                <TableHead className="w-[16%]">CPU Utilization</TableHead>
-                <TableHead className="w-[16%]">Memory (RAM)</TableHead>
-                <TableHead className="text-right w-[10%]">Action</TableHead>
+                <TableHead className="w-[22%] min-w-[180px]">Node Host</TableHead>
+                <TableHead className="w-[10%] min-w-[90px]">Status</TableHead>
+                <TableHead className="w-[15%] min-w-[130px]">IP Address</TableHead>
+                <TableHead className="w-[14%] min-w-[125px]">CPU Utilization</TableHead>
+                <TableHead className="w-[14%] min-w-[130px]">Memory (RAM)</TableHead>
+                <TableHead className="w-[14%] min-w-[130px]">Disk Storage</TableHead>
+                <TableHead className="text-right w-[11%] min-w-[100px]">Action</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -63,6 +64,15 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                   node.memoryTotalMb > 0
                     ? Math.round((node.usage.memoryUsedMb / node.memoryTotalMb) * 100)
                     : 0;
+                const diskPct =
+                  node.diskTotalGb > 0
+                    ? Math.round(((node.usage.diskUsedGb || 0) / node.diskTotalGb) * 100)
+                    : 0;
+
+                const formatGb = (val: number) => {
+                  const rounded = Math.round(val * 10) / 10;
+                  return rounded % 1 === 0 ? `${rounded.toFixed(0)}GB` : `${rounded.toFixed(1)}GB`;
+                };
 
                 return (
                   <TableRow
@@ -114,7 +124,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                           <span className={getMetricColor(node.usage.cpuPercent)}>
                             {node.usage.cpuPercent}%
                           </span>
-                          <span className="text-[11px] text-muted-foreground ml-1 font-normal">
+                          <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
                             ({node.cpuTotalCores} cores)
                           </span>
                         </div>
@@ -130,7 +140,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                               ? 'bg-status-warning'
                               : 'bg-status-success'
                           }`}
-                          style={{ width: `${isOffline ? 0 : node.usage.cpuPercent}%` }}
+                          style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, node.usage.cpuPercent))}%` }}
                         />
                       </div>
                     </TableCell>
@@ -142,8 +152,8 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                       ) : (
                         <div>
                           <span className={getMetricColor(memPct)}>{memPct}%</span>
-                          <span className="text-[11px] text-muted-foreground ml-1 font-normal">
-                            ({Math.round(node.usage.memoryUsedMb / 1024)}GB / {Math.round(node.memoryTotalMb / 1024)}GB)
+                          <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
+                            ({formatGb(node.usage.memoryUsedMb / 1024)} / {formatGb(node.memoryTotalMb / 1024)})
                           </span>
                         </div>
                       )}
@@ -158,7 +168,35 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                               ? 'bg-status-warning'
                               : 'bg-status-success'
                           }`}
-                          style={{ width: `${isOffline ? 0 : memPct}%` }}
+                          style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, memPct))}%` }}
+                        />
+                      </div>
+                    </TableCell>
+
+                    {/* Disk */}
+                    <TableCell className="font-mono text-xs">
+                      {isOffline ? (
+                        <span className="text-muted-foreground">0%</span>
+                      ) : (
+                        <div>
+                          <span className={getMetricColor(diskPct)}>{diskPct}%</span>
+                          <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
+                            ({formatGb(node.usage.diskUsedGb || 0)} / {formatGb(node.diskTotalGb)})
+                          </span>
+                        </div>
+                      )}
+                      <div className="h-1 w-24 bg-muted/80 rounded-full overflow-hidden mt-1.5">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            isOffline
+                              ? 'bg-muted'
+                              : diskPct >= 90
+                              ? 'bg-status-danger'
+                              : diskPct >= 70
+                              ? 'bg-status-warning'
+                              : 'bg-status-success'
+                          }`}
+                          style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, diskPct))}%` }}
                         />
                       </div>
                     </TableCell>

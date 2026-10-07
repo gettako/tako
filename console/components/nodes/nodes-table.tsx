@@ -42,12 +42,13 @@ export function NodesTable({ nodes }: NodesTableProps) {
       <Table>
         <TableHeader className="bg-muted/40 border-b border-border">
           <TableRow className="h-10 hover:bg-transparent">
-            <TableHead className="w-[26%]">Node Hostname</TableHead>
-            <TableHead className="w-[12%]">Status</TableHead>
-            <TableHead className="w-[18%]">Network / IP Address</TableHead>
-            <TableHead className="w-[16%]">CPU Utilization</TableHead>
-            <TableHead className="w-[16%]">Memory & Disk</TableHead>
-            <TableHead className="text-right w-[12%]">Workloads</TableHead>
+            <TableHead className="w-[22%] min-w-[180px]">Node Hostname</TableHead>
+            <TableHead className="w-[10%] min-w-[90px]">Status</TableHead>
+            <TableHead className="w-[15%] min-w-[130px]">Network / IP</TableHead>
+            <TableHead className="w-[14%] min-w-[125px]">CPU Utilization</TableHead>
+            <TableHead className="w-[14%] min-w-[130px]">Memory (RAM)</TableHead>
+            <TableHead className="w-[14%] min-w-[130px]">Disk Storage</TableHead>
+            <TableHead className="text-right w-[11%] min-w-[100px]">Workloads</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -62,6 +63,11 @@ export function NodesTable({ nodes }: NodesTableProps) {
               node.diskTotalGb > 0
                 ? Math.round(((node.usage.diskUsedGb || 0) / node.diskTotalGb) * 100)
                 : 0;
+
+            const formatGb = (val: number) => {
+              const rounded = Math.round(val * 10) / 10;
+              return rounded % 1 === 0 ? `${rounded.toFixed(0)}GB` : `${rounded.toFixed(1)}GB`;
+            };
 
             return (
               <TableRow
@@ -138,7 +144,7 @@ export function NodesTable({ nodes }: NodesTableProps) {
                       </span>
                     </div>
                   )}
-                  <div className="h-1 w-28 bg-muted/80 rounded-full overflow-hidden mt-1.5">
+                  <div className="h-1 w-24 bg-muted/80 rounded-full overflow-hidden mt-1.5">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
                         isOffline
@@ -149,34 +155,68 @@ export function NodesTable({ nodes }: NodesTableProps) {
                           ? 'bg-status-warning'
                           : 'bg-status-success'
                       }`}
-                      style={{ width: `${isOffline ? 0 : node.usage.cpuPercent}%` }}
+                      style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, node.usage.cpuPercent))}%` }}
                     />
                   </div>
                 </TableCell>
 
-                {/* 5. Memory & Disk */}
+                {/* 5. Memory (RAM) */}
                 <TableCell className="font-mono text-xs">
-                  <div className="space-y-0.5">
+                  {isOffline ? (
+                    <span className="text-muted-foreground">0%</span>
+                  ) : (
                     <div>
-                      <span className="text-muted-foreground text-[10px] uppercase font-sans mr-1">
-                        RAM:
-                      </span>
                       <span className={getMetricColor(memPct)}>
-                        {isOffline ? '0%' : `${memPct}%`}
+                        {memPct}%
                       </span>
-                      <span className="text-[10px] text-muted-foreground ml-1 font-normal">
-                        ({Math.round(node.memoryTotalMb / 1024)}GB)
+                      <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
+                        ({formatGb(node.usage.memoryUsedMb / 1024)} / {formatGb(node.memoryTotalMb / 1024)})
                       </span>
                     </div>
+                  )}
+                  <div className="h-1 w-24 bg-muted/80 rounded-full overflow-hidden mt-1.5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isOffline
+                          ? 'bg-muted'
+                          : memPct >= 90
+                          ? 'bg-status-danger'
+                          : memPct >= 70
+                          ? 'bg-status-warning'
+                          : 'bg-status-success'
+                      }`}
+                      style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, memPct))}%` }}
+                    />
+                  </div>
+                </TableCell>
+
+                {/* 6. Disk Storage */}
+                <TableCell className="font-mono text-xs">
+                  {isOffline ? (
+                    <span className="text-muted-foreground">0%</span>
+                  ) : (
                     <div>
-                      <span className="text-muted-foreground text-[10px] uppercase font-sans mr-1">
-                        Disk:
+                      <span className={getMetricColor(diskPct)}>
+                        {diskPct}%
                       </span>
-                      <span>{diskPct}%</span>
-                      <span className="text-[10px] text-muted-foreground ml-1 font-normal">
-                        ({node.diskTotalGb}GB)
+                      <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
+                        ({formatGb(node.usage.diskUsedGb || 0)} / {formatGb(node.diskTotalGb)})
                       </span>
                     </div>
+                  )}
+                  <div className="h-1 w-24 bg-muted/80 rounded-full overflow-hidden mt-1.5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        isOffline
+                          ? 'bg-muted'
+                          : diskPct >= 90
+                          ? 'bg-status-danger'
+                          : diskPct >= 70
+                          ? 'bg-status-warning'
+                          : 'bg-status-success'
+                      }`}
+                      style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, diskPct))}%` }}
+                    />
                   </div>
                 </TableCell>
 
