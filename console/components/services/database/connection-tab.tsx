@@ -15,14 +15,24 @@ export function ConnectionTab({ service }: ConnectionTabProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const dbUser = 'tako_admin';
-  const dbPass = 'p@ssw0rd123!';
-  const dbHost = '192.168.1.11';
-  const dbPort = service.ports[0] || 5432;
-  const dbName = 'production_db';
+  const envMap = new Map((service.envVars || []).map((e) => [e.key, e.value]));
+  const dbUser = envMap.get('POSTGRES_USER') || envMap.get('MYSQL_USER') || envMap.get('MONGO_INITDB_ROOT_USERNAME') || envMap.get('DB_USER') || 'tako_admin';
+  const dbPass = envMap.get('POSTGRES_PASSWORD') || envMap.get('MYSQL_PASSWORD') || envMap.get('MYSQL_ROOT_PASSWORD') || envMap.get('REDIS_PASSWORD') || envMap.get('DB_PASSWORD') || 'p@ssw0rd123!';
+  const dbHost = service.nodeName || '127.0.0.1';
+  const defaultPort = service.databaseType === 'mysql' ? 3306 : service.databaseType === 'redis' ? 6379 : service.databaseType === 'mongodb' ? 27017 : 5432;
+  const dbPort = service.ports?.[0] || defaultPort;
+  const dbName = envMap.get('POSTGRES_DB') || envMap.get('MYSQL_DATABASE') || envMap.get('MONGO_INITDB_DATABASE') || envMap.get('DB_NAME') || 'production_db';
 
-  const connectionUri = `${service.databaseType || 'postgres'}://${dbUser}:${dbPass}@${dbHost}:${dbPort}/${dbName}`;
-  const maskedUri = `${service.databaseType || 'postgres'}://${dbUser}:••••••••@${dbHost}:${dbPort}/${dbName}`;
+  const connectionUri = service.connectionString || (
+    service.databaseType === 'redis'
+      ? `redis://:${dbPass}@${dbHost}:${dbPort}/0`
+      : `${service.databaseType || 'postgresql'}://${dbUser}:${dbPass}@${dbHost}:${dbPort}/${dbName}`
+  );
+  const maskedUri = service.connectionString
+    ? service.connectionString.replace(/:([^@]+)@/, ':••••••••@')
+    : (service.databaseType === 'redis'
+        ? `redis://:••••••••@${dbHost}:${dbPort}/0`
+        : `${service.databaseType || 'postgresql'}://${dbUser}:••••••••@${dbHost}:${dbPort}/${dbName}`);
 
   const copyValue = async (text: string, key: string) => {
     await navigator.clipboard.writeText(text);

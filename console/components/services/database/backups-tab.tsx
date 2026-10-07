@@ -27,7 +27,7 @@ export interface BackupsTabProps {
 }
 
 export function BackupsTab({ service }: BackupsTabProps) {
-  const [backups, setBackups] = useState<BackupItem[]>([
+  const initialBackups: BackupItem[] = [
     {
       id: 'bk-1',
       name: `backup-${service.slug}-2026-10-05-0300.sql.gz`,
@@ -42,20 +42,44 @@ export function BackupsTab({ service }: BackupsTabProps) {
       status: 'completed',
       createdAt: '2026-10-04T03:00:00Z',
     },
-    {
-      id: 'bk-3',
-      name: `backup-${service.slug}-2026-10-03-0300.sql.gz`,
-      sizeMb: 46.5,
-      status: 'completed',
-      createdAt: '2026-10-03T03:00:00Z',
-    },
-  ]);
+  ];
+
+  const [backups, setBackups] = useState<BackupItem[]>(initialBackups);
   const [isCreating, setIsCreating] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    async function loadBackups() {
+      try {
+        const res = await fetch(`/api/settings/service_backups_${service.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setBackups(data);
+          }
+        }
+      } catch {
+        // fallback
+      }
+    }
+    loadBackups();
+  }, [service.id]);
+
+  const saveBackups = async (newBackups: BackupItem[]) => {
+    try {
+      await fetch(`/api/settings/service_backups_${service.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: newBackups }),
+      });
+    } catch {
+      // fallback
+    }
+  };
+
   const handleCreateBackup = () => {
     setIsCreating(true);
-    setTimeout(() => {
+    setTimeout(async () => {
       const newBackup: BackupItem = {
         id: `bk-${Date.now()}`,
         name: `manual-${service.slug}-${new Date().toISOString().slice(0, 10)}.sql.gz`,
@@ -63,11 +87,13 @@ export function BackupsTab({ service }: BackupsTabProps) {
         status: 'completed',
         createdAt: new Date().toISOString(),
       };
-      setBackups([newBackup, ...backups]);
+      const updated = [newBackup, ...backups];
+      setBackups(updated);
+      await saveBackups(updated);
       setIsCreating(false);
       setActionNotice('Database backup created and saved to S3 target.');
       setTimeout(() => setActionNotice(null), 3000);
-    }, 1500);
+    }, 1200);
   };
 
   const handleRestore = (name: string) => {
@@ -77,8 +103,10 @@ export function BackupsTab({ service }: BackupsTabProps) {
     }
   };
 
-  const handleDelete = (id: string) => {
-    setBackups(backups.filter((b) => b.id !== id));
+  const handleDelete = async (id: string) => {
+    const updated = backups.filter((b) => b.id !== id);
+    setBackups(updated);
+    await saveBackups(updated);
   };
 
   return (
