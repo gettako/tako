@@ -40,6 +40,7 @@ import {
   Check,
   Search,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   FilePlus2,
   Sparkles,
@@ -704,6 +705,14 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                 </div>
               </div>
 
+              {/* Warning Banner */}
+              <div className="flex items-start gap-2.5 px-4 py-2.5 border-b border-status-warning/25 bg-status-warning/10 text-xs">
+                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-status-warning" />
+                <div className="flex-1 min-w-0 leading-relaxed text-foreground">
+                  <span className="font-semibold text-status-warning">Warning:</span> Dynamic configuration changes are applied immediately by Traefik. Syntax errors or misconfigured routing rules may disrupt proxy routing, SSL certificates, or active service traffic.
+                </div>
+              </div>
+
               {/* Live Syntax-Highlighted Editor Area */}
               <div
                 ref={editorContainerRef}
@@ -802,7 +811,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
 
       {/* Modal: Create New File */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl lg:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Create Dynamic Configuration File</DialogTitle>
             <DialogDescription>
@@ -813,12 +822,15 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-1">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">Filename</label>
               <Input
                 value={newFileName}
-                onChange={(e) => setNewFileName(e.target.value)}
+                onChange={(e) => {
+                  setNewFileName(e.target.value);
+                  if (createError) setCreateError(null);
+                }}
                 placeholder="e.g. my-custom-router.yml"
                 className="h-8 text-xs font-mono"
                 autoFocus
@@ -830,36 +842,58 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">Initial Template</label>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                {Object.entries(TEMPLATES).map(([key, item]) => {
-                  const isSelected = selectedTemplateKey === key;
-                  return (
-                    <div
-                      key={key}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setSelectedTemplateKey(key)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          setSelectedTemplateKey(key);
-                        }
-                      }}
-                      className={`p-2 rounded-md border text-left cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'border-primary bg-primary/10 text-foreground'
-                          : 'border-border hover:bg-muted/50 text-muted-foreground'
-                      }`}
-                    >
-                      <div className="text-xs font-medium text-foreground">{item.label}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5">{item.description}</div>
-                    </div>
-                  );
-                })}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
+                <div className="md:col-span-5 space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+                  {Object.entries(TEMPLATES).map(([key, item]) => {
+                    const isSelected = selectedTemplateKey === key;
+                    return (
+                      <div
+                        key={key}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedTemplateKey(key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setSelectedTemplateKey(key);
+                          }
+                        }}
+                        className={`p-2.5 rounded-lg border text-left cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/10 text-foreground ring-1 ring-primary/20'
+                            : 'border-border hover:bg-muted/50 text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-foreground">{item.label}</span>
+                          {isSelected && <Check className="size-3.5 text-primary shrink-0 ml-1.5" />}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{item.description}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="md:col-span-7 flex flex-col h-[300px] rounded-lg border border-border bg-muted/20 overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/50 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5 font-medium text-foreground">
+                      <Code2 className="size-3.5 text-muted-foreground" />
+                      <span>Template Preview</span>
+                    </span>
+                    <span className="font-mono text-[11px] text-muted-foreground">
+                      {TEMPLATES[selectedTemplateKey]?.label}
+                    </span>
+                  </div>
+                  <div className="flex-1 p-3 overflow-auto bg-background/50">
+                    <pre className="font-mono text-[11px] text-foreground/90 leading-relaxed whitespace-pre selection:bg-primary/20">
+                      {TEMPLATES[selectedTemplateKey]?.content.trim()}
+                    </pre>
+                  </div>
+                </div>
               </div>
             </div>
 
             {createError && (
-              <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 p-2.5 rounded-md">
+              <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
                 <AlertCircle className="size-4 shrink-0" />
                 <span>{createError}</span>
               </div>
@@ -871,16 +905,17 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               variant="outline"
               size="sm"
               onClick={() => setCreateDialogOpen(false)}
-              className="text-xs h-8"
+              className="text-xs h-8 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
             <Button
               size="sm"
               onClick={handleCreateFile}
-              className="text-xs h-8"
+              className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
-              Create File
+              <FilePlus2 className="size-3.5" />
+              <span>Create File</span>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -905,7 +940,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               variant="outline"
               size="sm"
               onClick={() => setDeleteTarget(null)}
-              className="text-xs h-8"
+              className="text-xs h-8 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -914,7 +949,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               size="sm"
               disabled={deleteMutation.isPending}
               onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
-              className="text-xs h-8 gap-1.5"
+              className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
               {deleteMutation.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />

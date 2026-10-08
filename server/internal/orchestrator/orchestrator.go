@@ -374,7 +374,7 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatRequest) (*takov1.HeartbeatResponse, error) {
 	nodeID := req.GetNodeId()
 
-	uptimeStr := fmt.Sprintf("%ds", req.GetUptimeSeconds())
+	uptimeStr := formatUptime(req.GetUptimeSeconds())
 
 	err := o.queries.UpdateNodeHeartbeat(ctx, db.UpdateNodeHeartbeatParams{
 		ID:            nodeID,
@@ -461,3 +461,26 @@ func (o *Orchestrator) StartLivenessWatcher(ctx context.Context, interval time.D
 	}()
 }
 
+func formatUptime(seconds int64) string {
+	if seconds <= 0 {
+		return "0s"
+	}
+	days := seconds / 86400
+	hours := (seconds % 86400) / 3600
+	minutes := (seconds % 3600) / 60
+	remSec := seconds % 60
+
+	if days > 0 {
+		if hours > 0 {
+			return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+		}
+		return fmt.Sprintf("%dd %dm", days, minutes)
+	}
+	if hours > 0 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	}
+	if minutes > 0 {
+		return fmt.Sprintf("%dm %ds", minutes, remSec)
+	}
+	return fmt.Sprintf("%ds", remSec)
+}

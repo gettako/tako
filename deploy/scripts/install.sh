@@ -87,7 +87,7 @@ if ! docker compose version &> /dev/null; then
   exit 1
 fi
 
-# 3. Detect Host Public IP
+# 3. Detect Host IPs (Public & Private)
 detect_public_ip() {
   local ip=""
   if [[ -n "${TAKO_PUBLIC_IP:-}" ]]; then
@@ -110,7 +110,34 @@ detect_public_ip() {
   echo "$ip" | tr -d '\n '
 }
 
+detect_private_ip() {
+  local ip=""
+  if [[ -n "${TAKO_PRIVATE_IP:-}" ]]; then
+    echo "$TAKO_PRIVATE_IP"
+    return
+  fi
+  # 1. Best source: outbound interface IP via ip route
+  ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}') || true
+  if [[ -z "$ip" ]]; then
+    ip=$(ip -4 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}') || true
+  fi
+  # 2. Interface inspection fallback: filter loopback, docker bridge (172.16-31.x, 10.0.0.x docker0)
+  if [[ -z "$ip" ]]; then
+    for cand in $(hostname -I 2>/dev/null); do
+      if [[ ! "$cand" =~ ^127\. ]] && [[ ! "$cand" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] && [[ ! "$cand" =~ ^10\.0\.0\. ]]; then
+        ip="$cand"
+        break
+      fi
+    done
+  fi
+  if [[ -z "$ip" ]]; then
+    ip="127.0.0.1"
+  fi
+  echo "$ip" | tr -d '\n '
+}
+
 PUBLIC_IP="$(detect_public_ip)"
+PRIVATE_IP="$(detect_private_ip)"
 
 # 4. Interactive Reader via /dev/tty
 prompt_input() {
@@ -200,6 +227,7 @@ if [[ $IS_AGENT -eq 1 ]]; then
   AGENT_TOKEN="${TAKO_AGENT_TOKEN:-}"
   NODE_NAME="${TAKO_NODE_NAME:-$(hostname)}"
   NODE_IP="${TAKO_PUBLIC_IP:-$PUBLIC_IP}"
+  NODE_PRIVATE_IP="${TAKO_PRIVATE_IP:-$PRIVATE_IP}"
 
   if [[ -z "$MASTER_URL" ]]; then
     prompt_input "Enter Master gRPC URL (<master-ip>:50051)" "${PUBLIC_IP}:50051" MASTER_URL
@@ -211,6 +239,10 @@ if [[ $IS_AGENT -eq 1 ]]; then
 
   if [[ -z "${TAKO_PUBLIC_IP:-}" ]]; then
     prompt_input "Enter Node Public IP" "$NODE_IP" NODE_IP
+  fi
+
+  if [[ -z "${TAKO_PRIVATE_IP:-}" ]]; then
+    prompt_input "Enter Node Private IP" "$NODE_PRIVATE_IP" NODE_PRIVATE_IP
   fi
 
   cat << EOF > "${TAKO_DIR}/docker-compose.yml"
@@ -243,7 +275,7 @@ services:
       - TAKO_ENROLL_TOKEN=${AGENT_TOKEN}
       - TAKO_NODE_NAME=${NODE_NAME}
       - TAKO_PUBLIC_IP=${NODE_IP}
-      - TAKO_IP_ADDRESS=${NODE_IP}
+      - TAKO_IP_ADDRESS=${NODE_PRIVATE_IP}
       - TAKO_METRICS_INTERVAL=3s
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
     networks:
@@ -272,6 +304,7 @@ ADMIN_EMAIL="${TAKO_EMAIL:-}"
 ADMIN_PASSWORD="${TAKO_PASSWORD:-}"
 AUTH_SECRET="${TAKO_AUTH_SECRET:-$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)}"
 SERVER_IP="${TAKO_PUBLIC_IP:-$PUBLIC_IP}"
+SERVER_PRIVATE_IP="${TAKO_PRIVATE_IP:-$PRIVATE_IP}"
 
 if [[ -z "$ADMIN_EMAIL" ]]; then
   prompt_input "Enter Admin Email" "admin@gettako.dev" ADMIN_EMAIL
@@ -283,6 +316,10 @@ fi
 
 if [[ -z "${TAKO_PUBLIC_IP:-}" ]]; then
   prompt_input "Enter Server Public IP" "$SERVER_IP" SERVER_IP
+fi
+
+if [[ -z "${TAKO_PRIVATE_IP:-}" ]]; then
+  prompt_input "Enter Server Private IP" "$SERVER_PRIVATE_IP" SERVER_PRIVATE_IP
 fi
 
 # Write dynamic Tako Console routing config for Traefik
@@ -341,6 +378,7 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./data/sqlite:/data
+      - /etc/tako/traefik:/etc/tako/traefik
     environment:
       - TAKO_HTTP_PORT=8080
       - TAKO_GRPC_PORT=50051
@@ -384,7 +422,7 @@ services:
       - TAKO_NODE_NAME=tako-master-01
       - TAKO_NODE_ROLE=leader
       - TAKO_PUBLIC_IP=${SERVER_IP}
-      - TAKO_IP_ADDRESS=${SERVER_IP}
+      - TAKO_IP_ADDRESS=${SERVER_PRIVATE_IP}
       - TAKO_STATE_FILE=/data/agent.json
       - TAKO_METRICS_INTERVAL=3s
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic

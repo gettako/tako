@@ -1095,7 +1095,9 @@ export function CreateServiceDialog({
                             {node.cpuTotalCores} vCPU
                           </span>
                           <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border">
-                            {Math.round(node.memoryTotalMb / 1024)} GB RAM
+                            {(node.memoryTotalMb / 1024) % 1 === 0
+                              ? `${(node.memoryTotalMb / 1024).toFixed(0)} GiB RAM`
+                              : `${(node.memoryTotalMb / 1024).toFixed(2)} GiB RAM`}
                           </span>
                           <span className="bg-muted/60 px-1.5 py-0.5 rounded border border-border">
                             {node.ipAddress}

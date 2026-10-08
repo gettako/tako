@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"gettako.dev/tako/internal/events"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store"
+	dbStore "gettako.dev/tako/internal/store/db"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
@@ -187,7 +189,7 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 	}
 	nodeID := regResp.NodeId
 
-	// 1. GET /api/v1/nodes/{id}/traefik/files -> returns default initialized template files
+	// 1. GET /api/v1/nodes/{id}/traefik/files -> without domain assigned, returns empty list (no fake files)
 	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files", nil)
 	listW := httptest.NewRecorder()
 	router.ServeHTTP(listW, listReq)
@@ -198,26 +200,38 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 	if err := json.Unmarshal(listW.Body.Bytes(), &files); err != nil {
 		t.Fatalf("failed to decode files list: %v", err)
 	}
-	if len(files) < 3 {
-		t.Fatalf("expected at least 3 default files, got %d", len(files))
+	if len(files) != 0 {
+		t.Fatalf("expected 0 files initially (no fake files), got %d: %+v", len(files), files)
 	}
 
-	// Verify default files exist
-	foundConsole := false
-	for _, f := range files {
-		if f.Name == "tako-console.yml" {
-			foundConsole = true
-			if f.Type != "yaml" {
-				t.Errorf("expected type yaml, got %s", f.Type)
-			}
-		}
-	}
-	if !foundConsole {
-		t.Errorf("expected tako-console.yml in default files list")
+	// 2. Assign domain to console via domain_settings -> tako.yml appears
+	_, err = orch.Queries().SetSetting(context.Background(), dbStore.SetSettingParams{
+		Key:   "domain_settings",
+		Value: `{"domain":"console.gettako.dev"}`,
+	})
+	if err != nil {
+		t.Fatalf("failed to set domain_settings: %v", err)
 	}
 
-	// 2. GET /api/v1/nodes/{id}/traefik/files/tako-console.yml -> returns content
-	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files/tako-console.yml", nil)
+	listReq2 := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files", nil)
+	listW2 := httptest.NewRecorder()
+	router.ServeHTTP(listW2, listReq2)
+	if listW2.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list files, got %d: %s", listW2.Code, listW2.Body.String())
+	}
+	var filesAfterDomain []TraefikConfigFile
+	if err := json.Unmarshal(listW2.Body.Bytes(), &filesAfterDomain); err != nil {
+		t.Fatalf("failed to decode files list: %v", err)
+	}
+	if len(filesAfterDomain) != 1 {
+		t.Fatalf("expected exactly 1 file (tako.yml) after domain assignment, got %d", len(filesAfterDomain))
+	}
+	if filesAfterDomain[0].Name != "tako.yml" {
+		t.Fatalf("expected tako.yml, got %s", filesAfterDomain[0].Name)
+	}
+
+	// Verify tako.yml content contains console.gettako.dev
+	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files/tako.yml", nil)
 	getW := httptest.NewRecorder()
 	router.ServeHTTP(getW, getReq)
 	if getW.Code != http.StatusOK {
@@ -227,7 +241,7 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 	if err := json.Unmarshal(getW.Body.Bytes(), &fileContent); err != nil {
 		t.Fatalf("failed to decode file content: %v", err)
 	}
-	if fileContent.Name != "tako-console.yml" || len(fileContent.Content) == 0 {
+	if fileContent.Name != "tako.yml" || !strings.Contains(fileContent.Content, "console.gettako.dev") {
 		t.Errorf("unexpected file content: %+v", fileContent)
 	}
 
@@ -290,5 +304,146 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 	}
 	if !hasSaveFile || !hasDeleteFile {
 		t.Errorf("expected audit logs for save (%v) and delete (%v)", hasSaveFile, hasDeleteFile)
+	}
+}
+
+func TestUpdateNodeEndpoint(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-token")
+	router := NewRouter(db, orch)
+
+	// Register a node with public IP in both fields initially
+	nodeID := "node-spec-test"
+	regReq := &takov1.RegisterNodeRequest{
+		NodeId:        nodeID,
+		Name:          "Initial Name",
+		IpAddress:     "43.156.243.241",
+		PublicIp:      "43.156.243.241",
+		Role:          "worker",
+		CpuTotalCores: 4,
+		MemoryTotalMb: 7620,
+		DiskTotalGb:   100,
+		DockerVersion: "26.1.0",
+		Os:            "Ubuntu 22.04 LTS",
+		KernelVersion: "5.15.0-generic",
+		EnrollToken:   "test-token",
+	}
+	_, err = orch.RegisterNode(context.Background(), regReq)
+	if err != nil {
+		t.Fatalf("failed to register node: %v", err)
+	}
+
+	// Update node with correct private IP
+	updatePayload := `{"name":"Tako Worker 01","ip_address":"10.3.19.31","public_ip":"43.156.243.241"}`
+	patchReq := httptest.NewRequest(http.MethodPatch, "/api/v1/nodes/"+nodeID, bytes.NewBufferString(updatePayload))
+	patchReq.Header.Set("Content-Type", "application/json")
+	patchW := httptest.NewRecorder()
+	router.ServeHTTP(patchW, patchReq)
+
+	if patchW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for PATCH node, got %d: %s", patchW.Code, patchW.Body.String())
+	}
+
+	var res NodeResponse
+	if err := json.Unmarshal(patchW.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if res.Name != "Tako Worker 01" {
+		t.Errorf("expected updated name 'Tako Worker 01', got '%s'", res.Name)
+	}
+	if res.IPAddress != "10.3.19.31" {
+		t.Errorf("expected updated ip_address '10.3.19.31', got '%s'", res.IPAddress)
+	}
+	if res.PublicIP != "43.156.243.241" {
+		t.Errorf("expected public_ip '43.156.243.241', got '%s'", res.PublicIP)
+	}
+}
+
+func TestRebootNodeEndpoint(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-token")
+	router := NewRouter(db, orch)
+
+	nodeID := "node-reboot-test"
+	regReq := &takov1.RegisterNodeRequest{
+		NodeId:        nodeID,
+		Name:          "Reboot Target",
+		IpAddress:     "10.3.19.31",
+		PublicIp:      "43.156.243.241",
+		Role:          "worker",
+		CpuTotalCores: 4,
+		MemoryTotalMb: 7620,
+		DiskTotalGb:   100,
+		DockerVersion: "26.1.0",
+		Os:            "Ubuntu 22.04 LTS",
+		KernelVersion: "5.15.0-generic",
+		EnrollToken:   "test-token",
+	}
+	_, err = orch.RegisterNode(context.Background(), regReq)
+	if err != nil {
+		t.Fatalf("failed to register node: %v", err)
+	}
+
+	// POST /api/v1/nodes/{id}/reboot
+	rebootReq := httptest.NewRequest(http.MethodPost, "/api/v1/nodes/"+nodeID+"/reboot", nil)
+	rebootW := httptest.NewRecorder()
+	router.ServeHTTP(rebootW, rebootReq)
+
+	if rebootW.Code != http.StatusOK && rebootW.Code != http.StatusAccepted {
+		t.Fatalf("expected 200 or 202 for reboot node, got %d: %s", rebootW.Code, rebootW.Body.String())
+	}
+
+	var res map[string]any
+	if err := json.Unmarshal(rebootW.Body.Bytes(), &res); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if res["success"] != true {
+		t.Errorf("expected success: true, got %v", res)
+	}
+
+	// Verify node status was transitioned to offline
+	updatedNode, err := orch.Queries().GetNodeByID(context.Background(), nodeID)
+	if err != nil {
+		t.Fatalf("failed to get node: %v", err)
+	}
+	if updatedNode.Status != "offline" {
+		t.Errorf("expected status 'offline', got '%s'", updatedNode.Status)
+	}
+
+	// Verify audit log recorded reboot
+	auditReq := httptest.NewRequest(http.MethodGet, "/api/v1/audit-logs", nil)
+	auditW := httptest.NewRecorder()
+	router.ServeHTTP(auditW, auditReq)
+	var logs []AuditLogResponse
+	_ = json.Unmarshal(auditW.Body.Bytes(), &logs)
+	foundRebootAudit := false
+	for _, l := range logs {
+		if l.Action == "reboot_node" && l.TargetID == nodeID {
+			foundRebootAudit = true
+		}
+	}
+	if !foundRebootAudit {
+		t.Errorf("expected reboot_node audit log entry")
 	}
 }

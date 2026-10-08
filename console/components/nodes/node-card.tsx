@@ -124,7 +124,9 @@ export function NodeCard({ node }: NodeCardProps) {
                     className="space-y-1"
                   />
                   <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
-                    {Math.round(node.memoryTotalMb / 1024)} GB
+                    {(node.memoryTotalMb / 1024) % 1 === 0
+                      ? `${(node.memoryTotalMb / 1024).toFixed(0)} GiB`
+                      : `${(node.memoryTotalMb / 1024).toFixed(2)} GiB`}
                   </span>
                 </div>
 

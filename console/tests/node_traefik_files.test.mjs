@@ -73,9 +73,9 @@ test('Node Traefik Files - in-memory storage, edit, save, and delete lifecycle',
   const store = new Map();
 
   // Seed default files
-  store.set('tako-console.yml', {
-    name: 'tako-console.yml',
-    path: '/etc/tako/traefik/dynamic/tako-console.yml',
+  store.set('tako.yml', {
+    name: 'tako.yml',
+    path: '/etc/tako/traefik/dynamic/tako.yml',
     size: 260,
     updatedAt: new Date().toISOString(),
     isCustom: false,
@@ -95,22 +95,22 @@ test('Node Traefik Files - in-memory storage, edit, save, and delete lifecycle',
 
   // 1. List files
   assert.equal(store.size, 2);
-  assert.equal(store.has('tako-console.yml'), true);
+  assert.equal(store.has('tako.yml'), true);
 
   // 2. Read file content
-  const consoleFile = store.get('tako-console.yml');
+  const consoleFile = store.get('tako.yml');
   assert.ok(consoleFile.content.includes('PathPrefix'));
 
   // 3. Edit existing file
   const editedContent = 'http:\n  routers:\n    console:\n      rule: Host(`dashboard.gettako.dev`)\n';
-  store.set('tako-console.yml', {
+  store.set('tako.yml', {
     ...consoleFile,
     content: editedContent,
     size: editedContent.length,
     updatedAt: new Date().toISOString(),
   });
-  assert.equal(store.get('tako-console.yml').content, editedContent);
-  assert.equal(store.get('tako-console.yml').size, editedContent.length);
+  assert.equal(store.get('tako.yml').content, editedContent);
+  assert.equal(store.get('tako.yml').size, editedContent.length);
 
   // 4. Create new custom dynamic configuration file
   const customFile = {

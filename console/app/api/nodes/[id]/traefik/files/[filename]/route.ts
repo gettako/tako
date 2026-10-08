@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchServer, APIError } from '@/lib/api-client';
 import { TraefikConfigFileContent } from '@/lib/types/node';
 
-const FALLBACK_FILE_CONTENTS: Record<string, string> = {
-  'tako-console.yml': `# Dynamic configuration for Tako Console reverse proxy
+const takoYamlContent = `# Dynamic configuration for Tako reverse proxy
 http:
   routers:
     tako-console:
@@ -19,30 +18,10 @@ http:
       loadBalancer:
         servers:
           - url: "http://127.0.0.1:3000"
-`,
-  'security-headers.yml': `# Security headers middleware
-http:
-  middlewares:
-    secure-headers:
-      headers:
-        sslRedirect: true
-        forceSTSHeader: true
-        stsIncludeSubdomains: true
-        stsPreload: true
-        stsSeconds: 31536000
-        customFrameOptionsValue: "SAMEORIGIN"
-        contentTypeNosniff: true
-        browserXssFilter: true
-`,
-  'ratelimit.yml': `# Rate limiting middleware template
-http:
-  middlewares:
-    api-ratelimit:
-      rateLimit:
-        average: 100
-        burst: 50
-        period: 1m
-`,
+`;
+
+const FALLBACK_FILE_CONTENTS: Record<string, string> = {
+  'tako.yml': takoYamlContent,
 };
 
 export async function GET(
@@ -60,16 +39,19 @@ export async function GET(
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     const { filename } = await params;
-    const content = FALLBACK_FILE_CONTENTS[filename] ?? '# Custom dynamic configuration\n';
-    return NextResponse.json({
-      name: filename,
-      path: `/etc/tako/traefik/dynamic/${filename}`,
-      size: content.length,
-      updatedAt: new Date().toISOString(),
-      isCustom: !FALLBACK_FILE_CONTENTS[filename],
-      type: filename.endsWith('.toml') ? 'toml' : filename.endsWith('.json') ? 'json' : 'yaml',
-      content,
-    });
+    if (filename in FALLBACK_FILE_CONTENTS) {
+      const content = FALLBACK_FILE_CONTENTS[filename];
+      return NextResponse.json({
+        name: filename,
+        path: `/etc/tako/traefik/dynamic/${filename}`,
+        size: content.length,
+        updatedAt: new Date().toISOString(),
+        isCustom: false,
+        type: 'yaml',
+        content,
+      });
+    }
+    return NextResponse.json({ error: `File '${filename}' not found` }, { status: 404 });
   }
 }
 

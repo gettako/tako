@@ -45,7 +45,7 @@ export const mockNodes: Node[] = [
     os: 'Linux (Tako Master)',
     kernelVersion: 'Linux',
     publicIp: '127.0.0.1',
-    uptime: 'Running',
+    uptime: '14d 6h 32m',
     lastHeartbeat: new Date().toISOString(),
   },
 ];
@@ -666,15 +666,14 @@ export const mockBackupSchedule: ClusterBackupSchedule = {
 };
 
 export const mockDomainSettings: ClusterDomainSettings = {
-  domain: 'console.gettako.dev',
-  sslActive: true,
+  domain: '',
+  sslActive: false,
   sslAutoRenew: true,
   customDnsIp: '',
-  sslStatus: 'active',
-  sslIssuer: "Let's Encrypt Authority X3",
-  sslExpiresAt: '2026-12-31T23:59:59Z',
-  dnsVerified: true,
-  lastCheckedAt: '2026-10-08T12:00:00Z',
+  sslIssuer: '',
+  sslExpiresAt: '',
+  dnsVerified: false,
+  lastCheckedAt: '',
 };
 
 export const mockNotificationSettings: NotificationSettings = {

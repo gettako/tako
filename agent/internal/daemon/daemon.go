@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -375,6 +376,27 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 	case *takov1.MasterTask_ContainerAction:
 		actionReq := t.ContainerAction
 		containerID, action := actionReq.GetContainerId(), actionReq.GetAction()
+
+		if action == "reboot-node" || (containerID == "host" && (action == "reboot" || action == "reboot-node")) {
+			log.Printf("[tako-agent] received host reboot command for node %s", nodeID)
+			_ = stream.Send(&takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_ContainerActionResult{
+					ContainerActionResult: &takov1.ContainerActionResponse{
+						Success: true,
+						Message: "host reboot scheduled",
+					},
+				},
+			})
+
+			go func() {
+				time.Sleep(1 * time.Second)
+				executeHostReboot()
+			}()
+			return
+		}
+
 		var err error
 		if d.dockerCli != nil {
 			err = d.dockerCli.ContainerAction(ctx, containerID, action)
@@ -420,4 +442,19 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 			},
 		})
 	}
+}
+
+func executeHostReboot() {
+	log.Printf("[tako-agent] executing host reboot sequence...")
+	if err := exec.Command("systemctl", "reboot").Run(); err == nil {
+		return
+	}
+	if err := exec.Command("shutdown", "-r", "now").Run(); err == nil {
+		return
+	}
+	if err := exec.Command("reboot").Run(); err == nil {
+		return
+	}
+	_ = os.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
+	_ = os.WriteFile("/proc/sysrq-trigger", []byte("b"), 0644)
 }

@@ -2,33 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchServer, APIError } from '@/lib/api-client';
 import { TraefikConfigFile, TraefikConfigFileContent } from '@/lib/types/node';
 
-const FALLBACK_FILES: TraefikConfigFile[] = [
-  {
-    name: 'tako-console.yml',
-    path: '/etc/tako/traefik/dynamic/tako-console.yml',
-    size: 260,
-    updatedAt: new Date().toISOString(),
-    isCustom: false,
-    type: 'yaml',
-  },
-  {
-    name: 'security-headers.yml',
-    path: '/etc/tako/traefik/dynamic/security-headers.yml',
-    size: 275,
-    updatedAt: new Date().toISOString(),
-    isCustom: false,
-    type: 'yaml',
-  },
-  {
-    name: 'ratelimit.yml',
-    path: '/etc/tako/traefik/dynamic/ratelimit.yml',
-    size: 140,
-    updatedAt: new Date().toISOString(),
-    isCustom: false,
-    type: 'yaml',
-  },
-];
-
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -42,7 +15,7 @@ export async function GET(
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
     // Fallback for offline dev
-    return NextResponse.json(FALLBACK_FILES);
+    return NextResponse.json([]);
   }
 }
 

@@ -56,7 +56,7 @@ export function DomainPanel() {
   const leaderNode = nodes.find((n) => n.role === 'leader') || nodes[0];
   const detectedLeaderIp = leaderNode?.publicIp || leaderNode?.ipAddress || '127.0.0.1';
 
-  const [domain, setDomain] = useState(settings?.domain ?? 'console.gettako.dev');
+  const [domain, setDomain] = useState(settings?.domain ?? '');
   const [sslAutoRenew, setSslAutoRenew] = useState(settings?.sslAutoRenew ?? true);
   const [customDnsIp, setCustomDnsIp] = useState(settings?.customDnsIp ?? '');
   const [validationError, setValidationError] = useState<string | null>(null);

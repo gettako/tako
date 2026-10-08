@@ -7,11 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"gettako.dev/tako/internal/events"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store/db"
 )
@@ -161,6 +164,12 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			_ = json.NewEncoder(w).Encode(mapNodeToResponse(node))
 		})
 
+		// PATCH /api/v1/nodes/{id}
+		r.Patch("/{id}", handleUpdateNode(orch))
+
+		// POST /api/v1/nodes/{id}/reboot
+		r.Post("/{id}/reboot", handleRebootNode(orch))
+
 		// DELETE /api/v1/nodes/{id}
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
@@ -188,6 +197,126 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Put("/{id}/traefik/files/{filename}", handleSaveNodeTraefikFile(orch))
 		r.Delete("/{id}/traefik/files/{filename}", handleDeleteNodeTraefikFile(orch))
 	})
+}
+
+type UpdateNodeRequest struct {
+	Name      *string `json:"name,omitempty"`
+	IPAddress *string `json:"ip_address,omitempty"`
+	PublicIP  *string `json:"public_ip,omitempty"`
+}
+
+func handleUpdateNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		node, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var req UpdateNodeRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		newName := node.Name
+		if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
+			newName = strings.TrimSpace(*req.Name)
+		}
+
+		newIP := node.IpAddress
+		if req.IPAddress != nil && strings.TrimSpace(*req.IPAddress) != "" {
+			newIP = strings.TrimSpace(*req.IPAddress)
+		}
+
+		newPublicIP := node.PublicIp
+		if req.PublicIP != nil {
+			newPublicIP = strings.TrimSpace(*req.PublicIP)
+		}
+
+		_, err = orch.DB().ExecContext(r.Context(), `UPDATE nodes SET
+			name = ?,
+			ip_address = ?,
+			public_ip = ?,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?`, newName, newIP, newPublicIP, id)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to update node: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		updatedNode, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(mapNodeToResponse(updatedNode))
+	}
+}
+
+func handleRebootNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		node, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		clientIP := r.RemoteAddr
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			clientIP = strings.Split(xff, ",")[0]
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "reboot_node",
+			TargetType: "node",
+			TargetID:   id,
+			TargetName: node.Name,
+			IPAddress:  clientIP,
+		})
+
+		dispatchErr := orch.DispatchContainerAction(r.Context(), id, "host", "reboot-node")
+
+		_ = orch.Queries().UpdateNodeStatus(r.Context(), db.UpdateNodeStatusParams{
+			ID:     id,
+			Status: "offline",
+		})
+		orch.Bus().Publish(events.Event{
+			Type: events.EventNodeStatusChanged,
+			Payload: map[string]any{
+				"node_id": id,
+				"name":    node.Name,
+				"status":  "offline",
+			},
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		if dispatchErr != nil && orch.GetAgentSession(id) == nil {
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"success": true,
+				"message": fmt.Sprintf("Node %s marked for reboot (agent session offline)", node.Name),
+			})
+			return
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"message": fmt.Sprintf("Node %s reboot signal issued successfully", node.Name),
+		})
+	}
 }
 
 func handleGetNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
@@ -440,111 +569,168 @@ func getTraefikFileType(name string) string {
 	return "yaml"
 }
 
-func defaultTraefikFiles() map[string]TraefikConfigFileContent {
-	now := time.Now().UTC().Format(time.RFC3339)
-	files := make(map[string]TraefikConfigFileContent)
+func getAssignedConsoleDomain(ctx context.Context, orch *orchestrator.Orchestrator) string {
+	ds, err := orch.Queries().GetSetting(ctx, "domain_settings")
+	if err != nil || ds.Value == "" {
+		return ""
+	}
+	var parsed struct {
+		Domain string `json:"domain"`
+	}
+	if err := json.Unmarshal([]byte(ds.Value), &parsed); err != nil {
+		return ""
+	}
+	d := cleanDomain(parsed.Domain)
+	if !isValidDomain(d) || d == "localhost" || d == "127.0.0.1" {
+		return ""
+	}
+	return d
+}
 
-	consoleYaml := `# Dynamic configuration for Tako Console reverse proxy
+func generateConsoleTraefikYaml(domain string) string {
+	d := strings.TrimSpace(domain)
+	if d == "" {
+		return ""
+	}
+	return fmt.Sprintf(`# Dynamic configuration for Tako Console reverse proxy
 http:
   routers:
-    tako-console:
-      rule: "PathPrefix(` + "`" + `/` + "`" + `)"
-      service: tako-console-svc
+    tako-console-secure:
+      rule: "Host(%s)"
       entryPoints:
-        - web
         - websecure
+      priority: 100
       tls:
         certResolver: letsencrypt
+      service: tako-console-svc
+
+    tako-console-redirect:
+      rule: "Host(%s)"
+      entryPoints:
+        - web
+      priority: 100
+      middlewares:
+        - tako-redirect-ssl
+      service: tako-console-svc
+
+  middlewares:
+    tako-redirect-ssl:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
   services:
     tako-console-svc:
       loadBalancer:
         servers:
-          - url: "http://127.0.0.1:3000"
-`
-
-	headersYaml := `# Security headers middleware
-http:
-  middlewares:
-    secure-headers:
-      headers:
-        sslRedirect: true
-        forceSTSHeader: true
-        stsIncludeSubdomains: true
-        stsPreload: true
-        stsSeconds: 31536000
-        customFrameOptionsValue: "SAMEORIGIN"
-        contentTypeNosniff: true
-        browserXssFilter: true
-`
-
-	rateLimitYaml := `# Rate limiting middleware template
-http:
-  middlewares:
-    api-ratelimit:
-      rateLimit:
-        average: 100
-        burst: 50
-        period: 1m
-`
-
-	files["tako-console.yml"] = TraefikConfigFileContent{
-		TraefikConfigFile: TraefikConfigFile{
-			Name:      "tako-console.yml",
-			Path:      "/etc/tako/traefik/dynamic/tako-console.yml",
-			Size:      int64(len(consoleYaml)),
-			UpdatedAt: now,
-			IsCustom:  false,
-			Type:      "yaml",
-		},
-		Content: consoleYaml,
-	}
-
-	files["security-headers.yml"] = TraefikConfigFileContent{
-		TraefikConfigFile: TraefikConfigFile{
-			Name:      "security-headers.yml",
-			Path:      "/etc/tako/traefik/dynamic/security-headers.yml",
-			Size:      int64(len(headersYaml)),
-			UpdatedAt: now,
-			IsCustom:  false,
-			Type:      "yaml",
-		},
-		Content: headersYaml,
-	}
-
-	files["ratelimit.yml"] = TraefikConfigFileContent{
-		TraefikConfigFile: TraefikConfigFile{
-			Name:      "ratelimit.yml",
-			Path:      "/etc/tako/traefik/dynamic/ratelimit.yml",
-			Size:      int64(len(rateLimitYaml)),
-			UpdatedAt: now,
-			IsCustom:  false,
-			Type:      "yaml",
-		},
-		Content: rateLimitYaml,
-	}
-
-	return files
+          - url: "http://tako-console:3000"
+`, "`"+d+"`", "`"+d+"`")
 }
 
 func loadNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, nodeID string) (map[string]TraefikConfigFileContent, error) {
 	key := fmt.Sprintf("node_traefik_files_%s", nodeID)
+	files := make(map[string]TraefikConfigFileContent)
+
+	// 1. Load stored files from DB settings if present
 	setting, err := orch.Queries().GetSetting(ctx, key)
 	if err == nil && setting.Value != "" {
-		var files map[string]TraefikConfigFileContent
-		if err := json.Unmarshal([]byte(setting.Value), &files); err == nil && len(files) > 0 {
-			return files, nil
+		var stored map[string]TraefikConfigFileContent
+		if err := json.Unmarshal([]byte(setting.Value), &stored); err == nil {
+			for k, f := range stored {
+				// Purge legacy fake template files if they weren't explicitly customized by user
+				if !f.IsCustom {
+					if k == "security-headers.yml" || k == "ratelimit.yml" || k == "tako-console.yml" {
+						continue
+					}
+				}
+				files[k] = f
+			}
 		}
 	}
 
-	defaults := defaultTraefikFiles()
-	valBytes, err := json.Marshal(defaults)
+	// 2. Scan physical dynamic files on disk if directory exists (/etc/tako/traefik/dynamic)
+	dynamicDir := "/etc/tako/traefik/dynamic"
+	if entries, err := os.ReadDir(dynamicDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			filename := entry.Name()
+			if !isValidTraefikFilename(filename) {
+				continue
+			}
+			fullPath := filepath.Join(dynamicDir, filename)
+			fi, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			contentBytes, err := os.ReadFile(fullPath)
+			if err != nil {
+				continue
+			}
+			// Only include if not already present or refresh content from disk
+			if existing, exists := files[filename]; !exists || !existing.IsCustom {
+				files[filename] = TraefikConfigFileContent{
+					TraefikConfigFile: TraefikConfigFile{
+						Name:      filename,
+						Path:      fullPath,
+						Size:      fi.Size(),
+						UpdatedAt: fi.ModTime().UTC().Format(time.RFC3339),
+						IsCustom:  true,
+						Type:      getTraefikFileType(filename),
+					},
+					Content: string(contentBytes),
+				}
+			}
+		}
+	}
+
+	// 3. tako.yml appears IF AND ONLY IF console is assigned to a domain
+	// (or if user customized it as custom file, or physical file exists on disk)
+	assignedDomain := getAssignedConsoleDomain(ctx, orch)
+	if assignedDomain != "" {
+		// Console is assigned to domain: ensure tako.yml is generated/present
+		if existing, exists := files["tako.yml"]; !exists || !existing.IsCustom {
+			content := generateConsoleTraefikYaml(assignedDomain)
+			files["tako.yml"] = TraefikConfigFileContent{
+				TraefikConfigFile: TraefikConfigFile{
+					Name:      "tako.yml",
+					Path:      "/etc/tako/traefik/dynamic/tako.yml",
+					Size:      int64(len(content)),
+					UpdatedAt: time.Now().UTC().Format(time.RFC3339),
+					IsCustom:  false,
+					Type:      "yaml",
+				},
+				Content: content,
+			}
+		}
+	} else {
+		// Console is NOT assigned to a domain:
+		// Delete tako.yml unless it was explicitly custom-created or physical file exists on disk
+		if existing, exists := files["tako.yml"]; exists && !existing.IsCustom {
+			hasPhysical := false
+			if _, err := os.Stat("/etc/tako/traefik/dynamic/tako.yml"); err == nil {
+				hasPhysical = true
+			}
+			if _, err := os.Stat("/etc/tako/traefik/tako.yml"); err == nil {
+				hasPhysical = true
+			}
+			if !hasPhysical {
+				delete(files, "tako.yml")
+			}
+		}
+	}
+
+	// Persist sanitized/updated state back to DB settings
+	valBytes, err := json.Marshal(files)
 	if err == nil {
 		_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
 			Key:   key,
 			Value: string(valBytes),
 		})
 	}
-	return defaults, nil
+
+	return files, nil
 }
 
 func saveNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, nodeID string, files map[string]TraefikConfigFileContent) error {
@@ -691,6 +877,13 @@ func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc
 			return
 		}
 
+		// Also persist physically to /etc/tako/traefik/dynamic if directory exists
+		dynamicDir := "/etc/tako/traefik/dynamic"
+		if fi, err := os.Stat(dynamicDir); err == nil && fi.IsDir() {
+			filePath := filepath.Join(dynamicDir, filename)
+			_ = os.WriteFile(filePath, []byte(req.Content), 0644)
+		}
+
 		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 			Action:     "save_node_traefik_file",
 			TargetType: "node",
@@ -744,6 +937,11 @@ func handleDeleteNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFu
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		// Also remove physically from disk if exists
+		dynamicDir := "/etc/tako/traefik/dynamic"
+		filePath := filepath.Join(dynamicDir, filename)
+		_ = os.Remove(filePath)
 
 		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 			Action:     "delete_node_traefik_file",

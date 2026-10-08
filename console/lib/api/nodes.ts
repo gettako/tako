@@ -149,6 +149,61 @@ export async function deleteNode(id: string): Promise<void> {
   nodes = nodes.filter((n) => n.id !== id);
 }
 
+export async function updateNode(
+  id: string,
+  data: { name?: string; ipAddress?: string; publicIp?: string }
+): Promise<Node> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          ip_address: data.ipAddress,
+          public_ip: data.publicIp,
+        }),
+      });
+      if (res.ok) {
+        return (await res.json()) as Node;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay();
+  const index = nodes.findIndex((n) => n.id === id);
+  if (index === -1) throw new Error(`Node ${id} not found`);
+  if (data.name) nodes[index].name = data.name;
+  if (data.ipAddress) nodes[index].ipAddress = data.ipAddress;
+  if (data.publicIp !== undefined) nodes[index].publicIp = data.publicIp;
+  return { ...nodes[index] };
+}
+
+export async function rebootNode(id: string): Promise<{ success: boolean; message: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${id}/reboot`, { method: 'POST' });
+      if (res.ok) {
+        return await res.json();
+      }
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to reboot node');
+    } catch (err: any) {
+      if (err.message && !err.message.includes('fetch')) {
+        throw err;
+      }
+    }
+  }
+
+  await simulateDelay(600, 1000);
+  const node = nodes.find((n) => n.id === id);
+  if (!node) throw new Error('Node not found');
+  node.status = 'offline';
+  return { success: true, message: `Node ${node.name} reboot signal issued` };
+}
+
 export async function updateNodeStatus(id: string, status: NodeStatus): Promise<Node> {
   await simulateDelay();
   const index = nodes.findIndex((n) => n.id === id);
@@ -306,33 +361,26 @@ export async function getNodeTraefikFiles(nodeId: string): Promise<TraefikConfig
   await simulateDelay(100, 200);
   if (!localTraefikFiles.has(nodeId)) {
     const defaultMap = new Map<string, TraefikConfigFileContent>();
-    defaultMap.set('tako-console.yml', {
-      name: 'tako-console.yml',
-      path: '/etc/tako/traefik/dynamic/tako-console.yml',
-      size: 260,
-      updatedAt: new Date().toISOString(),
-      isCustom: false,
-      type: 'yaml',
-      content: `# Dynamic configuration for Tako Console reverse proxy\nhttp:\n  routers:\n    tako-console:\n      rule: "PathPrefix(\`/\`)"\n      service: tako-console-svc\n      entryPoints:\n        - web\n        - websecure\n      tls:\n        certResolver: letsencrypt\n  services:\n    tako-console-svc\n      loadBalancer:\n        servers:\n          - url: "http://127.0.0.1:3000"`,
-    });
-    defaultMap.set('security-headers.yml', {
-      name: 'security-headers.yml',
-      path: '/etc/tako/traefik/dynamic/security-headers.yml',
-      size: 275,
-      updatedAt: new Date().toISOString(),
-      isCustom: false,
-      type: 'yaml',
-      content: `# Security headers middleware\nhttp:\n  middlewares:\n    secure-headers:\n      headers:\n        sslRedirect: true\n        forceSTSHeader: true\n        stsIncludeSubdomains: true\n        stsPreload: true\n        stsSeconds: 31536000\n        customFrameOptionsValue: "SAMEORIGIN"\n        contentTypeNosniff: true\n        browserXssFilter: true`,
-    });
-    defaultMap.set('ratelimit.yml', {
-      name: 'ratelimit.yml',
-      path: '/etc/tako/traefik/dynamic/ratelimit.yml',
-      size: 140,
-      updatedAt: new Date().toISOString(),
-      isCustom: false,
-      type: 'yaml',
-      content: `# Rate limiting middleware template\nhttp:\n  middlewares:\n    api-ratelimit:\n      rateLimit:\n        average: 100\n        burst: 50\n        period: 1m`,
-    });
+    // tako.yml only appears if console is assigned to a domain
+    try {
+      const { getDomainSettings } = await import('@/lib/api/settings');
+      const ds = await getDomainSettings();
+      if (ds && ds.domain && ds.domain.trim() !== '' && ds.domain !== 'localhost') {
+        const cleanDom = ds.domain.trim();
+        const content = `# Dynamic configuration for Tako Console reverse proxy\nhttp:\n  routers:\n    tako-console-secure:\n      rule: "Host(\`${cleanDom}\`)"\n      service: tako-console-svc\n      entryPoints:\n        - websecure\n      tls:\n        certResolver: letsencrypt\n    tako-console:\n      rule: "Host(\`${cleanDom}\`)"\n      service: tako-console-svc\n      entryPoints:\n        - web\n  services:\n    tako-console-svc:\n      loadBalancer:\n        servers:\n          - url: "http://tako-console:3000"`;
+        defaultMap.set('tako.yml', {
+          name: 'tako.yml',
+          path: '/etc/tako/traefik/dynamic/tako.yml',
+          size: content.length,
+          updatedAt: new Date().toISOString(),
+          isCustom: false,
+          type: 'yaml',
+          content,
+        });
+      }
+    } catch {
+      // Ignore fallback import error
+    }
     localTraefikFiles.set(nodeId, defaultMap);
   }
 
@@ -356,21 +404,13 @@ export async function getNodeTraefikFileContent(
   }
 
   await simulateDelay(80, 150);
-  const files = await getNodeTraefikFiles(nodeId);
+  await getNodeTraefikFiles(nodeId);
   const map = localTraefikFiles.get(nodeId);
   if (map && map.has(filename)) {
     return map.get(filename)!;
   }
 
-  return {
-    name: filename,
-    path: `/etc/tako/traefik/dynamic/${filename}`,
-    size: 0,
-    updatedAt: new Date().toISOString(),
-    isCustom: true,
-    type: filename.endsWith('.toml') ? 'toml' : filename.endsWith('.json') ? 'json' : 'yaml',
-    content: '# New dynamic configuration\n',
-  };
+  throw new Error(`Configuration file '${filename}' not found`);
 }
 
 export async function saveNodeTraefikFile(

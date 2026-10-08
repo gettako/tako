@@ -65,8 +65,8 @@ export function NodesTable({ nodes }: NodesTableProps) {
                 : 0;
 
             const formatGb = (val: number) => {
-              const rounded = Math.round(val * 10) / 10;
-              return rounded % 1 === 0 ? `${rounded.toFixed(0)}GB` : `${rounded.toFixed(1)}GB`;
+              const rounded = Math.round(val * 100) / 100;
+              return rounded % 1 === 0 ? `${rounded.toFixed(0)} GiB` : `${rounded.toFixed(2)} GiB`;
             };
 
             return (
