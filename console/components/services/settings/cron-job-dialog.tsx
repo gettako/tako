@@ -13,7 +13,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { SearchableSelect } from '@/components/ui/searchable-select';
 import { cn } from 'cn';
 import {
   validateCronExpression,
@@ -85,7 +84,7 @@ export function CronJobDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
@@ -134,7 +133,7 @@ export function CronJobDialog({
                 </div>
               </div>
 
-              <div className="space-y-2">
+              <div>
                 <Input
                   placeholder="*/15 * * * *"
                   value={schedule}
@@ -143,24 +142,6 @@ export function CronJobDialog({
                   disabled={isSaving}
                   className="font-mono text-sm"
                 />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground shrink-0">Preset template:</span>
-                  <div className="flex-1">
-                    <SearchableSelect
-                      value={PRESETS.find((p) => p.expr === schedule)?.expr || ''}
-                      onValueChange={(val) => val && setSchedule(val)}
-                      options={PRESETS.map((p) => ({
-                        value: p.expr,
-                        label: `${p.label} (${p.expr})`,
-                        description: explainCronExpression(p.expr),
-                      }))}
-                      placeholder="Choose schedule preset..."
-                      searchPlaceholder="Search cron presets..."
-                      size="sm"
-                      className="h-7 text-xs"
-                    />
-                  </div>
-                </div>
               </div>
 
               {/* Realtime Validation & Human Explanation */}

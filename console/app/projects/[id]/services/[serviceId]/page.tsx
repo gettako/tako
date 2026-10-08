@@ -12,6 +12,7 @@ import { ServiceDomainTab } from '@/components/services/domains/service-domain-t
 import { ConnectionTab } from '@/components/services/database/connection-tab';
 import { BackupsTab } from '@/components/services/database/backups-tab';
 import { ServiceDeploymentTab } from '@/components/services/deployments/service-deployment-tab';
+import { ServiceMetricsTab } from '@/components/services/metrics/service-metrics-tab';
 import { ServiceSettingsTab } from '@/components/services/settings/service-settings-tab';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
@@ -171,6 +172,14 @@ export default function ServiceDetailPage({
             deployments={deployments}
             onNavigateTab={setActiveTab}
             onRetryDeploy={handleDeploy}
+          />
+        )}
+
+        {activeTab === 'metrics' && (
+          <ServiceMetricsTab
+            service={service}
+            onNavigateTab={setActiveTab}
+            onStartService={handleStart}
           />
         )}
 

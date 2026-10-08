@@ -231,5 +231,40 @@ test('Endpoint Builders - generates clean stream URLs', () => {
   assert.equal(getDeploymentLogsStreamUrl('dep-123'), '/api/sse/deployments/dep-123/logs');
 });
 
+test('Service Telemetry Metrics - generates accurate time-series telemetry points', async () => {
+  const { getServiceTimeSeriesMetrics } = await import('../lib/api/metrics.ts');
+
+  const baseline = {
+    cpuPercent: 25,
+    memoryUsedMb: 256,
+    memoryLimitMb: 1024,
+    replicas: 2,
+  };
+
+  const metrics1h = await getServiceTimeSeriesMetrics('srv-test', '1h', baseline);
+  assert.ok(Array.isArray(metrics1h));
+  assert.ok(metrics1h.length > 0);
+
+  const sample = metrics1h[0];
+  assert.ok(typeof sample.timestamp === 'string');
+  assert.ok(typeof sample.cpu === 'number' && sample.cpu >= 0 && sample.cpu <= 100);
+  assert.ok(typeof sample.memory === 'number' && sample.memory >= 0);
+  assert.ok(typeof sample.memoryPercent === 'number' && sample.memoryPercent <= 100);
+  assert.ok(typeof sample.networkRx === 'number' && sample.networkRx >= 0);
+  assert.ok(typeof sample.networkTx === 'number' && sample.networkTx >= 0);
+  assert.ok(typeof sample.diskRead === 'number');
+  assert.ok(typeof sample.diskWrite === 'number');
+
+  // Verify multi-replica metrics are generated when replicas > 1
+  assert.ok(sample.replicaMetrics);
+  assert.ok(sample.replicaMetrics['replica-1']);
+  assert.ok(sample.replicaMetrics['replica-2']);
+
+  // Verify 15m and 24h ranges
+  const metrics15m = await getServiceTimeSeriesMetrics('srv-test', '15m', baseline);
+  assert.ok(metrics15m.length > 0);
+});
+
+
 
 

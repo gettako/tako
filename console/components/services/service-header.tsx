@@ -139,9 +139,9 @@ export function ServiceHeader({
             ) : null}
 
             {service.commitHash && (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1" title={`Commit: ${service.commitHash}`}>
                 <GitCommit className="size-3.5" />
-                <span className="font-mono">{service.commitHash}</span>
+                <span className="font-mono">{service.commitHash.slice(0, 8)}</span>
                 <span>({service.branch})</span>
               </span>
             )}

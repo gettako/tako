@@ -3,6 +3,7 @@
 import React from 'react';
 import {
   Activity,
+  LineChart,
   KeyRound,
   Rocket,
   ScrollText,
@@ -25,6 +26,7 @@ export function getTabsForService(type: ServiceType): TabItem[] {
   if (type === 'database') {
     return [
       { id: 'overview', label: 'Overview', icon: Activity },
+      { id: 'metrics', label: 'Metrics', icon: LineChart },
       { id: 'connection', label: 'Connection', icon: Database },
       { id: 'backups', label: 'Backups', icon: Archive },
       { id: 'env', label: 'Environment', icon: KeyRound },
@@ -36,6 +38,7 @@ export function getTabsForService(type: ServiceType): TabItem[] {
 
   return [
     { id: 'overview', label: 'Overview', icon: Activity },
+    { id: 'metrics', label: 'Metrics', icon: LineChart },
     { id: 'env', label: 'Environment', icon: KeyRound },
     { id: 'deployments', label: 'Deployments', icon: Rocket },
     { id: 'logs', label: 'Logs', icon: ScrollText },

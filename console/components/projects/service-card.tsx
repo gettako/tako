@@ -77,9 +77,9 @@ export function ServiceCard({ service }: ServiceCardProps) {
                     <span className="truncate">{service.connectionString}</span>
                   </span>
                 ) : service.commitHash ? (
-                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground truncate">
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground truncate" title={`Commit: ${service.commitHash}`}>
                     <GitCommit className="size-3 text-muted-foreground shrink-0" />
-                    <span className="font-mono">{service.commitHash}</span>
+                    <span className="font-mono">{service.commitHash.slice(0, 8)}</span>
                     <span>• {service.branch}</span>
                   </span>
                 ) : null}

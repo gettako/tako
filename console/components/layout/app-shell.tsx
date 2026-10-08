@@ -7,7 +7,6 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { Header } from './header';
 import { Toaster } from '@/components/ui/sonner';
 import { GlobalCommandPalette } from '@/components/command-palette/command-dialog';
-import { ScenarioSwitcher } from '@/components/dev/scenario-switcher';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -38,9 +37,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Global ⌘K Command Palette Modal */}
       <GlobalCommandPalette />
-
-      {/* Dev-only Mock Scenario Switcher */}
-      <ScenarioSwitcher />
 
       <Toaster position="bottom-right" richColors />
     </SidebarProvider>

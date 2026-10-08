@@ -1,10 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Cpu, HardDrive, Activity, Server, Radio, ArrowRight } from 'lucide-react';
-import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { SectionHeader } from '@/components/ui/section-header';
-import { ResourceBar } from '@/components/ui/resource-bar';
+import { Cpu, HardDrive, Server, Radio, ArrowRight, LineChart, Database } from 'lucide-react';
+import { StatCard } from '@/components/ui/stat-card';
 import { Service } from '@/lib/types';
 
 export interface ResourceMetricsCardProps {
@@ -23,191 +21,130 @@ export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsC
   const diskUsed = service.usage.diskUsedGb || 1;
   const diskPercent = Math.min(100, Math.round((diskUsed / Math.max(1, diskLimit)) * 100));
 
-  const getLoadBadge = (pct: number) => {
-    if (pct >= 90) {
-      return (
-        <span className="rounded bg-status-danger/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-status-danger border border-status-danger/20">
-          High Load
-        </span>
-      );
-    }
-    if (pct >= 70) {
-      return (
-        <span className="rounded bg-status-warning/10 px-1.5 py-0.5 font-mono text-[10px] font-medium text-status-warning border border-status-warning/20">
-          Elevated
-        </span>
-      );
-    }
-    return (
-      <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/50">
-        Normal
-      </span>
-    );
-  };
-
   return (
-    <Card className="p-6">
-      <CardHeader className="px-0 pt-0 pb-4">
-        <SectionHeader
-          icon={Activity}
-          title="Telemetry & Resource Utilization"
-          description="Live compute utilization, memory pressure, and persistent storage"
-          action={
-            <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1 text-xs">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
-              </span>
-              <span className="font-mono text-muted-foreground text-[11px]">
-                {service.replicas} {service.replicas === 1 ? 'replica' : 'replicas'} online
-              </span>
-            </div>
+    <div className="space-y-3">
+      {/* 4 Stat Cards Grid (Exactly matches Dashboard Stats Overview) */}
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        {/* 1. CPU Compute */}
+        <StatCard
+          title="CPU Compute"
+          value={`${service.usage.cpuPercent}%`}
+          subtext={
+            hasCpuLimit
+              ? `Quota: ${service.limits.cpuCores} ${service.limits.cpuCores === 1 ? 'core' : 'cores'}`
+              : 'Shared host compute'
+          }
+          icon={Cpu}
+          statusAccent={
+            service.usage.cpuPercent >= 85
+              ? 'unhealthy'
+              : service.usage.cpuPercent >= 65
+              ? 'warning'
+              : 'healthy'
+          }
+          change={{
+            value:
+              service.usage.cpuPercent >= 85
+                ? 'High Load'
+                : service.usage.cpuPercent >= 65
+                ? 'Elevated'
+                : 'Normal',
+            trend: service.usage.cpuPercent >= 85 ? 'down' : 'up',
+          }}
+        />
+
+        {/* 2. Memory (RAM) */}
+        <StatCard
+          title="Memory (RAM)"
+          value={`${service.usage.memoryUsedMb} MB`}
+          subtext={
+            hasMemoryLimit
+              ? `Limit: ${service.limits.memoryMb} MB`
+              : 'Shared host memory'
+          }
+          icon={HardDrive}
+          statusAccent={
+            memoryPercent >= 85
+              ? 'unhealthy'
+              : memoryPercent >= 65
+              ? 'warning'
+              : 'healthy'
+          }
+          change={
+            hasMemoryLimit
+              ? {
+                  value: `${memoryPercent}% used`,
+                  trend: memoryPercent >= 85 ? 'down' : 'up',
+                }
+              : undefined
           }
         />
-      </CardHeader>
 
-      <CardContent className="p-0 space-y-4">
-        {/* 3 Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {/* 1. CPU */}
-          <div className="rounded-lg border border-border bg-background p-4 flex flex-col justify-between space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-medium text-xs text-muted-foreground">
-                <Cpu className="size-3.5 text-muted-foreground" />
-                CPU Compute
-              </span>
-              {getLoadBadge(service.usage.cpuPercent)}
-            </div>
+        {/* 3. Persistent Disk */}
+        <StatCard
+          title="Persistent Disk"
+          value={`${diskUsed} GB`}
+          subtext={`Quota: ${diskLimit} GB allocated`}
+          icon={Database}
+          change={{
+            value: `${diskPercent}% quota`,
+            trend: 'neutral',
+          }}
+        />
 
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-sans">
-                  {service.usage.cpuPercent}%
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground font-mono">
-                {hasCpuLimit
-                  ? `Limit: ${service.limits.cpuCores} ${service.limits.cpuCores === 1 ? 'Core' : 'Cores'}`
-                  : 'Shared host compute'}
-              </p>
-            </div>
+        {/* 4. Container Replicas */}
+        <StatCard
+          title="Container Replicas"
+          value={`${service.replicas} ${service.replicas === 1 ? 'Instance' : 'Instances'}`}
+          subtext={`Host: ${service.nodeName}`}
+          icon={Server}
+          statusAccent={
+            service.status === 'healthy'
+              ? 'healthy'
+              : service.status === 'stopped'
+              ? 'neutral'
+              : 'warning'
+          }
+          change={{
+            value:
+              service.status === 'healthy'
+                ? 'Online'
+                : service.status === 'stopped'
+                ? 'Stopped'
+                : 'Deploying',
+            trend: service.status === 'healthy' ? 'up' : 'neutral',
+          }}
+        />
+      </div>
 
-            <div className="pt-1">
-              <ResourceBar
-                value={service.usage.cpuPercent}
-                max={100}
-                unit="%"
-                showPercentage={false}
-                size="sm"
-              />
-            </div>
-          </div>
-
-          {/* 2. Memory (RAM) */}
-          <div className="rounded-lg border border-border bg-background p-4 flex flex-col justify-between space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-medium text-xs text-muted-foreground">
-                <HardDrive className="size-3.5 text-muted-foreground" />
-                Memory (RAM)
-              </span>
-              {hasMemoryLimit ? (
-                getLoadBadge(memoryPercent)
-              ) : (
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/50">
-                  Shared
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-sans">
-                  {service.usage.memoryUsedMb}
-                </span>
-                <span className="text-xs text-muted-foreground font-mono">MB</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground font-mono">
-                {hasMemoryLimit
-                  ? `Limit: ${service.limits.memoryMb} MB (${memoryPercent}%)`
-                  : 'Shared with host node'}
-              </p>
-            </div>
-
-            <div className="pt-1">
-              <ResourceBar
-                value={service.usage.memoryUsedMb}
-                max={hasMemoryLimit ? service.limits.memoryMb : Math.max(service.usage.memoryUsedMb, 1024)}
-                unit="MB"
-                showPercentage={false}
-                size="sm"
-              />
-            </div>
-          </div>
-
-          {/* 3. Disk Storage */}
-          <div className="rounded-lg border border-border bg-background p-4 flex flex-col justify-between space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-medium text-xs text-muted-foreground">
-                <HardDrive className="size-3.5 text-muted-foreground" />
-                Persistent Disk
-              </span>
-              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground border border-border/50">
-                {diskPercent}%
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-bold tracking-tight text-foreground font-sans">
-                  {diskUsed}
-                </span>
-                <span className="text-xs text-muted-foreground font-mono">GB</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground font-mono">
-                Quota: {diskLimit} GB
-              </p>
-            </div>
-
-            <div className="pt-1">
-              <ResourceBar
-                value={diskUsed}
-                max={diskLimit}
-                unit="GB"
-                showPercentage={false}
-                size="sm"
-              />
-            </div>
-          </div>
+      {/* Sub-bar with host daemon status & quick navigation links */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 text-xs text-muted-foreground font-mono text-[11px]">
+        <div className="flex items-center gap-1.5">
+          <Radio className="size-3 text-emerald-500" />
+          <span>Daemon synced with {service.nodeName}</span>
         </div>
 
-        {/* Telemetry Status Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-border/60 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Server className="size-3.5 text-muted-foreground" />
-            <span className="font-mono text-[11px]">
-              Assigned Host: <span className="text-foreground font-medium">{service.nodeName}</span>
-            </span>
-          </div>
-
+        {onNavigateTab && (
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 font-mono text-[11px]">
-              <Radio className="size-3 text-emerald-500" />
-              <span>Daemon synced</span>
-            </div>
-
-            {onNavigateTab && (
-              <button
-                type="button"
-                onClick={() => onNavigateTab('settings')}
-                className="text-foreground hover:underline font-medium inline-flex items-center gap-1 text-[11px]"
-              >
-                <span>Adjust Limits</span>
-                <ArrowRight className="size-3" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => onNavigateTab('metrics')}
+              className="text-foreground hover:underline font-medium inline-flex items-center gap-1 text-[11px]"
+            >
+              <LineChart className="size-3 text-primary" />
+              <span>Open Detailed Metrics</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigateTab('settings')}
+              className="text-foreground hover:underline font-medium inline-flex items-center gap-1 text-[11px]"
+            >
+              <span>Adjust Limits</span>
+              <ArrowRight className="size-3" />
+            </button>
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        )}
+      </div>
+    </div>
   );
 }
