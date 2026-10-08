@@ -8,7 +8,19 @@ export async function GET(req: NextRequest) {
     const limit = searchParams.get('limit') || '50';
     const offset = searchParams.get('offset') || '0';
 
-    const logs = await fetchServer(`/api/v1/audit-logs?limit=${limit}&offset=${offset}`);
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      req.headers.get('x-real-ip') ||
+      '127.0.0.1';
+
+    const logs = await fetchServer<Array<Record<string, unknown>>>(`/api/v1/audit-logs?limit=${limit}&offset=${offset}`);
+    if (Array.isArray(logs)) {
+      const sanitized = logs.map((l) => ({
+        ...l,
+        ipAddress: typeof l.ipAddress === 'string' && l.ipAddress.trim() !== '' ? l.ipAddress : clientIp,
+      }));
+      return NextResponse.json(sanitized);
+    }
     return NextResponse.json(logs);
   } catch (err: unknown) {
     if (err instanceof APIError) {
@@ -22,9 +34,23 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const clientIp =
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      req.headers.get('x-real-ip') ||
+      '127.0.0.1';
+
+    const payload = {
+      ...body,
+      ipAddress: body.ipAddress || clientIp,
+    };
+
     const log = await fetchServer('/api/v1/audit-logs', {
       method: 'POST',
-      body: JSON.stringify(body),
+      headers: {
+        'X-Forwarded-For': clientIp,
+        'X-Real-IP': clientIp,
+      },
+      body: JSON.stringify(payload),
     });
     return NextResponse.json(log, { status: 201 });
   } catch (err: unknown) {

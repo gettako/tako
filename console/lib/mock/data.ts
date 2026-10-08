@@ -631,37 +631,12 @@ export const mockUsers: User[] = [
     email: 'supianidz@gmail.com',
     role: 'owner',
     twoFactorEnabled: true,
-    avatarUrl: 'https://avatars.githubusercontent.com/u/1000001?v=4',
+    avatarUrl: 'https://api.dicebear.com/10.x/big-smile/png?seed=supianidz',
     createdAt: '2026-01-15T08:00:00Z',
-  },
-  {
-    id: 'usr-2',
-    name: 'Sarah Chen',
-    email: 'sarah@example.com',
-    role: 'member',
-    twoFactorEnabled: true,
-    createdAt: '2026-03-20T10:30:00Z',
-  },
-  {
-    id: 'usr-3',
-    name: 'Alex Rivera',
-    email: 'alex@example.com',
-    role: 'member',
-    twoFactorEnabled: false,
-    createdAt: '2026-06-12T14:15:00Z',
   },
 ];
 
-export const mockUserInvites: UserInvite[] = [
-  {
-    id: 'inv-1',
-    email: 'devops-lead@company.com',
-    role: 'member',
-    token: 'takoinv_89f1a0e8d12',
-    expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6).toISOString(),
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
-];
+export const mockUserInvites: UserInvite[] = [];
 
 export const mockPasskeys: Passkey[] = [
   {
@@ -692,7 +667,12 @@ export const mockDomainSettings: ClusterDomainSettings = {
   domain: 'console.gettako.dev',
   sslActive: true,
   sslAutoRenew: true,
-  customDnsIp: '159.89.120.44',
+  customDnsIp: '',
+  sslStatus: 'active',
+  sslIssuer: "Let's Encrypt Authority X3",
+  sslExpiresAt: '2026-12-31T23:59:59Z',
+  dnsVerified: true,
+  lastCheckedAt: '2026-10-08T12:00:00Z',
 };
 
 export const mockNotificationSettings: NotificationSettings = {

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getUserAvatarUrl } from '@/lib/avatar';
 
 interface AuditDetailDrawerProps {
   open: boolean;
@@ -208,8 +209,8 @@ export function AuditDetailDrawer({
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 p-3.5 sm:p-4 rounded-xl border border-border bg-card">
               <div className="flex items-center gap-3 min-w-0">
-                <Avatar className="size-10 border border-border shrink-0">
-                  <AvatarImage src={log.actor.avatarUrl} alt={log.actor.name} />
+                <Avatar className="size-11 border border-border/80 shrink-0">
+                  <AvatarImage src={getUserAvatarUrl(log.actor.email || log.actor.name, log.actor.avatarUrl)} alt={log.actor.name} />
                   <AvatarFallback className="font-semibold text-xs sm:text-sm bg-primary/10 text-primary">
                     {getInitials(log.actor.name)}
                   </AvatarFallback>
@@ -275,7 +276,7 @@ export function AuditDetailDrawer({
                   Source IP
                 </span>
                 <div className="text-xs sm:text-sm font-mono text-foreground truncate select-all">
-                  {log.ipAddress}
+                  {log.ipAddress && log.ipAddress.trim() !== '' ? log.ipAddress : '127.0.0.1'}
                 </div>
                 <div className="text-[11px] text-muted-foreground">Inbound network origin</div>
               </div>

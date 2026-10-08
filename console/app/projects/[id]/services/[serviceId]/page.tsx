@@ -19,6 +19,7 @@ import { ErrorState } from '@/components/ui/error-state';
 import { getServiceById, updateServiceStatus, updateService } from '@/lib/api/services';
 import { getProjectById } from '@/lib/api/projects';
 import { getDeployments, triggerDeployment } from '@/lib/api/deployments';
+import { getNodes } from '@/lib/api/nodes';
 import { UpdateServiceInput } from '@/lib/types';
 
 export default function ServiceDetailPage({
@@ -75,6 +76,16 @@ export default function ServiceDetailPage({
   });
 
   const latestDeployment = deployments[0] || null;
+
+  const { data: nodes = [] } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: getNodes,
+  });
+
+  const targetNode = nodes.find(
+    (n) => n.id === service?.nodeId || n.name === service?.nodeName
+  );
+  const nodeIp = targetNode?.publicIp || targetNode?.ipAddress;
 
   const handleDeploy = async () => {
     if (!service) return;
@@ -149,6 +160,8 @@ export default function ServiceDetailPage({
         service={service}
         projectId={projectId}
         projectName={project?.name || 'Project'}
+        latestDeployment={latestDeployment}
+        nodeIp={nodeIp}
         onDeploy={handleDeploy}
         onRebuild={handleRebuild}
         onRestart={handleRestart}
@@ -204,6 +217,7 @@ export default function ServiceDetailPage({
         {activeTab === 'domains' && (
           <ServiceDomainTab
             service={service}
+            nodeIp={nodeIp}
             onDomainsUpdated={() => {
               refetchService();
             }}

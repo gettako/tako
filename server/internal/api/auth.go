@@ -609,8 +609,11 @@ func handleListUsers(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		resp := make([]UserResp, 0, len(users))
 		for _, u := range users {
 			var avatar string
-			if u.AvatarUrl.Valid {
+			if u.AvatarUrl.Valid && u.AvatarUrl.String != "" {
 				avatar = u.AvatarUrl.String
+			} else {
+				cleanSeed := strings.ToLower(strings.TrimSpace(u.Email))
+				avatar = fmt.Sprintf("https://api.dicebear.com/10.x/big-smile/png?seed=%s", md5Hex(cleanSeed))
 			}
 			resp = append(resp, UserResp{
 				ID:        u.ID,
@@ -737,17 +740,14 @@ func handleDeleteUser(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 		rows, _ := res.RowsAffected()
-		if rows == 0 {
-			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
-			return
+		if rows > 0 {
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "delete_user",
+				TargetType: "user",
+				TargetID:   userID,
+				TargetName: userID,
+			})
 		}
-
-		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
-			Action:     "delete_user",
-			TargetType: "user",
-			TargetID:   userID,
-			TargetName: userID,
-		})
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})

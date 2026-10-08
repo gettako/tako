@@ -1,9 +1,12 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
+	"net"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,11 +22,47 @@ type PingResponse struct {
 	Message string `json:"message"`
 }
 
+func extractRequestIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.Split(xff, ",")
+		if len(parts) > 0 {
+			clean := strings.TrimSpace(parts[0])
+			if clean != "" {
+				return clean
+			}
+		}
+	}
+	if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
+		clean := strings.TrimSpace(xrip)
+		if clean != "" {
+			return clean
+		}
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && host != "" {
+		return host
+	}
+	if r.RemoteAddr != "" {
+		return r.RemoteAddr
+	}
+	return "127.0.0.1"
+}
+
+func clientIPMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := extractRequestIP(r)
+		ctx := context.WithValue(r.Context(), orchestrator.ClientIPContextKey, ip)
+		ctx = context.WithValue(ctx, "client_ip", ip)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func NewRouter(db *sql.DB, orch *orchestrator.Orchestrator) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(clientIPMiddleware)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 

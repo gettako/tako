@@ -17,10 +17,11 @@ import { toast } from 'sonner';
 
 export interface ServiceDomainTabProps {
   service: Service;
+  nodeIp?: string;
   onDomainsUpdated?: () => void;
 }
 
-export function ServiceDomainTab({ service, onDomainsUpdated }: ServiceDomainTabProps) {
+export function ServiceDomainTab({ service, nodeIp, onDomainsUpdated }: ServiceDomainTabProps) {
   const [domains, setDomains] = useState<ServiceDomain[]>(service.domains || []);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isMutating, setIsMutating] = useState(false);
@@ -130,7 +131,7 @@ export function ServiceDomainTab({ service, onDomainsUpdated }: ServiceDomainTab
       ) : (
         <DomainList
           domains={domains}
-          nodeIp={service.nodeName || '127.0.0.1'}
+          nodeIp={nodeIp || service.nodeName || '127.0.0.1'}
           onRemoveDomain={handleRemoveDomain}
           onSetPrimary={handleSetPrimary}
         />

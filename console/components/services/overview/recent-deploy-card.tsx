@@ -33,6 +33,7 @@ import { toast } from 'sonner';
 export interface RecentDeployCardProps {
   service: Service;
   latestDeployment?: Deployment | null;
+  nodeIp?: string;
   onViewAllDeployments?: () => void;
   onNavigateTab?: (tabId: string) => void;
   onRetryDeploy?: () => void;
@@ -41,6 +42,7 @@ export interface RecentDeployCardProps {
 export function RecentDeployCard({
   service,
   latestDeployment,
+  nodeIp,
   onViewAllDeployments,
   onNavigateTab,
   onRetryDeploy,
@@ -266,9 +268,15 @@ export function RecentDeployCard({
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 8);
 
-  const previewUrl =
-    latestDeployment?.previewUrl ||
-    (service.commitHash ? `http://${commitHashPrefix}-127-0-0-1.sslip.io` : null);
+  const cleanNodeIp = (nodeIp || '').split(':')[0].trim();
+  const dashedNodeIp = cleanNodeIp ? cleanNodeIp.replace(/\./g, '-') : '';
+
+  let previewUrl = latestDeployment?.previewUrl || null;
+  if (previewUrl && dashedNodeIp && previewUrl.includes('127-0-0-1') && dashedNodeIp !== '127-0-0-1') {
+    previewUrl = previewUrl.replace('127-0-0-1', dashedNodeIp);
+  } else if (!previewUrl && (service.commitHash || latestDeployment?.commitHash)) {
+    previewUrl = `http://${commitHashPrefix}-${dashedNodeIp || '127-0-0-1'}.sslip.io`;
+  }
 
   const activeUrl = primaryCustomDomain ? `https://${primaryCustomDomain.domain}` : previewUrl;
   const isCustomDomain = !!primaryCustomDomain;

@@ -18,13 +18,15 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Service } from '@/lib/types';
+import { Service, Deployment } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 export interface ServiceHeaderProps {
   service: Service;
   projectId: string;
   projectName?: string;
+  latestDeployment?: Deployment | null;
+  nodeIp?: string;
   onDeploy?: () => void;
   onRebuild?: () => void;
   onRestart?: () => void;
@@ -36,6 +38,8 @@ export function ServiceHeader({
   service,
   projectId,
   projectName = 'Project',
+  latestDeployment,
+  nodeIp,
   onDeploy,
   onRebuild,
   onRestart,
@@ -83,6 +87,28 @@ export function ServiceHeader({
 
   const TypeIcon = getTypeIcon(service.type);
 
+  const cleanNodeIp = (nodeIp || '').split(':')[0].trim();
+  const dashedNodeIp = cleanNodeIp ? cleanNodeIp.replace(/\./g, '-') : '';
+
+  const commitHashPrefix = (
+    latestDeployment?.commitHash ||
+    service.commitHash ||
+    'preview'
+  )
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 8);
+
+  let previewUrl = latestDeployment?.previewUrl || null;
+
+  if (previewUrl && dashedNodeIp && previewUrl.includes('127-0-0-1') && dashedNodeIp !== '127-0-0-1') {
+    previewUrl = previewUrl.replace('127-0-0-1', dashedNodeIp);
+  } else if (!previewUrl && (service.commitHash || latestDeployment?.commitHash)) {
+    previewUrl = `http://${commitHashPrefix || 'preview'}-${dashedNodeIp || '127-0-0-1'}.sslip.io`;
+  }
+
+  const activeUrl = primaryDomain ? `https://${primaryDomain.domain}` : previewUrl;
+
   return (
     <div className="space-y-4">
       {/* Toast alert banner if action triggered */}
@@ -124,16 +150,16 @@ export function ServiceHeader({
                 <span>{primaryDomain.domain}</span>
                 <ExternalLink className="size-3" />
               </a>
-            ) : service.commitHash ? (
+            ) : previewUrl ? (
               <a
-                href={`http://${(service.commitHash.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'preview')}-127-0-0-1.sslip.io`}
+                href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1 text-primary hover:underline transition-colors"
                 title="Preview URL (sslip.io)"
               >
                 <Globe className="size-3.5" />
-                <span>{(service.commitHash.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'preview')}-127-0-0-1.sslip.io</span>
+                <span>{previewUrl.replace(/^https?:\/\//, '')}</span>
                 <ExternalLink className="size-3" />
               </a>
             ) : null}
@@ -155,16 +181,15 @@ export function ServiceHeader({
               <Button
                 variant="outline"
                 size="sm"
+                disabled={!activeUrl}
                 render={
-                  <a
-                    href={
-                      primaryDomain
-                        ? `https://${primaryDomain.domain}`
-                        : `http://${(service.commitHash?.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'preview')}-127-0-0-1.sslip.io`
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                  />
+                  activeUrl ? (
+                    <a
+                      href={activeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
+                  ) : undefined
                 }
                 className="gap-1.5 text-sm h-9 border-border text-foreground hover:bg-muted"
               >

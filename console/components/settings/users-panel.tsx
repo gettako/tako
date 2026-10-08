@@ -35,8 +35,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, UserPlus, Mail, Copy, Check, Trash2, Shield, Clock, Plus } from 'lucide-react';
+import { Users, UserPlus, Mail, Copy, Check, Trash2, Shield, Clock, Plus, AlertTriangle } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
+import { getUserAvatarUrl } from '@/lib/avatar';
 import { toast } from 'sonner';
 
 export function UsersPanel() {
@@ -47,6 +48,7 @@ export function UsersPanel() {
   const [inviteExpiry, setInviteExpiry] = useState<number>(7);
   const [generatedInvite, setGeneratedInvite] = useState<UserInvite | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   const { data: currentUser } = useQuery({
     queryKey: ['current-user'],
@@ -168,10 +170,10 @@ export function UsersPanel() {
                   return (
                     <TableRow key={u.id} className="h-14 hover:bg-muted/30 transition-colors">
                       <TableCell>
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="size-8 text-xs">
-                            <AvatarImage src={u.avatarUrl} alt={u.name} />
-                            <AvatarFallback>{getInitials(u.name)}</AvatarFallback>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="size-10 text-xs border border-border/70 shrink-0">
+                            <AvatarImage src={getUserAvatarUrl(u.email, u.avatarUrl)} alt={u.name} />
+                            <AvatarFallback className="font-semibold bg-primary/10 text-primary">{getInitials(u.name)}</AvatarFallback>
                           </Avatar>
                           <div>
                             <div className="font-semibold text-sm text-foreground flex items-center gap-1.5">
@@ -239,11 +241,7 @@ export function UsersPanel() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              if (confirm(`Deactivate and remove ${u.name} from the cluster?`)) {
-                                deactivateMutation.mutate(u.id);
-                              }
-                            }}
+                            onClick={() => setUserToDelete(u)}
                             className="size-8 p-0 text-muted-foreground hover:text-status-danger active:not-aria-[haspopup]:translate-y-px"
                             title="Deactivate user"
                           >
@@ -452,6 +450,47 @@ export function UsersPanel() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Deactivate Dialog (shadcn confirmation instead of native js confirm) */}
+      <Dialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+              <AlertTriangle className="size-5 text-status-danger shrink-0" />
+              <span>Deactivate Team Member</span>
+            </DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground pt-1.5 leading-relaxed">
+              Are you sure you want to remove <span className="font-semibold text-foreground">{userToDelete?.name}</span> ({userToDelete?.email}) from the cluster? They will immediately lose access to cluster resources and deployment actions.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setUserToDelete(null)}
+              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={deactivateMutation.isPending}
+              onClick={() => {
+                if (userToDelete) {
+                  deactivateMutation.mutate(userToDelete.id);
+                  setUserToDelete(null);
+                }
+              }}
+              className="text-xs h-9 bg-status-danger hover:bg-status-danger/90 text-white font-medium active:not-aria-[haspopup]:translate-y-px"
+            >
+              {deactivateMutation.isPending ? 'Removing...' : 'Deactivate Member'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

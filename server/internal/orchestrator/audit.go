@@ -10,6 +10,8 @@ import (
 	"gettako.dev/tako/internal/store/db"
 )
 
+const ClientIPContextKey = "tako_client_ip"
+
 type AuditLogInput struct {
 	ActorID    string
 	ActorName  string
@@ -28,6 +30,17 @@ func (o *Orchestrator) RecordAudit(ctx context.Context, input AuditLogInput) (*d
 		input.ActorID = "usr_admin"
 		input.ActorName = "Administrator"
 		input.ActorEmail = "admin@gettako.dev"
+	}
+
+	if input.IPAddress == "" {
+		if ip, ok := ctx.Value(ClientIPContextKey).(string); ok && ip != "" {
+			input.IPAddress = ip
+		} else if ip, ok := ctx.Value("client_ip").(string); ok && ip != "" {
+			input.IPAddress = ip
+		}
+	}
+	if input.IPAddress == "" {
+		input.IPAddress = "127.0.0.1"
 	}
 
 	metadataStr := "{}"

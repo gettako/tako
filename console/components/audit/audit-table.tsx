@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuditDetailDrawer } from './audit-detail-drawer';
 import { FileJson, ChevronLeft, ChevronRight, Clock, ShieldCheck } from 'lucide-react';
+import { getUserAvatarUrl } from '@/lib/avatar';
 
 import {
   Table,
@@ -92,10 +93,10 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
 
                 {/* 2. Actor */}
                 <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <Avatar className="size-7 text-[10px] border border-border shrink-0">
-                      <AvatarImage src={log.actor.avatarUrl} alt={log.actor.name} />
-                      <AvatarFallback>{getInitials(log.actor.name)}</AvatarFallback>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-9 text-xs border border-border/80 shrink-0">
+                      <AvatarImage src={getUserAvatarUrl(log.actor.email || log.actor.name, log.actor.avatarUrl)} alt={log.actor.name} />
+                      <AvatarFallback className="font-semibold bg-primary/10 text-primary">{getInitials(log.actor.name)}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
                       <div className="font-semibold text-sm text-foreground truncate group-hover:text-primary transition-colors">
@@ -133,8 +134,8 @@ export function AuditTable({ logs, pageSize = 10 }: AuditTableProps) {
                 </TableCell>
 
                 {/* 5. Source IP */}
-                <TableCell className="font-mono text-xs text-muted-foreground">
-                  {log.ipAddress}
+                <TableCell className="font-mono text-xs text-foreground/90">
+                  {log.ipAddress && log.ipAddress.trim() !== '' ? log.ipAddress : '127.0.0.1'}
                 </TableCell>
 
                 {/* 6. Action */}

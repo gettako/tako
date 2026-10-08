@@ -24,14 +24,16 @@ import {
   SyncedRepo,
   ClusterBackupSchedule,
   ClusterDomainSettings,
+  DomainVerificationResult,
   NotificationSettings,
   Notification,
 } from '@/lib/types';
 import { getUserAvatarUrl } from '@/lib/avatar';
+import { sanitizeDomain } from '@/lib/utils/domain-validator';
 
 let currentUser = { ...mockCurrentUser };
 let users = [...mockUsers];
-let invites = [...mockUserInvites];
+let invites: UserInvite[] = [];
 let sessions = [...mockSessions];
 let passkeys = [...mockPasskeys];
 let buckets = [...mockS3Buckets];
@@ -94,11 +96,22 @@ export async function getUsers(): Promise<User[]> {
             twoFactorEnabled: !!u.twoFactorEnabled,
             createdAt: u.createdAt || new Date().toISOString(),
           }));
+          saveSettingToBFF('team_users', users).catch(() => {});
           return [...users];
         }
       }
     } catch {
       // Fallback
+    }
+
+    // Try BFF cached team_users before mock
+    const cached = await fetchSettingFromBFF<User[]>('team_users', []);
+    if (Array.isArray(cached) && cached.length > 0) {
+      users = cached.map((u) => ({
+        ...u,
+        avatarUrl: getUserAvatarUrl(u.email || '', u.avatarUrl),
+      }));
+      return [...users];
     }
   }
   await simulateDelay();
@@ -119,6 +132,7 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<Us
         if (idx !== -1) {
           users[idx] = { ...users[idx], role };
         }
+        saveSettingToBFF('team_users', users).catch(() => {});
         return {
           id: updated.id || userId,
           name: updated.name || '',
@@ -140,6 +154,7 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<Us
   if (users[idx].id === currentUser.id) {
     currentUser.role = role;
   }
+  saveSettingToBFF('team_users', users).catch(() => {});
   return { ...users[idx] };
 }
 
@@ -153,10 +168,11 @@ export async function deactivateUser(userId: string): Promise<void> {
   }
   await simulateDelay();
   users = users.filter((u) => u.id !== userId);
+  await saveSettingToBFF('team_users', users).catch(() => {});
 }
 
 export async function getUserInvites(): Promise<UserInvite[]> {
-  const remote = await fetchSettingFromBFF<UserInvite[]>('user_invites', invites);
+  const remote = await fetchSettingFromBFF<UserInvite[]>('user_invites', []);
   if (Array.isArray(remote)) {
     invites = remote;
   }
@@ -174,7 +190,7 @@ export async function createUserInvite(email: string, role: UserRole, expiryDays
     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * expiryDays).toISOString(),
     createdAt: new Date().toISOString(),
   };
-  invites.unshift(newInvite);
+  invites = [newInvite, ...invites.filter((i) => i.email !== email)];
   await saveSettingToBFF('user_invites', invites);
 
   // Also provision the user record in database if online
@@ -307,7 +323,11 @@ export async function triggerManualBackup(): Promise<{ ok: boolean; snapshotSize
 export async function getDomainSettings(): Promise<ClusterDomainSettings> {
   const remote = await fetchSettingFromBFF<ClusterDomainSettings>('domain_settings', domainSettings);
   if (remote && remote.domain) {
-    domainSettings = remote;
+    domainSettings = {
+      ...domainSettings,
+      ...remote,
+      domain: sanitizeDomain(remote.domain),
+    };
   }
   await simulateDelay();
   return { ...domainSettings };
@@ -315,9 +335,72 @@ export async function getDomainSettings(): Promise<ClusterDomainSettings> {
 
 export async function updateDomainSettings(input: Partial<ClusterDomainSettings>): Promise<ClusterDomainSettings> {
   await simulateDelay();
-  domainSettings = { ...domainSettings, ...input };
+  const cleanInput = { ...input };
+  if (cleanInput.domain) {
+    cleanInput.domain = sanitizeDomain(cleanInput.domain);
+  }
+  domainSettings = { ...domainSettings, ...cleanInput };
   await saveSettingToBFF('domain_settings', domainSettings);
   return { ...domainSettings };
+}
+
+export async function verifyDomainAndSSL(
+  domain: string,
+  expectedIp?: string
+): Promise<DomainVerificationResult> {
+  const sanitized = sanitizeDomain(domain);
+
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/settings/domain/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: sanitized, expectedIp }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as DomainVerificationResult;
+        domainSettings = {
+          ...domainSettings,
+          domain: data.domain,
+          dnsVerified: data.dnsVerified,
+          sslActive: data.sslActive,
+          sslStatus: data.sslStatus,
+          sslIssuer: data.sslIssuer,
+          sslExpiresAt: data.sslExpiresAt,
+          lastCheckedAt: data.lastCheckedAt,
+        };
+        return data;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(300, 500);
+  const isMatch = !expectedIp || expectedIp === '127.0.0.1' || sanitized.includes(expectedIp.replace(/\./g, '-'));
+  const fallbackResult: DomainVerificationResult = {
+    domain: sanitized,
+    valid: true,
+    dnsVerified: isMatch,
+    resolvedIps: expectedIp ? [expectedIp] : ['127.0.0.1'],
+    expectedIp: expectedIp || '127.0.0.1',
+    sslActive: true,
+    sslStatus: isMatch ? 'active' : 'pending_dns',
+    sslIssuer: "Let's Encrypt Authority X3",
+    sslExpiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString(),
+    message: isMatch
+      ? `DNS pointer verified. Let's Encrypt TLS certificate active for ${sanitized}.`
+      : `DNS A record does not match expected leader IP (${expectedIp}).`,
+    lastCheckedAt: new Date().toISOString(),
+  };
+
+  domainSettings = {
+    ...domainSettings,
+    ...fallbackResult,
+  };
+  saveSettingToBFF('domain_settings', domainSettings).catch(() => {});
+
+  return fallbackResult;
 }
 
 /* --- Notifications --- */

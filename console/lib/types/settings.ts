@@ -88,6 +88,25 @@ export interface ClusterDomainSettings {
   sslActive: boolean;
   sslAutoRenew: boolean;
   customDnsIp?: string;
+  sslStatus?: 'active' | 'pending_dns' | 'pending_acme' | 'error';
+  sslIssuer?: string;
+  sslExpiresAt?: string;
+  dnsVerified?: boolean;
+  lastCheckedAt?: string;
+}
+
+export interface DomainVerificationResult {
+  domain: string;
+  valid: boolean;
+  dnsVerified: boolean;
+  resolvedIps: string[];
+  expectedIp: string;
+  sslActive: boolean;
+  sslStatus: 'active' | 'pending_dns' | 'pending_acme' | 'error';
+  sslIssuer?: string;
+  sslExpiresAt?: string;
+  message: string;
+  lastCheckedAt: string;
 }
 
 export interface NotificationSettings {
