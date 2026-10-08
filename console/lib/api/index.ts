@@ -9,4 +9,5 @@ export * from './settings';
 export * from './crons';
 export * from './webhooks';
 export * from './auth';
+export * from './profile';
 export * from './backups';

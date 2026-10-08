@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Copy,
@@ -229,6 +230,18 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               Make sure your public SSH key is authorized in <code>/root/.ssh/authorized_keys</code> on this host.
             </p>
           </div>
+
+          <DialogFooter className="gap-2 sm:gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setTerminalOpen(false)}
+              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -240,7 +240,7 @@ export function CreateNodeDialog({
             </Button>
           </div>
 
-          <div className="flex items-center justify-end gap-2 order-1 sm:order-2">
+          <div className="flex items-center justify-end gap-2 sm:gap-2.5 order-1 sm:order-2">
             <Button
               type="button"
               variant="outline"

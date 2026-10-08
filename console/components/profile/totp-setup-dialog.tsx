@@ -131,21 +131,14 @@ export function TotpSetupDialog({
         }
       }}
     >
-      <DialogContent className="max-w-md bg-card border-border">
+      <DialogContent className="sm:max-w-lg bg-card border-border">
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <ShieldCheck className="size-4" />
-            </div>
-            <div>
-              <DialogTitle className="text-base font-semibold">
-                Two-Factor Authentication Setup
-              </DialogTitle>
-              <DialogDescription className="text-xs text-muted-foreground">
-                Step {step} of 3: {step === 1 ? 'Scan Authenticator QR' : step === 2 ? 'Verify 6-Digit Code' : 'Save Recovery Codes'}
-              </DialogDescription>
-            </div>
-          </div>
+          <DialogTitle className="text-base font-semibold">
+            Two-Factor Authentication Setup
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            Step {step} of 3: {step === 1 ? 'Scan Authenticator QR' : step === 2 ? 'Verify 6-Digit Code' : 'Save Recovery Codes'}
+          </DialogDescription>
         </DialogHeader>
 
         {isLoadingSetup ? (
@@ -229,7 +222,7 @@ export function TotpSetupDialog({
                   />
                 </div>
 
-                <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                <DialogFooter className="gap-2 sm:gap-2.5 pt-2">
                   <Button
                     type="button"
                     variant="outline"

@@ -1,12 +1,12 @@
 "use client";
 
-import { KeyRound, LogIn } from "lucide-react";
+import { Fingerprint, Loader2, LogIn } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cn } from "cn";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Field,
   FieldGroup,
@@ -14,7 +14,7 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { login } from "@/lib/api/auth";
+import { login, loginWithPasskey } from "@/lib/api/auth";
 
 export function LoginForm({
   className,
@@ -25,6 +25,7 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [passkeyPending, setPasskeyPending] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,6 +38,19 @@ export function LoginForm({
     } catch (err: unknown) {
       setError(err instanceof Error && err.message ? err.message : "Invalid email or password.");
       setPending(false);
+    }
+  }
+
+  async function onPasskeyLogin() {
+    setPasskeyPending(true);
+    setError(null);
+    try {
+      await loginWithPasskey();
+      router.push("/");
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error && err.message ? err.message : "Failed to authenticate with passkey.");
+      setPasskeyPending(false);
     }
   }
 
@@ -94,7 +108,7 @@ export function LoginForm({
         </Field>
 
         <Field>
-          <Button type="submit" className="w-full gap-2 cursor-pointer" disabled={pending}>
+          <Button type="submit" className="w-full gap-2 cursor-pointer active:not-aria-[haspopup]:translate-y-px" disabled={pending || passkeyPending}>
             <LogIn className="size-4" />
             {pending ? "Signing in…" : "Sign in"}
           </Button>
@@ -103,13 +117,25 @@ export function LoginForm({
         <FieldSeparator>Or continue with</FieldSeparator>
 
         <Field>
-          <Link
-            href="/login/passkey"
-            className={cn(buttonVariants({ variant:"outline" }), "w-full gap-2 cursor-pointer text-xs sm:text-sm")}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onPasskeyLogin}
+            disabled={pending || passkeyPending}
+            className="w-full gap-2 cursor-pointer text-xs sm:text-sm active:not-aria-[haspopup]:translate-y-px"
           >
-            <KeyRound className="size-4" />
-            Passkey instead
-          </Link>
+            {passkeyPending ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                <span>Verifying passkey…</span>
+              </>
+            ) : (
+              <>
+                <Fingerprint className="size-4" />
+                <span>Sign in with Passkey</span>
+              </>
+            )}
+          </Button>
         </Field>
       </FieldGroup>
     </form>

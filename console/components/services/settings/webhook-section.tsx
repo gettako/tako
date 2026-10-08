@@ -316,7 +316,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
 
       {/* Regenerate Token Security Confirmation Popover/Dialog (AC-7) */}
       <Dialog open={regenerateDialogOpen} onOpenChange={setRegenerateDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-status-warning">
               Regenerate Webhook Secret?
@@ -326,13 +326,22 @@ export function WebhookSection({ service }: WebhookSectionProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="pt-2 flex justify-end">
+          <DialogFooter className="pt-2 gap-2 sm:gap-2.5">
             <Button
               type="button"
-              size="default"
+              variant="outline"
+              size="sm"
+              onClick={() => setRegenerateDialogOpen(false)}
+              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
               onClick={() => regenerateMutation.mutate()}
               disabled={regenerateMutation.isPending}
-              className="w-full sm:w-auto text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+              className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {regenerateMutation.isPending ? 'Regenerating...' : 'Confirm & Regenerate'}
             </Button>

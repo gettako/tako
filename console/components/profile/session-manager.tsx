@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSessions, revokeSession, revokeAllOtherSessions } from '@/lib/api/settings';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { getSessions, revokeSession, revokeAllOtherSessions } from '@/lib/api/profile';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SessionItem } from './session-item';
 import {
@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ShieldAlert, LogOut, Laptop } from 'lucide-react';
+import { LogOut, Laptop } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
 
@@ -54,8 +54,8 @@ export function SessionManager() {
 
   return (
     <>
-      <Card className="border-border bg-card p-6">
-        <CardHeader className="px-0 pt-0 pb-4">
+      <Card className="border-border bg-card">
+        <CardHeader>
           <SectionHeader
             icon={Laptop}
             title="Active Browser & Device Sessions"
@@ -77,7 +77,7 @@ export function SessionManager() {
           />
         </CardHeader>
 
-        <CardContent className="px-0 pt-2 space-y-3">
+        <CardContent className="pt-2 space-y-3">
           {sessions.map((session) => (
             <SessionItem
               key={session.id}
@@ -95,7 +95,7 @@ export function SessionManager() {
 
       {/* Bulk Revoke Dialog */}
       <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold text-status-danger">
               Log Out of All Other Devices?
@@ -105,13 +105,13 @@ export function SessionManager() {
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 sm:gap-2.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setBulkDialogOpen(false)}
-              className="text-xs"
+              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -120,7 +120,7 @@ export function SessionManager() {
               size="sm"
               onClick={() => revokeAllMutation.mutate()}
               disabled={revokeAllMutation.isPending}
-              className="text-xs bg-status-danger hover:bg-status-danger/90 text-white font-medium"
+              className="text-xs h-9 bg-status-danger hover:bg-status-danger/90 text-white font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {revokeAllMutation.isPending ? 'Logging Out...' : 'Confirm Log Out'}
             </Button>

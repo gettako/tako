@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCurrentUser, updateCurrentUser, disable2FA, getPasskeys, getSessions } from '@/lib/api/settings';
+import { getCurrentUser, updateCurrentUser, disable2FA, getPasskeys, getSessions } from '@/lib/api/profile';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { PasswordChangeForm } from '@/components/profile/password-change-form';
 import { PasskeyManager } from '@/components/profile/passkey-manager';
@@ -19,18 +19,15 @@ import {
   ShieldCheck,
   ShieldAlert,
   CheckCircle2,
-  User as UserIcon,
-  KeyRound,
   Fingerprint,
   Laptop,
   Mail,
   Calendar,
-  Sparkles,
   Lock,
   Pencil,
 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
-import { getUserAvatarUrl, md5 } from '@/lib/avatar';
+import { getUserAvatarUrl } from '@/lib/avatar';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
@@ -240,8 +237,8 @@ export default function ProfilePage() {
           {/* Tab 1: Password & 2FA */}
           <TabsContent value="security" className="space-y-6 outline-none">
             {/* Two-Factor Authentication (TOTP) Card */}
-            <Card className="border-border bg-card p-6">
-              <CardHeader className="px-0 pt-0 pb-4">
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-4">
                 <SectionHeader
                   icon={ShieldCheck}
                   title={
@@ -293,7 +290,7 @@ export default function ProfilePage() {
                 />
               </CardHeader>
 
-              <CardContent className="px-0 pt-1 text-xs text-muted-foreground">
+              <CardContent className="pt-1 text-xs text-muted-foreground">
                 {user.twoFactorEnabled ? (
                   <div className="p-3.5 rounded-lg border border-status-success/20 bg-status-success/5 text-foreground space-y-1">
                     <p className="font-semibold text-status-success flex items-center gap-1.5">

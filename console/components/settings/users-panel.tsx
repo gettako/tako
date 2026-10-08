@@ -332,7 +332,7 @@ export function UsersPanel() {
 
       {/* Invite Member Dialog (AC-8) */}
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
               Invite Team Member
@@ -431,12 +431,21 @@ export function UsersPanel() {
                 </div>
               </div>
 
-              <DialogFooter className="pt-2 flex justify-end">
+              <DialogFooter className="pt-2 gap-2 sm:gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInviteDialogOpen(false)}
+                  className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+                >
+                  Cancel
+                </Button>
                 <Button
                   type="submit"
-                  size="default"
+                  size="sm"
                   disabled={!inviteEmail.trim() || createInviteMutation.isPending}
-                  className="w-full sm:w-auto text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+                  className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
                 >
                   {createInviteMutation.isPending ? 'Generating...' : 'Generate Invite Link'}
                 </Button>

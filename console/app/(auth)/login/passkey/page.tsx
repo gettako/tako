@@ -1,15 +1,32 @@
-import type { Metadata } from "next";
-import { Fingerprint } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Fingerprint, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { MockAction } from "@/components/mock-action";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
-export const metadata: Metadata = {
-  title: "Passkey Sign In",
-};
+import { loginWithPasskey } from "@/lib/api/auth";
 
 export default function PasskeyPage() {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handlePasskeyLogin() {
+    setPending(true);
+    setError(null);
+    try {
+      await loginWithPasskey();
+      router.push("/");
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error && err.message ? err.message : "Failed to sign in with passkey.");
+      setPending(false);
+    }
+  }
+
   return (
     <main className="flex min-h-svh items-center justify-center p-4 bg-background">
       <div className="w-full max-w-sm">
@@ -21,12 +38,30 @@ export default function PasskeyPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {error ? (
+              <p role="alert" className="text-xs font-medium text-status-danger text-center">
+                {error}
+              </p>
+            ) : null}
             <div className="w-full flex justify-center">
-              <MockAction
-                label="Use passkey"
-                icon={<Fingerprint className="size-4 mr-2" />}
-                message="The browser WebAuthn prompt is UI-only in this prototype."
-              />
+              <Button
+                type="button"
+                onClick={handlePasskeyLogin}
+                disabled={pending}
+                className="w-full gap-2 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+              >
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    <span>Verifying passkey…</span>
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="size-4" />
+                    <span>Use passkey</span>
+                  </>
+                )}
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground text-center">
               No passkey prompt? Your browser may not support WebAuthn.{" "}

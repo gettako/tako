@@ -282,14 +282,14 @@ export function BucketsPanel() {
               )}
             </div>
 
-            <DialogFooter className="flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2">
+            <DialogFooter className="flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-2">
               <Button
                 type="button"
                 variant="outline"
-                size="default"
+                size="sm"
                 onClick={handleTestConnection}
                 disabled={isTesting || !endpoint || !bucket}
-                className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+                className="text-xs h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isTesting ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -299,14 +299,25 @@ export function BucketsPanel() {
                 Test Connection
               </Button>
 
-              <Button
-                type="submit"
-                size="default"
-                disabled={!name || !endpoint || !bucket || !accessKeyId || addMutation.isPending}
-                className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
-              >
-                {addMutation.isPending ? 'Saving...' : 'Save Storage'}
-              </Button>
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDialogOpen(false)}
+                  className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!name || !endpoint || !bucket || !accessKeyId || addMutation.isPending}
+                  className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+                >
+                  {addMutation.isPending ? 'Saving...' : 'Save Storage'}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </DialogContent>

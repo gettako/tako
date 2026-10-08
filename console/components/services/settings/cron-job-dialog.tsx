@@ -198,12 +198,22 @@ export function CronJobDialog({
             </div>
           </div>
 
-          <DialogFooter className="pt-2 flex justify-end">
+          <DialogFooter className="pt-2 gap-2 sm:gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={isSaving}
+              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              Cancel
+            </Button>
             <Button
               type="submit"
-              size="default"
+              size="sm"
               disabled={!name.trim() || !command.trim() || !validation.isValid || isSaving}
-              className="w-full sm:w-auto text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+              className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {isSaving ? 'Saving...' : initialJob ? 'Update Job' : 'Create Job'}
             </Button>

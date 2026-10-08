@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPasskeys, addPasskey, deletePasskey } from '@/lib/api/settings';
+import { getPasskeys, deletePasskey, registerPasskeyWithWebAuthn } from '@/lib/api/profile';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ import {
   TableRow,
   TableCell,
 } from '@/components/ui/table';
-import { Fingerprint, Plus, Trash2, ShieldCheck, Loader2, Sparkles, Key } from 'lucide-react';
+import { Fingerprint, Plus, Trash2, Loader2, Sparkles, Key } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
 
@@ -31,15 +31,14 @@ export function PasskeyManager() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [keyName, setKeyName] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
 
   const { data: passkeys = [], isLoading } = useQuery({
     queryKey: ['passkeys'],
     queryFn: getPasskeys,
   });
 
-  const addMutation = useMutation({
-    mutationFn: (name: string) => addPasskey(name),
+  const registerMutation = useMutation({
+    mutationFn: (name: string) => registerPasskeyWithWebAuthn(name),
     onSuccess: (newKey) => {
       queryClient.invalidateQueries({ queryKey: ['passkeys'] });
       toast.success(`Passkey "${newKey.name}" registered successfully`);
@@ -65,64 +64,15 @@ export function PasskeyManager() {
     e.preventDefault();
     const trimmed = keyName.trim();
     if (!trimmed) return;
-
-    setIsRegistering(true);
-    try {
-      // Check if browser WebAuthn is available
-      if (typeof window !== 'undefined' && window.PublicKeyCredential) {
-        try {
-          const challenge = new Uint8Array(32);
-          window.crypto.getRandomValues(challenge);
-          const userId = new Uint8Array(16);
-          window.crypto.getRandomValues(userId);
-
-          await navigator.credentials.create({
-            publicKey: {
-              challenge,
-              rp: {
-                name: 'Tako Cloud Console',
-                id: window.location.hostname,
-              },
-              user: {
-                id: userId,
-                name: trimmed,
-                displayName: trimmed,
-              },
-              pubKeyCredParams: [
-                { type: 'public-key', alg: -7 },  // ES256
-                { type: 'public-key', alg: -257 }, // RS256
-              ],
-              authenticatorSelection: {
-                userVerification: 'preferred',
-                residentKey: 'preferred',
-              },
-              timeout: 60000,
-            },
-          });
-        } catch (credErr: unknown) {
-          // If user cancelled or device not configured, we still allow registering named key or note
-          if (credErr instanceof Error && credErr.name === 'NotAllowedError') {
-            toast.error('Passkey creation cancelled or timed out');
-            setIsRegistering(false);
-            return;
-          }
-          // Continue to persist key if virtual authenticator
-        }
-      }
-
-      await addMutation.mutateAsync(trimmed);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to register passkey';
-      toast.error(msg);
-    } finally {
-      setIsRegistering(false);
-    }
+    registerMutation.mutate(trimmed);
   };
+
+  const isRegistering = registerMutation.isPending;
 
   return (
     <>
-      <Card className="border-border bg-card p-6">
-        <CardHeader className="px-0 pt-0 pb-5">
+      <Card className="border-border bg-card">
+        <CardHeader>
           <SectionHeader
             icon={Fingerprint}
             title="Passkeys & Biometrics"
@@ -144,7 +94,7 @@ export function PasskeyManager() {
           />
         </CardHeader>
 
-        <CardContent className="px-0 pt-1">
+        <CardContent className="pt-1">
           {isLoading ? (
             <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
               <Loader2 className="size-4 animate-spin text-primary" />
@@ -234,22 +184,15 @@ export function PasskeyManager() {
 
       {/* Add Passkey Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md bg-card border-border">
+        <DialogContent className="sm:max-w-lg bg-card border-border">
           <form onSubmit={handleRegister}>
             <DialogHeader>
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                  <Fingerprint className="size-4" />
-                </div>
-                <div>
-                  <DialogTitle className="text-base font-semibold">
-                    Register New Passkey
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-muted-foreground">
-                    Connect a biometric sensor or hardware security key to your account.
-                  </DialogDescription>
-                </div>
-              </div>
+              <DialogTitle className="text-base font-semibold">
+                Register New Passkey
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Connect a biometric sensor or hardware security key to your account.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="py-4 space-y-3">
@@ -277,7 +220,7 @@ export function PasskeyManager() {
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-2.5">
               <Button
                 type="button"
                 variant="outline"

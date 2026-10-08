@@ -662,7 +662,7 @@ export function GitPanel() {
           Connect Modal — tabs per provider
       ═══════════════════════════════════════════════════════════════════ */}
       <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-base">Connect Git Provider</DialogTitle>
             <DialogDescription className="text-xs">
@@ -764,7 +764,7 @@ export function GitPanel() {
                   )}
                 </div>
 
-                <DialogFooter className="gap-2 sm:gap-2 pt-1">
+                <DialogFooter className="gap-2 sm:gap-2.5 pt-1">
                   <Button type="button" variant="outline" size="sm" onClick={() => setConnectOpen(false)} className="text-xs h-9">
                     Cancel
                   </Button>
@@ -811,7 +811,7 @@ export function GitPanel() {
 
       {/* ── Disconnect Confirmation ───────────────────────────────────────── */}
       <Dialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
-        <DialogContent className="max-w-sm border-destructive/30">
+        <DialogContent className="sm:max-w-md border-destructive/30">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold text-destructive">Disconnect GitHub?</DialogTitle>
             <DialogDescription className="text-xs leading-relaxed pt-1">
@@ -819,7 +819,7 @@ export function GitPanel() {
               Running services keep their existing images.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
+          <DialogFooter className="gap-2 sm:gap-2.5">
             <Button variant="outline" size="sm" disabled={isDisconnecting} onClick={() => setDisconnectOpen(false)} className="text-xs h-9">
               Cancel
             </Button>

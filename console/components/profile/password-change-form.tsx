@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { KeyRound, Lock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
-import { changePassword } from '@/lib/api/settings';
+import { changePassword } from '@/lib/api/profile';
 import { toast } from 'sonner';
 
 export function PasswordChangeForm() {
@@ -52,8 +52,8 @@ export function PasswordChangeForm() {
     newPassword === confirmPassword;
 
   return (
-    <Card className="border-border bg-card p-6">
-      <CardHeader className="px-0 pt-0 pb-5">
+    <Card className="border-border bg-card">
+      <CardHeader className="pb-5">
         <SectionHeader
           icon={KeyRound}
           title="Account Password"
@@ -62,7 +62,7 @@ export function PasswordChangeForm() {
       </CardHeader>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <CardContent className="px-0 space-y-4">
+        <CardContent className="space-y-4">
           {/* Current Password */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -125,7 +125,7 @@ export function PasswordChangeForm() {
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border">
+        <CardFooter className="pt-4 pb-0 flex items-center justify-between border-t border-border">
           <span className="text-[11px] text-muted-foreground">
             Changes will invalidate other active sessions for security.
           </span>

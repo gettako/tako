@@ -74,7 +74,7 @@ export function DeleteServiceDialog({
         }
       }}
     >
-      <DialogContent className="max-w-md border-status-danger/40">
+      <DialogContent className="sm:max-w-md border-status-danger/40">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold text-status-danger">
             Delete Service: {service.name}
@@ -101,7 +101,7 @@ export function DeleteServiceDialog({
           />
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-2">
+        <DialogFooter className="gap-2 sm:gap-2.5 pt-2">
           <Button
             type="button"
             variant="outline"

@@ -185,16 +185,21 @@ export function AddDomainDialog({
             {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="pt-2 gap-2 sm:gap-2.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
+              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
-            <Button type="submit" size="sm" className="gap-1.5">
+            <Button
+              type="submit"
+              size="sm"
+              className="text-xs h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+            >
               <Plus className="size-3.5" />
               <span>Add Domain</span>
             </Button>
