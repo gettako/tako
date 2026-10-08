@@ -7,7 +7,10 @@
     "light": "#7980e0",
     "dark": "#3e49be"
   },
-  "favicon": "/favicon.svg",
+  "favicon": {
+    "light": "/images/favicon.ico",
+    "dark": "/images/favicon.ico"
+  },
   "navigation": {
     "groups": [
       {
@@ -49,8 +52,10 @@
     ]
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "/images/tako-logo.svg",
+    "dark": "/images/tako-logo-dark.svg",
+    "href": "https://gettako.dev",
+    "width": 72
   },
   "navbar": {
     "links": [

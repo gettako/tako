@@ -4,32 +4,32 @@
 - **ID**: `M04`
 - **Status**: `completed`
 - **Blocking**: `[M01, M03]`
-- **Target**: Membangun orkestrator node di Master Server, sistem manajemen status node (online/offline state machine), event bus pub-sub in-memory di Go, REST API untuk manajemen node, dan endpoint Server-Sent Events (SSE) untuk streaming status dan metrik ke Next.js Console.
+- **Target**: Build node orchestrator in Master Server, node status management (online/offline state machine), in-memory Go pub-sub event bus, REST API for node management, and Server-Sent Events (SSE) endpoints for streaming node status and metrics to the Console.
 ---
 
 ## Acceptance Criteria
-- [x] Master Server dapat menerima pendaftaran agent baru menggunakan Enrollment Token dan menyimpannya ke database SQLite.
-- [x] Menerima stream heartbeat dari Agent, memperbarui metrik realtime (CPU, RAM, Disk) dan `last_seen_at`.
-- [x] Background worker di Server otomatis menandai node sebagai `offline` jika tidak ada heartbeat selama > 15 detik.
-- [x] Endpoint REST Chi untuk nodes tersedia: `GET /api/v1/nodes`, `POST /api/v1/nodes/enroll-token`, `DELETE /api/v1/nodes/{id}`.
-- [x] Endpoint SSE `GET /api/v1/events/nodes` mem-broadcast event update node secara real-time ke semua klien SSE yang terhubung.
+- [x] Master Server accepts new agent registrations via Enrollment Token and saves to SQLite.
+- [x] Receives heartbeat streams from Agent, updating real-time metrics (CPU, RAM, Disk) and `last_seen_at`.
+- [x] Server background worker automatically flags nodes as `offline` if no heartbeat is received for > 15 seconds.
+- [x] Chi REST endpoints for nodes available: `GET /api/v1/nodes`, `POST /api/v1/nodes/enroll-token`, `DELETE /api/v1/nodes/{id}`.
+- [x] SSE endpoint `GET /api/v1/events/nodes` broadcasts real-time node update events to all connected clients.
 
 ## Checklist
 - [x] **Node Manager & State Machine (`server/internal/orchestrator/`)**:
-  - [x] Implementasi handler `RegisterNode` gRPC dengan validasi token pendaftaran
-  - [x] Implementasi handler `Heartbeat` gRPC: update database SQLite `nodes` dan cache memory
-  - [x] Background goroutine `LivenessWatcher` (interval 5s) untuk mendeteksi node timeout (> 15s) dan transisi status ke `offline`
+  - [x] Implement gRPC `RegisterNode` handler with token validation
+  - [x] Implement gRPC `Heartbeat` handler: update SQLite `nodes` table and memory cache
+  - [x] Background goroutine `LivenessWatcher` (5s interval) detecting node timeouts (> 15s) and transitioning status to `offline`
 - [x] **In-Memory Event Bus (`server/internal/events/`)**:
-  - [x] Buat lightweight pub-sub broker berbasis Go channels
-  - [x] Buat event types: `NodeStatusChangedEvent`, `NodeMetricsEvent`, `DeploymentLogEvent`
-  - [x] Dukungan multiple subscribers dengan non-blocking delivery / buffer
+  - [x] Build lightweight channel-based pub-sub broker
+  - [x] Event types: `EventNodeStatusChanged`, `EventNodeMetrics`, `EventDeploymentLog`
+  - [x] Multi-subscriber support with buffered, non-blocking delivery
 - [x] **REST API Endpoints (Chi)**:
-  - [x] `POST /api/v1/nodes/enroll-token`: Generate token acak bertanda tangan untuk mendaftarkan worker baru
-  - [x] `GET /api/v1/nodes`: Daftar semua node beserta status, IP, kapasitas CPU/RAM, dan metrik terbaru
-  - [x] `GET /api/v1/nodes/{id}`: Detail node spesifik dan container yang sedang berjalan di node tersebut
-  - [x] `DELETE /api/v1/nodes/{id}`: Hapus node dari cluster
+  - [x] `POST /api/v1/nodes/enroll-token`: Generate secure enrollment token
+  - [x] `GET /api/v1/nodes`: List all nodes with status, specs, and telemetry
+  - [x] `GET /api/v1/nodes/{id}`: Detailed node status
+  - [x] `DELETE /api/v1/nodes/{id}`: Unenroll node
 - [x] **Server-Sent Events (SSE) Handler**:
-  - [x] Implementasi HTTP handler `GET /api/v1/events/nodes` dengan header `text/event-stream`
-  - [x] Subscribe ke Event Bus dan salurkan data JSON event ke response writer
-  - [x] Handle client disconnect (`ctx.Done()`) untuk melepaskan listener secara bersih
-  - [x] Kirimkan initial state snapshot saat klien pertama kali tersambung
+  - [x] Implement `GET /api/v1/events/nodes` with `text/event-stream` headers
+  - [x] Subscribe to Event Bus and stream JSON event payloads
+  - [x] Handle client disconnect (`ctx.Done()`) cleanly
+  - [x] Send initial snapshot state on first connect

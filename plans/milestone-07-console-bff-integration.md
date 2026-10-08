@@ -4,30 +4,30 @@
 - **ID**: `M07`
 - **Status**: `completed`
 - **Blocking**: `[M06]`
-- **Target**: Menghubungkan frontend Next.js Console dengan Master Server Go melalui pola Backend-For-Frontend (BFF). Semua request browser diarahkan ke internal Route Handlers / Server Actions Next.js, menjaga token dalam HttpOnly cookies, dan menyambungkan stream SSE untuk status Nodes realtime dan live Deployment Logs.
+- **Target**: Connect Next.js Console with Go Master Server using the Backend-For-Frontend (BFF) pattern. All browser requests are proxied via same-origin route handlers, preserving tokens in HttpOnly cookies, and piping SSE streams for real-time node telemetry and live deployment logs.
 ---
 
 ## Acceptance Criteria
-- [x] Browser tidak pernah memanggil Master Go Server secara langsung; semua request melalui `same-origin` Next.js (`/api/...`).
-- [x] Next.js BFF meneruskan request ke Go Server internal (`http://server:8080`) dengan aman.
-- [x] Session authentication menggunakan `HttpOnly` Cookies (kebal XSS di browser).
-- [x] Halaman Nodes (`/nodes`) menampilkan status aktual setiap node (Online/Offline) dan metrik CPU/RAM yang bergerak live via SSE tanpa refresh.
-- [x] Tombol "Deploy" di UI Service memicu deployment, lalu membuka modal/drawer log yang menampilkan output build real-time via SSE.
-- [x] Dialog "Add Node / Enroll" menampilkan perintah curl one-line installer lengkap dengan token yang siap di-copy ke server worker.
+- [x] Browser never calls Go Master Server directly; all requests flow through same-origin Next.js BFF (`/api/...`).
+- [x] Next.js BFF securely proxies requests to internal Go Server (`http://server:8080`).
+- [x] Session authentication handled via `HttpOnly` Cookies (protecting against XSS).
+- [x] Nodes view (`/nodes`) displays live node telemetry (CPU, RAM, Disk, Network) updating via SSE without page refresh.
+- [x] Service Deploy trigger streams real-time build output via SSE to log viewer drawer.
+- [x] "Add Node / Enroll" dialog displays copyable curl one-line installer command with generated enrollment token.
 
 ## Checklist
 - [x] **BFF Client & HTTP Transport (`console/lib/api-client.ts`)**:
-  - [x] Buat type-safe internal fetcher ke Go Server (`http://server:8080/api/v1`)
-  - [x] Error handling standar dan format response terpadu
+  - [x] Type-safe internal fetcher targeting Go Server (`http://server:8080/api/v1`)
+  - [x] Standardized error handling and unified response formats
 - [x] **Route Handlers / Server Actions (`console/app/api/`)**:
-  - [x] Auth endpoints (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`) dengan HttpOnly cookies
+  - [x] Auth endpoints (`/api/auth/login`, `/api/auth/logout`, `/api/auth/me`) with HttpOnly cookies
   - [x] Nodes proxy (`/api/nodes`, `/api/nodes/enroll-token`)
   - [x] Services & Deploy proxy (`/api/services`, `/api/services/[id]/deploy`)
 - [x] **SSE Streaming Route Handlers**:
-  - [x] `GET /api/sse/nodes`: Pipe SSE stream dari Go Server ke browser menggunakan `ReadableStream`
-  - [x] `GET /api/sse/deployments/[id]/logs`: Pipe log build real-time ke terminal/log viewer di browser
+  - [x] `GET /api/sse/nodes`: Pipe node SSE stream from Go Server to browser using `ReadableStream`
+  - [x] `GET /api/sse/deployments/[id]/logs`: Pipe real-time build logs to log viewer
 - [x] **Frontend React Hooks & UI Integration**:
-  - [x] Buat hook `useNodeEvents()` menggunakan Web standard `EventSource` untuk auto-update UI nodes
-  - [x] Buat hook `useDeploymentLogs(deploymentId)` untuk streaming log ke komponen log viewer
-  - [x] Hubungkan modal "Add Node" di `console/app/nodes/page.tsx` untuk menampilkan perintah instalasi agent
-  - [x] Hubungkan trigger deploy di halaman Service detail
+  - [x] `useNodeEvents()` hook using Web standard `EventSource` for automatic UI node updates
+  - [x] `useDeploymentLogs(deploymentId)` hook for real-time log viewer streaming
+  - [x] Wire "Add Node" dialog to display installation commands
+  - [x] Wire deploy triggers across Service views

@@ -181,7 +181,7 @@ allowed-tools: Read Write Edit Glob Grep
 
 ### Eyebrow Badge Above the Headline
 
-- **Tell:** a small pill sitting directly above the H1, often with a dot and a thin border, holding a category label ("Aplikasi Tagihan UKM", "The platform for teams") that the headline beneath it already says.
+- **Tell:** a small pill sitting directly above the H1, often with a dot and a thin border, holding a category label ("Invoicing App for SMBs", "The platform for teams") that the headline beneath it already says.
 - **Why:** the badge duplicates the headline, so it adds a line of reading without adding a fact. It lands in the same spot on every generated page, which is why it reads as a template rather than a decision. When it carries a dot as well, it borrows status-indicator language for a label that marks no state.
 - **Fix:** cut it and let the headline do the work. If the label carries information the headline does not, fold it into the headline or the subheadline, where it reads as content instead of ornament. A badge above the fold needs a written reason like any other badge (R-09), and a dot inside it needs a real state to mark (R-31).
 

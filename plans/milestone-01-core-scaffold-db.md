@@ -4,34 +4,34 @@
 - **ID**: `M01`
 - **Status**: `completed`
 - **Blocking**: `[]`
-- **Target**: Membangun fondasi monorepo backend, struktur server Go, koneksi SQLite pure-Go dengan WAL mode, sistem migrasi otomatis dengan Goose (`embed.FS`), generator query type-safe dengan `sqlc`, dan HTTP server Chi dasar.
+- **Target**: Build monorepo backend foundation, Go server structure, pure-Go SQLite connection in WAL mode, automatic migration system with Goose (`embed.FS`), type-safe query generation with `sqlc`, and baseline Chi HTTP server.
 ---
 
 ## Acceptance Criteria
-- [x] Server Go berhasil di-build tanpa CGO (`CGO_ENABLED=0`).
-- [x] SQLite terinisialisasi dengan pragmas concurrency: `journal_mode=WAL`, `busy_timeout=5000`, `foreign_keys=ON`, `synchronous=NORMAL`.
-- [x] Goose migrasi schema awal otomatis berjalan saat server pertama kali di-boot melalui `embed.FS`.
-- [x] Schema mencakup tabel utama: `users`, `projects`, `nodes`, `services`, `deployments`, `audit_logs`.
-- [x] `sqlc` berhasil men-generate interface dan queries Go type-safe dari file SQL migrasi.
-- [x] Chi HTTP server aktif di port internal (default `:8080`) dengan endpoint `GET /health` mengembalikan status OK & info database.
+- [x] Go server builds successfully without CGO (`CGO_ENABLED=0`).
+- [x] SQLite initializes with concurrency pragmas: `journal_mode=WAL`, `busy_timeout=5000`, `foreign_keys=ON`, `synchronous=NORMAL`.
+- [x] Goose initial schema migrations run automatically during server startup via `embed.FS`.
+- [x] Schema covers core tables: `users`, `projects`, `nodes`, `services`, `deployments`, `audit_logs`.
+- [x] `sqlc` generates type-safe Go queries and interfaces from migration SQL files.
+- [x] Chi HTTP server active on internal port (default `:8080`) with `GET /health` returning OK and database connectivity status.
 
 ## Checklist
 - [x] **Scaffold Go Module**:
-  - [x] Inisialisasi `server/go.mod` dengan modul Go 1.27.1 (`gettako.dev/tako`)
-  - [x] Konfigurasi struktur direktori standard Go: `cmd/server/main.go`, `internal/api/`, `internal/config/`, `internal/store/`, `internal/store/migrations/`
+  - [x] Initialize `server/go.mod` with Go 1.27.1 module (`gettako.dev/tako`)
+  - [x] Configure standard Go directory structure: `cmd/server/main.go`, `internal/api/`, `internal/config/`, `internal/store/`, `internal/store/migrations/`
 - [x] **Database Connection & Pragmas**:
-  - [x] Pasang driver pure-Go `modernc.org/sqlite`
-  - [x] Implementasi fungsi `OpenDB(path string) (*sql.DB, error)` dengan konfigurasi WAL dan busy timeout
-  - [x] Unit test koneksi SQLite dan verifikasi pragmas aktif
+  - [x] Install pure-Go driver `modernc.org/sqlite`
+  - [x] Implement `OpenDB(path string) (*sql.DB, error)` with WAL and busy timeout configuration
+  - [x] Unit test SQLite connection and verify active pragmas
 - [x] **Goose Migrations**:
-  - [x] Setup `migrations.go` menggunakan `//go:embed migrations/*.sql` dan `pressly/goose/v3`
-  - [x] Buat file migrasi `00001_initial_schema.sql` (tabel `users`, `projects`, `nodes`, `services`, `deployments`, `audit_logs`)
-  - [x] Implementasi auto-migrate saat server start
+  - [x] Setup `migrations.go` using `//go:embed migrations/*.sql` and `pressly/goose/v3`
+  - [x] Create migration `00001_initial_schema.sql` (`users`, `projects`, `nodes`, `services`, `deployments`, `audit_logs`)
+  - [x] Implement auto-migrate during server boot
 - [x] **SQLC Setup**:
-  - [x] Buat file konfigurasi `sqlc.yaml` untuk SQLite & Go engine
-  - [x] Buat query dasar di `internal/store/queries/*.sql` (CRUD nodes, projects, services, deployments)
-  - [x] Jalankan generator `sqlc generate` dan pastikan file Go ter-generate tanpa error
+  - [x] Create `sqlc.yaml` configuration for SQLite & Go engine
+  - [x] Define queries in `internal/store/queries/*.sql` (CRUD for nodes, projects, services, deployments)
+  - [x] Run `sqlc generate` and verify generated Go code
 - [x] **Chi HTTP Server Baseline**:
-  - [x] Setup `chi.NewRouter()` dengan middleware standard: `middleware.RequestID`, `middleware.RealIP`, `middleware.Logger`, `middleware.Recoverer`
-  - [x] Daftarkan endpoint `GET /health` dan `GET /api/v1/ping`
-  - [x] Graceful shutdown server via `os.Signal` (`SIGINT`, `SIGTERM`)
+  - [x] Setup `chi.NewRouter()` with standard middleware: `middleware.RequestID`, `middleware.RealIP`, `middleware.Logger`, `middleware.Recoverer`
+  - [x] Register endpoints `GET /health` and `GET /api/v1/ping`
+  - [x] Graceful shutdown handling via `os.Signal` (`SIGINT`, `SIGTERM`)

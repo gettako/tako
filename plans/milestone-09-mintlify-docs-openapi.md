@@ -4,39 +4,39 @@
 - **ID**: `M09`
 - **Status**: `completed`
 - **Blocking**: `[M01, M08]`
-- **Target**: Membangun dokumentasi teknis modern di folder `docs/` menggunakan Mintlify. Menyediakan struktur `*.mdx`, tema warna yang selaras dengan Tako Design System, panduan instalasi/arsitektur lengkap, dan spesifikasi OpenAPI (`openapi.yaml` / `openapi.json`) untuk seluruh endpoint REST API Master Server.
+- **Target**: Build modern technical documentation in the `docs/` folder using Mintlify. Provide `*.mdx` structure, color themes aligned with the Tako Design System, comprehensive installation and architecture guides, and an OpenAPI specification (`openapi.yaml` / `openapi.json`) covering all Master Server REST API endpoints.
 ---
 
 ## Acceptance Criteria
-- [x] Folder `docs/` terstruktur sesuai standar Mintlify dengan konfigurasi `mint.json`.
-- [x] Skema warna `mint.json` mengadopsi Tako Design System (Light `#432DD7`, Dark `#5B63D3`).
-- [x] Tersedia panduan instalasi lengkap untuk Main Server dan Node Worker menggunakan script `install.sh`.
-- [x] Tersedia penjelasan arsitektur detail: Console (Next.js), Master Server (Go + Chi + SQLite WAL), Agent (Docker SDK + gRPC), dan Traefik proxy.
-- [x] File `docs/openapi.yaml` (OpenAPI 3.1) mencakup seluruh endpoint REST API: Auth, Projects, Services, Deployments, Nodes, dan Audit Logs.
-- [x] Halaman API Reference di Mintlify terhubung dengan `openapi.yaml` dan dapat di-render secara interaktif.
+- [x] `docs/` folder structured according to Mintlify standards with `docs.json` (and `mint.json`).
+- [x] Color scheme adopts the Tako Design System (Primary `#432DD7`, Dark `#5B63D3`).
+- [x] Complete installation guides available for Master Server and Worker Nodes using the `install.sh` script.
+- [x] Detailed architecture explanations provided: Console (Next.js), Master Server (Go + Chi + SQLite WAL), Agent (Docker SDK + gRPC), and Traefik proxy.
+- [x] `docs/openapi.yaml` (OpenAPI 3.1) file covers all REST API endpoints: Auth, Projects, Services, Deployments, Nodes, and Audit Logs.
+- [x] API Reference pages in Mintlify link with `openapi.yaml` and render interactively.
 
 ## Checklist
 - [x] **Mintlify Base Setup (`docs/`)**:
-  - [x] Buat file konfigurasi `docs/mint.json` dengan navigasi:
+  - [x] Create navigation configuration file with:
     - *Getting Started* (Introduction, Quickstart)
     - *Installation* (Main Server, Node Server, Manual Docker)
     - *Architecture* (Overview, gRPC Communication, Traefik Routing, Security & BFF)
     - *User Guides* (Projects & Services, Deployments & Rollbacks, Monitoring & Logs)
     - *API Reference* (OpenAPI interactive docs)
-  - [x] Buat aset logo/favicon SVG di `docs/logo/` dan `docs/favicon.svg`
+  - [x] Create logo and favicon SVG assets in `docs/logo/` and `docs/favicon.svg`
 - [x] **Core MDX Guides (`docs/*.mdx`)**:
-  - [x] `docs/introduction.mdx`: Overview Tako PaaS, fitur utama, perbandingan dengan platform lain
-  - [x] `docs/quickstart.mdx`: Panduan 5 menit setup main server dan deploy aplikasi pertama
-  - [x] `docs/installation/main-server.mdx`: Panduan instalasi `https://gettako.dev/install.sh | bash`, input interaktif, env variables
-  - [x] `docs/installation/node-server.mdx`: Panduan instalasi `install.sh --agent`, enrollment token, networking
-  - [x] `docs/architecture/overview.mdx`: Diagram arsitektur master-agent gRPC & Docker compose
-  - [x] `docs/architecture/grpc-communication.mdx`: Protokol gRPC, payload heartbeat, dan log streaming
-  - [x] `docs/architecture/traefik-routing.mdx`: Integrasi Traefik reverse proxy & auto-TLS Let's Encrypt
-  - [x] `docs/guides/services-deployments.mdx`: Konfigurasi service, domain, dan deployment
-  - [x] `docs/guides/monitoring-logs.mdx`: Telemetri node, container logs, dan live stream
+  - [x] `docs/introduction.mdx`: Tako PaaS overview, key features, architecture comparison
+  - [x] `docs/quickstart.mdx`: 5-minute setup guide for master server and first application deployment
+  - [x] `docs/installation/main-server.mdx`: Master server setup guide with `https://gettako.dev/install.sh | bash`, interactive prompts, environment variables
+  - [x] `docs/installation/node-server.mdx`: Worker node setup guide with `install.sh --agent`, enrollment tokens, and network topology
+  - [x] `docs/architecture/overview.mdx`: Master-agent gRPC & Docker architecture diagram
+  - [x] `docs/architecture/grpc-communication.mdx`: gRPC streaming protocol, heartbeat payloads, task streaming, and log streaming
+  - [x] `docs/architecture/traefik-routing.mdx`: Traefik v3 reverse proxy integration, dynamic file provider, and Let's Encrypt automated TLS
+  - [x] `docs/guides/services-deployments.mdx`: Service configurations, custom domains, container lifecycles, and deployments
+  - [x] `docs/guides/monitoring-logs.mdx`: Node telemetry, container log streaming, and historical audits
 - [x] **OpenAPI Specification (`docs/openapi.yaml`)**:
-  - [x] Definisikan `info`, `servers`, dan `securitySchemes` (Bearer JWT / Session Cookie)
-  - [x] Definisikan skema endpoints:
+  - [x] Define `info`, `servers`, and `securitySchemes` (Bearer JWT / Session Cookie)
+  - [x] Define endpoint schemas:
     - `/api/v1/health` & `/api/v1/ping`
     - `/api/v1/auth/login`, `/api/v1/auth/logout`, `/api/v1/auth/me`
     - `/api/v1/nodes`, `/api/v1/nodes/enroll-token`, `/api/v1/nodes/{id}`
@@ -44,6 +44,6 @@
     - `/api/v1/services`, `/api/v1/services/{id}`, `/api/v1/services/{id}/deploy`, `/api/v1/services/{id}/deployments`
     - `/api/v1/deployments`, `/api/v1/deployments/{id}`, `/api/v1/deployments/{id}/logs`, `/api/v1/deployments/{id}/logs/history`
     - `/api/v1/events/nodes` (Server-Sent Events)
-  - [x] Validasi sintaks `openapi.yaml` (bebas error schema)
+  - [x] Validate `openapi.yaml` syntax (schema error-free)
 - [x] **Local Preview Verification**:
-  - [x] Validasi sintaks `mint.json` dan `openapi.yaml`
+  - [x] Validate Mintlify navigation syntax and OpenAPI references

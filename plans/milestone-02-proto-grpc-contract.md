@@ -4,31 +4,31 @@
 - **ID**: `M02`
 - **Status**: `completed`
 - **Blocking**: `[M01]`
-- **Target**: Merancang kontrak komunikasi gRPC antara Master Server dan Agent Node. Mendefinisikan protobuf untuk pendaftaran node, heartbeat/telemetry, dispatch perintah deployment, dan streaming log. Menyediakan gRPC server di Master dan gRPC client dengan auto-reconnect di Agent.
+- **Target**: Design gRPC communication contracts between Master Server and Agent Node. Define protocol buffers for node registration, heartbeat/telemetry, deployment dispatch, and log streaming. Provide gRPC server on Master and auto-reconnecting gRPC client on Agent.
 ---
 
 ## Acceptance Criteria
-- [x] Protobuf definitions terdefinisi rapi di direktori `proto/tako/v1/`.
-- [x] Tooling kompilasi Protobuf (`buf` atau `protoc`) menghasilkan Go types & gRPC client/server stubs.
-- [x] Server mengaktifkan gRPC Server (default `:50051`) dengan interceptor autentikasi Bearer Token / Agent Secret.
-- [x] Agent dapat melakukan koneksi gRPC outbound ke Master, melakukan handshake pendaftaran, dan mengirim periodic ping/heartbeat.
-- [x] Ketika koneksi gRPC terputus (misal Master restart), Agent otomatis melakukan reconnect secara resilient (exponential backoff).
+- [x] Protobuf definitions structured in `proto/tako/v1/`.
+- [x] Protobuf tooling generates Go types & gRPC client/server stubs.
+- [x] Master enables gRPC Server (default `:50051`) with Bearer Token / Agent Secret authentication interceptors.
+- [x] Agent establishes outbound gRPC connection to Master, performs registration handshake, and sends periodic heartbeats.
+- [x] Resilient auto-reconnect with exponential backoff when gRPC connection disconnects.
 
 ## Checklist
 - [x] **Protobuf Definitions (`proto/tako/v1/`)**:
-  - [x] `agent.proto`: Pesan `RegisterNodeRequest`, `RegisterNodeResponse`, `HeartbeatRequest`, `HeartbeatResponse`
-  - [x] `deployment.proto`: Pesan `DeployRequest`, `DeployLogChunk`, `DeploymentStatusUpdate`
-  - [x] `container.proto`: Pesan `ListContainersRequest`, `ContainerActionRequest` (start, stop, restart)
+  - [x] `agent.proto`: `RegisterNodeRequest`, `RegisterNodeResponse`, `HeartbeatRequest`, `HeartbeatResponse`, `StreamTasks`
+  - [x] `deployment.proto`: `DeployRequest`, `DeployLogChunk`, `DeploymentStatusUpdate`
+  - [x] `container.proto`: `ListContainersRequest`, `ContainerActionRequest` (start, stop, restart, remove)
 - [x] **Protobuf Code Generation**:
-  - [x] Konfigurasi script `protoc`
-  - [x] Generate package Go gRPC stub ke `proto/gen/go/tako/v1/`
+  - [x] Configure code generation scripts
+  - [x] Generate Go gRPC stubs into `proto/gen/go/tako/v1/`
 - [x] **Master gRPC Server**:
-  - [x] Implementasi gRPC server listener di `server/internal/grpc/`
-  - [x] Implementasi Authentication Interceptor untuk validasi `metadata["authorization"]` atau header token agent
-  - [x] Daftarkan stub service `AgentServiceServer` dan `DeploymentServiceServer`
+  - [x] Implement gRPC server listener in `server/internal/grpc/`
+  - [x] Implement Authentication Interceptors validating `metadata["authorization"]`
+  - [x] Register `AgentServiceServer`, `DeploymentServiceServer`, and `ContainerServiceServer` stubs
 - [x] **Agent gRPC Client**:
-  - [x] Inisialisasi `agent/go.mod`
-  - [x] Implementasi gRPC client di `agent/internal/client/`
-  - [x] Konfigurasi `grpc.WithTransportCredentials` (Insecure untuk local/internal, TLS untuk production)
-  - [x] Tambahkan dial options: keepalive, retry policy, reconnect backoff
-  - [x] Buat unit/integration test koneksi agent ke master gRPC server
+  - [x] Initialize `agent/go.mod`
+  - [x] Implement gRPC client in `agent/internal/client/`
+  - [x] Configure transport credentials (Insecure for local/internal, TLS for production)
+  - [x] Add dial options: keepalive, retry policy, reconnect backoff
+  - [x] Unit/integration tests for agent-to-master gRPC communication

@@ -4,40 +4,39 @@
 - **ID**: `M06`
 - **Status**: `completed`
 - **Blocking**: `[M04, M05]`
-- **Target**: Membangun pipeline deployment end-to-end: pembuatan service di Master, trigger deploy via API, dispatch perintah deploy via gRPC ke target Agent node, eksekusi Docker build/pull oleh Agent, pelabelan Traefik, dan streaming live logs secara real-time dari Agent kembali ke Master.
+- **Target**: Build end-to-end deployment pipeline: service creation in Master, deploy trigger via API, deploy dispatch via gRPC to target Agent node, Docker build/pull execution by Agent, dynamic Traefik routing, and real-time live log streaming from Agent back to Master.
 ---
 
 ## Acceptance Criteria
-- [x] Master Server memiliki API CRUD Service (nama, project_id, target node_id, image/git repo, environment variables, exposed ports, domain).
-- [x] Endpoint `POST /api/v1/services/{id}/deploy` memicu deployment baru dan mengembalikan `deployment_id` instan.
-- [x] Master mengirimkan `DeployRequest` ke Agent target yang terhubung via gRPC stream.
-- [x] Agent melakukan:
-  1. Pull image atau Build dari Dockerfile.
-  2. Setup container dengan environment variables & limit resource.
-  3. Menyematkan label Traefik untuk routing domain otomatis.
-  4. Menjalankan container di bridge network `tako-network`.
-- [x] Agent mengirimkan potongan log build/run ke Master via gRPC stream (`DeployLogChunk`).
-- [x] Master menyediakan endpoint SSE `GET /api/v1/deployments/{id}/logs` yang menyalurkan live log ke subscriber.
+- [x] Master Server provides CRUD API for Services (name, project_id, target node_id, image/git repo, environment variables, exposed ports, domains).
+- [x] `POST /api/v1/services/{id}/deploy` triggers new deployment and returns immediate `deployment_id`.
+- [x] Master dispatches `DeployRequest` to target Agent via gRPC stream.
+- [x] Agent executes:
+  1. Image pull or Dockerfile build.
+  2. Container setup with environment variables & resource limits.
+  3. Dynamic Traefik YAML configuration generation for automated routing.
+  4. Launches container on `tako-network` bridge network.
+- [x] Agent streams build/run log chunks to Master via gRPC stream (`DeployLogChunk`).
+- [x] Master provides SSE endpoint `GET /api/v1/deployments/{id}/logs` streaming live output to subscribers.
 
 ## Checklist
-- [x] **Service & Deployment Domain Models (`server/internal/domain/` / `orchestrator/`)**:
-  - [x] Implementasi tabel dan SQLC queries untuk `services` dan `deployments`
-  - [x] State machine deployment: `queued` ➔ `building` ➔ `deploying` ➔ `running` (atau `failed` / `cancelled`)
+- [x] **Service & Deployment Domain Models (`server/internal/orchestrator/`)**:
+  - [x] Tables and SQLC queries for `services` and `deployments`
+  - [x] 7-step deployment lifecycle: `queued` ➔ `clone` ➔ `build` ➔ `push_load` ➔ `deploy` ➔ `health_check` ➔ `live` (or `failed`)
 - [x] **Master Deployment Orchestrator (`server/internal/orchestrator/`)**:
-  - [x] Buat `DeploymentService` di Master
-  - [x] Validasi ketersediaan target Agent (cek status online dan channel gRPC aktif)
-  - [x] Buat buffer log deployment di SQLite / memory buffer
-  - [x] Handle penerimaan log chunk dari gRPC stream dan broadcast ke Event Bus
+  - [x] Validate target Agent readiness (online status and active gRPC session)
+  - [x] Buffer deployment logs in SQLite and memory
+  - [x] Receive log chunks from gRPC and broadcast to Event Bus
 - [x] **Agent Deployment Executor (`agent/internal/deploy/`)**:
-  - [x] Implementasi handler `ExecuteDeploy` di Agent
-  - [x] Image deployment: `docker.ImagePull()` dengan progress logger
-  - [x] Git/Dockerfile deployment: Git clone ke temporary directory dan trigger `docker.ImageBuild()`
-  - [x] Container setup: `docker.ContainerCreate()` dengan labels Traefik, env vars, restart policy `unless-stopped`
-  - [x] Mulai container: `docker.ContainerStart()` dan healthcheck inspection
-  - [x] Stream log stdout/stderr selama proses berlangsung ke gRPC stream
+  - [x] Handler for deployment tasks on Agent
+  - [x] Registry image deployment: `docker.ImagePull()` with progress logger
+  - [x] Git/Dockerfile deployment: Git clone to temporary directory and trigger `docker.ImageBuild()`
+  - [x] Container setup: `docker.ContainerCreate()` with Traefik labels, env vars, restart policy `unless-stopped`
+  - [x] Container start: `docker.ContainerStart()` and healthcheck inspection
+  - [x] Stream stdout/stderr logs over gRPC during execution
 - [x] **Live Logs Streaming API**:
-  - [x] Endpoint REST `GET /api/v1/deployments/{id}` (info status deployment)
-  - [x] Endpoint SSE `GET /api/v1/deployments/{id}/logs` (stream log real-time)
-  - [x] Endpoint REST `GET /api/v1/deployments/{id}/logs/history` (download log lengkap yang sudah selesai)
+  - [x] REST endpoint `GET /api/v1/deployments/{id}` (status & details)
+  - [x] SSE endpoint `GET /api/v1/deployments/{id}/logs` (real-time stream)
+  - [x] REST endpoint `GET /api/v1/deployments/{id}/logs/history` (complete historical log)
 - [x] **Service Operations (Lifecycle)**:
-  - [x] Restart, Stop, Start, dan Delete container via gRPC RPC commands dari Master ke Agent
+  - [x] Restart, Stop, Start, and Delete containers via gRPC commands
