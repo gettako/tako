@@ -9,6 +9,7 @@ export interface ServiceDomain {
   primary: boolean;
   port?: number;
   path?: string;
+  internalPath?: string;
   certificateType?: 'letsencrypt' | 'custom' | 'none';
   createdAt: string;
 }

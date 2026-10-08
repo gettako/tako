@@ -315,7 +315,7 @@ export async function getServiceDomains(serviceId: string): Promise<ServiceDomai
 
 export async function addServiceDomain(
   serviceId: string,
-  input: { domain: string; port?: number; path?: string; ssl?: boolean; primary?: boolean }
+  input: { domain: string; port?: number; path?: string; internalPath?: string; ssl?: boolean; primary?: boolean }
 ): Promise<ServiceDomain> {
   if (typeof window !== 'undefined') {
     try {
@@ -333,6 +333,7 @@ export async function addServiceDomain(
           primary: Boolean(created.primary),
           port: created.port || 80,
           path: created.path || '/',
+          internalPath: created.internalPath || input.internalPath || '/',
           certificateType: created.certificateType || 'letsencrypt',
           createdAt: created.createdAt || new Date().toISOString(),
         };
@@ -359,6 +360,7 @@ export async function addServiceDomain(
     domain: input.domain,
     port: input.port || 80,
     path: input.path || '/',
+    internalPath: input.internalPath || '/',
     ssl: input.ssl !== false,
     primary: Boolean(input.primary),
     createdAt: new Date().toISOString(),

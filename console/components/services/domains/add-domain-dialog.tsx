@@ -18,6 +18,7 @@ export interface AddDomainInput {
   domain: string;
   port: number;
   path: string;
+  internalPath?: string;
   ssl: boolean;
 }
 
@@ -37,6 +38,7 @@ export function AddDomainDialog({
   const [domainInput, setDomainInput] = useState('');
   const [portInput, setPortInput] = useState(defaultPort.toString());
   const [pathInput, setPathInput] = useState('/');
+  const [internalPathInput, setInternalPathInput] = useState('/');
   const [sslEnabled, setSslEnabled] = useState(true);
   const [error, setError] = useState('');
 
@@ -45,6 +47,7 @@ export function AddDomainDialog({
     const trimmedDomain = domainInput.trim().toLowerCase();
     const parsedPort = parseInt(portInput, 10);
     const trimmedPath = pathInput.trim() || '/';
+    const trimmedInternalPath = internalPathInput.trim() || '/';
 
     // Basic domain validation
     const domainRegex = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,10}$/;
@@ -62,12 +65,14 @@ export function AddDomainDialog({
       domain: trimmedDomain,
       port: parsedPort,
       path: trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`,
+      internalPath: trimmedInternalPath.startsWith('/') ? trimmedInternalPath : `/${trimmedInternalPath}`,
       ssl: sslEnabled,
     });
 
     setDomainInput('');
     setPortInput(defaultPort.toString());
     setPathInput('/');
+    setInternalPathInput('/');
     setSslEnabled(true);
     setError('');
     onOpenChange(false);
@@ -75,7 +80,7 @@ export function AddDomainDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
             <DialogTitle>Add Custom Domain</DialogTitle>
@@ -84,7 +89,7 @@ export function AddDomainDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3.5">
+          <div className="space-y-4">
             {/* Domain Name */}
             <div className="space-y-1.5">
               <label htmlFor="domain-input" className="text-xs font-medium text-foreground">
@@ -103,10 +108,13 @@ export function AddDomainDialog({
                 autoFocus
                 required
               />
+              <p className="text-[11px] text-muted-foreground">
+                External domain or subdomain (e.g. app.yourcompany.com)
+              </p>
             </div>
 
-            {/* Target Container Port & Routing Path */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Target Container Port, Routing Path & Internal Path */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <label htmlFor="port-input" className="text-xs font-medium text-foreground">
                   Container Port
@@ -138,7 +146,22 @@ export function AddDomainDialog({
                   className="font-mono text-xs h-9"
                   required
                 />
-                <p className="text-[10px] text-muted-foreground">HTTP request path prefix</p>
+                <p className="text-[10px] text-muted-foreground">Incoming request path</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label htmlFor="internal-path-input" className="text-xs font-medium text-foreground">
+                  Internal Path
+                </label>
+                <Input
+                  id="internal-path-input"
+                  type="text"
+                  placeholder="/"
+                  value={internalPathInput}
+                  onChange={(e) => setInternalPathInput(e.target.value)}
+                  className="font-mono text-xs h-9"
+                />
+                <p className="text-[10px] text-muted-foreground">Container target path</p>
               </div>
             </div>
 

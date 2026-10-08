@@ -38,6 +38,7 @@ export function ServiceDomainTab({ service, onDomainsUpdated }: ServiceDomainTab
         domain: data.domain,
         port: data.port,
         path: data.path,
+        internalPath: data.internalPath,
         ssl: data.ssl,
         primary: domains.length === 0,
       });

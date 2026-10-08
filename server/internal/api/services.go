@@ -45,6 +45,7 @@ type ServiceDomainResponse struct {
 	Primary         bool   `json:"primary"`
 	Port            int64  `json:"port"`
 	Path            string `json:"path"`
+	InternalPath    string `json:"internalPath,omitempty"`
 	CertificateType string `json:"certificateType"`
 	CreatedAt       string `json:"createdAt"`
 }
@@ -457,6 +458,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Domain          string `json:"domain"`
 				Port            int64  `json:"port"`
 				Path            string `json:"path"`
+				InternalPath    string `json:"internalPath"`
 				SSL             *bool  `json:"ssl"`
 				Primary         bool   `json:"primary"`
 				CertificateType string `json:"certificateType"`
@@ -476,6 +478,9 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 			if req.Path == "" {
 				req.Path = "/"
+			}
+			if req.InternalPath == "" {
+				req.InternalPath = "/"
 			}
 			sslVal := int64(1)
 			if req.SSL != nil && !*req.SSL {
@@ -533,6 +538,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Primary:         created.IsPrimary != 0,
 				Port:            created.Port,
 				Path:            created.Path,
+				InternalPath:    req.InternalPath,
 				CertificateType: created.CertificateType,
 				CreatedAt:       created.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			})

@@ -52,6 +52,12 @@ export function DomainList({
                 <span className="rounded-xs border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                   Path: {dom.path || '/'}
                 </span>
+
+                {dom.internalPath && dom.internalPath !== '/' && (
+                  <span className="rounded-xs border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                    Internal: {dom.internalPath}
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-mono">

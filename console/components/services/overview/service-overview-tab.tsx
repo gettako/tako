@@ -3,7 +3,6 @@
 import React from 'react';
 import { ResourceMetricsCard } from './resource-metrics-card';
 import { QuickInfoCard } from './quick-info-card';
-import { RecentDeployCard } from './recent-deploy-card';
 import { NetworkEndpointsCard } from './network-endpoints-card';
 import { Service, Deployment } from '@/lib/types';
 
@@ -20,20 +19,11 @@ export function ServiceOverviewTab({
   latestDeployment,
   deployments,
   onNavigateTab,
-  onRetryDeploy,
 }: ServiceOverviewTabProps) {
   const activeDeployment = latestDeployment || deployments?.[0] || null;
 
   return (
     <div className="space-y-6">
-      {/* 1. Hero: Active Release & Deployment Pipeline Card */}
-      <RecentDeployCard
-        service={service}
-        latestDeployment={activeDeployment}
-        onViewAllDeployments={() => onNavigateTab?.('deployments')}
-        onNavigateTab={onNavigateTab}
-        onRetryDeploy={onRetryDeploy}
-      />
 
       {/* 2. Live Telemetry & Resource Utilization (CPU, RAM, Disk, Replicas) */}
       <ResourceMetricsCard

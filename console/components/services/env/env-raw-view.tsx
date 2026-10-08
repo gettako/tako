@@ -42,6 +42,12 @@ if (typeof Prism !== 'undefined' && !Prism.languages.dotenv) {
   };
 }
 
+const PLACEHOLDER_ENV = `# Takō Environment Configuration
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=postgres://user:pass@host:5432/db
+API_KEY=sk_live_abcdef123456`;
+
 export interface EnvRawViewProps {
   rawContent: string;
   onChange: (val: string) => void;
@@ -57,6 +63,9 @@ export function EnvRawView({ rawContent, onChange }: EnvRawViewProps) {
   }, [rawContent]);
 
   const lineCount = lines.length;
+  const isContentEmpty = !rawContent.trim();
+  const placeholderLinesCount = useMemo(() => PLACEHOLDER_ENV.split('\n').length, []);
+  const gutterLinesCount = isContentEmpty ? placeholderLinesCount : Math.max(lineCount, 1);
 
   // Real-time analysis of the env configuration
   const stats = useMemo(() => {
@@ -177,7 +186,7 @@ export function EnvRawView({ rawContent, onChange }: EnvRawViewProps) {
               {stats.variableCount} vars
             </span>
             <span>•</span>
-            <span>{lineCount} lines</span>
+            <span>{isContentEmpty ? 0 : lineCount} lines</span>
           </div>
         </div>
 
@@ -251,15 +260,22 @@ export function EnvRawView({ rawContent, onChange }: EnvRawViewProps) {
         {/* Line Numbers Gutter (Sticky left, perfectly aligned line heights) */}
         <div
           aria-hidden="true"
-          className="select-none sticky left-0 z-10 w-12 border-r border-border bg-background py-3 pr-3 text-right font-mono text-xs text-muted-foreground/50 shrink-0 leading-[21px]"
+          className="select-none sticky left-0 z-10 w-12 border-r border-border bg-background py-3 pr-3 text-right font-mono text-xs shrink-0 leading-[21px]"
         >
-          {Array.from({ length: Math.max(lineCount, 1) }).map((_, idx) => (
-            <div key={idx} className="h-[21px]">{idx + 1}</div>
+          {Array.from({ length: gutterLinesCount }).map((_, idx) => (
+            <div
+              key={idx}
+              className={`h-[21px] ${
+                isContentEmpty ? 'text-muted-foreground/30' : 'text-muted-foreground/50'
+              }`}
+            >
+              {idx + 1}
+            </div>
           ))}
         </div>
 
         {/* Live Code Editor with Prism Highlighting */}
-        <div className="flex-1 min-w-0 bg-background">
+        <div className="flex-1 min-w-0 bg-background flex flex-col">
           <Editor
             value={displayContent}
             onValueChange={(newVal) => {
@@ -270,14 +286,16 @@ export function EnvRawView({ rawContent, onChange }: EnvRawViewProps) {
             }}
             highlight={highlightCode}
             padding={12}
-            className="font-mono text-xs leading-[21px] text-foreground"
-            textareaClassName="focus:outline-none bg-transparent caret-primary text-foreground"
+            className="flex-1 font-mono text-xs leading-[21px] text-foreground"
+            textareaClassName="focus:outline-none bg-transparent caret-primary text-foreground placeholder:text-muted-foreground/40 placeholder:font-mono"
             preClassName="prism-code"
-            placeholder={'# Takō Environment Configuration\nNODE_ENV=production\nPORT=3000\nDATABASE_URL=postgres://user:pass@host:5432/db\nAPI_KEY="sk_live_..."'}
+            placeholder={PLACEHOLDER_ENV}
             style={{
               fontFamily: 'Iosevka, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
               fontSize: '12px',
               lineHeight: '21px',
+              minHeight: '380px',
+              width: '100%',
               whiteSpace: 'pre',
             }}
           />
