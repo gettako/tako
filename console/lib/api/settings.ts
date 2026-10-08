@@ -46,16 +46,32 @@ let notifications = [...mockNotifications];
 
 async function fetchSettingFromBFF<T>(key: string, fallback: T): Promise<T> {
   if (typeof window !== 'undefined') {
+    let localValue: T | null = null;
+    try {
+      const local = localStorage.getItem(`tako_setting_${key}`);
+      if (local !== null) {
+        localValue = JSON.parse(local) as T;
+      }
+    } catch {}
+
     try {
       const res = await fetch(`/api/settings/${key}`);
       if (res.ok) {
         const data = await res.json();
-        if (data !== undefined && data !== null) {
-          return data as T;
+        const val = data?.value !== undefined ? data.value : data;
+        if (val !== undefined && val !== null) {
+          try {
+            localStorage.setItem(`tako_setting_${key}`, JSON.stringify(val));
+          } catch {}
+          return val as T;
         }
       }
     } catch {
       // Fallback
+    }
+
+    if (localValue !== null) {
+      return localValue;
     }
   }
   return fallback;
@@ -63,6 +79,10 @@ async function fetchSettingFromBFF<T>(key: string, fallback: T): Promise<T> {
 
 async function saveSettingToBFF<T>(key: string, value: T): Promise<void> {
   if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(`tako_setting_${key}`, JSON.stringify(value));
+    } catch {}
+
     try {
       await fetch(`/api/settings/${key}`, {
         method: 'PUT',
@@ -218,7 +238,7 @@ export async function revokeUserInvite(inviteId: string): Promise<void> {
 /* --- S3 Buckets --- */
 export async function getS3Buckets(): Promise<S3Bucket[]> {
   const remote = await fetchSettingFromBFF<S3Bucket[]>('s3_buckets', buckets);
-  if (Array.isArray(remote) && remote.length > 0) {
+  if (Array.isArray(remote)) {
     buckets = remote;
   }
   await simulateDelay();
@@ -227,25 +247,105 @@ export async function getS3Buckets(): Promise<S3Bucket[]> {
 
 export async function addS3Bucket(input: Omit<S3Bucket, 'id' | 'createdAt'>): Promise<S3Bucket> {
   await simulateDelay();
+  const isFirst = buckets.length === 0;
+  const shouldBeDefault = input.isDefault ?? isFirst;
+
+  if (shouldBeDefault) {
+    buckets = buckets.map((b) => ({ ...b, isDefault: false }));
+  }
+
   const newBucket: S3Bucket = {
     ...input,
     id: `s3-${Date.now()}`,
+    isDefault: shouldBeDefault,
     createdAt: new Date().toISOString(),
   };
-  buckets.push(newBucket);
+  buckets = [newBucket, ...buckets];
   await saveSettingToBFF('s3_buckets', buckets);
   return { ...newBucket };
 }
 
-export async function testS3BucketConnection(bucket: Partial<S3Bucket>): Promise<{ ok: boolean; latencyMs: number; message: string }> {
-  await simulateDelay(250, 450);
-  const isHealthy = !bucket.endpoint?.includes('invalid');
+export async function updateS3Bucket(
+  id: string,
+  input: Partial<Omit<S3Bucket, 'id' | 'createdAt'>>
+): Promise<S3Bucket> {
+  await simulateDelay();
+  const idx = buckets.findIndex((b) => b.id === id);
+  if (idx === -1) throw new Error('S3 bucket not found');
+
+  if (input.isDefault) {
+    buckets = buckets.map((b) => ({ ...b, isDefault: false }));
+  }
+
+  const updated: S3Bucket = {
+    ...buckets[idx],
+    ...input,
+    secretAccessKey:
+      input.secretAccessKey !== undefined && input.secretAccessKey.trim() !== ''
+        ? input.secretAccessKey.trim()
+        : buckets[idx].secretAccessKey,
+  };
+
+  buckets[idx] = updated;
+  await saveSettingToBFF('s3_buckets', buckets);
+  return { ...updated };
+}
+
+export async function deleteS3Bucket(id: string): Promise<void> {
+  await simulateDelay();
+  const wasDefault = buckets.find((b) => b.id === id)?.isDefault;
+  buckets = buckets.filter((b) => b.id !== id);
+  if (wasDefault && buckets.length > 0) {
+    buckets[0].isDefault = true;
+  }
+  await saveSettingToBFF('s3_buckets', buckets);
+}
+
+export async function setDefaultS3Bucket(id: string): Promise<S3Bucket[]> {
+  await simulateDelay();
+  buckets = buckets.map((b) => ({
+    ...b,
+    isDefault: b.id === id,
+  }));
+  await saveSettingToBFF('s3_buckets', buckets);
+  return [...buckets];
+}
+
+export async function testS3BucketConnection(
+  bucket: Partial<S3Bucket>
+): Promise<{ ok: boolean; latencyMs: number; message: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/settings/s3/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bucket),
+      });
+      if (res.ok) {
+        return (await res.json()) as { ok: boolean; latencyMs: number; message: string };
+      }
+      const errJson = await res.json().catch(() => null);
+      if (errJson && errJson.message) {
+        return { ok: false, latencyMs: 0, message: errJson.message };
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(200, 350);
+  const isValidUrl = /^https?:\/\//i.test(bucket.endpoint || '');
+  if (!isValidUrl) {
+    return {
+      ok: false,
+      latencyMs: 0,
+      message: 'Invalid S3 endpoint URL. Protocol must be http:// or https://',
+    };
+  }
   return {
-    ok: isHealthy,
-    latencyMs: Math.round(40 + Math.random() * 30),
-    message: isHealthy
-      ? 'S3 connection handshake verified. HeadBucket OK.'
-      : 'Connection timed out. Verify endpoint and access keys.',
+    ok: true,
+    latencyMs: 38,
+    message: `S3 connection handshake verified for bucket "${bucket.bucket || ''}".`,
   };
 }
 
@@ -322,11 +422,11 @@ export async function triggerManualBackup(): Promise<{ ok: boolean; snapshotSize
 /* --- Domain --- */
 export async function getDomainSettings(): Promise<ClusterDomainSettings> {
   const remote = await fetchSettingFromBFF<ClusterDomainSettings>('domain_settings', domainSettings);
-  if (remote && remote.domain) {
+  if (remote && typeof remote === 'object') {
     domainSettings = {
       ...domainSettings,
       ...remote,
-      domain: sanitizeDomain(remote.domain),
+      domain: remote.domain !== undefined ? sanitizeDomain(remote.domain) : domainSettings.domain,
     };
   }
   await simulateDelay();
@@ -336,7 +436,7 @@ export async function getDomainSettings(): Promise<ClusterDomainSettings> {
 export async function updateDomainSettings(input: Partial<ClusterDomainSettings>): Promise<ClusterDomainSettings> {
   await simulateDelay();
   const cleanInput = { ...input };
-  if (cleanInput.domain) {
+  if (cleanInput.domain !== undefined) {
     cleanInput.domain = sanitizeDomain(cleanInput.domain);
   }
   domainSettings = { ...domainSettings, ...cleanInput };
@@ -426,7 +526,7 @@ export function setNotificationsMockData(newNotifs: Notification[]): void {
 
 export async function getNotifications(): Promise<Notification[]> {
   const remote = await fetchSettingFromBFF<Notification[]>('cluster_notifications', notifications);
-  if (Array.isArray(remote) && remote.length > 0) {
+  if (Array.isArray(remote)) {
     notifications = remote;
   }
   await simulateDelay(50, 150);

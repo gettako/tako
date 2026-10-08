@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDomainSettings, updateDomainSettings, verifyDomainAndSSL } from '@/lib/api/settings';
 import { getNodes } from '@/lib/api/nodes';
 import { DomainVerificationResult } from '@/lib/types';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -26,7 +26,6 @@ import {
   Info,
   Lock,
 } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/section-header';
 import {
   sanitizeDomain,
   validateDomain,
@@ -56,15 +55,15 @@ export function DomainPanel() {
   const leaderNode = nodes.find((n) => n.role === 'leader') || nodes[0];
   const detectedLeaderIp = leaderNode?.publicIp || leaderNode?.ipAddress || '127.0.0.1';
 
-  const [domain, setDomain] = useState(settings?.domain ?? '');
-  const [sslAutoRenew, setSslAutoRenew] = useState(settings?.sslAutoRenew ?? true);
-  const [customDnsIp, setCustomDnsIp] = useState(settings?.customDnsIp ?? '');
+  const [domain, setDomain] = useState('');
+  const [sslAutoRenew, setSslAutoRenew] = useState(true);
+  const [customDnsIp, setCustomDnsIp] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [verificationResult, setVerificationResult] = useState<DomainVerificationResult | null>(null);
 
   useEffect(() => {
     if (settings) {
-      if (settings.domain) setDomain(settings.domain);
+      if (typeof settings.domain === 'string') setDomain(settings.domain);
       if (typeof settings.sslAutoRenew === 'boolean') setSslAutoRenew(settings.sslAutoRenew);
       if (settings.customDnsIp) {
         setCustomDnsIp(settings.customDnsIp);
@@ -74,7 +73,8 @@ export function DomainPanel() {
   }, [settings]);
 
   const effectiveLeaderIp = customDnsIp.trim() || detectedLeaderIp;
-  const dnsConfig = formatDnsInstructions(domain, effectiveLeaderIp);
+  const cleanDomain = sanitizeDomain(domain);
+  const dnsConfig = formatDnsInstructions(cleanDomain, effectiveLeaderIp);
 
   const handleDomainChange = (val: string) => {
     setDomain(val);
@@ -90,6 +90,12 @@ export function DomainPanel() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = sanitizeDomain(domain);
+    if (!cleaned) {
+      setValidationError('Domain name cannot be empty');
+      toast.error('Please enter a valid domain name');
+      return;
+    }
+
     const valRes = validateDomain(cleaned);
     if (!valRes.valid) {
       setValidationError(valRes.error || 'Invalid domain format');
@@ -99,13 +105,32 @@ export function DomainPanel() {
 
     try {
       setIsSaving(true);
-      await updateDomainSettings({
+      const updated = await updateDomainSettings({
         domain: cleaned,
         sslAutoRenew,
         customDnsIp: customDnsIp.trim() || undefined,
       });
-      queryClient.invalidateQueries({ queryKey: ['domain-settings'] });
-      toast.success('Domain configuration updated and saved');
+
+      // Update local query cache immediately
+      queryClient.setQueryData(['domain-settings'], updated);
+
+      // Automatically verify DNS connectivity & SSL
+      try {
+        const verifyRes = await verifyDomainAndSSL(cleaned, effectiveLeaderIp);
+        setVerificationResult(verifyRes);
+        const finalMerged = { ...updated, ...verifyRes };
+        queryClient.setQueryData(['domain-settings'], finalMerged);
+
+        if (verifyRes.dnsVerified && verifyRes.sslActive) {
+          toast.success(`Domain ${cleaned} saved and TLS verified!`);
+        } else if (verifyRes.dnsVerified) {
+          toast.success(`Domain saved! DNS points to leader, TLS issuance in progress.`);
+        } else {
+          toast.info(`Domain saved! Set your DNS A record to point to ${effectiveLeaderIp}.`);
+        }
+      } catch {
+        toast.success(`Domain configuration updated and saved for ${cleaned}.`);
+      }
     } catch {
       toast.error('Failed to update domain settings');
     } finally {
@@ -125,7 +150,10 @@ export function DomainPanel() {
       setIsVerifying(true);
       const res = await verifyDomainAndSSL(cleaned, effectiveLeaderIp);
       setVerificationResult(res);
-      queryClient.invalidateQueries({ queryKey: ['domain-settings'] });
+      queryClient.setQueryData(['domain-settings'], (prev: unknown) => ({
+        ...(prev && typeof prev === 'object' ? prev : {}),
+        ...res,
+      }));
 
       if (res.dnsVerified && res.sslActive) {
         toast.success(`Domain ${cleaned} DNS verified and SSL TLS is active!`);
@@ -155,17 +183,31 @@ export function DomainPanel() {
     setTimeout(() => setCopiedDomain(false), 2000);
   };
 
-  const currentStatus = verificationResult?.sslStatus || settings?.sslStatus || (settings?.sslActive ? 'active' : 'pending_dns');
-  const badgeConfig = getSslStatusBadge(currentStatus, settings?.sslActive || verificationResult?.sslActive);
+  const currentStatus =
+    verificationResult?.sslStatus ||
+    settings?.sslStatus ||
+    (settings?.sslActive ? 'active' : 'pending_dns');
+  const badgeConfig = getSslStatusBadge(
+    currentStatus,
+    settings?.sslActive || verificationResult?.sslActive
+  );
 
   return (
-    <Card className="border-border bg-card p-6">
-      <CardHeader className="px-0 pt-0 pb-4">
-        <SectionHeader
-          icon={Globe}
-          title="Cluster Hostname & SSL Configuration"
-          description="Configure the primary web console domain and automatic Let's Encrypt TLS termination."
-          action={
+    <Card>
+      <form onSubmit={handleSave}>
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
+              <Globe className="size-5" />
+            </div>
+            <div className="space-y-0.5 min-w-0">
+              <CardTitle>Cluster Hostname & SSL Configuration</CardTitle>
+              <CardDescription>
+                Configure the primary web console domain and automatic Let&apos;s Encrypt TLS termination.
+              </CardDescription>
+            </div>
+          </div>
+          <CardAction>
             <Badge
               variant="outline"
               className={
@@ -183,12 +225,10 @@ export function DomainPanel() {
               )}
               {badgeConfig.label}
             </Badge>
-          }
-        />
-      </CardHeader>
+          </CardAction>
+        </CardHeader>
 
-      <form onSubmit={handleSave}>
-        <CardContent className="px-0 space-y-6 pt-2 pb-6">
+        <CardContent className="space-y-6 pt-2">
           {/* Domain Input */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -198,7 +238,7 @@ export function DomainPanel() {
                   href={`https://${sanitizeDomain(domain)}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 font-mono transition-colors"
+                  className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 font-mono transition-colors active:not-aria-[haspopup]:translate-y-px"
                 >
                   <span>https://{sanitizeDomain(domain)}</span>
                   <ExternalLink className="size-3" />
@@ -297,11 +337,21 @@ export function DomainPanel() {
                 <Globe className="size-4 text-primary" />
                 <span>Required DNS Configuration</span>
               </div>
-              <span className="text-xs text-muted-foreground">TTL: 300 seconds recommended</span>
+              <span className="text-xs text-muted-foreground font-mono">TTL: 300s recommended</span>
             </div>
 
             <p className="text-muted-foreground text-xs leading-relaxed">
-              Create an <strong>A Record</strong> in your DNS provider (Cloudflare, Route53, Namecheap, etc.) pointing your hostname to the cluster ingress node:
+              {cleanDomain ? (
+                <>
+                  Create an <strong>A Record</strong> in your DNS provider (Cloudflare, Route53, Namecheap, etc.) pointing{' '}
+                  <strong className="font-mono text-foreground">{cleanDomain}</strong> to your cluster ingress node:
+                </>
+              ) : (
+                <>
+                  Enter your domain name above to generate exact DNS record details, or configure an{' '}
+                  <strong>A Record</strong> pointing your hostname to the cluster ingress node:
+                </>
+              )}
             </p>
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs font-mono">
@@ -313,18 +363,22 @@ export function DomainPanel() {
               <div className="p-2.5 rounded-lg border border-border bg-card flex items-center justify-between">
                 <div>
                   <span className="text-muted-foreground text-[10px] block uppercase font-sans">Name / Host</span>
-                  <span className="font-semibold text-foreground truncate">{dnsConfig.host}</span>
+                  <span className="font-semibold text-foreground truncate">
+                    {cleanDomain ? dnsConfig.host : '@ (or subdomain)'}
+                  </span>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopyDomain}
-                  className="size-6 text-muted-foreground hover:text-foreground shrink-0"
-                  title="Copy hostname"
-                >
-                  {copiedDomain ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                </Button>
+                {cleanDomain && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleCopyDomain}
+                    className="size-6 text-muted-foreground hover:text-foreground shrink-0 active:not-aria-[haspopup]:translate-y-px"
+                    title="Copy hostname"
+                  >
+                    {copiedDomain ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
+                  </Button>
+                )}
               </div>
 
               <div className="sm:col-span-2 p-2.5 rounded-lg border border-border bg-card flex items-center justify-between">
@@ -337,7 +391,7 @@ export function DomainPanel() {
                   variant="ghost"
                   size="icon"
                   onClick={handleCopyIp}
-                  className="size-6 text-muted-foreground hover:text-foreground shrink-0"
+                  className="size-6 text-muted-foreground hover:text-foreground shrink-0 active:not-aria-[haspopup]:translate-y-px"
                   title="Copy IP"
                 >
                   {copiedIp ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
@@ -346,21 +400,32 @@ export function DomainPanel() {
             </div>
 
             {/* Pointer Quick View */}
-            <div className="flex items-center gap-2.5 font-mono text-xs bg-muted/60 px-3.5 py-2 rounded-lg border border-border flex-wrap">
-              <span className="text-muted-foreground">{sanitizeDomain(domain) || 'console.gettako.dev'}</span>
-              <ArrowRight className="size-3.5 text-muted-foreground" />
-              <span className="font-semibold text-foreground">{effectiveLeaderIp}</span>
-              <span className="text-[11px] text-muted-foreground ml-auto">
-                Node: {leaderNode?.name || 'cluster-leader'}
-              </span>
-            </div>
+            {cleanDomain ? (
+              <div className="flex items-center gap-2.5 font-mono text-xs bg-muted/60 px-3.5 py-2 rounded-lg border border-border flex-wrap">
+                <span className="text-foreground font-semibold">{cleanDomain}</span>
+                <ArrowRight className="size-3.5 text-muted-foreground" />
+                <span className="font-semibold text-foreground">{effectiveLeaderIp}</span>
+                <span className="text-[11px] text-muted-foreground ml-auto">
+                  Node: {leaderNode?.name || 'cluster-leader'}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5 text-xs bg-muted/60 px-3.5 py-2 rounded-lg border border-border flex-wrap text-muted-foreground">
+                <span className="font-mono text-[11px]">your-domain.com</span>
+                <ArrowRight className="size-3.5 text-muted-foreground" />
+                <span className="font-mono font-semibold text-foreground">{effectiveLeaderIp}</span>
+                <span className="text-[11px] text-muted-foreground ml-auto">
+                  Enter hostname in the field above to verify
+                </span>
+              </div>
+            )}
 
             {/* Custom DNS IP toggle */}
             <div className="pt-1">
               <button
                 type="button"
                 onClick={() => setShowCustomIp(!showCustomIp)}
-                className="text-xs text-primary hover:underline font-medium"
+                className="text-xs text-primary hover:underline font-medium active:not-aria-[haspopup]:translate-y-px"
               >
                 {showCustomIp ? 'Hide custom DNS IP override' : 'Need a custom DNS IP (e.g. Cloudflare / proxy)?'}
               </button>
@@ -426,7 +491,7 @@ export function DomainPanel() {
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-6 pb-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border">
+        <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border pt-4">
           <p className="text-xs text-muted-foreground">
             Changes take effect immediately on cluster edge routing.
           </p>

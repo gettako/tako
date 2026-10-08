@@ -73,7 +73,16 @@ export interface DnsPointerConfig {
 }
 
 export function formatDnsInstructions(domain: string, targetIp: string): DnsPointerConfig {
-  const sanitized = sanitizeDomain(domain) || 'console.gettako.dev';
+  const sanitized = sanitizeDomain(domain);
+  if (!sanitized) {
+    return {
+      recordType: 'A',
+      host: '@',
+      target: targetIp || '127.0.0.1',
+      fqdn: '',
+      ttl: 300,
+    };
+  }
   const parts = sanitized.split('.');
   let host = '@';
   if (parts.length > 2) {
