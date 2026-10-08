@@ -2,9 +2,7 @@ package api
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -119,9 +117,7 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		tokenBytes := make([]byte, 24)
-		_, _ = rand.Read(tokenBytes)
-		token := "tako_tk_" + hex.EncodeToString(tokenBytes)
+		token := "tako_tk_" + randomHexID(24)
 
 		avatar := ""
 		if user.AvatarUrl.Valid {

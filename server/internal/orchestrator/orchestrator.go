@@ -2,9 +2,7 @@ package orchestrator
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -270,9 +268,7 @@ func (o *Orchestrator) DispatchContainerAction(ctx context.Context, nodeID, cont
 
 // GenerateEnrollToken creates a cryptographically random enrollment token.
 func (o *Orchestrator) GenerateEnrollToken() string {
-	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	return "tako_enroll_" + hex.EncodeToString(b)
+	return "tako_enroll_" + randomHex(16)
 }
 
 // RegisterNode handles node registration handshake and persists node record.

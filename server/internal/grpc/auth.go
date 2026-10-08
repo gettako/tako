@@ -10,66 +10,40 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+func validateToken(ctx context.Context, secret string) error {
+	if secret == "" {
+		return nil
+	}
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return status.Error(codes.Unauthenticated, "missing metadata")
+	}
+	token := extractToken(md)
+	if token == "" || (token != secret && !strings.HasPrefix(token, "tako-agent-") && !strings.HasPrefix(token, "tako-token-")) {
+		return status.Error(codes.Unauthenticated, "invalid or missing authentication token")
+	}
+	return nil
+}
+
 // AuthInterceptor validates bearer token or agent secret from incoming gRPC metadata.
 func AuthInterceptor(secret string) grpc.UnaryServerInterceptor {
-	return func(
-		ctx context.Context,
-		req any,
-		info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler,
-	) (any, error) {
-		// If no secret configured, allow (e.g. dev/testing default)
-		if secret == "" {
-			return handler(ctx, req)
-		}
-
-		// Allow RegisterNode to pass without agent secret if it provides enroll_token in payload
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if strings.HasSuffix(info.FullMethod, "/RegisterNode") {
 			return handler(ctx, req)
 		}
-
-		md, ok := metadata.FromIncomingContext(ctx)
-		if !ok {
-			return nil, status.Error(codes.Unauthenticated, "missing metadata")
+		if err := validateToken(ctx, secret); err != nil {
+			return nil, err
 		}
-
-		token := extractToken(md)
-		if token == "" {
-			return nil, status.Error(codes.Unauthenticated, "invalid or missing authentication token")
-		}
-		if token != secret && !strings.HasPrefix(token, "tako-agent-") && !strings.HasPrefix(token, "tako-token-") {
-			return nil, status.Error(codes.Unauthenticated, "invalid or missing authentication token")
-		}
-
 		return handler(ctx, req)
 	}
 }
 
 // StreamAuthInterceptor validates authentication for streaming RPCs.
 func StreamAuthInterceptor(secret string) grpc.StreamServerInterceptor {
-	return func(
-		srv any,
-		ss grpc.ServerStream,
-		info *grpc.StreamServerInfo,
-		handler grpc.StreamHandler,
-	) error {
-		if secret == "" {
-			return handler(srv, ss)
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if err := validateToken(ss.Context(), secret); err != nil {
+			return err
 		}
-
-		md, ok := metadata.FromIncomingContext(ss.Context())
-		if !ok {
-			return status.Error(codes.Unauthenticated, "missing metadata")
-		}
-
-		token := extractToken(md)
-		if token == "" {
-			return status.Error(codes.Unauthenticated, "invalid or missing authentication token")
-		}
-		if token != secret && !strings.HasPrefix(token, "tako-agent-") && !strings.HasPrefix(token, "tako-token-") {
-			return status.Error(codes.Unauthenticated, "invalid or missing authentication token")
-		}
-
 		return handler(srv, ss)
 	}
 }

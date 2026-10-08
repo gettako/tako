@@ -28,6 +28,27 @@ func SanitizeName(s string) string {
 	return strings.Trim(s, "-")
 }
 
+// IsWildcardDomain reports whether domain uses a public DNS wildcard provider.
+func IsWildcardDomain(d string) bool {
+	t := strings.TrimSpace(d)
+	return strings.HasSuffix(t, ".sslip.io") || strings.HasSuffix(t, ".nip.io") || strings.HasSuffix(t, ".xip.io")
+}
+
+// BuildHostRule builds a Traefik v3 Host(...) || Host(...) router rule.
+func BuildHostRule(domains []string, pathPrefix string) string {
+	var rules []string
+	for _, d := range domains {
+		if trimmed := strings.TrimSpace(d); trimmed != "" {
+			rules = append(rules, fmt.Sprintf("Host(`%s`)", trimmed))
+		}
+	}
+	rule := strings.Join(rules, " || ")
+	if pathPrefix != "" {
+		rule = fmt.Sprintf("(%s) && PathPrefix(`%s`)", rule, pathPrefix)
+	}
+	return rule
+}
+
 // GenerateLabels builds a standard map of Traefik v3 Docker container labels.
 func GenerateLabels(cfg RouteConfig) map[string]string {
 	labels := make(map[string]string)
@@ -35,9 +56,9 @@ func GenerateLabels(cfg RouteConfig) map[string]string {
 		return labels
 	}
 
-	routerName := sanitizeName(cfg.ServiceName)
+	routerName := SanitizeName(cfg.ServiceName)
 	if cfg.ConfigName != "" {
-		routerName = sanitizeName(cfg.ConfigName)
+		routerName = SanitizeName(cfg.ConfigName)
 	}
 	if routerName == "" {
 		routerName = "app"
@@ -55,22 +76,7 @@ func GenerateLabels(cfg RouteConfig) map[string]string {
 
 	labels["traefik.enable"] = "true"
 	labels["traefik.docker.network"] = network
-
-	// Construct Host rule
-	var hostRules []string
-	for _, d := range cfg.Domains {
-		trimmed := strings.TrimSpace(d)
-		if trimmed != "" {
-			hostRules = append(hostRules, fmt.Sprintf("Host(`%s`)", trimmed))
-		}
-	}
-	rule := strings.Join(hostRules, " || ")
-
-	if cfg.PathPrefix != "" {
-		rule = fmt.Sprintf("(%s) && PathPrefix(`%s`)", rule, cfg.PathPrefix)
-	}
-
-	labels[fmt.Sprintf("traefik.http.routers.%s.rule", routerName)] = rule
+	labels[fmt.Sprintf("traefik.http.routers.%s.rule", routerName)] = BuildHostRule(cfg.Domains, cfg.PathPrefix)
 
 	// TLS / Entrypoints
 	if cfg.EnableTLS {
@@ -94,7 +100,7 @@ func GenerateLabels(cfg RouteConfig) map[string]string {
 
 // AddRateLimitMiddleware adds a rate limiting middleware definition and attaches it to the router.
 func AddRateLimitMiddleware(labels map[string]string, serviceName string, average, burst int) {
-	name := sanitizeName(serviceName)
+	name := SanitizeName(serviceName)
 	mwName := fmt.Sprintf("%s-ratelimit", name)
 	labels[fmt.Sprintf("traefik.http.middlewares.%s.ratelimit.average", mwName)] = fmt.Sprintf("%d", average)
 	labels[fmt.Sprintf("traefik.http.middlewares.%s.ratelimit.burst", mwName)] = fmt.Sprintf("%d", burst)
@@ -104,7 +110,7 @@ func AddRateLimitMiddleware(labels map[string]string, serviceName string, averag
 
 // AddRedirectRegexMiddleware adds a URL redirect regex middleware definition.
 func AddRedirectRegexMiddleware(labels map[string]string, serviceName, regex, replacement string) {
-	name := sanitizeName(serviceName)
+	name := SanitizeName(serviceName)
 	mwName := fmt.Sprintf("%s-redirect", name)
 	labels[fmt.Sprintf("traefik.http.middlewares.%s.redirectregex.regex", mwName)] = regex
 	labels[fmt.Sprintf("traefik.http.middlewares.%s.redirectregex.replacement", mwName)] = replacement
@@ -120,8 +126,4 @@ func appendMiddleware(labels map[string]string, routerName, mwName string) {
 	} else {
 		labels[key] = existing + "," + mwName
 	}
-}
-
-func sanitizeName(s string) string {
-	return SanitizeName(s)
 }

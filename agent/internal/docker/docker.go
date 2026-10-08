@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 )
@@ -33,12 +32,6 @@ func New() (*Client, error) {
 	return &Client{cli: cli}, nil
 }
 
-// Ping checks if Docker daemon is responsive.
-func (c *Client) Ping(ctx context.Context) error {
-	_, err := c.cli.Ping(ctx)
-	return err
-}
-
 // Version returns the Docker engine version string.
 func (c *Client) Version(ctx context.Context) (string, error) {
 	v, err := c.cli.ServerVersion(ctx)
@@ -46,11 +39,6 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 		return "unknown", err
 	}
 	return v.Version, nil
-}
-
-// Info returns system information from the Docker daemon.
-func (c *Client) Info(ctx context.Context) (system.Info, error) {
-	return c.cli.Info(ctx)
 }
 
 // ListContainers returns all active and stopped containers.
@@ -106,49 +94,24 @@ func (c *Client) ResolveAllContainers(ctx context.Context, nameOrSlug string) []
 		return []string{nameOrSlug}
 	}
 
-	slug := strings.TrimPrefix(nameOrSlug, "/")
-	slug = strings.TrimPrefix(slug, "tako-app-")
-
-	prefixSlash := fmt.Sprintf("/tako-app-%s-", slug)
-	prefixClean := fmt.Sprintf("tako-app-%s-", slug)
-	legacySlash := fmt.Sprintf("/tako-app-%s", slug)
-	legacyClean := fmt.Sprintf("tako-app-%s", slug)
+	slug := strings.TrimPrefix(strings.TrimPrefix(nameOrSlug, "/"), "tako-app-")
+	prefix := "tako-app-" + slug + "-"
+	legacy := "tako-app-" + slug
 
 	var matched []types.Container
-
 	for _, cont := range all {
-		isMatch := false
-
-		// Match by labels
-		if cont.Labels["tako.service.name"] == slug || cont.Labels["tako.service.id"] == nameOrSlug {
-			isMatch = true
-		}
-
-		// Match by container names
+		isMatch := cont.Labels["tako.service.name"] == slug || cont.Labels["tako.service.id"] == nameOrSlug
 		if !isMatch {
 			for _, n := range cont.Names {
-				if strings.HasPrefix(n, prefixSlash) || strings.HasPrefix(n, prefixClean) ||
-					n == legacySlash || n == legacyClean || n == "/"+nameOrSlug || n == nameOrSlug {
+				clean := strings.TrimPrefix(n, "/")
+				if strings.HasPrefix(clean, prefix) || clean == legacy || clean == nameOrSlug || clean == slug {
 					isMatch = true
 					break
 				}
 			}
 		}
-
 		if isMatch {
 			matched = append(matched, cont)
-		}
-	}
-
-	if len(matched) == 0 {
-		for _, cont := range all {
-			for _, n := range cont.Names {
-				clean := strings.TrimPrefix(n, "/")
-				if clean == nameOrSlug || clean == slug {
-					matched = append(matched, cont)
-					break
-				}
-			}
 		}
 	}
 

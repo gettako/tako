@@ -35,8 +35,6 @@ type CreateServiceRequest struct {
 type ServiceLimitsResponse struct {
 	CPUCores float64 `json:"cpuCores"`
 	MemoryMB int64   `json:"memoryMb"`
-	DiskGB   float64 `json:"diskGb,omitempty"`
-	SwapMB   int64   `json:"swapMb,omitempty"`
 }
 
 type ServiceDomainResponse struct {
@@ -298,11 +296,11 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			var req struct {
 				Status        string  `json:"status"`
 				Action        string  `json:"action"`
-				Name          string  `json:"name"`
+				Name          *string `json:"name"`
 				Repository    *string `json:"repository"`
-				Branch        string  `json:"branch"`
+				Branch        *string `json:"branch"`
 				CommitHash    *string `json:"commitHash"`
-				Dockerfile    string  `json:"dockerfile"`
+				Dockerfile    *string `json:"dockerfile"`
 				BuildCommand  *string `json:"buildCommand"`
 				Image         *string `json:"image"`
 				Replicas      *int64  `json:"replicas"`
@@ -310,7 +308,6 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Limits        *struct {
 					CPUCores *float64 `json:"cpuCores"`
 					MemoryMB *int64   `json:"memoryMb"`
-					SwapMB   *int64   `json:"swapMb"`
 				} `json:"limits"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -318,35 +315,24 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			hasLimitsUpdate := req.Limits != nil && (req.Limits.CPUCores != nil || req.Limits.MemoryMB != nil)
-			hasConfigUpdate := req.Name != "" || req.Repository != nil || req.Branch != "" ||
-				req.CommitHash != nil || req.Dockerfile != "" || req.BuildCommand != nil ||
-				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil || hasLimitsUpdate
+			var cpuPtr *float64
+			var memPtr *int64
+			if req.Limits != nil {
+				cpuPtr = req.Limits.CPUCores
+				memPtr = req.Limits.MemoryMB
+			}
+
+			hasConfigUpdate := req.Name != nil || req.Repository != nil || req.Branch != nil ||
+				req.CommitHash != nil || req.Dockerfile != nil || req.BuildCommand != nil ||
+				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil || cpuPtr != nil || memPtr != nil
 
 			if hasConfigUpdate {
-				var namePtr, branchPtr, dfPtr *string
-				if req.Name != "" {
-					namePtr = &req.Name
-				}
-				if req.Branch != "" {
-					branchPtr = &req.Branch
-				}
-				if req.Dockerfile != "" {
-					dfPtr = &req.Dockerfile
-				}
-				var cpuPtr *float64
-				var memPtr *int64
-				if req.Limits != nil {
-					cpuPtr = req.Limits.CPUCores
-					memPtr = req.Limits.MemoryMB
-				}
-
 				updated, updateErr := orch.UpdateService(r.Context(), id, orchestrator.UpdateServiceParams{
-					Name:          namePtr,
+					Name:          req.Name,
 					Repository:    req.Repository,
-					Branch:        branchPtr,
+					Branch:        req.Branch,
 					CommitHash:    req.CommitHash,
-					Dockerfile:    dfPtr,
+					Dockerfile:    req.Dockerfile,
 					BuildCommand:  req.BuildCommand,
 					Image:         req.Image,
 					Replicas:      req.Replicas,

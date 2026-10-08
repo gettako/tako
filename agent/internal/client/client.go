@@ -23,12 +23,10 @@ type Config struct {
 }
 
 type Client struct {
-	mu               sync.RWMutex
-	cfg              Config
-	conn             *grpc.ClientConn
-	agentClient      takov1.AgentServiceClient
-	deploymentClient takov1.DeploymentServiceClient
-	containerClient  takov1.ContainerServiceClient
+	mu          sync.RWMutex
+	cfg         Config
+	conn        *grpc.ClientConn
+	agentClient takov1.AgentServiceClient
 }
 
 // New creates and dials a new gRPC client to Tako Master with resilient reconnect backoff.
@@ -69,8 +67,6 @@ func New(cfg Config) (*Client, error) {
 
 	c.conn = conn
 	c.agentClient = takov1.NewAgentServiceClient(conn)
-	c.deploymentClient = takov1.NewDeploymentServiceClient(conn)
-	c.containerClient = takov1.NewContainerServiceClient(conn)
 
 	return c, nil
 }
@@ -115,14 +111,6 @@ func (c *Client) Heartbeat(ctx context.Context, req *takov1.HeartbeatRequest) (*
 
 func (c *Client) AgentClient() takov1.AgentServiceClient {
 	return c.agentClient
-}
-
-func (c *Client) DeploymentClient() takov1.DeploymentServiceClient {
-	return c.deploymentClient
-}
-
-func (c *Client) ContainerClient() takov1.ContainerServiceClient {
-	return c.containerClient
 }
 
 func (c *Client) Close() error {

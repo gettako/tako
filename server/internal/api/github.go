@@ -15,7 +15,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	mrand "math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -124,7 +123,7 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				appName = "Tako"
 			}
 			if appSlug == "" {
-				appSlug = fmt.Sprintf("tako-%05d", mrand.Intn(90000)+10000)
+				appSlug = "tako-" + randomHexID(4)
 			}
 
 			// In GitHub App Manifest flow:

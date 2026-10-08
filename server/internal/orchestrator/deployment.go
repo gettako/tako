@@ -55,6 +55,14 @@ type UpdateServiceParams struct {
 	MemoryLimitMB *int64
 }
 
+func fallbackVal[T comparable](ptr *T, fallback T) T {
+	var zero T
+	if ptr != nil && *ptr != zero {
+		return *ptr
+	}
+	return fallback
+}
+
 // UpdateService updates service configuration attributes and metadata in database.
 func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateServiceParams) (*db.Service, error) {
 	srv, err := o.queries.GetServiceByID(ctx, id)
@@ -62,38 +70,6 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 		return nil, fmt.Errorf("service not found: %w", err)
 	}
 
-	name := srv.Name
-	if p.Name != nil && *p.Name != "" {
-		name = *p.Name
-	}
-	repo := srv.Repository
-	if p.Repository != nil {
-		repo = *p.Repository
-	}
-	branch := srv.Branch
-	if p.Branch != nil && *p.Branch != "" {
-		branch = *p.Branch
-	}
-	commitHash := srv.CommitHash
-	if p.CommitHash != nil {
-		commitHash = *p.CommitHash
-	}
-	dockerfile := srv.Dockerfile
-	if p.Dockerfile != nil && *p.Dockerfile != "" {
-		dockerfile = *p.Dockerfile
-	}
-	buildCommand := srv.BuildCommand
-	if p.BuildCommand != nil {
-		buildCommand = *p.BuildCommand
-	}
-	img := srv.Image
-	if p.Image != nil {
-		img = *p.Image
-	}
-	replicas := srv.Replicas
-	if p.Replicas != nil && *p.Replicas > 0 {
-		replicas = *p.Replicas
-	}
 	publishToHost := srv.PublishToHost
 	if p.PublishToHost != nil {
 		if *p.PublishToHost {
@@ -101,14 +77,6 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 		} else {
 			publishToHost = 0
 		}
-	}
-	cpuLimit := srv.CpuLimit
-	if p.CPULimit != nil && *p.CPULimit > 0 {
-		cpuLimit = *p.CPULimit
-	}
-	memoryLimit := srv.MemoryLimitMb
-	if p.MemoryLimitMB != nil && *p.MemoryLimitMB > 0 {
-		memoryLimit = *p.MemoryLimitMB
 	}
 
 	_, err = o.db.ExecContext(ctx, `
@@ -126,7 +94,18 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 			memory_limit_mb = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`,
-		name, repo, branch, commitHash, dockerfile, buildCommand, img, replicas, publishToHost, cpuLimit, memoryLimit, id,
+		fallbackVal(p.Name, srv.Name),
+		fallbackVal(p.Repository, srv.Repository),
+		fallbackVal(p.Branch, srv.Branch),
+		fallbackVal(p.CommitHash, srv.CommitHash),
+		fallbackVal(p.Dockerfile, srv.Dockerfile),
+		fallbackVal(p.BuildCommand, srv.BuildCommand),
+		fallbackVal(p.Image, srv.Image),
+		fallbackVal(p.Replicas, srv.Replicas),
+		publishToHost,
+		fallbackVal(p.CPULimit, srv.CpuLimit),
+		fallbackVal(p.MemoryLimitMB, srv.MemoryLimitMb),
+		id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update service: %w", err)
@@ -793,6 +772,16 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
+func cleanAlnum(s string) string {
+	var sb strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			sb.WriteRune(r)
+		}
+	}
+	return sb.String()
+}
+
 func buildPreviewURL(commitHash, depID, nodeIP string) (domain string, url string) {
 	cleanIP := "127.0.0.1"
 	if nodeIP != "" {
@@ -800,39 +789,22 @@ func buildPreviewURL(commitHash, depID, nodeIP string) (domain string, url strin
 	}
 	dashedIP := strings.ReplaceAll(cleanIP, ".", "-")
 
-	var sb strings.Builder
-	for _, r := range strings.ToLower(commitHash) {
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-			sb.WriteRune(r)
-		}
-	}
-	cleanCommit := sb.String()
-
+	cleanCommit := cleanAlnum(commitHash)
 	commit8 := ""
 	if len(cleanCommit) >= 8 {
 		commit8 = cleanCommit[:8]
 	} else if cleanCommit != "" && cleanCommit != "main" {
-		commit8 = cleanCommit
-		for len(commit8) < 8 {
-			commit8 += "0"
-		}
+		commit8 = cleanCommit + strings.Repeat("0", 8-len(cleanCommit))
 	} else {
-		cleanDep := strings.TrimPrefix(depID, "dep-")
-		var depSb strings.Builder
-		for _, r := range strings.ToLower(cleanDep) {
-			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
-				depSb.WriteRune(r)
-			}
-		}
-		if depSb.Len() >= 8 {
-			commit8 = depSb.String()[:8]
+		cleanDep := cleanAlnum(strings.TrimPrefix(depID, "dep-"))
+		if len(cleanDep) >= 8 {
+			commit8 = cleanDep[:8]
 		} else {
 			commit8 = "abc123ef"
 		}
 	}
 
 	domain = fmt.Sprintf("%s-%s.sslip.io", commit8, dashedIP)
-	url = fmt.Sprintf("http://%s", domain)
-	return domain, url
+	return domain, "http://" + domain
 }
 

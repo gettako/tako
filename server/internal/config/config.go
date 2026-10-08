@@ -14,46 +14,21 @@ type Config struct {
 	AdminPassword string
 }
 
+func getEnv(key, defaultVal string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return defaultVal
+}
+
 func Load() *Config {
-	port := os.Getenv("TAKO_PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	grpcPort := os.Getenv("TAKO_GRPC_PORT")
-	if grpcPort == "" {
-		grpcPort = "50051"
-	}
-
-	dbPath := os.Getenv("TAKO_DB_PATH")
-	if dbPath == "" {
-		dbPath = "tako.db"
-	}
-
-	env := os.Getenv("TAKO_ENV")
-	if env == "" {
-		env = "development"
-	}
-
-	agentSecret := os.Getenv("TAKO_AGENT_SECRET")
-
-	adminEmail := os.Getenv("TAKO_ADMIN_EMAIL")
-	if adminEmail == "" {
-		adminEmail = "admin@gettako.dev"
-	}
-
-	adminPassword := os.Getenv("TAKO_ADMIN_PASSWORD")
-	if adminPassword == "" {
-		adminPassword = "admin123456"
-	}
-
 	return &Config{
-		Port:          port,
-		GRPCPort:      grpcPort,
-		DBPath:        dbPath,
-		Env:           env,
-		AgentSecret:   agentSecret,
-		AdminEmail:    adminEmail,
-		AdminPassword: adminPassword,
+		Port:          getEnv("TAKO_PORT", "8080"),
+		GRPCPort:      getEnv("TAKO_GRPC_PORT", "50051"),
+		DBPath:        getEnv("TAKO_DB_PATH", "tako.db"),
+		Env:           getEnv("TAKO_ENV", "development"),
+		AgentSecret:   os.Getenv("TAKO_AGENT_SECRET"),
+		AdminEmail:    getEnv("TAKO_ADMIN_EMAIL", "admin@gettako.dev"),
+		AdminPassword: getEnv("TAKO_ADMIN_PASSWORD", "admin123456"),
 	}
 }

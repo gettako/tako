@@ -131,7 +131,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 	// Determine whether any production (non-preview) custom domain is present
 	hasCustomDomain := false
 	for _, d := range req.GetDomains() {
-		if !strings.HasSuffix(d, ".sslip.io") && !strings.HasSuffix(d, ".nip.io") && !strings.HasSuffix(d, ".xip.io") {
+		if !traefik.IsWildcardDomain(d) {
 			hasCustomDomain = true
 			break
 		}
@@ -146,8 +146,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 		if trimmed == "" {
 			continue
 		}
-		isWildcard := strings.HasSuffix(trimmed, ".sslip.io") || strings.HasSuffix(trimmed, ".nip.io") || strings.HasSuffix(trimmed, ".xip.io")
-		if isWildcard {
+		if traefik.IsWildcardDomain(trimmed) {
 			if strings.HasPrefix(trimmed, commit8+"-") {
 				previewDomains = append(previewDomains, trimmed)
 			}
@@ -160,8 +159,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 	// If no commit-specific preview domain was found, fallback to wildcard preview domains only
 	if len(previewDomains) == 0 {
 		for _, d := range req.GetDomains() {
-			trimmed := strings.TrimSpace(d)
-			if strings.HasSuffix(trimmed, ".sslip.io") || strings.HasSuffix(trimmed, ".nip.io") || strings.HasSuffix(trimmed, ".xip.io") {
+			if trimmed := strings.TrimSpace(d); traefik.IsWildcardDomain(trimmed) {
 				previewDomains = append(previewDomains, trimmed)
 			}
 		}

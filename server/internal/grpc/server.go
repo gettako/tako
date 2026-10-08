@@ -9,21 +9,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-type NodeOrchestrator interface {
-	RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error)
-	Heartbeat(ctx context.Context, req *takov1.HeartbeatRequest) (*takov1.HeartbeatResponse, error)
-	RegisterAgentSession(nodeID string, taskChan chan *takov1.MasterTask) *orchestrator.AgentSession
-	UnregisterAgentSession(nodeID string)
-}
-
 type ServerConfig struct {
 	AgentSecret  string
-	Orchestrator NodeOrchestrator
+	Orchestrator *orchestrator.Orchestrator
 }
 
 type AgentHandler struct {
 	takov1.UnimplementedAgentServiceServer
-	orchestrator NodeOrchestrator
+	orchestrator *orchestrator.Orchestrator
 }
 
 func (h *AgentHandler) RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error) {
@@ -111,14 +104,6 @@ func (h *AgentHandler) StreamTasks(stream takov1.AgentService_StreamTasksServer)
 	}
 }
 
-type BaseDeploymentHandler struct {
-	takov1.UnimplementedDeploymentServiceServer
-}
-
-type BaseContainerHandler struct {
-	takov1.UnimplementedContainerServiceServer
-}
-
 // NewServer initializes and configures a gRPC server with authentication and service stubs.
 func NewServer(cfg ServerConfig) *grpc.Server {
 	opts := []grpc.ServerOption{
@@ -129,8 +114,8 @@ func NewServer(cfg ServerConfig) *grpc.Server {
 	srv := grpc.NewServer(opts...)
 
 	takov1.RegisterAgentServiceServer(srv, &AgentHandler{orchestrator: cfg.Orchestrator})
-	takov1.RegisterDeploymentServiceServer(srv, &BaseDeploymentHandler{})
-	takov1.RegisterContainerServiceServer(srv, &BaseContainerHandler{})
+	takov1.RegisterDeploymentServiceServer(srv, &takov1.UnimplementedDeploymentServiceServer{})
+	takov1.RegisterContainerServiceServer(srv, &takov1.UnimplementedContainerServiceServer{})
 
 	return srv
 }

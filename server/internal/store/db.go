@@ -23,35 +23,20 @@ func OpenDB(path string) (*sql.DB, error) {
 	}
 
 	dsn := path
-	if !strings.Contains(path, "?") && path != ":memory:" {
+	if !strings.Contains(path, "?") {
 		q := url.Values{}
 		q.Add("_pragma", "busy_timeout(5000)")
-		q.Add("_pragma", "journal_mode(WAL)")
 		q.Add("_pragma", "foreign_keys(ON)")
 		q.Add("_pragma", "synchronous(NORMAL)")
+		if path != ":memory:" {
+			q.Add("_pragma", "journal_mode(WAL)")
+		}
 		dsn = fmt.Sprintf("%s?%s", path, q.Encode())
 	}
 
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite database: %w", err)
-	}
-
-	// Fallback/direct verification pragmas
-	pragmas := []string{
-		"PRAGMA busy_timeout = 5000;",
-		"PRAGMA foreign_keys = ON;",
-		"PRAGMA synchronous = NORMAL;",
-	}
-	if path != ":memory:" {
-		pragmas = append([]string{"PRAGMA journal_mode = WAL;"}, pragmas...)
-	}
-
-	for _, p := range pragmas {
-		if _, err := db.Exec(p); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to apply pragma %q: %w", p, err)
-		}
 	}
 
 	db.SetMaxOpenConns(10)

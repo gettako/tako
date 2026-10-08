@@ -31,20 +31,16 @@ func detectPublicIP() string {
 	}
 	client := &http.Client{Timeout: 3 * time.Second}
 	for _, ep := range endpoints {
-		req, err := http.NewRequest(http.MethodGet, ep, nil)
+		resp, err := client.Get(ep)
 		if err != nil {
 			continue
 		}
-		req.Header.Set("User-Agent", "curl/7.68.0")
-		resp, err := client.Do(req)
+		body, err := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
 		if err == nil && resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-			if err == nil {
-				ip := strings.TrimSpace(string(body))
-				if parsed := net.ParseIP(ip); parsed != nil && !parsed.IsLoopback() {
-					return ip
-				}
+			ip := strings.TrimSpace(string(body))
+			if parsed := net.ParseIP(ip); parsed != nil && !parsed.IsLoopback() {
+				return ip
 			}
 		}
 	}

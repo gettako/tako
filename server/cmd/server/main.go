@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,7 +17,6 @@ import (
 	internalgrpc "gettako.dev/tako/internal/grpc"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store"
-	"net"
 )
 
 func main() {
