@@ -5,32 +5,34 @@ description: "Attach additional worker servers to your Tako cluster via gRPC wit
 
 # Worker Node Installation
 
-Worker nodes run containerized workloads and host applications. They connect to the Master Server via outbound gRPC (`50051`).
+Worker nodes run containerized workloads and host deployed user services. Each worker node runs `tako-agent` and a dedicated `tako-traefik` instance, connecting to the Master Server via outbound gRPC (`50051`).
 
 ## System Requirements
 
-- **OS**: Any modern Linux distribution with Docker support
-- **RAM**: 512 MB minimum (plus capacity for user apps)
+- **Operating System**: Modern Linux distribution with Docker support (Ubuntu 22.04+, Debian 12+, Rocky/AlmaLinux 9+, Alpine Linux)
+- **Architecture**: `amd64` (x86_64) or `arm64` (aarch64)
+- **RAM**: 512 MB minimum (plus capacity for application containers)
 - **CPU**: 1 Core minimum
-- **Networking**: Outbound access to `<MASTER_IP>:50051`
+- **Networking**: Outbound TCP access to `<MASTER_IP>:50051`
 
 <Note>
-Worker nodes **do not** require inbound SSH access or open control ports. The agent establishes an outbound long-lived gRPC connection to the master.
+Worker nodes **do not** require inbound SSH access or open control ports for cluster management. The agent initiates and maintains a long-lived outbound gRPC connection to the master. Ports `80` and `443` are only needed if the worker node receives direct public web traffic for applications running on it.
 </Note>
 
 ---
 
 ## Step 1: Generate an Enrollment Token
 
-1. Go to **Nodes** in your Tako Console.
-2. Click **Add Node** (Enroll).
-3. The console will display a unique enrollment token and an installation command.
+1. Open your **Tako Console** (`http://<MASTER_IP>:3000`).
+2. Navigate to **Nodes** in the left sidebar.
+3. Click **Add Node** (Enroll).
+4. The console generates a one-time cryptographically secure enrollment token and displays the ready-to-use install command.
 
 ---
 
-## Step 2: Run Worker Installer
+## Step 2: Run the Worker Installer
 
-SSH into your target worker server and run:
+SSH into your target worker server and execute the installer in agent mode:
 
 ```bash
 curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
@@ -38,23 +40,44 @@ curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
 
 When prompted:
 1. Enter your **Master Server gRPC URL**: `198.51.100.1:50051`
-2. Enter the **Enrollment Token**: Generated from the step above.
-3. Enter the **Node Name** (or press Enter to use the host's hostname).
+2. Enter the **Enrollment Token**: Paste the token generated from Step 1.
+3. Enter the **Node Public IP**: The public IPv4 address of the worker.
+4. Enter the **Node Private IP**: The internal network IPv4 address.
 
 ---
 
 ## Non-Interactive Worker Setup
 
+For automated provisioning (e.g. cloud-init, Ansible, Terraform), pass the configuration as environment variables:
+
 ```bash
 export TAKO_MASTER_URL="198.51.100.1:50051"
 export TAKO_AGENT_TOKEN="your-enrollment-token"
 export TAKO_NODE_NAME="worker-ams-01"
+export TAKO_PUBLIC_IP="198.51.100.55"
+export TAKO_PRIVATE_IP="10.0.0.22"
 
 curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
 ```
 
+### Worker Configuration Parameters
+
+| Variable | Description |
+| :--- | :--- |
+| `TAKO_MASTER_URL` | Master server gRPC address and port (e.g. `198.51.100.1:50051`) |
+| `TAKO_AGENT_TOKEN` | Secret enrollment token generated from the console |
+| `TAKO_NODE_NAME` | Custom name for the node (defaults to hostname) |
+| `TAKO_PUBLIC_IP` | Public IP for external ingress routing |
+| `TAKO_PRIVATE_IP` | Internal interface IP for private networking |
+
 ---
 
-## Verifying Node Status
+## Verifying Node Status & Management
 
-Return to your Tako Console under **Nodes**. The new node will appear with status `online`, displaying live CPU, Memory, Disk, and Network telemetry streamed every 3 seconds.
+Return to your Tako Console under **Nodes**:
+
+1. **Status**: The new node will show as `online` within seconds.
+2. **Telemetry**: Live CPU cores, RAM usage, disk partitions, and network I/O are streamed in real time every 3 seconds.
+3. **Traefik Configuration Management**: Inspect, edit, and reload the worker node's Traefik dynamic configuration directly in the Console UI without SSH.
+4. **Remote Reboot**: Administrators can safely trigger host reboots directly from the console via `/api/v1/nodes/{id}/reboot` (powered by kernel `sysrq-trigger`).
+5. **Heartbeat Monitoring**: If the agent's connection drops for more than 15 seconds, the master automatically flags the node as `offline` and broadcasts an SSE notification to all connected dashboard sessions.

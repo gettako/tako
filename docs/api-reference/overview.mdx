@@ -5,39 +5,161 @@ description: "Interactive REST API documentation for the Tako Master Server."
 
 # Tako Master REST API
 
-The Tako Master Server exposes a high-performance RESTful API for automation, CI/CD pipelines, and console interaction.
+The Tako Master Server exposes a high-performance RESTful API built on Go and Chi router for automation, CI/CD pipelines, and console interaction.
 
 ## Interactive Specification
 
-The complete OpenAPI 3.1 specification is located at [`/openapi.yaml`](/openapi.yaml).
+The complete OpenAPI 3.1 specification is available at [`/openapi.yaml`](/openapi.yaml).
 
 ## Base URLs
 
 - **Local Development**: `http://localhost:8080`
-- **Console BFF**: `http://localhost:3000/api`
-- **Production Server**: Configurable via `TAKO_SERVER_URL`
+- **Next.js Console BFF**: `http://localhost:3000/api`
+- **gRPC Server**: `localhost:50051`
 
 ---
 
 ## Authentication
 
-All endpoints under `/api/v1` (except public health checks and node registration) require authentication via Bearer token:
+All protected endpoints under `/api/v1` require authentication via Bearer token:
 
 ```http
 Authorization: Bearer <your-jwt-token>
 ```
 
-When accessed via the Next.js Console, authentication tokens are stored securely in `HttpOnly` session cookies to protect against cross-site scripting (XSS).
+When accessed via the Next.js Console, session tokens are securely handled through `HttpOnly` cookies and forwarded by the BFF proxy.
 
 ---
 
-## Key Endpoint Groups
+## API Endpoints Directory
 
-| Group | Path Prefix | Description |
+### 1. System & Health
+
+| Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| **System** | `/health`, `/ping` | Readiness and database checks |
-| **Authentication** | `/api/v1/auth` | User login, session verify, logout |
-| **Nodes** | `/api/v1/nodes` | Node registration, listing, deletion, SSE events |
-| **Projects** | `/api/v1/projects` | Project workspaces |
-| **Services** | `/api/v1/services` | Service configuration, CRUD, trigger deploys |
-| **Deployments** | `/api/v1/deployments` | Pipeline execution status, logs SSE |
+| `GET` | `/health` | Check server status and SQLite database connectivity |
+| `GET` | `/api/v1/ping` | Simple ping-pong readiness test |
+
+---
+
+### 2. Authentication (`/api/v1/auth`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/login` | Authenticate with email & password |
+| `POST` | `/api/v1/auth/passkey/login` | Authenticate using WebAuthn Passkey |
+| `POST` | `/api/v1/auth/logout` | Terminate session |
+| `GET` | `/api/v1/auth/me` | Fetch profile for current authenticated user |
+| `PUT` | `/api/v1/auth/profile` | Update user name, email, or avatar |
+| `PUT` | `/api/v1/auth/password` | Change user password |
+| `PUT` | `/api/v1/auth/2fa` | Enable or disable two-factor authentication |
+| `GET` | `/api/v1/auth/passkeys` | List registered WebAuthn credentials |
+| `POST` | `/api/v1/auth/passkeys` | Register a new passkey credential |
+| `DELETE` | `/api/v1/auth/passkeys/{id}` | Delete a passkey credential |
+| `GET` | `/api/v1/auth/sessions` | List active user login sessions |
+| `DELETE` | `/api/v1/auth/sessions/{id}` | Terminate a specific session |
+| `POST` | `/api/v1/auth/sessions/revoke-others` | Revoke all other active sessions |
+| `GET` | `/api/v1/auth/users` | List cluster administrator users |
+| `POST` | `/api/v1/auth/users` | Create a new user |
+| `PUT` | `/api/v1/auth/users/{id}/role` | Update user role |
+| `DELETE` | `/api/v1/auth/users/{id}` | Delete a user |
+
+---
+
+### 3. Nodes Management (`/api/v1/nodes`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/nodes/enroll-token` | Generate a secure one-time enrollment token |
+| `GET` | `/api/v1/nodes` | List all nodes in cluster |
+| `GET` | `/api/v1/nodes/{id}` | Get node details and specifications |
+| `PATCH` | `/api/v1/nodes/{id}` | Update node name, IP address, or tags |
+| `POST` | `/api/v1/nodes/{id}/reboot` | Dispatch remote host reboot via sysrq-trigger |
+| `DELETE` | `/api/v1/nodes/{id}` | Delete and unenroll node from cluster |
+| `GET` | `/api/v1/nodes/{id}/traefik` | Get node Traefik configuration settings |
+| `PUT` | `/api/v1/nodes/{id}/traefik` | Update node Traefik settings |
+| `POST` | `/api/v1/nodes/{id}/traefik/reload` | Hot reload Traefik configuration on node |
+| `GET` | `/api/v1/nodes/{id}/traefik/files` | List all Traefik files on node |
+| `GET` | `/api/v1/nodes/{id}/traefik/files/{filename}` | Read file content (`traefik.yml` or dynamic) |
+| `PUT` | `/api/v1/nodes/{id}/traefik/files/{filename}` | Save Traefik configuration file content |
+| `DELETE` | `/api/v1/nodes/{id}/traefik/files/{filename}` | Delete a dynamic routing file |
+
+---
+
+### 4. Real-Time Events (`/api/v1/events`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/events/nodes` | SSE stream for real-time node metrics and liveness |
+
+---
+
+### 5. Projects (`/api/v1/projects`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/projects` | List all project workspaces |
+| `POST` | `/api/v1/projects` | Create a new project workspace |
+| `GET` | `/api/v1/projects/{id}` | Get project by ID or slug |
+| `DELETE` | `/api/v1/projects/{id}` | Delete project (blocked if active services exist) |
+
+---
+
+### 6. Services (`/api/v1/services`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/services` | List all services across projects |
+| `POST` | `/api/v1/services` | Create a new service |
+| `GET` | `/api/v1/services/{id}` | Get service configuration and status |
+| `PATCH` | `/api/v1/services/{id}` | Update service configuration or toggle start/stop |
+| `DELETE` | `/api/v1/services/{id}` | Delete service and stop container |
+| `GET` | `/api/v1/services/{id}/domains` | List domains attached to service |
+| `POST` | `/api/v1/services/{id}/domains` | Attach new domain (with SSL/path options) |
+| `DELETE` | `/api/v1/services/{id}/domains/{domainId}` | Remove domain |
+| `PATCH` | `/api/v1/services/{id}/domains/{domainId}/primary` | Set domain as primary |
+| `GET` | `/api/v1/services/{id}/env` | List environment variables |
+| `PUT` | `/api/v1/services/{id}/env` | Update environment variables (auto-redeploy) |
+| `POST` | `/api/v1/services/{id}/deploy` | Trigger new deployment pipeline |
+| `POST` | `/api/v1/services/{id}/exec` | Execute interactive command in container |
+| `GET` | `/api/v1/services/{id}/container-logs` | Fetch container stdout/stderr logs |
+| `GET` | `/api/v1/services/{id}/metrics` | Fetch historical service resource metrics |
+
+---
+
+### 7. Deployments (`/api/v1/deployments`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/deployments` | List deployments (filter via `?serviceId=...`) |
+| `GET` | `/api/v1/deployments/{id}` | Get deployment details |
+| `POST` | `/api/v1/deployments/{id}/rollback` | Rollback to specific deployment |
+| `GET` | `/api/v1/deployments/{id}/logs` | Stream live deployment logs over SSE |
+| `GET` | `/api/v1/deployments/{id}/logs/history` | Get full plaintext build log archive |
+
+---
+
+### 8. Metrics, Settings, and Audit Logs
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/metrics` | Time-series node telemetry (`?nodeId=...&range=1h`) |
+| `GET` | `/api/v1/settings` | List cluster-wide settings |
+| `GET` | `/api/v1/settings/{key}` | Get specific cluster setting |
+| `PUT` | `/api/v1/settings/{key}` | Update cluster setting |
+| `POST` | `/api/v1/settings/domain/verify` | Verify domain DNS resolution and SSL status |
+| `GET` | `/api/v1/audit-logs` | Query tamper-resistant audit logs |
+| `POST` | `/api/v1/audit-logs` | Record an audit log event |
+
+---
+
+### 9. GitHub App Integration (`/api/v1/github`)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/github/manifest` | Generate GitHub App manifest configuration |
+| `POST` | `/api/v1/github/manifest/convert` | Exchange manifest code for GitHub App secrets |
+| `GET` | `/api/v1/github/app` | Get connected GitHub App configuration |
+| `DELETE` | `/api/v1/github/app` | Disconnect GitHub App |
+| `POST` | `/api/v1/github/installations/sync` | Sync authorized GitHub accounts & repos |
+| `POST` | `/api/v1/webhooks/github` | Receive GitHub webhook push & installation events |

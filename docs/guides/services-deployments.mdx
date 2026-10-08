@@ -5,44 +5,79 @@ description: "Creating, configuring, deploying, and rolling back applications in
 
 # Services & Deployments Guide
 
-In Tako, applications and databases are organized as **Services** under **Projects**.
+In Tako, applications and databases are organized as **Services** grouped within **Projects**.
+
+## Project Workspaces
+
+Projects provide logical boundaries (e.g. `Production`, `Staging`, `Internal Tools`):
+- **Metadata**: Name, slug, description, environment, and custom tags.
+- **Safety Deletion Protection**: A project cannot be deleted while it contains active services. All child services must be removed first to prevent accidental service disruption.
+
+---
 
 ## Service Types
 
-1. **App**: Standalone container built from a Git repository or pulled directly from a Docker registry (e.g. Docker Hub, GHCR).
-2. **Compose**: Multi-container applications configured via `docker-compose.yml`.
-3. **Database**: Managed databases (PostgreSQL, MySQL, Redis, MongoDB).
+1. **Application (`app`)**: Standalone web application or worker container built from a Git repository or pulled from a Docker registry (Docker Hub, GHCR, Quay).
+2. **Database (`database`)**: Pre-configured database containers for PostgreSQL, MySQL, Redis, and MongoDB with persistent data storage.
+3. **Compose (`compose`)**: Multi-container applications orchestrated via `docker-compose.yml` manifests.
 
 ---
 
-## Deploying a Service
+## Deployment Sources
 
-### 1. From a Docker Image
-- Provide the container image (e.g. `postgres:16-alpine` or `redis:7-alpine`).
-- Specify environment variables (e.g. `POSTGRES_PASSWORD=secret`).
-- Map ports (e.g. `5432`).
+### 1. From a Docker Registry
+- Specify the container image (e.g. `postgres:16-alpine`, `redis:7-alpine`, or `ghcr.io/org/repo:v1.2.0`).
+- Configure target internal container ports (e.g. `80`, `3000`, `5432`).
+- Set environment variables and resource limits (CPU cores, Memory MB).
 
-### 2. From a Git Repository
-- Connect your GitHub or Git URL (e.g. `https://github.com/myorg/myapp`).
-- Select branch (default: `main`).
-- Specify build command or `Dockerfile` location.
+### 2. From Git via GitHub App
+Tako includes native GitHub App integration:
+- **One-Click Manifest Flow**: Connect your GitHub account or organization without manual token creation.
+- **Repository & Branch Selection**: Browse private or public repositories, pick branches, or select specific commit hashes.
+- **Automated Webhook Deployments**: Automatically triggers redeployments on every `git push` to your target branch.
 
 ---
 
-## Deployment Pipeline Steps
+## Configuration & Routing
 
-When you click **Deploy**, Tako initiates an asynchronous 7-step pipeline:
+### Multi-Domain Management
+Each service can have multiple domains configured:
+- **Primary Domain**: Marks the canonical domain for the application.
+- **Custom Path Routing**: Route requests by path prefix (e.g. `/api` or `/app`).
+- **SSL Certificate Provisioning**: Automatic Let's Encrypt certificates for production domains, and plain HTTP for development wildcard domains (`sslip.io`, `nip.io`).
+- **Domain Verification**: Test DNS propagation and SSL status directly from the console using the built-in domain verification endpoint (`/api/v1/settings/domain/verify`).
 
-1. **Queued**: Deployment queued in Master DB.
-2. **Clone**: Source code checked out (if Git-based).
-3. **Build**: Image built or pulled via Docker Engine SDK on the target node.
-4. **Push/Load Image**: Container image verified locally.
-5. **Deploy**: Container launched with Traefik routing labels on `tako-network`.
+### Environment Variables
+- Manage key-value environment variables with secret masking (`isSecret: true`).
+- Updating environment variables for a running service automatically triggers an atomic rolling deployment to apply changes.
+
+### Resource Limits
+- Specify CPU core limits (e.g. `0.5`, `2.0` cores) and memory limits in megabytes (e.g. `512`, `2048` MB).
+- Optional direct host port publishing (`publishToHost`).
+
+---
+
+## Deployment Pipeline Lifecycle
+
+When you trigger a deployment (manually, via API, or via GitHub webhook), Tako executes a 7-step pipeline:
+
+1. **Queued**: Deployment record created in SQLite DB with pending state.
+2. **Clone**: Source code repository checked out (if Git-based).
+3. **Build**: Docker image compiled via Dockerfile or build command, or pulled from registry.
+4. **Push / Load Image**: Image digest verified on the target node.
+5. **Deploy**: Container launched on `tako-network` as `tako-app-<slug>` and dynamic Traefik YAML routes written to `/etc/tako/traefik/dynamic/`.
 6. **Health Check**: Endpoint readiness check performed.
 7. **Live**: Service marked healthy and routing traffic.
 
+### Real-Time & Historical Logs
+- **Live Stream**: Watch stdout and stderr output stream in real time via Server-Sent Events (`/api/v1/deployments/:id/logs`).
+- **Historical Log Archive**: Inspect past build logs anytime via `/api/v1/deployments/:id/logs/history`.
+
 ---
 
-## Rollbacks
+## Rollbacks & Runtime Operations
 
-Every deployment preserves its image digest, commit hash, and configuration. If a release introduces bugs, click **Rollback** on any previous deployment in the history tab to immediately revert container execution to that known-good state.
+- **Instant Rollbacks**: Every deployment retains its container image, commit hash, and configuration. Click **Rollback** on any previous deployment in the history tab (`POST /api/v1/deployments/:id/rollback`) to immediately revert the running container.
+- **Web Terminal (Exec)**: Open an interactive terminal directly into running containers (`POST /api/v1/services/:id/exec`).
+- **Container Runtime Logs**: Stream real-time container output (`GET /api/v1/services/:id/container-logs`).
+- **Service Metrics**: Inspect fine-grained CPU, memory, network, and disk metrics (`GET /api/v1/services/:id/metrics?range=1h`).

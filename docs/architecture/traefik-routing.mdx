@@ -5,42 +5,81 @@ description: "Dynamic label generation, Let's Encrypt automated TLS, and contain
 
 # Traefik Reverse Proxy Routing
 
-Tako integrates **Traefik v3** to handle all ingress traffic for user-deployed applications.
+Tako integrates **Traefik v3** to handle all ingress routing, SSL termination, and domain management for user applications.
 
-## How Routing Works
+## Dual Provider Architecture
 
-1. When a service is deployed, `tako-agent` generates Docker labels dynamically based on user domain and port configuration.
-2. Traefik listens on `/var/run/docker.sock` and automatically discovers new containers attached to `tako-network`.
-3. Traefik creates HTTP routers, attaches HTTPS redirection, and provisions TLS certificates from Let's Encrypt via ACME HTTP-01 challenges.
+Tako leverages a hybrid routing approach combining Traefik's **File Provider** and **Docker Provider**:
+
+1. **Dynamic File Provider (`/etc/tako/traefik/dynamic/*.yml`)**:
+   When a service is deployed or modified, `tako-agent` writes a deterministic YAML manifest directly to the dynamic configuration folder. Traefik watches this directory (`watch: true`) and applies routing changes instantly without container restarts.
+2. **Docker Provider & Container Network**:
+   All user containers run on the shared `tako-network` bridge and are assigned predictable hostnames: `tako-app-<service-slug>`. Traefik routes traffic internally over the Docker network directly to the container's private port.
 
 ---
 
-## Standard Generated Labels
+## Dynamic Configuration Structure
 
-For an application with domain `app.example.com` exposing port `8080`, `tako-agent` attaches:
+Here is how `tako-agent` structures the generated `/etc/tako/traefik/dynamic/<service>.yml` configuration:
 
-```ini
-traefik.enable=true
-traefik.docker.network=tako-network
-traefik.http.routers.app-web.rule=Host(`app.example.com`)
-traefik.http.routers.app-web.entrypoints=web
-traefik.http.routers.app-web.middlewares=app-redirect-ssl
+### 1. Production Custom Domains (with Let's Encrypt TLS)
 
-traefik.http.middlewares.app-redirect-ssl.redirectscheme.scheme=https
-traefik.http.middlewares.app-redirect-ssl.redirectscheme.permanent=true
+For custom domains (e.g. `api.example.com`), Tako generates an HTTPS router, a Let's Encrypt certresolver, and an automated HTTP→HTTPS redirect middleware:
 
-traefik.http.routers.app-websecure.rule=Host(`app.example.com`)
-traefik.http.routers.app-websecure.entrypoints=websecure
-traefik.http.routers.app-websecure.tls=true
-traefik.http.routers.app-websecure.tls.certresolver=letsencrypt
+```yaml
+# /etc/tako/traefik/dynamic/api-service.yml
+http:
+  routers:
+    api-service-secure:
+      rule: "Host(`api.example.com`)"
+      entryPoints:
+        - websecure
+      priority: 100
+      tls:
+        certResolver: letsencrypt
+      service: api-service
 
-traefik.http.services.app-svc.loadbalancer.server.port=8080
+    api-service-web:
+      rule: "Host(`api.example.com`)"
+      entryPoints:
+        - web
+      priority: 100
+      middlewares:
+        - api-service-redirect-ssl
+      service: api-service
+
+  middlewares:
+    api-service-redirect-ssl:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  services:
+    api-service:
+      loadBalancer:
+        servers:
+          - url: "http://tako-app-api-service:8080"
 ```
 
+### 2. Ephemeral Preview Domains (`sslip.io` / `nip.io`)
+
+For wildcard IP domains used during development or testing (e.g. `app.198.51.100.1.sslip.io`), Tako creates plain HTTP routers on entrypoint `web`. This avoids triggering Let's Encrypt rate limits or failed DNS-01/HTTP-01 validation on ephemeral hostnames.
+
 ---
 
-## Ingress Separation Guarantee
+## Ingress Separation & Console Fallback
 
-- **Ports 80 & 443**: MURNI untuk routing container aplikasi user.
-- **Port 3000**: Didedikasikan untuk Tako Console.
-- In this architecture, misconfigured user application domains can never break access to the Tako management dashboard.
+- **User Traffic (Ports 80 & 443)**: Handled by application routers with `priority: 100`.
+- **Console Dashboard (Port 3000)**: Direct container port binding ensures reliable management access at all times.
+- **Graceful Fallback (`priority: 1`)**: The master server pre-installs `/etc/tako/traefik/tako.yml` with a low-priority router (`PathPrefix('/')`). If an incoming HTTP or HTTPS request does not match any user application domain, it gracefully falls back to the Tako Console dashboard.
+
+---
+
+## Managing Traefik from the Console UI
+
+Tako provides full visibility and control over Traefik routing directly in the web console:
+
+1. Navigate to **Nodes** > Select a node > **Traefik** tab.
+2. **File Explorer**: View the static `traefik.yml` and all dynamic files in `/etc/tako/traefik/dynamic/`.
+3. **In-Browser Editor**: Edit, create, or delete routing manifests with syntax highlighting.
+4. **Hot Reload**: Click **Reload Traefik** or call `POST /api/v1/nodes/{id}/traefik/reload` to trigger an immediate configuration re-evaluation.

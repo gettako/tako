@@ -9,50 +9,53 @@ Tako is designed around an **Agent-First, Ingress-Separated** topology that elim
 
 ## High-Level Topology
 
-```
-                  +----------------------------------------------+
-                  |                 USER BROWSER                 |
-                  +-----------------------+----------------------+
-                                          |
-                      HTTP:3000 (Console) | HTTP/S:80/443 (Apps)
-                                          v
-+---------------------------------------------------------------------------------+
-| MASTER NODE                                                                     |
-|                                                                                 |
-|   +-------------------+    Internal     +-----------------------------------+   |
-|   |   tako-console    | --------------> |            tako-server            |   |
-|   |  (Next.js BFF)    |    HTTP:8080    |   (Chi REST + gRPC Hub + SQLite)  |   |
-|   +-------------------+                 +-----------------+-----------------+   |
-|                                                           |                     |
-|                                                           | gRPC:50051          |
-|   +-------------------+                 +-----------------+-----------------+   |
-|   |   tako-traefik    |                 |           tako-agent              |   |
-|   | (Ports 80 & 443)  |                 |      (Docker SDK Daemon)          |   |
-|   +-------------------+                 +-----------------------------------+   |
-+-----------------------------------------------------------^---------------------+
-                                                            |
-                                               gRPC Outbound| (Stream & RPC)
-                                                            |
-+-----------------------------------------------------------+---------------------+
-| WORKER NODE                                               |                     |
-|                                                           |                     |
-|   +-------------------+                 +-----------------+-----------------+   |
-|   |   tako-traefik    |                 |           tako-agent              |   |
-|   | (Ports 80 & 443)  |                 |      (Docker SDK Daemon)          |   |
-|   +-------------------+                 +-----------------+-----------------+   |
-|                                                           | Docker API          |
-|                                                           v                     |
-|                                                 [ User App Containers ]         |
-+---------------------------------------------------------------------------------+
+```mermaid
+flowchart TD
+    User["User Browser"]
+
+    subgraph Master["Master Node"]
+        direction TB
+        Console["Tako Console (Next.js 16 BFF :3000)"]
+        Server["Tako Server (Chi REST + gRPC Hub + SQLite WAL)"]
+        MasterTraefik["Tako Traefik (Ports 80 & 443)"]
+        MasterAgent["Tako Agent (Leader Daemon)"]
+        MasterContainers["Local User Containers (tako-app-*)"]
+
+        Console -->|"Internal HTTP :8080"| Server
+        Server <-->|"Local gRPC :50051"| MasterAgent
+        MasterAgent -->|"Writes Dynamic YAML"| MasterTraefik
+        MasterAgent -->|"Docker Engine SDK"| MasterContainers
+        MasterTraefik -->|"Reverse Proxy"| MasterContainers
+    end
+
+    subgraph Worker["Worker Node"]
+        direction TB
+        WorkerTraefik["Tako Traefik (Ports 80 & 443)"]
+        WorkerAgent["Tako Agent (Worker Daemon)"]
+        WorkerContainers["Worker User Containers (tako-app-*)"]
+
+        WorkerAgent -->|"Writes Dynamic YAML"| WorkerTraefik
+        WorkerAgent -->|"Docker Engine SDK"| WorkerContainers
+        WorkerTraefik -->|"Reverse Proxy"| WorkerContainers
+    end
+
+    User -->|"HTTP :3000 (Console UI)"| Console
+    User -->|"HTTP/HTTPS :80/443 (App Ingress)"| MasterTraefik
+    User -.->|"HTTP/HTTPS :80/443 (Direct Ingress)"| WorkerTraefik
+
+    WorkerAgent ==>|"Outbound gRPC :50051 (StreamTasks)"| Server
 ```
 
 ## Key Principles
 
-### 1. Ingress Separation
-Tako Console runs on port **`3000`**, completely separate from Traefik on ports **`80`** and **`443`**. This guarantees that user application traffic, SSL certificate renewals, and DNS routing never collide with or disrupt the administrator dashboard.
+### 1. Clean Ingress Separation
+Tako Console runs directly on port **`3000`**, isolated from Traefik on ports **`80`** and **`443`**. Application routing is managed via Traefik's dynamic file provider with explicit priority (`priority: 100`), while a catch-all fallback router (`priority: 1`) routes unmapped host requests on ports 80/443 to the console. This guarantees that user application traffic, DNS misconfigurations, or Let's Encrypt rate-limiting can never lock you out of the management dashboard.
 
 ### 2. Zero-SSH Agent Communication
-Worker nodes never listen on SSH ports for cluster operations. Instead, `tako-agent` dials outward to `tako-server:50051`. This allows workers to run safely behind corporate firewalls, NAT gateways, and private VPC subnets.
+Worker nodes never listen on SSH ports or incoming management ports for cluster control. Instead, `tako-agent` dials outward to `tako-server:50051` establishing a persistent bidirectional gRPC stream (`StreamTasks`). Master tasks (deployments, container start/stop/restart, exec commands, and logs) are dispatched over this tunnel, allowing workers to run safely behind strict corporate firewalls, NAT gateways, and private cloud VPCs.
 
-### 3. Lightweight SQLite in WAL Mode
-By using SQLite with Write-Ahead Logging (WAL) and pure-Go drivers (`modernc.org/sqlite`), Tako eliminates external database containers while maintaining sub-millisecond query performance and seamless zero-downtime backups.
+### 3. Pure-Go Embedded SQLite in WAL Mode
+By using SQLite with Write-Ahead Logging (WAL) and the pure-Go driver (`modernc.org/sqlite`), Tako eliminates external database containers like PostgreSQL, MySQL, or Redis for the control plane. SQLite in WAL mode delivers sub-millisecond query performance, concurrent read scalability, and instant atomic backups.
+
+### 4. Dynamic File-Driven Traefik Ingress
+Rather than relying solely on Docker labels (which require container restarts or Docker API polling), Tako Agent writes dynamic YAML routing files directly into `/etc/tako/traefik/dynamic/`. This ensures immediate routing updates, deterministic SSL challenge isolation, and distinct handling for production custom domains versus ephemeral preview domains (`sslip.io`).

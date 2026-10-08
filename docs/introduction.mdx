@@ -5,11 +5,11 @@ description: "A modern, lightweight PaaS with an SSH-free gRPC agent architectur
 
 # Welcome to Tako PaaS 🐙
 
-**Tako** is an open-source Platform-as-a-Service (PaaS) engineered for simplicity, reliability, and modern cloud native workloads. Unlike traditional self-hosted solutions that rely on fragile SSH connections and heavy databases, Tako introduces a clean, distributed architecture powered by:
+**Tako** is an open-source Platform-as-a-Service (PaaS) engineered for simplicity, reliability, and modern cloud-native workloads. Unlike traditional self-hosted solutions that rely on fragile SSH connections and heavy external databases, Tako introduces a clean, distributed architecture powered by:
 
-- **SSH-Free gRPC Agent Architecture**: Worker nodes initiate resilient outbound gRPC connections to the Master Server. No public SSH ports required on worker servers.
-- **Dedicated Traefik v3 Reverse Proxy**: Clean ingress separation. Application routing is isolated on ports `80` and `443`, while the Console UI resides exclusively on port `3000`.
-- **Pure-Go SQLite WAL Database**: Zero external database dependencies like Postgres or Redis for the control plane. SQLite in WAL mode delivers sub-millisecond query performance.
+- **SSH-Free gRPC Agent Architecture**: Worker nodes initiate resilient outbound gRPC connections to the Master Server over port `50051`. No inbound SSH or management ports required on worker servers.
+- **Dedicated Traefik v3 Reverse Proxy**: Clean ingress separation. Application routing is isolated on ports `80` and `443` using Traefik's dynamic file provider, while the Console UI resides on port `3000` (with fallback routing on ports 80/443).
+- **Pure-Go SQLite WAL Database**: Zero external database dependencies like Postgres or Redis for the control plane. SQLite in WAL mode delivers sub-millisecond query performance and zero-config portability.
 - **Real-Time Streaming**: Live node heartbeats, resource metrics, and build logs piped directly to the Next.js Console via Server-Sent Events (SSE).
 - **Single-Line Deployment**: Deploy entire clusters with a unified installer script or simple Docker Compose manifests.
 
@@ -19,18 +19,19 @@ description: "A modern, lightweight PaaS with an SSH-free gRPC agent architectur
 
 | Component | Technology | Primary Role |
 | :--- | :--- | :--- |
-| **Tako Console** | Next.js 16 + React 19 + TailwindCSS | Developer dashboard, BFF, and management UI |
-| **Tako Server** | Go 1.27 + Chi + SQLite WAL + Goose | Master control plane, REST API, and gRPC Hub |
-| **Tako Agent** | Go 1.27 + Docker Engine SDK + gopsutil | Node daemon collecting metrics and managing containers |
-| **Tako Traefik** | Traefik v3 | High-performance reverse proxy with auto Let's Encrypt SSL |
+| **Tako Console** | Next.js 16 + React 19 + TailwindCSS v4 | Developer dashboard, BFF API proxy, and management UI |
+| **Tako Server** | Go 1.27 + Chi v5 + SQLite WAL + Goose | Master control plane, REST API, audit logs, and gRPC Hub |
+| **Tako Agent** | Go 1.27 + Docker Engine SDK + gopsutil | Node daemon collecting telemetry and managing container lifecycles |
+| **Tako Traefik** | Traefik v3 | Dynamic file provider reverse proxy with automated Let's Encrypt SSL |
 
 ---
 
 ## Why Tako?
 
-1. **Firewall & NAT Friendly**: Worker nodes communicate outbound via gRPC (`50051`). Worker servers can be placed behind strict NATs or VPNs without exposing SSH or incoming ports.
-2. **Deterministic Routing**: Traefik labels are managed deterministically per container, preventing wildcard routing collisions.
-3. **No Container Prefix Bloat**: Strict explicit `container_name:` directives prevent confusing names like `tako-tako-console`.
-4. **Lightweight Footprint**: The entire master stack runs in less than 200MB of RAM.
+1. **Firewall & NAT Friendly**: Worker nodes communicate outbound via gRPC (`50051`). Workers can safely run behind strict corporate firewalls, NATs, or private VPCs without exposing SSH or inbound ports.
+2. **Deterministic Dual Routing**: Traefik routes user traffic dynamically using filesystem configs (`/etc/tako/traefik/dynamic/*.yml`) and Docker labels, cleanly separating production domains with SSL from local/preview wildcard domains (`sslip.io`).
+3. **Robust Security & Auth**: First-class Passkey (WebAuthn) support, Two-Factor Authentication (2FA), granular session tracking with remote revocation, and comprehensive audit logging.
+4. **No Container Prefix Bloat**: Strict explicit `container_name:` directives (`tako-server`, `tako-agent`, `tako-app-<slug>`) prevent messy auto-generated Docker names.
+5. **Lightweight Footprint**: The entire master stack runs smoothly with under 200MB of RAM baseline usage.
 
 Get started by following the [Quickstart Guide](/quickstart).

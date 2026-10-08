@@ -5,30 +5,61 @@ description: "Protocol Buffers contracts and bidirectional streaming in Tako."
 
 # gRPC Communication
 
-Tako uses **gRPC** over HTTP/2 for all interactions between the Master Server and Node Agents.
+Tako uses **gRPC** over HTTP/2 for all control plane interactions between the Master Server and Node Agents. This design eliminates the need for inbound SSH ports on worker servers.
 
 ## Protocol Buffers Services
 
 The protocol contracts are defined in `proto/tako/v1/`:
 
 ### 1. `AgentService` (`agent.proto`)
-- `RegisterNode`: Called when an agent boots up, exchanging an enrollment token for node authentication.
-- `SendHeartbeat`: Called every 3 seconds to report live host metrics (CPU cores, RAM usage, disk space, network bandwidth, uptime).
-- `SyncStatus`: Streams node status events between master and agent.
+The primary service hosted on the Master (`:50051`) that agents dial into:
+- `RegisterNode(RegisterNodeRequest) -> RegisterNodeResponse`: Called once when an agent boots up, exchanging the enrollment token and reporting host specifications (CPU cores, total RAM, disk capacity, OS, kernel, and Docker Engine version).
+- `Heartbeat(HeartbeatRequest) -> HeartbeatResponse`: Called every 3 seconds to report live telemetry (CPU percent load, memory used MB, disk used GB, network Rx/Tx kbps, and uptime).
+- `StreamTasks(stream AgentTaskResult) -> stream MasterTask`: A persistent bidirectional streaming tunnel. The master dispatches operational tasks downward to the agent, and the agent streams back execution progress and log chunks in real time.
+
+```protobuf
+message MasterTask {
+  string task_id = 1;
+  string node_id = 2;
+  oneof task {
+    DeployRequest deploy = 3;
+    ExecCommandRequest exec = 4;
+    ContainerActionRequest container_action = 5;
+    GetContainerLogsRequest container_logs = 6;
+  }
+}
+
+message AgentTaskResult {
+  string task_id = 1;
+  string node_id = 2;
+  oneof result {
+    DeployLogChunk deploy_log = 3;
+    ExecCommandResponse exec_result = 4;
+    ContainerActionResponse container_action_result = 5;
+    ContainerLogsResponse container_logs_result = 6;
+  }
+}
+```
+
+---
 
 ### 2. `DeploymentService` (`deployment.proto`)
-- `ExecuteDeployment`: Server triggers a container pull/build/run pipeline on the agent.
-- `StreamDeploymentLogs`: Bi-directional streaming RPC allowing the agent to stream stdout/stderr log chunks back to the master in real time.
+Defines the deployment execution contract and real-time log streaming:
+- `Deploy(DeployRequest) -> stream DeployLogChunk`: Triggers container pull/build/run operations and streams back log lines tagged by step (`queued`, `clone`, `build`, `push_load`, `deploy`, `health_check`, `live`).
+- `StreamLogs(StreamLogsRequest) -> stream DeployLogChunk`: Connects to an ongoing deployment log stream for real-time observation.
+
+---
 
 ### 3. `ContainerService` (`container.proto`)
-- `ListContainers`: Reports running containers on the node.
-- `StopContainer`: Gracefully terminates containers.
-- `RestartContainer`: Restarts services.
-- `GetContainerLogs`: Streams runtime logs from existing containers.
+Handles container runtime lifecycle actions and terminal execution:
+- `ListContainers(ListContainersRequest) -> ListContainersResponse`: Reports running Docker containers on the node.
+- `ContainerAction(ContainerActionRequest) -> ContainerActionResponse`: Dispatches `start`, `stop`, `restart`, or `remove` lifecycle events.
+- `ExecCommand(ExecCommandRequest) -> ExecCommandResponse`: Runs interactive shell commands inside target containers (powering the Console Web Terminal).
+- `GetContainerLogs(GetContainerLogsRequest) -> ContainerLogsResponse`: Fetches historical container logs (`stdout`/`stderr`) with line tailing.
 
 ---
 
 ## Authentication & Security
 
-- **Enrollment Token**: When adding a node, a cryptographically secure token is passed in metadata headers (`Authorization: Bearer <token>`).
-- **Heartbeat & Liveness**: The master tracks the last heartbeat timestamp of each node. If an agent fails to report within 15 seconds, its status is automatically transitioned to `offline` and broadcast via SSE.
+- **gRPC Interceptors**: All incoming RPCs and streams are intercepted by `AuthInterceptor` and `StreamAuthInterceptor` in the master server, verifying the `Bearer <token>` metadata header against the node's authorization credentials.
+- **Heartbeat & Liveness State Machine**: The master monitors node liveness using an internal heartbeat ticker. If a node fails to report a heartbeat within **15 seconds**, its status is transitioned to `offline` and an event is published to the internal event bus, instantly notifying open browser sessions via SSE (`/api/v1/events/nodes`).

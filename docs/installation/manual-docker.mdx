@@ -5,16 +5,95 @@ description: "Run Tako manually using docker-compose manifests."
 
 # Manual Docker Compose Setup
 
-If you prefer full control over your container deployment rather than using `install.sh`, you can use the official `docker-compose.yml` templates.
+If you prefer full control over your container deployment rather than using `install.sh`, you can deploy Tako using Docker Compose manifests.
 
-## Master Node `docker-compose.yml`
+## Step 1: Host Prerequisites & Network Creation
 
-Create a directory `tako` and save the following as `docker-compose.yml`:
+Before running Docker Compose, initialize the external bridge network and Traefik directories:
+
+```bash
+# 1. Create the shared bridge network
+docker network inspect tako-network >/dev/null 2>&1 || docker network create --driver bridge tako-network
+
+# 2. Create directory structure
+mkdir -p /opt/tako/data/sqlite /opt/tako/data/agent
+mkdir -p /etc/tako/traefik/dynamic
+
+# 3. Create static Traefik config
+cat << 'EOF' > /etc/tako/traefik/traefik.yml
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: false
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: tako-network
+    watch: true
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "admin@example.com"
+      storage: "/acme.json"
+      httpChallenge:
+        entryPoint: web
+EOF
+
+# 4. Create console fallback routing
+cat << 'EOF' > /etc/tako/traefik/tako.yml
+http:
+  routers:
+    tako-console-secure:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - websecure
+      priority: 1
+      tls:
+        certResolver: letsencrypt
+      service: tako-console
+
+    tako-console:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      priority: 1
+      service: tako-console
+
+  services:
+    tako-console:
+      loadBalancer:
+        servers:
+          - url: "http://tako-console:3000"
+EOF
+
+# 5. Initialize TLS certificate storage
+touch /etc/tako/traefik/acme.json
+chmod 600 /etc/tako/traefik/acme.json
+```
+
+---
+
+## Step 2: Master Node `docker-compose.yml`
+
+In `/opt/tako/docker-compose.yml`, configure the 4-container Master stack:
 
 ```yaml
 services:
   traefik:
-    image: traefik:v3.1
+    image: traefik:latest
     container_name: tako-traefik
     restart: unless-stopped
     ports:
@@ -22,10 +101,13 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/acme.json:/acme.json
+      - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /etc/tako/traefik/tako.yml:/etc/traefik/dynamic/tako.yml:ro
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/acme.json:/acme.json
     environment:
       - TAKO_ACME_EMAIL=admin@example.com
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=admin@example.com
     networks:
       - tako-network
 
@@ -38,13 +120,16 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - ./data/sqlite:/data
+      - /etc/tako/traefik:/etc/tako/traefik
     environment:
       - TAKO_HTTP_PORT=8080
       - TAKO_GRPC_PORT=50051
       - TAKO_DB_PATH=/data/tako.db
-      - TAKO_AUTH_SECRET=super-secret-random-jwt-key
+      - TAKO_AUTH_SECRET=replace-with-a-32-byte-random-secret
       - TAKO_INITIAL_ADMIN_EMAIL=admin@example.com
-      - TAKO_INITIAL_ADMIN_PASSWORD=adminpassword
+      - TAKO_INITIAL_ADMIN_PASSWORD=adminpassword123
+      - TAKO_AGENT_SECRET=local-master-token
+      - TAKO_NODE_NAME=tako-master-01
     networks:
       - tako-network
 
@@ -68,12 +153,22 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/os-release:/etc/os-release:ro
+      - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ./data/agent:/data
+      - /proc/sysrq-trigger:/host-sysrq-trigger
     environment:
       - TAKO_SERVER_ADDR=tako-server:50051
+      - TAKO_MASTER_URL=tako-server:50051
       - TAKO_ENROLL_TOKEN=local-master-token
+      - TAKO_NODE_ID=tako-master-01
       - TAKO_NODE_NAME=tako-master-01
+      - TAKO_NODE_ROLE=leader
+      - TAKO_PUBLIC_IP=
+      - TAKO_IP_ADDRESS=127.0.0.1
+      - TAKO_STATE_FILE=/data/agent.json
       - TAKO_METRICS_INTERVAL=3s
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
     depends_on:
       - server
     networks:
@@ -82,12 +177,73 @@ services:
 networks:
   tako-network:
     name: tako-network
-    driver: bridge
-    attachable: true
+    external: true
 ```
 
 Start the master stack:
 
 ```bash
-docker compose up -d
+cd /opt/tako && docker compose up -d
+```
+
+---
+
+## Step 3: Worker Node `docker-compose.yml`
+
+To manually spin up an additional worker node, create `/opt/tako/docker-compose.yml` on the worker server:
+
+```yaml
+services:
+  traefik:
+    image: traefik:latest
+    container_name: tako-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/acme.json:/acme.json
+    environment:
+      - TAKO_ACME_EMAIL=admin@example.com
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=admin@example.com
+    networks:
+      - tako-network
+
+  agent:
+    image: ghcr.io/gettakodev/tako-agent:latest
+    container_name: tako-agent
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/os-release:/etc/os-release:ro
+      - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
+      - ./data/agent:/data
+      - /proc/sysrq-trigger:/host-sysrq-trigger
+    environment:
+      - TAKO_SERVER_ADDR=198.51.100.1:50051
+      - TAKO_MASTER_URL=198.51.100.1:50051
+      - TAKO_ENROLL_TOKEN=your-enrollment-token
+      - TAKO_NODE_NAME=worker-01
+      - TAKO_NODE_ROLE=worker
+      - TAKO_PUBLIC_IP=198.51.100.55
+      - TAKO_IP_ADDRESS=10.0.0.22
+      - TAKO_STATE_FILE=/data/agent.json
+      - TAKO_METRICS_INTERVAL=3s
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
+    networks:
+      - tako-network
+
+networks:
+  tako-network:
+    name: tako-network
+    external: true
+```
+
+Start the worker stack:
+
+```bash
+cd /opt/tako && docker compose up -d
 ```

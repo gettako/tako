@@ -5,57 +5,110 @@ description: "Realtime metrics tracking and live log streaming in Tako."
 
 # Monitoring & Logs Guide
 
-Tako provides end-to-end visibility into your infrastructure and running applications without requiring external agents like Datadog or Prometheus.
+Tako provides end-to-end visibility into your infrastructure, nodes, services, and deployments without requiring external monitoring agents or third-party SaaS.
 
 ## Real-Time Node Telemetry
 
-Every `tako-agent` collects hardware and container metrics directly via `gopsutil` and Docker Engine SDK:
+Every `tako-agent` collects hardware and container metrics directly via `gopsutil` and the Docker Engine SDK:
 
-- **CPU Utilization**: Real-time percent load across all cores.
-- **Memory Consumption**: Used vs total megabytes.
-- **Disk Space**: Used vs total gigabytes on root and data partitions.
-- **Network I/O**: Real-time ingress (`Rx`) and egress (`Tx`) kilobits per second.
-- **Node Status**: Automatically detects network partitioning or daemon failure within 15 seconds.
+- **CPU Load**: Percent utilization across all cores.
+- **Memory Consumption**: Used megabytes vs total capacity.
+- **Disk Space**: Used gigabytes on host filesystems.
+- **Network I/O**: Real-time ingress (`Rx`) and egress (`Tx`) in kilobits per second.
+- **Uptime & Host Specs**: OS release, kernel version, and Docker Engine build.
 
-Metrics are pushed every 3 seconds to the Master Server and broadcast to the browser via Server-Sent Events (`/api/v1/events/nodes`).
+### Live SSE Streaming
+Telemetry is sent every **3 seconds** over gRPC to the master server and broadcast to connected browser clients via Server-Sent Events at:
 
-### Historical Time-Series Aggregation
-In addition to live telemetry, the master server automatically aggregates periodic snapshots into the `node_metrics` SQLite store. In the console's **Monitoring** view (`/monitoring`), you can inspect time-series charts across selectable ranges:
-- `1h`: High-resolution 1-hour view.
+```http
+GET /api/v1/events/nodes
+```
+
+Events dispatched over the stream:
+- `event: snapshot`: Full array of all nodes on initial connection.
+- `event: node.metrics`: Real-time hardware telemetry pushed every 3 seconds.
+- `event: node.status_changed`: Fired immediately when a node connects, disconnects, or transitions between `online` and `offline`.
+
+<Note>
+If an agent fails to report a heartbeat within 15 seconds, the master automatically transitions the node status to `offline` and broadcasts the status change.
+</Note>
+
+---
+
+## Historical Time-Series Metrics
+
+In addition to live telemetry, the master server persists periodic snapshots into the `node_metrics` SQLite table.
+
+### Node Metrics
+Query historical node resource trends across selectable time windows:
+
+```http
+GET /api/v1/metrics?nodeId={nodeId}&range=1h
+```
+
+Supported range parameters:
+- `1h`: 1-hour high-resolution view (2-minute intervals).
 - `6h`: 6-hour trend view.
 - `24h`: 24-hour day overview.
 - `7d`: 7-day multi-day resource utilization.
 
----
+### Service Metrics
+Query application-level resource consumption for individual containers:
 
-## Real-Time Audit Logs
+```http
+GET /api/v1/services/{serviceId}/metrics?range=1h
+```
 
-Tako features a built-in tamper-resistant audit trail (`/audit-logs`) that records every critical cluster activity:
-- Project creation and deletion.
-- Service deployment triggers, rollbacks, and configuration edits.
-- Node registrations and heartbeat status transitions.
-- Cluster settings changes (S3 backups, Git integrations, TLS configurations).
-
-Audit logs capture the initiating actor, IP address, timestamp, target resource, and full metadata payload.
+Returns CPU usage, memory megabytes, memory percentage relative to limit, network Rx/Tx, and disk read/write throughput.
 
 ---
 
-## Live Build & Deployment Logs
+## Cluster Audit Logs
 
-During deployment, log chunks are streamed over gRPC from the agent directly to the master server's event bus.
+Tako records every sensitive or administrative action in a tamper-resistant audit trail (`/audit-logs`):
 
-In the console, you can monitor the live log stream in real time. The console log viewer supports:
-- Automatic auto-scroll (Follow mode) to the latest log line.
-- Real-time step grouping (Queued, Clone, Build, Push/Load, Deploy, Health check, Live).
-- Full text search across log output.
-- One-click copy of full compiler output.
-- Historical log inspection (`/api/v1/deployments/:id/logs/history`).
+```http
+GET /api/v1/audit-logs?limit=50&offset=0
+```
+
+Audit entries capture:
+- **Actor Details**: Actor ID, name, email, and generated avatar.
+- **Client IP & Timestamp**: Real client IP extracted from headers or remote connection.
+- **Action & Target**: Action type (e.g. `create_project`, `delete_service`, `reboot_node`, `update_node_traefik_config`), target type (`service`, `project`, `node`, `setting`), and target ID/name.
+- **Structured Metadata**: JSON payload recording exact parameter changes.
 
 ---
 
-## Container Runtime Logs
+## Live Deployment & Build Logs
 
-To view runtime output from live application containers:
-1. Navigate to your **Service**.
-2. Click the **Logs** tab.
-3. Tako streams the `stdout` and `stderr` streams directly from the container's Docker socket.
+During container builds and deployments, log chunks stream from the agent to the master via gRPC and are published to the web console via SSE:
+
+```http
+GET /api/v1/deployments/{id}/logs
+```
+
+Features supported by the console log viewer:
+- **Auto-scroll (Follow Mode)**: Locks scroll to the newest incoming log line.
+- **Step Grouping**: Clear grouping by lifecycle step (`queued`, `clone`, `build`, `push_load`, `deploy`, `health_check`, `live`).
+- **Error Highlighting**: Instant visual indication if a step reports an error.
+- **Historical Plaintext Log**: Retrieve the full raw log output via `GET /api/v1/deployments/{id}/logs/history`.
+
+---
+
+## Container Runtime Logs & Terminal
+
+Inspect live runtime output and execute maintenance tasks inside active containers:
+
+1. **Runtime Logs**:
+   ```http
+   GET /api/v1/services/{id}/container-logs?containerName={containerName}
+   ```
+   Streams the latest stdout/stderr lines directly from the container via Docker SDK.
+2. **Interactive Command Exec**:
+   ```http
+   POST /api/v1/services/{id}/exec
+   Content-Type: application/json
+
+   { "command": "npm run db:migrate" }
+   ```
+   Runs a command inside the container and returns stdout, stderr, and the exit code.
