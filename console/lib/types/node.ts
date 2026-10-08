@@ -47,3 +47,16 @@ export interface NodeTraefikConfig {
   activeRoutersCount?: number;
   activeServicesCount?: number;
 }
+
+export interface TraefikConfigFile {
+  name: string;
+  path: string;
+  size: number;
+  updatedAt: string;
+  isCustom: boolean;
+  type: 'yaml' | 'toml' | 'json';
+}
+
+export interface TraefikConfigFileContent extends TraefikConfigFile {
+  content: string;
+}

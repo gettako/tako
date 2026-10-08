@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -31,6 +33,24 @@ type NodeTraefikConfig struct {
 	LastReloadedAt      string `json:"lastReloadedAt,omitempty"`
 	ActiveRoutersCount  int    `json:"activeRoutersCount"`
 	ActiveServicesCount int    `json:"activeServicesCount"`
+}
+
+type TraefikConfigFile struct {
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	Size      int64  `json:"size"`
+	UpdatedAt string `json:"updatedAt"`
+	IsCustom  bool   `json:"isCustom"`
+	Type      string `json:"type"`
+}
+
+type TraefikConfigFileContent struct {
+	TraefikConfigFile
+	Content string `json:"content"`
+}
+
+type SaveTraefikFileRequest struct {
+	Content string `json:"content"`
 }
 
 type NodeResponse struct {
@@ -161,6 +181,12 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 		// POST /api/v1/nodes/{id}/traefik/reload
 		r.Post("/{id}/traefik/reload", handleReloadNodeTraefik(orch))
+
+		// Traefik dynamic configuration files
+		r.Get("/{id}/traefik/files", handleListNodeTraefikFiles(orch))
+		r.Get("/{id}/traefik/files/{filename}", handleGetNodeTraefikFile(orch))
+		r.Put("/{id}/traefik/files/{filename}", handleSaveNodeTraefikFile(orch))
+		r.Delete("/{id}/traefik/files/{filename}", handleDeleteNodeTraefikFile(orch))
 	})
 }
 
@@ -377,6 +403,363 @@ func handleReloadNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			"success":    true,
 			"message":    fmt.Sprintf("Traefik routing rules successfully reloaded on %s", node.Name),
 			"reloadedAt": now,
+		})
+	}
+}
+
+func isValidTraefikFilename(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") || strings.Contains(name, "..") {
+		return false
+	}
+	lower := strings.ToLower(name)
+	if !strings.HasSuffix(lower, ".yml") && !strings.HasSuffix(lower, ".yaml") && !strings.HasSuffix(lower, ".toml") && !strings.HasSuffix(lower, ".json") {
+		return false
+	}
+	for _, ch := range name {
+		if !(ch >= 'a' && ch <= 'z') && !(ch >= 'A' && ch <= 'Z') && !(ch >= '0' && ch <= '9') && ch != '-' && ch != '_' && ch != '.' {
+			return false
+		}
+	}
+	return true
+}
+
+func getTraefikFileType(name string) string {
+	lower := strings.ToLower(name)
+	if strings.HasSuffix(lower, ".yml") || strings.HasSuffix(lower, ".yaml") {
+		return "yaml"
+	}
+	if strings.HasSuffix(lower, ".toml") {
+		return "toml"
+	}
+	if strings.HasSuffix(lower, ".json") {
+		return "json"
+	}
+	return "yaml"
+}
+
+func defaultTraefikFiles() map[string]TraefikConfigFileContent {
+	now := time.Now().UTC().Format(time.RFC3339)
+	files := make(map[string]TraefikConfigFileContent)
+
+	consoleYaml := `# Dynamic configuration for Tako Console reverse proxy
+http:
+  routers:
+    tako-console:
+      rule: "PathPrefix(` + "`" + `/` + "`" + `)"
+      service: tako-console-svc
+      entryPoints:
+        - web
+        - websecure
+      tls:
+        certResolver: letsencrypt
+  services:
+    tako-console-svc:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:3000"
+`
+
+	headersYaml := `# Security headers middleware
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        sslRedirect: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+        contentTypeNosniff: true
+        browserXssFilter: true
+`
+
+	rateLimitYaml := `# Rate limiting middleware template
+http:
+  middlewares:
+    api-ratelimit:
+      rateLimit:
+        average: 100
+        burst: 50
+        period: 1m
+`
+
+	files["tako-console.yml"] = TraefikConfigFileContent{
+		TraefikConfigFile: TraefikConfigFile{
+			Name:      "tako-console.yml",
+			Path:      "/etc/tako/traefik/dynamic/tako-console.yml",
+			Size:      int64(len(consoleYaml)),
+			UpdatedAt: now,
+			IsCustom:  false,
+			Type:      "yaml",
+		},
+		Content: consoleYaml,
+	}
+
+	files["security-headers.yml"] = TraefikConfigFileContent{
+		TraefikConfigFile: TraefikConfigFile{
+			Name:      "security-headers.yml",
+			Path:      "/etc/tako/traefik/dynamic/security-headers.yml",
+			Size:      int64(len(headersYaml)),
+			UpdatedAt: now,
+			IsCustom:  false,
+			Type:      "yaml",
+		},
+		Content: headersYaml,
+	}
+
+	files["ratelimit.yml"] = TraefikConfigFileContent{
+		TraefikConfigFile: TraefikConfigFile{
+			Name:      "ratelimit.yml",
+			Path:      "/etc/tako/traefik/dynamic/ratelimit.yml",
+			Size:      int64(len(rateLimitYaml)),
+			UpdatedAt: now,
+			IsCustom:  false,
+			Type:      "yaml",
+		},
+		Content: rateLimitYaml,
+	}
+
+	return files
+}
+
+func loadNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, nodeID string) (map[string]TraefikConfigFileContent, error) {
+	key := fmt.Sprintf("node_traefik_files_%s", nodeID)
+	setting, err := orch.Queries().GetSetting(ctx, key)
+	if err == nil && setting.Value != "" {
+		var files map[string]TraefikConfigFileContent
+		if err := json.Unmarshal([]byte(setting.Value), &files); err == nil && len(files) > 0 {
+			return files, nil
+		}
+	}
+
+	defaults := defaultTraefikFiles()
+	valBytes, err := json.Marshal(defaults)
+	if err == nil {
+		_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
+			Key:   key,
+			Value: string(valBytes),
+		})
+	}
+	return defaults, nil
+}
+
+func saveNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, nodeID string, files map[string]TraefikConfigFileContent) error {
+	key := fmt.Sprintf("node_traefik_files_%s", nodeID)
+	valBytes, err := json.Marshal(files)
+	if err != nil {
+		return err
+	}
+	_, err = orch.Queries().SetSetting(ctx, db.SetSettingParams{
+		Key:   key,
+		Value: string(valBytes),
+	})
+	return err
+}
+
+func handleListNodeTraefikFiles(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		_, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		filesMap, err := loadNodeTraefikFiles(r.Context(), orch, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		list := make([]TraefikConfigFile, 0, len(filesMap))
+		for _, f := range filesMap {
+			list = append(list, f.TraefikConfigFile)
+		}
+
+		sort.Slice(list, func(i, j int) bool {
+			return list[i].Name < list[j].Name
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(list)
+	}
+}
+
+func handleGetNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		filename := chi.URLParam(r, "filename")
+
+		if !isValidTraefikFilename(filename) {
+			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			return
+		}
+
+		_, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		filesMap, err := loadNodeTraefikFiles(r.Context(), orch, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		file, exists := filesMap[filename]
+		if !exists {
+			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(file)
+	}
+}
+
+func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		filename := chi.URLParam(r, "filename")
+
+		if !isValidTraefikFilename(filename) {
+			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			return
+		}
+
+		node, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		var req SaveTraefikFileRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		if len(req.Content) > 512*1024 {
+			http.Error(w, `{"error":"file size exceeds maximum allowed limit (512KB)"}`, http.StatusBadRequest)
+			return
+		}
+
+		filesMap, err := loadNodeTraefikFiles(r.Context(), orch, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		isCustom := true
+		if existing, exists := filesMap[filename]; exists {
+			isCustom = existing.IsCustom
+		}
+
+		now := time.Now().UTC().Format(time.RFC3339)
+		fileItem := TraefikConfigFileContent{
+			TraefikConfigFile: TraefikConfigFile{
+				Name:      filename,
+				Path:      fmt.Sprintf("/etc/tako/traefik/dynamic/%s", filename),
+				Size:      int64(len(req.Content)),
+				UpdatedAt: now,
+				IsCustom:  isCustom,
+				Type:      getTraefikFileType(filename),
+			},
+			Content: req.Content,
+		}
+
+		filesMap[filename] = fileItem
+		if err := saveNodeTraefikFiles(r.Context(), orch, id, filesMap); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "save_node_traefik_file",
+			TargetType: "node",
+			TargetID:   id,
+			TargetName: node.Name,
+			Metadata: map[string]interface{}{
+				"filename": filename,
+				"size":     len(req.Content),
+				"node_id":  id,
+			},
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(fileItem)
+	}
+}
+
+func handleDeleteNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		filename := chi.URLParam(r, "filename")
+
+		if !isValidTraefikFilename(filename) {
+			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			return
+		}
+
+		node, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		filesMap, err := loadNodeTraefikFiles(r.Context(), orch, id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if _, exists := filesMap[filename]; !exists {
+			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+			return
+		}
+
+		delete(filesMap, filename)
+		if err := saveNodeTraefikFiles(r.Context(), orch, id, filesMap); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "delete_node_traefik_file",
+			TargetType: "node",
+			TargetID:   id,
+			TargetName: node.Name,
+			Metadata: map[string]interface{}{
+				"filename": filename,
+				"node_id":  id,
+			},
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"name":    filename,
 		})
 	}
 }

@@ -154,3 +154,141 @@ func TestNodeTraefikConfigurationAPI(t *testing.T) {
 		t.Errorf("expected audit logs for update (%v) and reload (%v)", hasUpdate, hasReload)
 	}
 }
+
+func TestNodeTraefikFilesAPI(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-secret")
+	router := NewRouter(db, orch)
+
+	regResp, err := orch.RegisterNode(context.Background(), &takov1.RegisterNodeRequest{
+		NodeId:        "node-files-01",
+		Name:          "tako-files-node",
+		IpAddress:     "192.168.1.101",
+		CpuTotalCores: 4,
+		MemoryTotalMb: 8192,
+		DiskTotalGb:   100,
+		DockerVersion: "26.1.0",
+		Os:            "linux",
+		KernelVersion: "6.8.0",
+		EnrollToken:   "test-secret",
+	})
+	if err != nil {
+		t.Fatalf("RegisterNode failed: %v", err)
+	}
+	nodeID := regResp.NodeId
+
+	// 1. GET /api/v1/nodes/{id}/traefik/files -> returns default initialized template files
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files", nil)
+	listW := httptest.NewRecorder()
+	router.ServeHTTP(listW, listReq)
+	if listW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list files, got %d: %s", listW.Code, listW.Body.String())
+	}
+	var files []TraefikConfigFile
+	if err := json.Unmarshal(listW.Body.Bytes(), &files); err != nil {
+		t.Fatalf("failed to decode files list: %v", err)
+	}
+	if len(files) < 3 {
+		t.Fatalf("expected at least 3 default files, got %d", len(files))
+	}
+
+	// Verify default files exist
+	foundConsole := false
+	for _, f := range files {
+		if f.Name == "tako-console.yml" {
+			foundConsole = true
+			if f.Type != "yaml" {
+				t.Errorf("expected type yaml, got %s", f.Type)
+			}
+		}
+	}
+	if !foundConsole {
+		t.Errorf("expected tako-console.yml in default files list")
+	}
+
+	// 2. GET /api/v1/nodes/{id}/traefik/files/tako-console.yml -> returns content
+	getReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files/tako-console.yml", nil)
+	getW := httptest.NewRecorder()
+	router.ServeHTTP(getW, getReq)
+	if getW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for get file, got %d", getW.Code)
+	}
+	var fileContent TraefikConfigFileContent
+	if err := json.Unmarshal(getW.Body.Bytes(), &fileContent); err != nil {
+		t.Fatalf("failed to decode file content: %v", err)
+	}
+	if fileContent.Name != "tako-console.yml" || len(fileContent.Content) == 0 {
+		t.Errorf("unexpected file content: %+v", fileContent)
+	}
+
+	// 3. Path traversal attack protection -> returns 400 Bad Request
+	badReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files/..%2F..%2Fpasswd.yml", nil)
+	badW := httptest.NewRecorder()
+	router.ServeHTTP(badW, badReq)
+	if badW.Code != http.StatusBadRequest && badW.Code != http.StatusNotFound {
+		t.Errorf("expected 400 or 404 for path traversal attempt, got %d", badW.Code)
+	}
+
+	// 4. PUT /api/v1/nodes/{id}/traefik/files/custom-routing.yml -> creates new custom dynamic file
+	newFilePayload, _ := json.Marshal(SaveTraefikFileRequest{
+		Content: "http:\n  routers:\n    custom-app:\n      rule: Host(`api.example.com`)\n      service: custom-svc\n",
+	})
+	putReq := httptest.NewRequest(http.MethodPut, "/api/v1/nodes/"+nodeID+"/traefik/files/custom-routing.yml", bytes.NewReader(newFilePayload))
+	putReq.Header.Set("Content-Type", "application/json")
+	putW := httptest.NewRecorder()
+	router.ServeHTTP(putW, putReq)
+	if putW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for save file, got %d: %s", putW.Code, putW.Body.String())
+	}
+	var saved TraefikConfigFileContent
+	_ = json.Unmarshal(putW.Body.Bytes(), &saved)
+	if saved.Name != "custom-routing.yml" || !saved.IsCustom {
+		t.Errorf("unexpected saved file item: %+v", saved)
+	}
+
+	// 5. DELETE /api/v1/nodes/{id}/traefik/files/custom-routing.yml -> deletes file
+	delReq := httptest.NewRequest(http.MethodDelete, "/api/v1/nodes/"+nodeID+"/traefik/files/custom-routing.yml", nil)
+	delW := httptest.NewRecorder()
+	router.ServeHTTP(delW, delReq)
+	if delW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for delete file, got %d: %s", delW.Code, delW.Body.String())
+	}
+
+	// 6. Verify file is now deleted (404)
+	getDelReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files/custom-routing.yml", nil)
+	getDelW := httptest.NewRecorder()
+	router.ServeHTTP(getDelW, getDelReq)
+	if getDelW.Code != http.StatusNotFound {
+		t.Errorf("expected 404 Not Found after deletion, got %d", getDelW.Code)
+	}
+
+	// 7. Verify audit logs recorded save and delete actions
+	auditReq := httptest.NewRequest(http.MethodGet, "/api/v1/audit-logs", nil)
+	auditW := httptest.NewRecorder()
+	router.ServeHTTP(auditW, auditReq)
+	var logs []AuditLogResponse
+	_ = json.Unmarshal(auditW.Body.Bytes(), &logs)
+	hasSaveFile := false
+	hasDeleteFile := false
+	for _, l := range logs {
+		if l.Action == "save_node_traefik_file" {
+			hasSaveFile = true
+		}
+		if l.Action == "delete_node_traefik_file" {
+			hasDeleteFile = true
+		}
+	}
+	if !hasSaveFile || !hasDeleteFile {
+		t.Errorf("expected audit logs for save (%v) and delete (%v)", hasSaveFile, hasDeleteFile)
+	}
+}

@@ -1,6 +1,13 @@
 import { simulateDelay } from './delay';
 import { mockNodes } from '@/lib/mock/data';
-import { Node, NodeStatus, CreateNodeInput, NodeTraefikConfig } from '@/lib/types';
+import {
+  Node,
+  NodeStatus,
+  CreateNodeInput,
+  NodeTraefikConfig,
+  TraefikConfigFile,
+  TraefikConfigFileContent,
+} from '@/lib/types';
 
 let nodes = [...mockNodes];
 
@@ -280,6 +287,156 @@ export async function reloadNodeTraefik(
     message: 'Traefik configuration rules successfully reloaded on node',
     reloadedAt: now,
   };
+}
+
+const localTraefikFiles = new Map<string, Map<string, TraefikConfigFileContent>>();
+
+export async function getNodeTraefikFiles(nodeId: string): Promise<TraefikConfigFile[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${nodeId}/traefik/files`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(100, 200);
+  if (!localTraefikFiles.has(nodeId)) {
+    const defaultMap = new Map<string, TraefikConfigFileContent>();
+    defaultMap.set('tako-console.yml', {
+      name: 'tako-console.yml',
+      path: '/etc/tako/traefik/dynamic/tako-console.yml',
+      size: 260,
+      updatedAt: new Date().toISOString(),
+      isCustom: false,
+      type: 'yaml',
+      content: `# Dynamic configuration for Tako Console reverse proxy\nhttp:\n  routers:\n    tako-console:\n      rule: "PathPrefix(\`/\`)"\n      service: tako-console-svc\n      entryPoints:\n        - web\n        - websecure\n      tls:\n        certResolver: letsencrypt\n  services:\n    tako-console-svc\n      loadBalancer:\n        servers:\n          - url: "http://127.0.0.1:3000"`,
+    });
+    defaultMap.set('security-headers.yml', {
+      name: 'security-headers.yml',
+      path: '/etc/tako/traefik/dynamic/security-headers.yml',
+      size: 275,
+      updatedAt: new Date().toISOString(),
+      isCustom: false,
+      type: 'yaml',
+      content: `# Security headers middleware\nhttp:\n  middlewares:\n    secure-headers:\n      headers:\n        sslRedirect: true\n        forceSTSHeader: true\n        stsIncludeSubdomains: true\n        stsPreload: true\n        stsSeconds: 31536000\n        customFrameOptionsValue: "SAMEORIGIN"\n        contentTypeNosniff: true\n        browserXssFilter: true`,
+    });
+    defaultMap.set('ratelimit.yml', {
+      name: 'ratelimit.yml',
+      path: '/etc/tako/traefik/dynamic/ratelimit.yml',
+      size: 140,
+      updatedAt: new Date().toISOString(),
+      isCustom: false,
+      type: 'yaml',
+      content: `# Rate limiting middleware template\nhttp:\n  middlewares:\n    api-ratelimit:\n      rateLimit:\n        average: 100\n        burst: 50\n        period: 1m`,
+    });
+    localTraefikFiles.set(nodeId, defaultMap);
+  }
+
+  const map = localTraefikFiles.get(nodeId)!;
+  return Array.from(map.values()).map(({ content: _, ...rest }) => rest);
+}
+
+export async function getNodeTraefikFileContent(
+  nodeId: string,
+  filename: string
+): Promise<TraefikConfigFileContent> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${nodeId}/traefik/files/${encodeURIComponent(filename)}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(80, 150);
+  const files = await getNodeTraefikFiles(nodeId);
+  const map = localTraefikFiles.get(nodeId);
+  if (map && map.has(filename)) {
+    return map.get(filename)!;
+  }
+
+  return {
+    name: filename,
+    path: `/etc/tako/traefik/dynamic/${filename}`,
+    size: 0,
+    updatedAt: new Date().toISOString(),
+    isCustom: true,
+    type: filename.endsWith('.toml') ? 'toml' : filename.endsWith('.json') ? 'json' : 'yaml',
+    content: '# New dynamic configuration\n',
+  };
+}
+
+export async function saveNodeTraefikFile(
+  nodeId: string,
+  filename: string,
+  content: string
+): Promise<TraefikConfigFileContent> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${nodeId}/traefik/files/${encodeURIComponent(filename)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(100, 200);
+  let map = localTraefikFiles.get(nodeId);
+  if (!map) {
+    await getNodeTraefikFiles(nodeId);
+    map = localTraefikFiles.get(nodeId)!;
+  }
+
+  const existing = map?.get(filename);
+  const updated: TraefikConfigFileContent = {
+    name: filename,
+    path: `/etc/tako/traefik/dynamic/${filename}`,
+    size: content.length,
+    updatedAt: new Date().toISOString(),
+    isCustom: existing ? existing.isCustom : true,
+    type: filename.endsWith('.toml') ? 'toml' : filename.endsWith('.json') ? 'json' : 'yaml',
+    content,
+  };
+  map?.set(filename, updated);
+  return updated;
+}
+
+export async function deleteNodeTraefikFile(
+  nodeId: string,
+  filename: string
+): Promise<{ success: boolean; name: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${nodeId}/traefik/files/${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(100, 200);
+  const map = localTraefikFiles.get(nodeId);
+  if (map) {
+    map.delete(filename);
+  }
+  return { success: true, name: filename };
 }
 
 

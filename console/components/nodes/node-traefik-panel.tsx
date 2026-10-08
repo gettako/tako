@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
+import { NodeTraefikFiles } from './node-traefik-files';
 
 interface NodeTraefikPanelProps {
   node: Node;
@@ -37,6 +38,7 @@ interface NodeTraefikPanelProps {
 
 export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
   const queryClient = useQueryClient();
+  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'files'>('settings');
 
   const {
     data: config,
@@ -179,7 +181,39 @@ export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
         />
       </CardHeader>
 
-      <form onSubmit={handleSave}>
+      {/* Sub-tab Navigation */}
+      <div className="flex items-center gap-1 border-b border-border mb-6">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('settings')}
+          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors -mb-px active:not-aria-[haspopup]:translate-y-px ${
+            activeSubTab === 'settings'
+              ? 'border-primary text-foreground font-semibold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Sliders className="size-3.5" />
+          <span>Ingress Settings</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('files')}
+          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors -mb-px active:not-aria-[haspopup]:translate-y-px ${
+            activeSubTab === 'files'
+              ? 'border-primary text-foreground font-semibold'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <FolderTree className="size-3.5" />
+          <span>Dynamic Config Files & Editor</span>
+        </button>
+      </div>
+
+      {activeSubTab === 'files' ? (
+        <NodeTraefikFiles node={node} />
+      ) : (
+        <form onSubmit={handleSave}>
         <CardContent className="px-0 space-y-6 pt-2">
           {/* Node Edge Telemetry Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs font-mono">
@@ -440,6 +474,7 @@ export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
           </Button>
         </CardFooter>
       </form>
+      )}
     </Card>
   );
 }
