@@ -54,10 +54,11 @@ type TwoFASetting struct {
 }
 
 type PasskeyItem struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	CreatedAt  string `json:"createdAt"`
-	LastUsedAt string `json:"lastUsedAt,omitempty"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	CredentialID string `json:"credentialId,omitempty"`
+	CreatedAt    string `json:"createdAt"`
+	LastUsedAt   string `json:"lastUsedAt,omitempty"`
 }
 
 type SessionItem struct {
@@ -74,6 +75,7 @@ type SessionItem struct {
 func registerAuthRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/login", handleLogin(orch))
+		r.Post("/passkey/login", handlePasskeyLogin(orch))
 		r.Post("/logout", handleLogout())
 		r.Get("/me", handleGetMe(orch))
 		r.Put("/profile", handleUpdateProfile(orch))
@@ -377,7 +379,9 @@ func handleGetPasskeys(orch *orchestrator.Orchestrator) http.HandlerFunc {
 func handleAddPasskey(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Name string `json:"name"`
+			ID           string `json:"id,omitempty"`
+			Name         string `json:"name"`
+			CredentialID string `json:"credentialId,omitempty"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
 			http.Error(w, `{"error":"Passkey name is required"}`, http.StatusBadRequest)
@@ -389,11 +393,26 @@ func handleAddPasskey(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			_ = json.Unmarshal([]byte(s.Value), &passkeys)
 		}
 
+		credID := strings.TrimSpace(req.CredentialID)
+		if credID == "" {
+			credID = strings.TrimSpace(req.ID)
+		}
+
+		id := strings.TrimSpace(req.ID)
+		if id == "" {
+			if credID != "" {
+				id = credID
+			} else {
+				id = fmt.Sprintf("pk-%d", time.Now().UnixMilli())
+			}
+		}
+
 		newItem := PasskeyItem{
-			ID:         fmt.Sprintf("pk-%d", time.Now().UnixMilli()),
-			Name:       strings.TrimSpace(req.Name),
-			CreatedAt:  time.Now().UTC().Format(time.RFC3339),
-			LastUsedAt: "Just now",
+			ID:           id,
+			Name:         strings.TrimSpace(req.Name),
+			CredentialID: credID,
+			CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+			LastUsedAt:   "Just now",
 		}
 		passkeys = append(passkeys, newItem)
 
@@ -413,6 +432,107 @@ func handleAddPasskey(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(newItem)
+	}
+}
+
+type PasskeyLoginRequest struct {
+	CredentialID string `json:"credentialId"`
+}
+
+func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req PasskeyLoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid request payload"})
+			return
+		}
+
+		req.CredentialID = strings.TrimSpace(req.CredentialID)
+		if req.CredentialID == "" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Passkey credential is required"})
+			return
+		}
+
+		passkeys := []PasskeyItem{}
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_passkeys"); err == nil {
+			_ = json.Unmarshal([]byte(s.Value), &passkeys)
+		}
+
+		if len(passkeys) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "No registered passkey found"})
+			return
+		}
+
+		matchedIndex := -1
+		for i, pk := range passkeys {
+			if pk.ID == req.CredentialID || (pk.CredentialID != "" && pk.CredentialID == req.CredentialID) {
+				matchedIndex = i
+				break
+			}
+		}
+
+		if matchedIndex == -1 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid passkey or passkey not registered"})
+			return
+		}
+
+		// Update LastUsedAt for the matched passkey
+		passkeys[matchedIndex].LastUsedAt = "Just now"
+		if data, err := json.Marshal(passkeys); err == nil {
+			_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+				Key:   "user_passkeys",
+				Value: string(data),
+			})
+		}
+
+		users, err := orch.Queries().ListUsers(r.Context())
+		if err != nil || len(users) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
+			return
+		}
+
+		targetUser := users[0]
+		avatar := ""
+		if targetUser.AvatarUrl.Valid {
+			avatar = targetUser.AvatarUrl.String
+		}
+
+		twoFactorEnabled := is2FAEnabled(r.Context(), orch)
+		token := "tako_tk_" + randomHexID(24)
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "login_passkey",
+			TargetType: "user",
+			TargetID:   targetUser.ID,
+			TargetName: targetUser.Name,
+		})
+
+		resp := LoginResponse{
+			Token: token,
+			User: AuthUserResponse{
+				ID:               targetUser.ID,
+				Name:             targetUser.Name,
+				Email:            targetUser.Email,
+				Role:             targetUser.Role,
+				AvatarURL:        avatar,
+				TwoFactorEnabled: twoFactorEnabled,
+				CreatedAt:        targetUser.CreatedAt.Format(time.RFC3339),
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 

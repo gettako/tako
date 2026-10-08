@@ -182,12 +182,12 @@ export async function getPasskeys(): Promise<Passkey[]> {
   return [...passkeys];
 }
 
-export async function addPasskey(name: string): Promise<Passkey> {
+export async function addPasskey(name: string, credentialId?: string): Promise<Passkey> {
   if (typeof window !== 'undefined') {
     const res = await fetch('/api/auth/passkeys', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, credentialId }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -196,8 +196,9 @@ export async function addPasskey(name: string): Promise<Passkey> {
     return res.json();
   }
   const newKey: Passkey = {
-    id: `pk-${Date.now()}`,
+    id: credentialId || `pk-${Date.now()}`,
     name,
+    credentialId,
     createdAt: new Date().toISOString(),
     lastUsedAt: 'Just now',
   };
@@ -225,6 +226,8 @@ export async function registerPasskeyWithWebAuthn(name: string): Promise<Passkey
   const trimmed = name.trim();
   if (!trimmed) throw new Error('Passkey name is required');
 
+  let credentialId: string | undefined;
+
   if (typeof window !== 'undefined' && window.PublicKeyCredential) {
     try {
       const challenge = new Uint8Array(32);
@@ -232,7 +235,7 @@ export async function registerPasskeyWithWebAuthn(name: string): Promise<Passkey
       const userId = new Uint8Array(16);
       window.crypto.getRandomValues(userId);
 
-      await navigator.credentials.create({
+      const credential = (await navigator.credentials.create({
         publicKey: {
           challenge,
           rp: {
@@ -254,14 +257,26 @@ export async function registerPasskeyWithWebAuthn(name: string): Promise<Passkey
           },
           timeout: 60000,
         },
-      });
-    } catch (credErr: unknown) {
-      if (credErr instanceof Error && credErr.name === 'NotAllowedError') {
-        throw new Error('Passkey creation cancelled or timed out');
+      })) as PublicKeyCredential | null;
+
+      if (!credential) {
+        throw new Error('Passkey creation failed: No credential returned');
       }
-      // If hardware key cancelled with other code, still propagate or continue
+
+      credentialId = credential.id;
+    } catch (credErr: unknown) {
+      if (credErr instanceof Error) {
+        if (credErr.name === 'NotAllowedError') {
+          throw new Error('Passkey creation was cancelled or timed out');
+        }
+        if (credErr.name === 'AbortError') {
+          throw new Error('Passkey creation was aborted');
+        }
+        throw new Error(credErr.message || 'Failed to create passkey');
+      }
+      throw new Error('Failed to create passkey credential');
     }
   }
 
-  return addPasskey(trimmed);
+  return addPasskey(trimmed, credentialId);
 }

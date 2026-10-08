@@ -159,6 +159,56 @@ func TestAuthLogin(t *testing.T) {
 		t.Fatalf("expected 200 for delete passkey, got %d", wDelPk.Code)
 	}
 
+	// Case 7b: Passkey Login Validation (Fix wrong passkey cannot login)
+	badPkLoginBody, _ := json.Marshal(PasskeyLoginRequest{CredentialID: "invalid-credential-id"})
+	reqBadPkLogin := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkey/login", bytes.NewReader(badPkLoginBody))
+	reqBadPkLogin.Header.Set("Content-Type", "application/json")
+	wBadPkLogin := httptest.NewRecorder()
+	router.ServeHTTP(wBadPkLogin, reqBadPkLogin)
+	if wBadPkLogin.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for wrong passkey login with no passkeys, got %d", wBadPkLogin.Code)
+	}
+
+	emptyPkLoginBody, _ := json.Marshal(PasskeyLoginRequest{CredentialID: ""})
+	reqEmptyPkLogin := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkey/login", bytes.NewReader(emptyPkLoginBody))
+	reqEmptyPkLogin.Header.Set("Content-Type", "application/json")
+	wEmptyPkLogin := httptest.NewRecorder()
+	router.ServeHTTP(wEmptyPkLogin, reqEmptyPkLogin)
+	if wEmptyPkLogin.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for empty passkey login, got %d", wEmptyPkLogin.Code)
+	}
+
+	// Register passkey with specific CredentialID
+	goodPkBody, _ := json.Marshal(map[string]string{
+		"name":         "YubiKey Hardware",
+		"credentialId": "cred-yubikey-12345",
+	})
+	reqGoodPk := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkeys", bytes.NewReader(goodPkBody))
+	wGoodPk := httptest.NewRecorder()
+	router.ServeHTTP(wGoodPk, reqGoodPk)
+	if wGoodPk.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for add passkey with credential ID, got %d", wGoodPk.Code)
+	}
+
+	// Attempt wrong passkey when passkeys exist in DB -> MUST BE 401
+	wBadPkLogin2 := httptest.NewRecorder()
+	reqBadPkLogin2 := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkey/login", bytes.NewReader(badPkLoginBody))
+	reqBadPkLogin2.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(wBadPkLogin2, reqBadPkLogin2)
+	if wBadPkLogin2.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for wrong passkey when passkeys exist, got %d", wBadPkLogin2.Code)
+	}
+
+	// Attempt valid passkey -> 200 OK
+	validPkLoginBody, _ := json.Marshal(PasskeyLoginRequest{CredentialID: "cred-yubikey-12345"})
+	reqValidPkLogin := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkey/login", bytes.NewReader(validPkLoginBody))
+	reqValidPkLogin.Header.Set("Content-Type", "application/json")
+	wValidPkLogin := httptest.NewRecorder()
+	router.ServeHTTP(wValidPkLogin, reqValidPkLogin)
+	if wValidPkLogin.Code != http.StatusOK {
+		t.Fatalf("expected 200 for valid passkey login, got %d", wValidPkLogin.Code)
+	}
+
 	// Case 8: 2FA status
 	twoFABody, _ := json.Marshal(TwoFASetting{
 		Enabled:       true,

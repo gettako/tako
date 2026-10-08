@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { fetchServer, APIError } from '@/lib/api-client';
 import { getUserAvatarUrl } from '@/lib/avatar';
+import { mockPasskeys } from '@/lib/mock/data';
 
 const SESSION_COOKIE = 'tako_session';
 const SESSION_USER_COOKIE = 'tako_user';
@@ -12,53 +13,91 @@ export async function POST(req: NextRequest) {
     const { email, password, type } = body;
 
     if (type === 'passkey') {
-      let userWithAvatar = null;
+      const { credentialId } = body;
+      if (!credentialId || typeof credentialId !== 'string' || !credentialId.trim()) {
+        return NextResponse.json({ error: 'Passkey credential is required' }, { status: 400 });
+      }
+
+      const trimmedCredId = credentialId.trim();
+
       try {
-        const live = await fetchServer<{
-          authenticated: boolean;
+        const result = await fetchServer<{
+          token: string;
           user: { id: string; name: string; email: string; role: string; avatarUrl?: string; twoFactorEnabled?: boolean; createdAt?: string };
-        }>('/api/v1/auth/me');
-        if (live && live.user) {
-          userWithAvatar = {
-            ...live.user,
-            avatarUrl: getUserAvatarUrl(live.user.email, live.user.avatarUrl),
-          };
-        }
-      } catch {
-        // Fallback
-      }
+        }>('/api/v1/auth/passkey/login', {
+          method: 'POST',
+          body: JSON.stringify({ credentialId: trimmedCredId }),
+        });
 
-      if (!userWithAvatar) {
-        userWithAvatar = {
-          id: 'usr_admin',
-          name: 'Administrator',
-          email: 'admin@gettako.dev',
-          role: 'admin',
-          avatarUrl: getUserAvatarUrl('admin@gettako.dev'),
-          twoFactorEnabled: false,
-          createdAt: new Date().toISOString(),
+        const userWithAvatar = {
+          ...result.user,
+          avatarUrl: getUserAvatarUrl(result.user.email, result.user.avatarUrl),
         };
+
+        const cookieStore = await cookies();
+        cookieStore.set(SESSION_COOKIE, result.token || `tako_passkey_${Date.now()}`, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
+        });
+
+        cookieStore.set(SESSION_USER_COOKIE, JSON.stringify(userWithAvatar), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 7,
+        });
+
+        return NextResponse.json({ user: userWithAvatar });
+      } catch (apiErr: unknown) {
+        if (apiErr instanceof APIError) {
+          return NextResponse.json({ error: apiErr.message }, { status: apiErr.status });
+        }
+
+        // Dev fallback if Go server is temporarily unreachable
+        if (process.env.NODE_ENV !== 'production') {
+          const match = mockPasskeys.find(
+            (pk) => pk.id === trimmedCredId || pk.credentialId === trimmedCredId
+          );
+          if (!match) {
+            return NextResponse.json({ error: 'Invalid passkey or passkey not recognized' }, { status: 401 });
+          }
+
+          const fallbackUser = {
+            id: 'usr_admin',
+            name: 'Administrator',
+            email: 'admin@gettako.dev',
+            role: 'admin',
+            avatarUrl: getUserAvatarUrl('admin@gettako.dev'),
+            twoFactorEnabled: false,
+            createdAt: new Date().toISOString(),
+          };
+
+          const cookieStore = await cookies();
+          cookieStore.set(SESSION_COOKIE, `tako_passkey_${Date.now()}`, {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7,
+          });
+
+          cookieStore.set(SESSION_USER_COOKIE, JSON.stringify(fallbackUser), {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24 * 7,
+          });
+
+          return NextResponse.json({ user: fallbackUser });
+        }
+
+        return NextResponse.json({ error: 'Could not connect to authentication server' }, { status: 503 });
       }
-
-      const token = `tako_passkey_${Date.now()}`;
-      const cookieStore = await cookies();
-      cookieStore.set(SESSION_COOKIE, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7,
-      });
-
-      cookieStore.set(SESSION_USER_COOKIE, JSON.stringify(userWithAvatar), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 * 7,
-      });
-
-      return NextResponse.json({ user: userWithAvatar });
     }
 
     if (!email || !password) {

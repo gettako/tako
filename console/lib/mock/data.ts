@@ -642,12 +642,14 @@ export const mockPasskeys: Passkey[] = [
   {
     id: 'pk-1',
     name: 'MacBook Pro Touch ID',
+    credentialId: 'pk-1',
     createdAt: '2026-08-12T10:00:00Z',
     lastUsedAt: 'Just now',
   },
   {
     id: 'pk-2',
     name: 'YubiKey 5C NFC',
+    credentialId: 'pk-2',
     createdAt: '2026-09-01T15:30:00Z',
     lastUsedAt: '3 days ago',
   },

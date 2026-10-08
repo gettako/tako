@@ -24,6 +24,7 @@ export interface Session {
 export interface Passkey {
   id: string;
   name: string;
+  credentialId?: string;
   createdAt: string;
   lastUsedAt?: string;
 }
