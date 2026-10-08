@@ -36,10 +36,14 @@ export function submitGitHubAppManifestForm(manifest: GitHubAppManifest, targetO
     : 'https://github.com/settings/apps/new';
   form.target = '_self';
 
+  // Strip any slug property just in case to adhere to GitHub App manifest spec
+  const cleanManifest = { ...manifest };
+  delete (cleanManifest as Record<string, unknown>).slug;
+
   const manifestInput = document.createElement('input');
   manifestInput.type = 'hidden';
   manifestInput.name = 'manifest';
-  manifestInput.value = JSON.stringify(manifest);
+  manifestInput.value = JSON.stringify(cleanManifest);
 
   form.appendChild(manifestInput);
   document.body.appendChild(form);

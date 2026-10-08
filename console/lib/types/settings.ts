@@ -108,7 +108,6 @@ export interface NotificationSettings {
 
 export interface GitHubAppManifest {
   name: string;
-  slug?: string;
   description?: string;
   url: string;
   hook_attributes: {

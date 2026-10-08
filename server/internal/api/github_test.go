@@ -38,8 +38,11 @@ func TestGitHubAppAPI(t *testing.T) {
 		if manifest.URL != "https://console.gettako.dev" {
 			t.Errorf("expected url https://console.gettako.dev, got %s", manifest.URL)
 		}
-		if manifest.HookAttributes.URL != "https://console.gettako.dev/api/v1/webhooks/github" {
+		if manifest.HookAttributes.URL != "https://console.gettako.dev/api/webhooks/github" {
 			t.Errorf("expected webhook url, got %s", manifest.HookAttributes.URL)
+		}
+		if bytes.Contains(rec.Body.Bytes(), []byte(`"slug"`)) {
+			t.Errorf("manifest json must not contain slug field (GitHub App manifest rejects slug)")
 		}
 		if manifest.DefaultPermissions["contents"] != "read" {
 			t.Errorf("expected contents:read permission")

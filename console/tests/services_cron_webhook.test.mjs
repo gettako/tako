@@ -182,6 +182,14 @@ test('GitHub App Manifest - generates valid manifest specification', async () =>
   assert.ok(manifest.default_events.includes('push'));
   assert.ok(manifest.default_events.includes('pull_request'));
   assert.ok(manifest.default_events.includes('installation'));
+  // GitHub strictly forbids the "slug" key in manifests
+  assert.equal('slug' in manifest, false);
+  assert.equal(manifest.slug, undefined);
+
+  // When custom slug is passed with default name, manifest name uses slug to prevent collision
+  const slugManifest = buildGitHubAppManifest({ name: 'Tako', slug: 'tako-99999' });
+  assert.equal(slugManifest.name, 'tako-99999');
+  assert.equal('slug' in slugManifest, false);
 });
 
 test('Backups Lifecycle - snapshot creation and deletion flow', async () => {

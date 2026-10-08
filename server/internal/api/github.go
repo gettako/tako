@@ -27,7 +27,6 @@ import (
 
 type GitHubAppManifest struct {
 	Name               string            `json:"name"`
-	Slug               string            `json:"slug,omitempty"`
 	Description        string            `json:"description,omitempty"`
 	URL                string            `json:"url"`
 	HookAttributes     HookAttributes    `json:"hook_attributes"`
@@ -120,11 +119,11 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			// In GitHub App Manifest flow:
-			// If appSlug was explicitly provided, use appSlug as the manifest name
-			// so GitHub derives the unique slug from it.
-			manifestName := appSlug
-			if r.URL.Query().Get("appSlug") == "" && r.URL.Query().Get("appName") != "" {
-				manifestName = appName
+			// If a custom appName was specified (not empty and not default "Tako"), use it.
+			// Otherwise fallback to appSlug to guarantee a unique name on GitHub.
+			manifestName := appName
+			if (appName == "Tako" || appName == "Takō") && appSlug != "" {
+				manifestName = appSlug
 			}
 
 			// Webhook URL: baseUrl is the console origin (Next.js BFF), so the webhook
@@ -148,7 +147,6 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			manifest := GitHubAppManifest{
 				Name:        manifestName,
-				Slug:        appSlug,
 				Description: fmt.Sprintf("%s Cloud Infrastructure & Automated Deployments", appName),
 				URL:         baseURL,
 				HookAttributes: HookAttributes{
