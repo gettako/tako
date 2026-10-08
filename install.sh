@@ -263,7 +263,7 @@ services:
       - tako-network
 
   agent:
-    image: ghcr.io/gettakodev/tako-agent:latest
+    image: ghcr.io/gettako/tako-agent:latest
     container_name: tako-agent
     restart: unless-stopped
     volumes:
@@ -371,7 +371,7 @@ services:
       - tako-network
 
   server:
-    image: ghcr.io/gettakodev/tako-server:latest
+    image: ghcr.io/gettako/tako-server:latest
     container_name: tako-server
     restart: unless-stopped
     ports:
@@ -393,7 +393,7 @@ services:
       - tako-network
 
   console:
-    image: ghcr.io/gettakodev/tako-console:latest
+    image: ghcr.io/gettako/tako-console:latest
     container_name: tako-console
     restart: unless-stopped
     ports:
@@ -407,7 +407,7 @@ services:
       - tako-network
 
   agent:
-    image: ghcr.io/gettakodev/tako-agent:latest
+    image: ghcr.io/gettako/tako-agent:latest
     container_name: tako-agent
     restart: unless-stopped
     volumes:

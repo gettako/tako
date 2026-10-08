@@ -285,7 +285,7 @@ func (c *Client) RebootHost(ctx context.Context) error {
 
 	rebootCmd := `sync; (echo 1 > /host-proc/sys/kernel/sysrq 2>/dev/null || true); (echo b > /host-proc/sysrq-trigger 2>/dev/null || true); (chroot /host systemctl reboot 2>/dev/null || true); (chroot /host shutdown -r now 2>/dev/null || true); (chroot /host reboot 2>/dev/null || true); nsenter -t 1 -m -u -i -n -p reboot`
 
-	candidates := []string{imageToUse, "ghcr.io/gettakodev/tako-agent:latest", "alpine:3.20", "alpine:latest", "alpine"}
+	candidates := []string{imageToUse, "ghcr.io/gettako/tako-agent:latest", "alpine:3.20", "alpine:latest", "alpine"}
 	var lastErr error
 	var createdID string
 

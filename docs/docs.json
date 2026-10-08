@@ -1,11 +1,11 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
   "name": "Tako",
+  "theme": "maple",
   "colors": {
-    "primary": "#432DD7",
-    "light": "#432DD7",
-    "dark": "#5B63D3"
+    "primary": "#5560d6",
+    "light": "#7980e0",
+    "dark": "#3e49be"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -56,7 +56,7 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://github.com/gettakodev/tako"
+        "href": "https://github.com/gettako/tako"
       },
       {
         "label": "Website",
@@ -71,7 +71,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/gettakodev/tako"
+      "github": "https://github.com/gettako/tako"
     }
   }
 }
