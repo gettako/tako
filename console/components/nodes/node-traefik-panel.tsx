@@ -214,7 +214,7 @@ export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
         <NodeTraefikFiles node={node} />
       ) : (
         <form onSubmit={handleSave}>
-        <CardContent className="px-0 space-y-6 pt-2">
+        <CardContent className="px-0 space-y-6 pt-2 pb-6">
           {/* Node Edge Telemetry Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div className="p-3 rounded-xl border border-border bg-muted/20 space-y-1">

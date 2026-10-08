@@ -361,6 +361,48 @@ export async function getNodeTraefikFiles(nodeId: string): Promise<TraefikConfig
   await simulateDelay(100, 200);
   if (!localTraefikFiles.has(nodeId)) {
     const defaultMap = new Map<string, TraefikConfigFileContent>();
+    // Primary static configuration traefik.yml
+    const staticContent = `# Static configuration for Traefik
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: false
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: tako-network
+    watch: true
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "admin@gettako.dev"
+      storage: "/acme.json"
+      httpChallenge:
+        entryPoint: web
+`;
+    defaultMap.set('traefik.yml', {
+      name: 'traefik.yml',
+      path: '/etc/tako/traefik/traefik.yml',
+      size: staticContent.length,
+      updatedAt: new Date().toISOString(),
+      isCustom: false,
+      type: 'yaml',
+      content: staticContent,
+    });
+
     // tako.yml only appears if console is assigned to a domain
     try {
       const { getDomainSettings } = await import('@/lib/api/settings');
@@ -441,9 +483,11 @@ export async function saveNodeTraefikFile(
   }
 
   const existing = map?.get(filename);
+  const isStatic = filename === 'traefik.yml';
+  const filePath = isStatic ? '/etc/tako/traefik/traefik.yml' : `/etc/tako/traefik/dynamic/${filename}`;
   const updated: TraefikConfigFileContent = {
     name: filename,
-    path: `/etc/tako/traefik/dynamic/${filename}`,
+    path: filePath,
     size: content.length,
     updatedAt: new Date().toISOString(),
     isCustom: existing ? existing.isCustom : true,
@@ -458,6 +502,10 @@ export async function deleteNodeTraefikFile(
   nodeId: string,
   filename: string
 ): Promise<{ success: boolean; name: string }> {
+  if (filename === 'traefik.yml') {
+    throw new Error('Static configuration file traefik.yml cannot be deleted');
+  }
+
   if (typeof window !== 'undefined') {
     try {
       const res = await fetch(`/api/nodes/${nodeId}/traefik/files/${encodeURIComponent(filename)}`, {

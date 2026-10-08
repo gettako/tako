@@ -46,6 +46,11 @@ import {
   Sparkles,
   Loader2,
   Code2,
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  FolderOpen,
+  Settings2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -227,12 +232,32 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
   const lines = useMemo(() => currentContent.split('\n'), [currentContent]);
   const lineCount = lines.length;
 
-  // Filtered files
-  const filteredFiles = useMemo(() => {
-    if (!searchQuery.trim()) return files;
+  // Tree state: /dynamic folder expansion
+  const [isDynamicExpanded, setIsDynamicExpanded] = useState(true);
+
+  // Split static root file vs dynamic directory files
+  const staticFile = useMemo(() => {
+    return files.find((f) => f.name === 'traefik.yml') || null;
+  }, [files]);
+
+  const dynamicFiles = useMemo(() => {
+    return files.filter((f) => f.name !== 'traefik.yml');
+  }, [files]);
+
+  // Filtered files according to search query
+  const filteredStaticFile = useMemo(() => {
+    if (!staticFile) return null;
+    if (!searchQuery.trim()) return staticFile;
     const q = searchQuery.toLowerCase();
-    return files.filter((f) => f.name.toLowerCase().includes(q));
-  }, [files, searchQuery]);
+    if ('./traefik.yml'.includes(q) || 'traefik.yml'.includes(q)) return staticFile;
+    return null;
+  }, [staticFile, searchQuery]);
+
+  const filteredDynamicFiles = useMemo(() => {
+    if (!searchQuery.trim()) return dynamicFiles;
+    const q = searchQuery.toLowerCase();
+    return dynamicFiles.filter((f) => f.name.toLowerCase().includes(q));
+  }, [dynamicFiles, searchQuery]);
 
   // Syntax highlighting
   const highlightCode = useCallback(
@@ -269,7 +294,11 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
           [selectedFileName]: currentContent,
         }));
         queryClient.invalidateQueries({ queryKey: ['node-traefik-files', node.id] });
-        toast.success(`File ${selectedFileName} saved successfully`);
+        if (selectedFileName === 'traefik.yml') {
+          toast.success('File traefik.yml saved successfully. Reload Traefik to apply static changes.');
+        } else {
+          toast.success(`File ${selectedFileName} saved successfully`);
+        }
       }
     },
     onError: (err: unknown) => {
@@ -281,6 +310,9 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (filename: string) => {
+      if (filename === 'traefik.yml') {
+        throw new Error('Static configuration file traefik.yml cannot be deleted');
+      }
       return await deleteNodeTraefikFile(node.id, filename);
     },
     onSuccess: (_, deletedName) => {
@@ -430,13 +462,13 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-medium text-sm text-foreground">Dynamic Configuration Directory</span>
+              <span className="font-medium text-sm text-foreground">Traefik Config Files & Editor</span>
               <Badge variant="outline" className="font-mono text-[11px] bg-background">
                 {files.length} {files.length === 1 ? 'file' : 'files'}
               </Badge>
             </div>
             <p className="font-mono text-xs text-muted-foreground mt-0.5">
-              /etc/tako/traefik/dynamic
+              /etc/tako/traefik
             </p>
           </div>
         </div>
@@ -466,7 +498,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
             className="h-8 text-xs gap-1.5 active:not-aria-[haspopup]:translate-y-px"
           >
             <Plus className="size-3.5" />
-            <span>New File</span>
+            <span>New Dynamic File</span>
           </Button>
         </div>
       </div>
@@ -486,79 +518,209 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
             />
           </div>
 
-          {/* Files List */}
-          <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+          {/* Files List / Tree Explorer */}
+          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
             {isFilesLoading && files.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-muted-foreground gap-2 text-xs">
                 <Loader2 className="size-4 animate-spin text-primary" />
                 <span>Loading files...</span>
               </div>
-            ) : filteredFiles.length === 0 ? (
+            ) : !filteredStaticFile && filteredDynamicFiles.length === 0 ? (
               <div className="text-center py-8 text-xs text-muted-foreground">
-                No matching dynamic files found
+                No matching configuration files found
               </div>
             ) : (
-              filteredFiles.map((file) => {
-                const isSelected = file.name === selectedFileName;
-                const hasUnsaved =
-                  fileContents[file.name] !== undefined &&
-                  fileContents[file.name] !== (savedContents[file.name] ?? '');
-
-                return (
+              <>
+                {/* 1. Root Static Config File: ./traefik.yml */}
+                {filteredStaticFile && (
                   <div
-                    key={file.name}
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSelectedFileName(file.name)}
+                    onClick={() => setSelectedFileName(filteredStaticFile.name)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
-                        setSelectedFileName(file.name);
+                        setSelectedFileName(filteredStaticFile.name);
                       }
                     }}
                     className={`group w-full text-left p-2.5 rounded-md transition-colors flex items-start justify-between gap-2 border cursor-pointer ${
-                      isSelected
+                      selectedFileName === filteredStaticFile.name
                         ? 'bg-primary/10 border-primary/40 text-foreground font-medium'
                         : 'border-transparent hover:bg-muted/60 text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                      <div className="mt-0.5 shrink-0">{getFileIcon(file.name)}</div>
+                      <div className="mt-0.5 shrink-0 text-primary">
+                        <FileCode2 className="size-4" />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 truncate">
-                          <span className="truncate text-xs font-mono">{file.name}</span>
-                          {hasUnsaved && (
-                            <span
-                              className="size-1.5 rounded-full bg-amber-500 shrink-0"
-                              title="Unsaved changes"
-                            />
-                          )}
+                          <span className="truncate text-xs font-mono font-semibold">./traefik.yml</span>
+                          {fileContents[filteredStaticFile.name] !== undefined &&
+                            fileContents[filteredStaticFile.name] !== (savedContents[filteredStaticFile.name] ?? '') && (
+                              <span
+                                className="size-1.5 rounded-full bg-amber-500 shrink-0"
+                                title="Unsaved changes"
+                              />
+                            )}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                          <span>{formatFileSize(file.size)}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
+                          <span>{formatFileSize(filteredStaticFile.size)}</span>
                           <span>•</span>
-                          <span className="capitalize">{file.type}</span>
-                          <span>•</span>
-                          <span>{file.isCustom ? 'Custom' : 'System'}</span>
+                          <span className="font-medium text-primary/80">Static Config</span>
                         </div>
                       </div>
                     </div>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] uppercase font-mono px-1.5 py-0 h-4 border-muted-foreground/30 text-muted-foreground shrink-0 mt-0.5"
+                    >
+                      Static
+                    </Badge>
+                  </div>
+                )}
 
-                    {/* Delete action button */}
+                {/* 2. Dynamic Directory Folder: /dynamic/* */}
+                <div className="pt-0.5">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setIsDynamicExpanded(!isDynamicExpanded)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setIsDynamicExpanded(!isDynamicExpanded);
+                      }
+                    }}
+                    className="group w-full flex items-center justify-between p-2 rounded-md hover:bg-muted/50 cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <button
+                        type="button"
+                        className="p-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsDynamicExpanded(!isDynamicExpanded);
+                        }}
+                      >
+                        {isDynamicExpanded ? (
+                          <ChevronDown className="size-3.5" />
+                        ) : (
+                          <ChevronRight className="size-3.5" />
+                        )}
+                      </button>
+                      {isDynamicExpanded ? (
+                        <FolderOpen className="size-4 text-amber-500" />
+                      ) : (
+                        <Folder className="size-4 text-amber-500" />
+                      )}
+                      <span className="text-xs font-mono font-semibold text-foreground">
+                        /dynamic
+                      </span>
+                      <Badge variant="outline" className="text-[10px] font-mono px-1 py-0 h-4 bg-background">
+                        {dynamicFiles.length}
+                      </Badge>
+                    </div>
+
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setDeleteTarget(file.name);
+                        setNewFileName('');
+                        setCreateError(null);
+                        setCreateDialogOpen(true);
                       }}
-                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                      title={`Delete ${file.name}`}
+                      className="size-6 text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Create new file inside /dynamic"
                     >
-                      <Trash2 className="size-3" />
+                      <Plus className="size-3.5" />
                     </Button>
                   </div>
-                );
-              })
+
+                  {/* Indented Dynamic Files */}
+                  {isDynamicExpanded && (
+                    <div className="ml-3 pl-2.5 border-l border-border/70 space-y-1 mt-1">
+                      {filteredDynamicFiles.length === 0 ? (
+                        <div className="py-2 px-1 text-[11px] text-muted-foreground/70 italic flex items-center justify-between">
+                          <span>No dynamic files</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewFileName('');
+                              setCreateError(null);
+                              setCreateDialogOpen(true);
+                            }}
+                            className="text-primary hover:underline font-mono text-[10px] not-italic"
+                          >
+                            + Add file
+                          </button>
+                        </div>
+                      ) : (
+                        filteredDynamicFiles.map((file) => {
+                          const isSelected = file.name === selectedFileName;
+                          const hasUnsaved =
+                            fileContents[file.name] !== undefined &&
+                            fileContents[file.name] !== (savedContents[file.name] ?? '');
+
+                          return (
+                            <div
+                              key={file.name}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setSelectedFileName(file.name)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                  setSelectedFileName(file.name);
+                                }
+                              }}
+                              className={`group w-full text-left p-2 rounded-md transition-colors flex items-start justify-between gap-2 border cursor-pointer ${
+                                isSelected
+                                  ? 'bg-primary/10 border-primary/40 text-foreground font-medium'
+                                  : 'border-transparent hover:bg-muted/60 text-muted-foreground hover:text-foreground'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2 min-w-0 flex-1">
+                                <div className="mt-0.5 shrink-0">{getFileIcon(file.name)}</div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <span className="truncate text-xs font-mono">{file.name}</span>
+                                    {hasUnsaved && (
+                                      <span
+                                        className="size-1.5 rounded-full bg-amber-500 shrink-0"
+                                        title="Unsaved changes"
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
+                                    <span>{formatFileSize(file.size)}</span>
+                                    <span>•</span>
+                                    <span className="capitalize">{file.type}</span>
+                                    <span>•</span>
+                                    <span>{file.isCustom ? 'Custom' : 'System'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Delete action button for dynamic files */}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteTarget(file.name);
+                                }}
+                                className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                title={`Delete ${file.name}`}
+                              >
+                                <Trash2 className="size-3" />
+                              </Button>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
@@ -635,8 +797,14 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                   {getFileIcon(activeFile.name)}
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs font-semibold text-foreground">
-                      {activeFile.name}
+                      {activeFile.name === 'traefik.yml' ? './traefik.yml' : `/dynamic/${activeFile.name}`}
                     </span>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] font-mono uppercase bg-muted/50 border-border"
+                    >
+                      {activeFile.name === 'traefik.yml' ? 'Static Config' : 'Dynamic Route'}
+                    </Badge>
                     <Badge
                       variant="outline"
                       className={`text-[10px] font-mono uppercase ${
@@ -709,7 +877,19 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               <div className="flex items-start gap-2.5 px-4 py-2.5 border-b border-status-warning/25 bg-status-warning/10 text-xs">
                 <AlertTriangle className="size-4 shrink-0 mt-0.5 text-status-warning" />
                 <div className="flex-1 min-w-0 leading-relaxed text-foreground">
-                  <span className="font-semibold text-status-warning">Warning:</span> Dynamic configuration changes are applied immediately by Traefik. Syntax errors or misconfigured routing rules may disrupt proxy routing, SSL certificates, or active service traffic.
+                  {activeFile.name === 'traefik.yml' ? (
+                    <>
+                      <span className="font-semibold text-status-warning">Static Config:</span> Modifying{' '}
+                      <code className="font-mono px-1 py-0.5 bg-background/50 rounded font-semibold">./traefik.yml</code> updates
+                      core Traefik entry points, ACME certificate resolvers, and provider watchers. Reload or restart Traefik after saving for static updates to take effect.
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-semibold text-status-warning">Dynamic Config:</span> Dynamic routing rules in{' '}
+                      <code className="font-mono px-1 py-0.5 bg-background/50 rounded font-semibold">/dynamic/{activeFile.name}</code> are
+                      reloaded automatically by Traefik without downtime. Syntax errors or misconfigured routing rules may disrupt active service traffic.
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -783,7 +963,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                 </div>
 
                 <div className="flex items-center gap-3 font-mono text-[10px]">
-                  <span>Traefik Dynamic YAML</span>
+                  <span>{activeFile.name === 'traefik.yml' ? 'Traefik Static YAML' : 'Traefik Dynamic YAML'}</span>
                   <span>•</span>
                   <span>UTF-8</span>
                 </div>

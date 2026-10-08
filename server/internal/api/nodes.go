@@ -627,6 +627,39 @@ http:
 `, "`"+d+"`", "`"+d+"`")
 }
 
+func defaultTraefikStaticConfig() string {
+	return `global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: false
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: tako-network
+    watch: true
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "admin@gettako.dev"
+      storage: "/acme.json"
+      httpChallenge:
+        entryPoint: web
+`
+}
+
 func loadNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, nodeID string) (map[string]TraefikConfigFileContent, error) {
 	key := fmt.Sprintf("node_traefik_files_%s", nodeID)
 	files := make(map[string]TraefikConfigFileContent)
@@ -648,7 +681,48 @@ func loadNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, 
 		}
 	}
 
-	// 2. Scan physical dynamic files on disk if directory exists (/etc/tako/traefik/dynamic)
+	// 2. Ensure static traefik.yml is loaded as root static configuration
+	staticPath := "/etc/tako/traefik/traefik.yml"
+	var staticContent string
+	var staticSize int64
+	staticModTime := time.Now().UTC().Format(time.RFC3339)
+
+	if fi, err := os.Stat(staticPath); err == nil && !fi.IsDir() {
+		if b, err := os.ReadFile(staticPath); err == nil {
+			staticContent = string(b)
+			staticSize = fi.Size()
+			staticModTime = fi.ModTime().UTC().Format(time.RFC3339)
+		}
+	}
+
+	if staticContent == "" {
+		if existing, exists := files["traefik.yml"]; exists && existing.Content != "" {
+			staticContent = existing.Content
+			staticSize = int64(len(staticContent))
+			staticModTime = existing.UpdatedAt
+		} else {
+			staticContent = defaultTraefikStaticConfig()
+			staticSize = int64(len(staticContent))
+		}
+	}
+
+	isStaticCustom := false
+	if existing, exists := files["traefik.yml"]; exists {
+		isStaticCustom = existing.IsCustom
+	}
+	files["traefik.yml"] = TraefikConfigFileContent{
+		TraefikConfigFile: TraefikConfigFile{
+			Name:      "traefik.yml",
+			Path:      staticPath,
+			Size:      staticSize,
+			UpdatedAt: staticModTime,
+			IsCustom:  isStaticCustom,
+			Type:      "yaml",
+		},
+		Content: staticContent,
+	}
+
+	// 3. Scan physical dynamic files on disk if directory exists (/etc/tako/traefik/dynamic)
 	dynamicDir := "/etc/tako/traefik/dynamic"
 	if entries, err := os.ReadDir(dynamicDir); err == nil {
 		for _, entry := range entries {
@@ -656,7 +730,7 @@ func loadNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, 
 				continue
 			}
 			filename := entry.Name()
-			if !isValidTraefikFilename(filename) {
+			if !isValidTraefikFilename(filename) || filename == "traefik.yml" {
 				continue
 			}
 			fullPath := filepath.Join(dynamicDir, filename)
@@ -685,7 +759,7 @@ func loadNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, 
 		}
 	}
 
-	// 3. tako.yml appears IF AND ONLY IF console is assigned to a domain
+	// 4. tako.yml appears IF AND ONLY IF console is assigned to a domain
 	// (or if user customized it as custom file, or physical file exists on disk)
 	assignedDomain := getAssignedConsoleDomain(ctx, orch)
 	if assignedDomain != "" {
@@ -771,6 +845,13 @@ func handleListNodeTraefikFiles(orch *orchestrator.Orchestrator) http.HandlerFun
 		}
 
 		sort.Slice(list, func(i, j int) bool {
+			// traefik.yml always first (root static config)
+			if list[i].Name == "traefik.yml" {
+				return true
+			}
+			if list[j].Name == "traefik.yml" {
+				return false
+			}
 			return list[i].Name < list[j].Name
 		})
 
@@ -857,12 +938,20 @@ func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc
 		if existing, exists := filesMap[filename]; exists {
 			isCustom = existing.IsCustom
 		}
+		if filename == "traefik.yml" {
+			isCustom = true
+		}
+
+		filePath := fmt.Sprintf("/etc/tako/traefik/dynamic/%s", filename)
+		if filename == "traefik.yml" {
+			filePath = "/etc/tako/traefik/traefik.yml"
+		}
 
 		now := time.Now().UTC().Format(time.RFC3339)
 		fileItem := TraefikConfigFileContent{
 			TraefikConfigFile: TraefikConfigFile{
 				Name:      filename,
-				Path:      fmt.Sprintf("/etc/tako/traefik/dynamic/%s", filename),
+				Path:      filePath,
 				Size:      int64(len(req.Content)),
 				UpdatedAt: now,
 				IsCustom:  isCustom,
@@ -877,11 +966,18 @@ func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc
 			return
 		}
 
-		// Also persist physically to /etc/tako/traefik/dynamic if directory exists
-		dynamicDir := "/etc/tako/traefik/dynamic"
-		if fi, err := os.Stat(dynamicDir); err == nil && fi.IsDir() {
-			filePath := filepath.Join(dynamicDir, filename)
-			_ = os.WriteFile(filePath, []byte(req.Content), 0644)
+		// Also persist physically to disk if directories exist
+		if filename == "traefik.yml" {
+			traefikDir := "/etc/tako/traefik"
+			if fi, err := os.Stat(traefikDir); err == nil && fi.IsDir() {
+				_ = os.WriteFile(filepath.Join(traefikDir, "traefik.yml"), []byte(req.Content), 0644)
+			}
+		} else {
+			dynamicDir := "/etc/tako/traefik/dynamic"
+			if fi, err := os.Stat(dynamicDir); err == nil && fi.IsDir() {
+				targetFilePath := filepath.Join(dynamicDir, filename)
+				_ = os.WriteFile(targetFilePath, []byte(req.Content), 0644)
+			}
 		}
 
 		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
@@ -908,6 +1004,11 @@ func handleDeleteNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFu
 
 		if !isValidTraefikFilename(filename) {
 			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			return
+		}
+
+		if filename == "traefik.yml" {
+			http.Error(w, `{"error":"primary static configuration file (traefik.yml) cannot be deleted"}`, http.StatusBadRequest)
 			return
 		}
 

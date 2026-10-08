@@ -140,7 +140,7 @@ export function ResourceLimitsSection({
           />
         </CardHeader>
 
-        <CardContent className="px-0 space-y-6">
+        <CardContent className="px-0 space-y-6 pb-6">
           {/* CPU Allocation Slider & Input */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -283,7 +283,7 @@ export function ResourceLimitsSection({
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border">
+        <CardFooter className="px-0 pt-6 pb-0 flex items-center justify-between border-t border-border">
           <Button
             type="button"
             variant="outline"

@@ -188,7 +188,7 @@ export function DomainPanel() {
       </CardHeader>
 
       <form onSubmit={handleSave}>
-        <CardContent className="px-0 space-y-6 pt-2">
+        <CardContent className="px-0 space-y-6 pt-2 pb-6">
           {/* Domain Input */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">

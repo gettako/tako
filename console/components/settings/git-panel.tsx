@@ -473,7 +473,7 @@ export function GitPanel() {
                 <span className="flex items-center gap-1.5">
                   <Globe className="size-3 text-primary shrink-0" />
                   <span>
-                    Pastikan status GitHub App adalah <strong>Public</strong> agar bisa di-install ke organisasi lain (jika Private, GitHub akan mengalihkan ke instalasi pribadi).
+                    Ensure the GitHub App is set to <strong>Public</strong> so it can be installed on other organizations (if Private, GitHub will redirect to a personal installation).
                   </span>
                 </span>
                 {githubApp?.slug && (
@@ -487,7 +487,7 @@ export function GitPanel() {
                     rel="noreferrer"
                     className="text-primary hover:underline font-medium inline-flex items-center gap-1 shrink-0"
                   >
-                    Buka Pengaturan App di GitHub <ExternalLink className="size-2.5" />
+                    Open App Settings on GitHub <ExternalLink className="size-2.5" />
                   </a>
                 )}
               </div>

@@ -101,7 +101,7 @@ export function BackupsPanel() {
         </CardHeader>
 
         <form onSubmit={handleSave}>
-          <CardContent className="px-0 space-y-5 pt-2">
+          <CardContent className="px-0 space-y-5 pt-2 pb-6">
             {/* Last Backup Status */}
             {schedule?.lastBackupAt && (
               <div className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-muted/20 text-sm">
@@ -199,7 +199,7 @@ export function BackupsPanel() {
             </div>
           </CardContent>
 
-          <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
+          <CardFooter className="px-0 pt-6 pb-0 flex justify-end border-t border-border">
             <Button
               type="submit"
               size="default"

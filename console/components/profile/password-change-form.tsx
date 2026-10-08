@@ -62,7 +62,7 @@ export function PasswordChangeForm() {
       </CardHeader>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pb-6">
           {/* Current Password */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -125,7 +125,7 @@ export function PasswordChangeForm() {
           </div>
         </CardContent>
 
-        <CardFooter className="pt-4 pb-0 flex items-center justify-between border-t border-border">
+        <CardFooter className="pt-6 pb-0 flex items-center justify-between border-t border-border">
           <span className="text-[11px] text-muted-foreground">
             Changes will invalidate other active sessions for security.
           </span>

@@ -145,7 +145,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
             />
           </CardHeader>
 
-          <CardContent className="px-0 space-y-5">
+          <CardContent className="px-0 space-y-5 pb-6">
             {/* Repository */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -230,7 +230,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
             </div>
           </CardContent>
 
-          <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border">
+          <CardFooter className="px-0 pt-6 pb-0 flex items-center justify-between border-t border-border">
             <Button
               type="button"
               variant="outline"

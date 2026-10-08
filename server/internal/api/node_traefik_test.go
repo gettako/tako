@@ -189,7 +189,7 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 	}
 	nodeID := regResp.NodeId
 
-	// 1. GET /api/v1/nodes/{id}/traefik/files -> without domain assigned, returns empty list (no fake files)
+	// 1. GET /api/v1/nodes/{id}/traefik/files -> returns traefik.yml (static config always present, no fake files)
 	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/files", nil)
 	listW := httptest.NewRecorder()
 	router.ServeHTTP(listW, listReq)
@@ -200,11 +200,14 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 	if err := json.Unmarshal(listW.Body.Bytes(), &files); err != nil {
 		t.Fatalf("failed to decode files list: %v", err)
 	}
-	if len(files) != 0 {
-		t.Fatalf("expected 0 files initially (no fake files), got %d: %+v", len(files), files)
+	if len(files) != 1 || files[0].Name != "traefik.yml" {
+		t.Fatalf("expected 1 file (traefik.yml) initially, got %d: %+v", len(files), files)
+	}
+	if files[0].Path != "/etc/tako/traefik/traefik.yml" {
+		t.Errorf("expected path /etc/tako/traefik/traefik.yml, got %s", files[0].Path)
 	}
 
-	// 2. Assign domain to console via domain_settings -> tako.yml appears
+	// 2. Assign domain to console via domain_settings -> tako.yml appears alongside traefik.yml
 	_, err = orch.Queries().SetSetting(context.Background(), dbStore.SetSettingParams{
 		Key:   "domain_settings",
 		Value: `{"domain":"console.gettako.dev"}`,
@@ -223,11 +226,19 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 	if err := json.Unmarshal(listW2.Body.Bytes(), &filesAfterDomain); err != nil {
 		t.Fatalf("failed to decode files list: %v", err)
 	}
-	if len(filesAfterDomain) != 1 {
-		t.Fatalf("expected exactly 1 file (tako.yml) after domain assignment, got %d", len(filesAfterDomain))
+	if len(filesAfterDomain) != 2 {
+		t.Fatalf("expected exactly 2 files (traefik.yml & tako.yml) after domain assignment, got %d", len(filesAfterDomain))
 	}
-	if filesAfterDomain[0].Name != "tako.yml" {
-		t.Fatalf("expected tako.yml, got %s", filesAfterDomain[0].Name)
+	if filesAfterDomain[0].Name != "traefik.yml" || filesAfterDomain[1].Name != "tako.yml" {
+		t.Fatalf("expected [traefik.yml, tako.yml], got [%s, %s]", filesAfterDomain[0].Name, filesAfterDomain[1].Name)
+	}
+
+	// Verify traefik.yml cannot be deleted -> 400 Bad Request
+	delTraefikReq := httptest.NewRequest(http.MethodDelete, "/api/v1/nodes/"+nodeID+"/traefik/files/traefik.yml", nil)
+	delTraefikW := httptest.NewRecorder()
+	router.ServeHTTP(delTraefikW, delTraefikReq)
+	if delTraefikW.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request when attempting to delete traefik.yml, got %d", delTraefikW.Code)
 	}
 
 	// Verify tako.yml content contains console.gettako.dev

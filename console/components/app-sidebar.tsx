@@ -93,7 +93,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   Tako Cloud
                 </span>
                 <span className="truncate text-xs text-muted-foreground font-mono">
-                  Enterprise PaaS
+                  Self-Hosted PaaS
                 </span>
               </div>
             </SidebarMenuButton>

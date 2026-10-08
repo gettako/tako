@@ -20,7 +20,40 @@ http:
           - url: "http://127.0.0.1:3000"
 `;
 
+const DEFAULT_TRAEFIK_STATIC_YML = `# Static configuration for Traefik
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+api:
+  dashboard: false
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: tako-network
+    watch: true
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "admin@gettako.dev"
+      storage: "/acme.json"
+      httpChallenge:
+        entryPoint: web
+`;
+
 const FALLBACK_FILE_CONTENTS: Record<string, string> = {
+  'traefik.yml': DEFAULT_TRAEFIK_STATIC_YML,
   'tako.yml': takoYamlContent,
 };
 
@@ -41,9 +74,10 @@ export async function GET(
     const { filename } = await params;
     if (filename in FALLBACK_FILE_CONTENTS) {
       const content = FALLBACK_FILE_CONTENTS[filename];
+      const isStatic = filename === 'traefik.yml';
       return NextResponse.json({
         name: filename,
-        path: `/etc/tako/traefik/dynamic/${filename}`,
+        path: isStatic ? '/etc/tako/traefik/traefik.yml' : `/etc/tako/traefik/dynamic/${filename}`,
         size: content.length,
         updatedAt: new Date().toISOString(),
         isCustom: false,
@@ -85,6 +119,12 @@ export async function DELETE(
 ) {
   try {
     const { id, filename } = await params;
+    if (filename === 'traefik.yml') {
+      return NextResponse.json(
+        { error: 'Primary static configuration file (traefik.yml) cannot be deleted' },
+        { status: 400 }
+      );
+    }
     const result = await fetchServer<{ success: boolean; name: string }>(
       `/api/v1/nodes/${id}/traefik/files/${encodeURIComponent(filename)}`,
       {
