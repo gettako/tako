@@ -27,7 +27,7 @@ export function buildGitHubAppManifest(options: GenerateManifestOptions = {}): G
     },
     redirect_url: `${origin}/settings?tab=git&setup=github`,
     callback_urls: [`${origin}/api/auth/callback/github`],
-    public: false,
+    public: true,
     default_permissions: {
       contents: 'read',
       metadata: 'read',
@@ -38,8 +38,6 @@ export function buildGitHubAppManifest(options: GenerateManifestOptions = {}): G
     default_events: [
       'push',
       'pull_request',
-      'installation',
-      'installation_repositories',
     ],
   };
 }

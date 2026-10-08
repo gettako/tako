@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getGitProviders, getSyncedRepos, syncGitRepos } from '@/lib/api/settings';
@@ -52,6 +52,9 @@ import {
   Plus,
   FolderGit2,
   PlugZap,
+  Building2,
+  User,
+  Settings,
 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
@@ -98,6 +101,7 @@ export function GitPanel() {
   const [targetOrg, setTargetOrg] = useState('');
   const [showPerms, setShowPerms] = useState(false);
   const [searchQ, setSearchQ] = useState('');
+  const [selectedOrg, setSelectedOrg] = useState<string>('all');
 
   const generateSlug = () => `tako-${Math.floor(10000 + Math.random() * 90000)}`;
 
@@ -111,6 +115,63 @@ export function GitPanel() {
 
   const primaryProvider = providers.find((p) => p.type === 'github') || providers[0];
   const isGitHubConnected = Boolean(githubApp?.appId) || Boolean(primaryProvider?.connected);
+
+  const installations = githubApp?.installations || [];
+
+  const displayInstallations = useMemo(() => {
+    if (installations.length > 0) return installations;
+    if (githubApp?.owner) {
+      return [
+        {
+          id: githubApp.installationId || 0,
+          account: githubApp.owner,
+          repositorySelection: 'all' as const,
+        },
+      ];
+    }
+    if (primaryProvider?.username) {
+      return [
+        {
+          id: 0,
+          account: {
+            login: primaryProvider.username,
+            avatarUrl: primaryProvider.avatarUrl,
+            type: 'User',
+          },
+          repositorySelection: 'all' as const,
+        },
+      ];
+    }
+    return [];
+  }, [installations, githubApp, primaryProvider]);
+
+  const orgs = useMemo(() => {
+    const set = new Set<string>();
+    repos.forEach((r) => {
+      const org = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
+      if (org) set.add(org);
+    });
+    return Array.from(set).sort();
+  }, [repos]);
+
+  const getRepoCountForAccount = (login: string) => {
+    return repos.filter((r) => {
+      const account = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
+      return account.toLowerCase() === login.toLowerCase();
+    }).length;
+  };
+
+  const filteredRepos = useMemo(() => {
+    return repos.filter((r) => {
+      const account = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
+      const matchesOrg = selectedOrg === 'all' || account.toLowerCase() === selectedOrg.toLowerCase();
+      const matchesSearch =
+        !searchQ ||
+        r.name.toLowerCase().includes(searchQ.toLowerCase()) ||
+        r.fullName.toLowerCase().includes(searchQ.toLowerCase());
+      return matchesOrg && matchesSearch;
+    });
+  }, [repos, selectedOrg, searchQ]);
 
   /* Handle manifest return ?code= */
   useEffect(() => {
@@ -152,6 +213,7 @@ export function GitPanel() {
         toast.loading('Syncing repositories...', { id: 'isync' });
         await syncGitHubInstallation(installId ? parseInt(installId, 10) : undefined);
         await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['github-app'] }),
           queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
           queryClient.invalidateQueries({ queryKey: ['git-providers'] }),
         ]);
@@ -185,7 +247,10 @@ export function GitPanel() {
     setIsSyncing(true);
     try {
       await syncGitRepos();
-      await queryClient.invalidateQueries({ queryKey: ['synced-repos'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['github-app'] }),
+        queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
+      ]);
       toast.success('Repositories synced');
     } catch {
       toast.error('Failed to sync');
@@ -212,12 +277,6 @@ export function GitPanel() {
     }
   };
 
-  const filteredRepos = repos.filter(
-    (r) =>
-      r.name.toLowerCase().includes(searchQ.toLowerCase()) ||
-      r.fullName.toLowerCase().includes(searchQ.toLowerCase())
-  );
-
   /* ── Render ─────────────────────────────────────────────────────────────── */
   return (
     <div className="space-y-6">
@@ -239,47 +298,191 @@ export function GitPanel() {
         <div className="mt-4">
           {isGitHubConnected ? (
             <div className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="flex items-center gap-4 px-5 py-4">
-                <Avatar className="size-10 border border-border shrink-0">
-                  <AvatarImage src={githubApp?.owner?.avatarUrl || primaryProvider?.avatarUrl} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">GH</AvatarFallback>
-                </Avatar>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-sm text-foreground">
-                      {githubApp?.owner?.login || primaryProvider?.username || 'GitHub'}
-                    </span>
-                    {githubApp?.slug && (
-                      <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border">
-                        {githubApp.slug}
-                      </span>
-                    )}
-                    <Badge variant="outline" className="bg-status-success/10 text-status-success border-status-success/30 text-[10px] font-mono gap-1 py-0.5 px-2">
-                      <span className="size-1.5 rounded-full bg-status-success animate-pulse" />
-                      GitHub App
-                    </Badge>
+              {/* App Overview Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-5 py-4 border-b border-border/60 bg-muted/20">
+                <div className="flex items-center gap-3.5">
+                  <div className="size-10 rounded-xl bg-foreground/5 border border-border flex items-center justify-center shrink-0">
+                    <GitHubIcon className="size-5 text-foreground" />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-3">
-                    <span className="flex items-center gap-1">
-                      <CheckCircle2 className="size-3 text-status-success" />
-                      Webhook active
-                    </span>
-                    {githubApp?.appId && <span>App ID: <strong className="font-mono text-foreground">{githubApp.appId}</strong></span>}
-                  </p>
+
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-sm text-foreground">
+                        {githubApp?.name || 'GitHub App'}
+                      </span>
+                      {githubApp?.slug && (
+                        <span className="text-[10px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded border border-border">
+                          {githubApp.slug}
+                        </span>
+                      )}
+                      <Badge variant="outline" className="bg-status-success/10 text-status-success border-status-success/30 text-[10px] font-mono gap-1 py-0.5 px-2">
+                        <span className="size-1.5 rounded-full bg-status-success animate-pulse" />
+                        Active
+                      </Badge>
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/25 text-[10px] font-mono gap-1 py-0.5 px-2">
+                        <Globe className="size-2.5" />
+                        Multi-Org
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="size-3 text-status-success" />
+                        Webhook active
+                      </span>
+                      {githubApp?.appId && (
+                        <span>
+                          App ID: <strong className="font-mono text-foreground">{githubApp.appId}</strong>
+                        </span>
+                      )}
+                      <span>•</span>
+                      <span>
+                        {displayInstallations.length} connected {displayInstallations.length === 1 ? 'account' : 'accounts/orgs'}
+                      </span>
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Button variant="outline" size="sm"
-                    onClick={() => window.open(githubApp?.installUrl || `https://github.com/apps/${githubApp?.slug}/installations/new`, '_blank')}
-                    className="h-8 text-xs gap-1.5">
-                    Manage Repos <ExternalLink className="size-3" />
+                <div className="flex items-center gap-2 shrink-0">
+                  {githubApp?.slug && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const settingsUrl = githubApp?.owner?.type === 'Organization'
+                          ? `https://github.com/organizations/${githubApp.owner.login}/settings/apps/${githubApp.slug}/advanced`
+                          : `https://github.com/settings/apps/${githubApp.slug}/advanced`;
+                        window.open(settingsUrl, '_blank');
+                      }}
+                      className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                      title="Open GitHub App Advanced Settings"
+                    >
+                      <Settings className="size-3" />
+                      App Settings
+                    </Button>
+                  )}
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      const installUrl = githubApp?.slug
+                        ? `https://github.com/apps/${githubApp.slug}/installations/new`
+                        : (githubApp?.installUrl || 'https://github.com/apps');
+                      window.open(installUrl, '_blank');
+                    }}
+                    className="h-8 text-xs gap-1.5 font-medium shadow-sm"
+                  >
+                    <Building2 className="size-3.5" />
+                    + Install to another Org
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setDisconnectOpen(true)}
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDisconnectOpen(true)}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    title="Disconnect GitHub App"
+                  >
                     <Trash2 className="size-3.5" />
                   </Button>
                 </div>
+              </div>
+
+              {/* Connected Organizations & Accounts List */}
+              <div className="divide-y divide-border/60">
+                {displayInstallations.map((inst) => {
+                  const isOrg = inst.account?.type === 'Organization';
+                  const repoCount = getRepoCountForAccount(inst.account?.login || '');
+                  const manageUrl = isOrg
+                    ? `https://github.com/organizations/${inst.account.login}/settings/installations/${inst.id}`
+                    : `https://github.com/settings/installations/${inst.id}`;
+
+                  return (
+                    <div
+                      key={inst.id || inst.account?.login}
+                      className="flex items-center justify-between gap-4 px-5 py-3 hover:bg-muted/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar className="size-8 border border-border shrink-0">
+                          <AvatarImage src={inst.account?.avatarUrl} />
+                          <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                            {inst.account?.login?.slice(0, 2).toUpperCase() || 'GH'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-xs text-foreground truncate">
+                              {inst.account?.login}
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] py-0 px-1.5 h-4 gap-1 font-normal text-muted-foreground"
+                            >
+                              {isOrg ? (
+                                <Building2 className="size-2.5 text-blue-500" />
+                              ) : (
+                                <User className="size-2.5 text-muted-foreground" />
+                              )}
+                              {isOrg ? 'Organization' : 'Personal'}
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">
+                            {repoCount} {repoCount === 1 ? 'repository' : 'repositories'} synced
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {inst.id ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(manageUrl, '_blank')}
+                            className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                          >
+                            Configure <ExternalLink className="size-3" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const installUrl = githubApp?.slug
+                                ? `https://github.com/apps/${githubApp.slug}/installations/new`
+                                : (githubApp?.installUrl || 'https://github.com/apps');
+                              window.open(installUrl, '_blank');
+                            }}
+                            className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                          >
+                            Manage <ExternalLink className="size-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Public Status Notice */}
+              <div className="px-5 py-2.5 bg-muted/15 border-t border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Globe className="size-3 text-primary shrink-0" />
+                  <span>
+                    Pastikan status GitHub App adalah <strong>Public</strong> agar bisa di-install ke organisasi lain (jika Private, GitHub akan mengalihkan ke instalasi pribadi).
+                  </span>
+                </span>
+                {githubApp?.slug && (
+                  <a
+                    href={
+                      githubApp?.owner?.type === 'Organization'
+                        ? `https://github.com/organizations/${githubApp.owner.login}/settings/apps/${githubApp.slug}/advanced`
+                        : `https://github.com/settings/apps/${githubApp.slug}/advanced`
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline font-medium inline-flex items-center gap-1 shrink-0"
+                  >
+                    Buka Pengaturan App di GitHub <ExternalLink className="size-2.5" />
+                  </a>
+                )}
               </div>
             </div>
           ) : (
@@ -326,23 +529,61 @@ export function GitPanel() {
           }
         />
 
+        {/* Organization / Account Filter Pills */}
+        {isGitHubConnected && orgs.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-1">
+            <span className="text-[11px] text-muted-foreground font-medium mr-1">Filter by account:</span>
+            <Button
+              variant={selectedOrg === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedOrg('all')}
+              className="h-7 text-xs px-2.5 rounded-full"
+            >
+              All ({repos.length})
+            </Button>
+            {orgs.map((org) => {
+              const count = repos.filter(
+                (r) => (r.account || (r.fullName ? r.fullName.split('/')[0] : '')).toLowerCase() === org.toLowerCase()
+              ).length;
+              return (
+                <Button
+                  key={org}
+                  variant={selectedOrg.toLowerCase() === org.toLowerCase() ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedOrg(org)}
+                  className="h-7 text-xs px-2.5 rounded-full gap-1.5"
+                >
+                  <Building2 className="size-3 opacity-70" />
+                  {org} ({count})
+                </Button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="mt-4">
           {filteredRepos.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2.5 p-10 rounded-xl border border-dashed border-border text-center">
               <FolderGit2 className="size-8 text-muted-foreground/50" />
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  {searchQ ? `No results for "${searchQ}"` : 'No repositories'}
+                  {searchQ || selectedOrg !== 'all' ? 'No matching repositories found' : 'No repositories synced'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isGitHubConnected ? 'Install the GitHub App on repositories to grant access.' : 'Connect a provider above first.'}
+                  {isGitHubConnected
+                    ? 'Install the GitHub App on your personal account or organizations to grant access.'
+                    : 'Connect a provider above first.'}
                 </p>
               </div>
               {isGitHubConnected && !searchQ && (
-                <Button variant="outline" size="sm"
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => window.open(githubApp?.installUrl || `https://github.com/apps/${githubApp?.slug}/installations/new`, '_blank')}
-                  className="h-8 text-xs gap-1.5 mt-1">
-                  Grant Repository Access <ExternalLink className="size-3" />
+                  className="h-8 text-xs gap-1.5 mt-1"
+                >
+                  <Building2 className="size-3" />
+                  Install to an Organization / Account <ExternalLink className="size-3" />
                 </Button>
               )}
             </div>
@@ -352,44 +593,57 @@ export function GitPanel() {
                 <TableHeader className="bg-muted/40 border-b border-border">
                   <TableRow className="h-10 hover:bg-transparent">
                     <TableHead>Repository</TableHead>
-                    <TableHead className="w-36">Branch</TableHead>
+                    <TableHead className="w-40">Account / Org</TableHead>
+                    <TableHead className="w-28">Branch</TableHead>
                     <TableHead className="w-28">Visibility</TableHead>
                     <TableHead className="w-20 text-right">Link</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRepos.map((repo) => (
-                    <TableRow key={repo.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell>
-                        <div className="flex items-center gap-2 py-1">
-                          <GitHubIcon className="size-3.5 text-muted-foreground shrink-0" />
-                          <span className="font-mono text-sm font-medium text-foreground">{repo.fullName}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted/60 border border-border text-foreground">
-                          {repo.defaultBranch}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {repo.private ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
-                            <Lock className="size-3" /> Private
+                  {filteredRepos.map((repo) => {
+                    const repoOwner = repo.account || (repo.fullName ? repo.fullName.split('/')[0] : '');
+                    return (
+                      <TableRow key={repo.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-2 py-1">
+                            <GitHubIcon className="size-3.5 text-muted-foreground shrink-0" />
+                            <span className="font-mono text-sm font-medium text-foreground">{repo.name}</span>
+                            <span className="font-mono text-[11px] text-muted-foreground hidden sm:inline">
+                              ({repo.fullName})
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[11px] font-mono gap-1 text-muted-foreground bg-muted/30">
+                            <Building2 className="size-2.5" />
+                            {repoOwner}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted/60 border border-border text-foreground">
+                            {repo.defaultBranch}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            <Globe className="size-3" /> Public
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <a href={repo.htmlUrl} target="_blank" rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                          View <ExternalLink className="size-3" />
-                        </a>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>
+                          {repo.private ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                              <Lock className="size-3" /> Private
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                              <Globe className="size-3" /> Public
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <a href={repo.htmlUrl} target="_blank" rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                            View <ExternalLink className="size-3" />
+                          </a>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -430,10 +684,14 @@ export function GitPanel() {
               <form onSubmit={handleLaunchManifest} className="space-y-4">
                 <div className="flex items-start gap-3 px-3.5 py-3 rounded-xl border border-primary/25 bg-primary/5">
                   <Sparkles className="size-4 text-primary shrink-0 mt-0.5" />
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    GitHub App Manifest automatically configures the webhook, permissions, and secrets.
-                    Confirm once on GitHub — credentials come back to Takō automatically.
-                  </p>
+                  <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+                    <p>
+                      GitHub App Manifest automatically configures webhooks, permissions, and secrets with <strong>Multi-Org (Public)</strong> support.
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/80">
+                      Once created, you can install this app to your personal account and any GitHub organizations you manage.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -461,10 +719,11 @@ export function GitPanel() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="gh-org" className="text-xs font-medium">
-                    Organization <span className="font-normal text-muted-foreground">(Optional)</span>
+                    App Owner Organization <span className="font-normal text-muted-foreground">(Optional)</span>
                   </Label>
                   <Input id="gh-org" value={targetOrg} onChange={(e) => setTargetOrg(e.target.value)}
                     placeholder="e.g. acme-corp (leave blank for personal)" className="h-9 text-xs font-mono" />
+                  <p className="text-[10px] text-muted-foreground">Account/org where this GitHub App is registered. You can install it into any other orgs later.</p>
                 </div>
 
                 <div className="border-t border-border pt-3">
@@ -491,7 +750,7 @@ export function GitPanel() {
                         <ul className="space-y-0.5 text-muted-foreground list-disc list-inside">
                           <li>push</li>
                           <li>pull_request</li>
-                          <li>installation</li>
+                          <li className="text-[11px] text-muted-foreground/80">installation (automatic)</li>
                         </ul>
                       </div>
                     </div>

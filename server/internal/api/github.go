@@ -55,35 +55,44 @@ type GitHubAppOwner struct {
 	HTMLURL   string `json:"htmlUrl,omitempty"`
 }
 
+type GitHubInstallation struct {
+	ID                  int64          `json:"id"`
+	Account             GitHubAppOwner `json:"account"`
+	RepositorySelection string         `json:"repositorySelection,omitempty"`
+	InstalledAt         string         `json:"installedAt,omitempty"`
+}
+
 type GitHubAppConfig struct {
-	AppID          int64          `json:"appId"`
-	Slug           string         `json:"slug"`
-	Name           string         `json:"name"`
-	ClientID       string         `json:"clientId"`
-	ClientSecret   string         `json:"clientSecret,omitempty"`
-	WebhookSecret  string         `json:"webhookSecret,omitempty"`
-	PrivateKey     string         `json:"privateKey,omitempty"`
-	Owner          GitHubAppOwner `json:"owner"`
-	HTMLURL        string         `json:"htmlUrl"`
-	InstallURL     string         `json:"installUrl"`
-	InstallationID *int64         `json:"installationId,omitempty"`
-	Connected      bool           `json:"connected"`
-	CreatedAt      string         `json:"createdAt"`
-	UpdatedAt      string         `json:"updatedAt"`
+	AppID          int64                `json:"appId"`
+	Slug           string               `json:"slug"`
+	Name           string               `json:"name"`
+	ClientID       string               `json:"clientId"`
+	ClientSecret   string               `json:"clientSecret,omitempty"`
+	WebhookSecret  string               `json:"webhookSecret,omitempty"`
+	PrivateKey     string               `json:"privateKey,omitempty"`
+	Owner          GitHubAppOwner       `json:"owner"`
+	HTMLURL        string               `json:"htmlUrl"`
+	InstallURL     string               `json:"installUrl"`
+	InstallationID *int64               `json:"installationId,omitempty"`
+	Installations  []GitHubInstallation `json:"installations,omitempty"`
+	Connected      bool                 `json:"connected"`
+	CreatedAt      string               `json:"createdAt"`
+	UpdatedAt      string               `json:"updatedAt"`
 }
 
 type GitHubAppPublicResponse struct {
-	AppID          int64          `json:"appId"`
-	Slug           string         `json:"slug"`
-	Name           string         `json:"name"`
-	ClientID       string         `json:"clientId"`
-	Owner          GitHubAppOwner `json:"owner"`
-	HTMLURL        string         `json:"htmlUrl"`
-	InstallURL     string         `json:"installUrl"`
-	InstallationID *int64         `json:"installationId,omitempty"`
-	Connected      bool           `json:"connected"`
-	CreatedAt      string         `json:"createdAt"`
-	UpdatedAt      string         `json:"updatedAt"`
+	AppID          int64                `json:"appId"`
+	Slug           string               `json:"slug"`
+	Name           string               `json:"name"`
+	ClientID       string               `json:"clientId"`
+	Owner          GitHubAppOwner       `json:"owner"`
+	HTMLURL        string               `json:"htmlUrl"`
+	InstallURL     string               `json:"installUrl"`
+	InstallationID *int64               `json:"installationId,omitempty"`
+	Installations  []GitHubInstallation `json:"installations,omitempty"`
+	Connected      bool                 `json:"connected"`
+	CreatedAt      string               `json:"createdAt"`
+	UpdatedAt      string               `json:"updatedAt"`
 }
 
 type SyncInstallationRequest struct {
@@ -157,7 +166,7 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				CallbackURLs: []string{
 					baseURL + "/api/auth/callback/github",
 				},
-				Public: false,
+				Public: true,
 				DefaultPermissions: map[string]string{
 					"contents":      "read",
 					"metadata":      "read",
@@ -168,8 +177,6 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				DefaultEvents: []string{
 					"push",
 					"pull_request",
-					"installation",
-					"installation_repositories",
 				},
 			}
 
@@ -487,10 +494,27 @@ func syncGitHubInstallationRepos(ctx context.Context, orch *orchestrator.Orchest
 				"updatedAt":     now,
 			},
 		}
+		instID := int64(12345)
+		if config.InstallationID != nil && *config.InstallationID > 0 {
+			instID = *config.InstallationID
+		}
+		config.Installations = []GitHubInstallation{
+			{
+				ID:                  instID,
+				Account:             config.Owner,
+				RepositorySelection: "all",
+				InstalledAt:         now,
+			},
+		}
 		b, _ := json.Marshal(repos)
 		_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
 			Key:   "synced_repos",
 			Value: string(b),
+		})
+		cfgJSON, _ := json.Marshal(config)
+		_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
+			Key:   "github_app_config",
+			Value: string(cfgJSON),
 		})
 		return repos, nil
 	}
@@ -503,137 +527,182 @@ func syncGitHubInstallationRepos(ctx context.Context, orch *orchestrator.Orchest
 
 	client := &http.Client{Timeout: 15 * time.Second}
 
-	// Discover installation if not known yet
-	installationID := int64(0)
-	if config.InstallationID != nil && *config.InstallationID > 0 {
-		installationID = *config.InstallationID
-	} else {
-		instReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/app/installations", nil)
-		if err == nil {
-			instReq.Header.Set("Authorization", "Bearer "+jwt)
-			instReq.Header.Set("Accept", "application/vnd.github+json")
-			instReq.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-			instResp, err := client.Do(instReq)
-			if err == nil && instResp.StatusCode == http.StatusOK {
-				defer instResp.Body.Close()
-				var installations []struct {
-					ID int64 `json:"id"`
-				}
-				if json.NewDecoder(instResp.Body).Decode(&installations) == nil && len(installations) > 0 {
-					installationID = installations[0].ID
-					config.InstallationID = &installationID
-					config.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-					cfgJSON, _ := json.Marshal(config)
-					_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
-						Key:   "github_app_config",
-						Value: string(cfgJSON),
-					})
-				}
-			}
-		}
+	// Fetch all installations for this GitHub App across all accounts & organizations
+	instReq, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/app/installations?per_page=100", nil)
+	if err != nil {
+		return []map[string]any{}, err
+	}
+	instReq.Header.Set("Authorization", "Bearer "+jwt)
+	instReq.Header.Set("Accept", "application/vnd.github+json")
+	instReq.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	instResp, err := client.Do(instReq)
+	if err != nil {
+		return []map[string]any{}, fmt.Errorf("failed to fetch app installations: %w", err)
+	}
+	defer instResp.Body.Close()
+
+	var ghInstallations []struct {
+		ID      int64 `json:"id"`
+		Account struct {
+			Login     string `json:"login"`
+			AvatarURL string `json:"avatar_url"`
+			Type      string `json:"type"`
+			HTMLURL   string `json:"html_url"`
+		} `json:"account"`
+		RepositorySelection string `json:"repository_selection"`
+		CreatedAt           string `json:"created_at"`
 	}
 
-	if installationID == 0 {
+	if instResp.StatusCode == http.StatusOK {
+		_ = json.NewDecoder(instResp.Body).Decode(&ghInstallations)
+	}
+
+	// If no installations found at all
+	if len(ghInstallations) == 0 {
 		emptyRepos := []map[string]any{}
 		b, _ := json.Marshal(emptyRepos)
 		_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
 			Key:   "synced_repos",
 			Value: string(b),
 		})
+		config.InstallationID = nil
+		config.Installations = []GitHubInstallation{}
+		config.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+		cfgJSON, _ := json.Marshal(config)
+		_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
+			Key:   "github_app_config",
+			Value: string(cfgJSON),
+		})
 		return emptyRepos, nil
 	}
 
-	// 1. Obtain installation access token
-	tokenURL := fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", installationID)
-	tokReq, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, bytes.NewBuffer(nil))
-	if err != nil {
-		return []map[string]any{}, err
-	}
-	tokReq.Header.Set("Authorization", "Bearer "+jwt)
-	tokReq.Header.Set("Accept", "application/vnd.github+json")
-	tokReq.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	var allSynced []map[string]any
+	var installationsList []GitHubInstallation
+	seenRepos := make(map[string]bool)
 
-	tokResp, err := client.Do(tokReq)
-	if err != nil {
-		return []map[string]any{}, fmt.Errorf("failed to get installation access token: %w", err)
-	}
-	defer tokResp.Body.Close()
-
-	if tokResp.StatusCode != http.StatusCreated && tokResp.StatusCode != http.StatusOK {
-		tokBody, _ := io.ReadAll(tokResp.Body)
-		return []map[string]any{}, fmt.Errorf("GitHub returned %d getting token: %s", tokResp.StatusCode, string(tokBody))
-	}
-
-	var tokenData struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(tokResp.Body).Decode(&tokenData); err != nil || tokenData.Token == "" {
-		return []map[string]any{}, fmt.Errorf("failed to decode installation token")
-	}
-
-	// 2. Fetch list of repositories accessible to this installation
-	reposURL := "https://api.github.com/installation/repositories?per_page=100"
-	repReq, err := http.NewRequestWithContext(ctx, http.MethodGet, reposURL, nil)
-	if err != nil {
-		return []map[string]any{}, err
-	}
-	repReq.Header.Set("Authorization", "Bearer "+tokenData.Token)
-	repReq.Header.Set("Accept", "application/vnd.github+json")
-	repReq.Header.Set("X-GitHub-Api-Version", "2022-11-28")
-
-	repResp, err := client.Do(repReq)
-	if err != nil {
-		return []map[string]any{}, fmt.Errorf("failed to fetch installation repositories: %w", err)
-	}
-	defer repResp.Body.Close()
-
-	if repResp.StatusCode != http.StatusOK {
-		repBody, _ := io.ReadAll(repResp.Body)
-		return []map[string]any{}, fmt.Errorf("GitHub returned %d getting repositories: %s", repResp.StatusCode, string(repBody))
-	}
-
-	var ghRepos struct {
-		TotalCount   int `json:"total_count"`
-		Repositories []struct {
-			ID            int64  `json:"id"`
-			Name          string `json:"name"`
-			FullName      string `json:"full_name"`
-			Private       bool   `json:"private"`
-			HTMLURL       string `json:"html_url"`
-			DefaultBranch string `json:"default_branch"`
-			UpdatedAt     string `json:"updated_at"`
-		} `json:"repositories"`
-	}
-
-	if err := json.NewDecoder(repResp.Body).Decode(&ghRepos); err != nil {
-		return []map[string]any{}, fmt.Errorf("failed to decode GitHub repositories: %w", err)
-	}
-
-	var synced []map[string]any
-	for _, r := range ghRepos.Repositories {
-		synced = append(synced, map[string]any{
-			"id":            fmt.Sprintf("repo-%d", r.ID),
-			"providerId":    "git-github-app",
-			"name":          r.Name,
-			"fullName":      r.FullName,
-			"defaultBranch": r.DefaultBranch,
-			"private":       r.Private,
-			"htmlUrl":       r.HTMLURL,
-			"updatedAt":     r.UpdatedAt,
+	for _, inst := range ghInstallations {
+		installationsList = append(installationsList, GitHubInstallation{
+			ID: inst.ID,
+			Account: GitHubAppOwner{
+				Login:     inst.Account.Login,
+				AvatarURL: inst.Account.AvatarURL,
+				Type:      inst.Account.Type,
+				HTMLURL:   inst.Account.HTMLURL,
+			},
+			RepositorySelection: inst.RepositorySelection,
+			InstalledAt:         inst.CreatedAt,
 		})
+
+		// 1. Obtain installation access token for this specific installation
+		tokReqURL := fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", inst.ID)
+		tokReq, err := http.NewRequestWithContext(ctx, http.MethodPost, tokReqURL, bytes.NewBuffer(nil))
+		if err != nil {
+			continue
+		}
+		tokReq.Header.Set("Authorization", "Bearer "+jwt)
+		tokReq.Header.Set("Accept", "application/vnd.github+json")
+		tokReq.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+		tokResp, err := client.Do(tokReq)
+		if err != nil || (tokResp.StatusCode != http.StatusCreated && tokResp.StatusCode != http.StatusOK) {
+			if tokResp != nil {
+				tokResp.Body.Close()
+			}
+			continue
+		}
+
+		var tokData struct {
+			Token string `json:"token"`
+		}
+		if err := json.NewDecoder(tokResp.Body).Decode(&tokData); err != nil || tokData.Token == "" {
+			tokResp.Body.Close()
+			continue
+		}
+		tokResp.Body.Close()
+
+		// 2. Fetch list of repositories accessible to this installation
+		repReqURL := "https://api.github.com/installation/repositories?per_page=100"
+		repReq, err := http.NewRequestWithContext(ctx, http.MethodGet, repReqURL, nil)
+		if err != nil {
+			continue
+		}
+		repReq.Header.Set("Authorization", "Bearer "+tokData.Token)
+		repReq.Header.Set("Accept", "application/vnd.github+json")
+		repReq.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+		repResp, err := client.Do(repReq)
+		if err != nil || repResp.StatusCode != http.StatusOK {
+			if repResp != nil {
+				repResp.Body.Close()
+			}
+			continue
+		}
+
+		var ghRepos struct {
+			TotalCount   int `json:"total_count"`
+			Repositories []struct {
+				ID            int64  `json:"id"`
+				Name          string `json:"name"`
+				FullName      string `json:"full_name"`
+				Private       bool   `json:"private"`
+				HTMLURL       string `json:"html_url"`
+				DefaultBranch string `json:"default_branch"`
+				UpdatedAt     string `json:"updated_at"`
+			} `json:"repositories"`
+		}
+
+		if err := json.NewDecoder(repResp.Body).Decode(&ghRepos); err == nil {
+			for _, r := range ghRepos.Repositories {
+				if !seenRepos[r.FullName] {
+					seenRepos[r.FullName] = true
+					allSynced = append(allSynced, map[string]any{
+						"id":             fmt.Sprintf("repo-%d", r.ID),
+						"providerId":     "git-github-app",
+						"installationId": inst.ID,
+						"account":        inst.Account.Login,
+						"accountType":    inst.Account.Type,
+						"name":           r.Name,
+						"fullName":       r.FullName,
+						"defaultBranch":  r.DefaultBranch,
+						"private":        r.Private,
+						"htmlUrl":        r.HTMLURL,
+						"updatedAt":      r.UpdatedAt,
+					})
+				}
+			}
+		}
+		repResp.Body.Close()
 	}
-	if synced == nil {
-		synced = []map[string]any{}
+
+	if allSynced == nil {
+		allSynced = []map[string]any{}
 	}
+
+	// Update config with all installations
+	config.Installations = installationsList
+	if len(installationsList) > 0 {
+		config.InstallationID = &installationsList[0].ID
+	}
+	config.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	// Save real repos to cluster_settings in database
-	b, _ := json.Marshal(synced)
+	b, _ := json.Marshal(allSynced)
 	_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
 		Key:   "synced_repos",
 		Value: string(b),
 	})
 
-	return synced, nil
+	cfgJSON, _ := json.Marshal(config)
+	_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
+		Key:   "github_app_config",
+		Value: string(cfgJSON),
+	})
+
+	// Also update provider list
+	updateGitProvidersWithApp(ctx, orch, config)
+
+	return allSynced, nil
 }
 
 func toPublicResponse(c *GitHubAppConfig) GitHubAppPublicResponse {
@@ -650,6 +719,7 @@ func toPublicResponse(c *GitHubAppConfig) GitHubAppPublicResponse {
 		HTMLURL:        c.HTMLURL,
 		InstallURL:     c.InstallURL,
 		InstallationID: c.InstallationID,
+		Installations:  c.Installations,
 		Connected:      c.Connected,
 		CreatedAt:      c.CreatedAt,
 		UpdatedAt:      c.UpdatedAt,

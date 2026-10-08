@@ -181,7 +181,10 @@ test('GitHub App Manifest - generates valid manifest specification', async () =>
   assert.equal(manifest.default_permissions.deployments, 'write');
   assert.ok(manifest.default_events.includes('push'));
   assert.ok(manifest.default_events.includes('pull_request'));
-  assert.ok(manifest.default_events.includes('installation'));
+  // GitHub Apps receive installation lifecycle events automatically;
+  // subscribing to them in default_events is rejected by GitHub.
+  assert.equal(manifest.default_events.includes('installation'), false);
+  assert.equal(manifest.default_events.includes('installation_repositories'), false);
   // GitHub strictly forbids the "slug" key in manifests
   assert.equal('slug' in manifest, false);
   assert.equal(manifest.slug, undefined);

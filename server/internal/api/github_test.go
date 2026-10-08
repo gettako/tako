@@ -47,6 +47,11 @@ func TestGitHubAppAPI(t *testing.T) {
 		if manifest.DefaultPermissions["contents"] != "read" {
 			t.Errorf("expected contents:read permission")
 		}
+		for _, ev := range manifest.DefaultEvents {
+			if ev == "installation" || ev == "installation_repositories" {
+				t.Errorf("default_events must not contain lifecycle event %s (rejected by GitHub)", ev)
+			}
+		}
 	})
 
 	// 2. GET /api/v1/github/app (Initially disconnected)

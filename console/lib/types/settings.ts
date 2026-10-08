@@ -62,6 +62,9 @@ export interface GitProvider {
 export interface SyncedRepo {
   id: string;
   providerId: string;
+  installationId?: number;
+  account?: string;
+  accountType?: string;
   name: string;
   fullName: string;
   defaultBranch: string;
@@ -146,8 +149,9 @@ export interface GitHubAppConfig {
     id: number;
     account: GitHubAppOwner;
     repositorySelection?: 'all' | 'selected';
-    installedAt: string;
+    installedAt?: string;
   }>;
+  connected?: boolean;
   createdAt: string;
   updatedAt: string;
 }

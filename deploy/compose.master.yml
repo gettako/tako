@@ -91,5 +91,4 @@ services:
 networks:
   tako-network:
     name: tako-network
-    driver: bridge
-    attachable: true
+    external: true

@@ -36,9 +36,14 @@ export function submitGitHubAppManifestForm(manifest: GitHubAppManifest, targetO
     : 'https://github.com/settings/apps/new';
   form.target = '_self';
 
-  // Strip any slug property just in case to adhere to GitHub App manifest spec
+  // Strip any slug property or lifecycle events not supported in default_events
   const cleanManifest = { ...manifest };
   delete (cleanManifest as Record<string, unknown>).slug;
+  if (Array.isArray(cleanManifest.default_events)) {
+    cleanManifest.default_events = cleanManifest.default_events.filter(
+      (e) => e !== 'installation' && e !== 'installation_repositories'
+    );
+  }
 
   const manifestInput = document.createElement('input');
   manifestInput.type = 'hidden';
