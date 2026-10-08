@@ -110,8 +110,36 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
 }
 
 export async function updateProject(id: string, input: UpdateProjectInput): Promise<Project> {
+  if (typeof window !== 'undefined') {
+    let res: Response | null = null;
+    try {
+      res = await fetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+    } catch {
+      // Network failure / offline
+    }
+
+    if (res) {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to update project');
+      }
+      const updated = await res.json();
+      if (updated && updated.id) {
+        const index = projects.findIndex((p) => p.id === id || p.slug === id);
+        if (index !== -1) {
+          projects[index] = { ...projects[index], ...updated };
+        }
+        return updated;
+      }
+    }
+  }
+
   await simulateDelay();
-  const index = projects.findIndex((p) => p.id === id);
+  const index = projects.findIndex((p) => p.id === id || p.slug === id);
   if (index === -1) throw new Error(`Project with ID ${id} not found`);
 
   projects[index] = {
@@ -121,6 +149,7 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
   };
   return { ...projects[index] };
 }
+
 
 export async function deleteProject(id: string): Promise<void> {
   if (typeof window !== 'undefined') {

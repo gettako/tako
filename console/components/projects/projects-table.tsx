@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Layers, Tag, Trash2, MoreHorizontal, Folder } from 'lucide-react';
+import { ChevronRight, Layers, Tag, Trash2, MoreHorizontal, Folder, Pencil } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -23,10 +23,12 @@ import { Project } from '@/lib/types';
 
 export interface ProjectsTableProps {
   projects: Project[];
+  onEditProject?: (project: Project) => void;
   onDeleteProject?: (project: Project) => void;
 }
 
-export function ProjectsTable({ projects, onDeleteProject }: ProjectsTableProps) {
+export function ProjectsTable({ projects, onEditProject, onDeleteProject }: ProjectsTableProps) {
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
@@ -150,6 +152,15 @@ export function ProjectsTable({ projects, onDeleteProject }: ProjectsTableProps)
                             <Folder className="size-4 text-muted-foreground" />
                             <span>View Project</span>
                           </DropdownMenuItem>
+                          {onEditProject && (
+                            <DropdownMenuItem
+                              onClick={() => onEditProject(project)}
+                              className="cursor-pointer gap-2"
+                            >
+                              <Pencil className="size-4 text-muted-foreground" />
+                              <span>Edit Project</span>
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             variant="destructive"

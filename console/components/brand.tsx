@@ -9,7 +9,7 @@ export function BrandMark({ className }: { className?: string }) {
       alt=""
       width={36}
       height={36}
-      className={className ??"size-9 rounded-md"}
+      className={className ??"size-9 rounded-md object-contain"}
     />
   )
 }

@@ -17,6 +17,33 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const res = await fetchServer(`/api/v1/projects/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    return NextResponse.json(res);
+  } catch (err: unknown) {
+    if (err instanceof APIError) {
+      let message = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.error) message = parsed.error;
+      } catch {
+        // raw string
+      }
+      return NextResponse.json({ error: message }, { status: err.status });
+    }
+    return NextResponse.json({ error: 'Failed to update project' }, { status: 502 });
+  }
+}
+
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

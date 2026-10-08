@@ -52,6 +52,7 @@ type Querier interface {
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
 	UpdateNodeHeartbeat(ctx context.Context, arg UpdateNodeHeartbeatParams) error
 	UpdateNodeStatus(ctx context.Context, arg UpdateNodeStatusParams) error
+	UpdateProject(ctx context.Context, arg UpdateProjectParams) (Project, error)
 	UpdateProjectStatus(ctx context.Context, arg UpdateProjectStatusParams) error
 	UpdateServiceStatus(ctx context.Context, arg UpdateServiceStatusParams) error
 	UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error)

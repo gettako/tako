@@ -20,5 +20,17 @@ UPDATE projects SET
     updated_at = CURRENT_TIMESTAMP
 WHERE id = ?;
 
+-- name: UpdateProject :one
+UPDATE projects SET
+    name = ?,
+    slug = ?,
+    description = ?,
+    environment = ?,
+    tags = ?,
+    updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING *;
+
 -- name: DeleteProject :exec
 DELETE FROM projects WHERE id = ?;
+

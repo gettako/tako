@@ -16,6 +16,7 @@ import { ServiceCard } from '@/components/projects/service-card';
 import { ServiceRow } from '@/components/projects/service-row';
 import { CreateServiceDialog } from '@/components/services/create-service-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
+import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { getProjectById } from '@/lib/api/projects';
 import { getServices } from '@/lib/api/services';
 
@@ -31,6 +32,7 @@ export default function ProjectDetailPage({
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [createServiceOpen, setCreateServiceOpen] = useState(false);
+  const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
 
   useEffect(() => {
@@ -104,6 +106,7 @@ export default function ProjectDetailPage({
           project={project}
           services={services}
           onNewService={() => setCreateServiceOpen(true)}
+          onEditProject={() => setEditProjectOpen(true)}
           onDeleteProject={() => setDeleteProjectOpen(true)}
         />
 
@@ -193,6 +196,19 @@ export default function ProjectDetailPage({
         }}
       />
 
+      <EditProjectDialog
+        open={editProjectOpen}
+        onOpenChange={setEditProjectOpen}
+        project={project}
+        onSuccess={(updatedProject) => {
+          if (updatedProject.id !== projectId && updatedProject.slug !== projectId) {
+            router.push(`/projects/${updatedProject.slug || updatedProject.id}`);
+          } else {
+            refetchProject();
+          }
+        }}
+      />
+
       <DeleteProjectDialog
         open={deleteProjectOpen}
         onOpenChange={setDeleteProjectOpen}
@@ -202,6 +218,7 @@ export default function ProjectDetailPage({
           router.push('/projects');
         }}
       />
+
     </>
   );
 }

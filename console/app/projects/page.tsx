@@ -16,12 +16,14 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
+import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { getProjects } from '@/lib/api/projects';
 import { Project } from '@/lib/types';
 
 export default function ProjectsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEnv, setSelectedEnv] = useState<EnvironmentFilter>('all');
@@ -182,6 +184,7 @@ export default function ProjectsPage() {
               <ProjectCard
                 key={project.id}
                 project={project}
+                onEditProject={(p) => setProjectToEdit(p)}
                 onDeleteProject={(p) => setProjectToDelete(p)}
               />
             ))}
@@ -189,6 +192,7 @@ export default function ProjectsPage() {
         ) : (
           <ProjectsTable
             projects={filteredProjects}
+            onEditProject={(p) => setProjectToEdit(p)}
             onDeleteProject={(p) => setProjectToDelete(p)}
           />
         )}
@@ -198,6 +202,15 @@ export default function ProjectsPage() {
           open={isCreateOpen}
           onOpenChange={setIsCreateOpen}
         />
+
+        {/* Edit Project Modal Form */}
+        {projectToEdit && (
+          <EditProjectDialog
+            open={!!projectToEdit}
+            onOpenChange={(open) => !open && setProjectToEdit(null)}
+            project={projectToEdit}
+          />
+        )}
 
         {/* Delete Project Confirmation Dialog */}
         {projectToDelete && (

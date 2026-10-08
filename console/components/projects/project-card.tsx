@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Layers, ChevronRight, Trash2 } from 'lucide-react';
+import { Layers, ChevronRight, Trash2, Pencil } from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -16,8 +16,10 @@ import { Project } from '@/lib/types';
 
 export interface ProjectCardProps {
   project: Project;
+  onEditProject?: (project: Project) => void;
   onDeleteProject?: (project: Project) => void;
 }
+
 
 function formatRelativeTime(dateStr?: string) {
   if (!dateStr) return '';
@@ -38,7 +40,7 @@ function formatRelativeTime(dateStr?: string) {
   }
 }
 
-export function ProjectCard({ project, onDeleteProject }: ProjectCardProps) {
+export function ProjectCard({ project, onEditProject, onDeleteProject }: ProjectCardProps) {
   const isStopped = project.status === 'stopped';
   const issueCount = Math.max(0, project.servicesCount - project.healthyServicesCount);
 
@@ -62,8 +64,23 @@ export function ProjectCard({ project, onDeleteProject }: ProjectCardProps) {
               </div>
             </div>
 
-            <CardAction className="flex items-center gap-1.5">
+            <CardAction className="flex items-center gap-1">
               <StatusBadge status={project.status} size="sm" />
+              {onEditProject && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEditProject(project);
+                  }}
+                  className="size-6 inline-flex items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors"
+                  title="Edit Project"
+                  aria-label={`Edit ${project.name}`}
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+              )}
               {onDeleteProject && (
                 <button
                   type="button"

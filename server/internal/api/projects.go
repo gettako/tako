@@ -21,6 +21,14 @@ type CreateProjectRequest struct {
 	Tags        []string `json:"tags"`
 }
 
+type UpdateProjectRequest struct {
+	Name        *string   `json:"name"`
+	Slug        *string   `json:"slug"`
+	Description *string   `json:"description"`
+	Environment *string   `json:"environment"`
+	Tags        *[]string `json:"tags"`
+}
+
 type ProjectResponse struct {
 	ID          string   `json:"id"`
 	Name        string   `json:"name"`
@@ -142,6 +150,86 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p))
 		})
+
+		updateHandler := func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			p, err := orch.Queries().GetProjectByID(r.Context(), id)
+			if err != nil && errors.Is(err, sql.ErrNoRows) {
+				p, err = orch.Queries().GetProjectBySlug(r.Context(), id)
+			}
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					http.Error(w, `{"error":"project not found"}`, http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			var req UpdateProjectRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+				return
+			}
+
+			name := p.Name
+			if req.Name != nil && *req.Name != "" {
+				name = *req.Name
+			}
+
+			slug := p.Slug
+			if req.Slug != nil && *req.Slug != "" {
+				slug = *req.Slug
+			}
+
+			desc := p.Description
+			if req.Description != nil {
+				desc = *req.Description
+			}
+
+			env := p.Environment
+			if req.Environment != nil && *req.Environment != "" {
+				env = *req.Environment
+			}
+
+			tagsStr := p.Tags
+			if req.Tags != nil {
+				tagsJSON, _ := json.Marshal(*req.Tags)
+				tagsStr = string(tagsJSON)
+			}
+
+			updated, err := orch.Queries().UpdateProject(r.Context(), db.UpdateProjectParams{
+				ID:          p.ID,
+				Name:        name,
+				Slug:        slug,
+				Description: desc,
+				Environment: env,
+				Tags:        tagsStr,
+			})
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				return
+			}
+
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "update_project",
+				TargetType: "project",
+				TargetID:   updated.ID,
+				TargetName: updated.Name,
+				Metadata: map[string]interface{}{
+					"environment": updated.Environment,
+					"slug":        updated.Slug,
+				},
+			})
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(mapProjectToResponse(updated))
+		}
+
+		r.Patch("/{id}", updateHandler)
+		r.Put("/{id}", updateHandler)
 
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")

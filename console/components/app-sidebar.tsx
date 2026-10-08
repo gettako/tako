@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import {
   LayoutDashboard,
   FolderKanban,
@@ -8,7 +9,6 @@ import {
   Activity,
   ScrollText,
   Settings,
-  Octagon,
   BookOpen,
   ExternalLink,
 } from "lucide-react"
@@ -85,8 +85,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               render={<Link href="/" />}
               className="group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0! hover:bg-sidebar-accent/50 transition-colors"
             >
-              <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <Octagon className="size-4" />
+              <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg overflow-hidden">
+                <Image
+                  src="/images/tako.png"
+                  alt="Tako"
+                  width={32}
+                  height={32}
+                  className="size-8 object-contain"
+                  priority
+                />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-semibold tracking-tight text-sidebar-foreground">

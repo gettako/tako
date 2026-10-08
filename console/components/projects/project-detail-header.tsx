@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Plus, Server, Layers, Activity, Trash2 } from 'lucide-react';
+import { Plus, Server, Layers, Activity, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { StatCard } from '@/components/ui/stat-card';
@@ -11,6 +11,7 @@ export interface ProjectDetailHeaderProps {
   project: Project;
   services: Service[];
   onNewService?: () => void;
+  onEditProject?: () => void;
   onDeleteProject?: () => void;
 }
 
@@ -18,6 +19,7 @@ export function ProjectDetailHeader({
   project,
   services,
   onNewService,
+  onEditProject,
   onDeleteProject,
 }: ProjectDetailHeaderProps) {
   const healthyCount = services.filter((s) => s.status === 'healthy').length;
@@ -49,6 +51,25 @@ export function ProjectDetailHeader({
         </div>
 
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          <Button
+            onClick={onNewService}
+            size="sm"
+            className="gap-1.5 text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
+          >
+            <Plus className="size-4" />
+            <span>Add Service</span>
+          </Button>
+          {onEditProject && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onEditProject}
+              className="gap-1.5 text-sm h-9 border-border/80 text-foreground hover:bg-muted/80 transition-colors active:not-aria-[haspopup]:translate-y-px"
+            >
+              <Pencil className="size-3.5" />
+              <span>Edit Project</span>
+            </Button>
+          )}
           {onDeleteProject && (
             <Button
               variant="outline"
@@ -60,14 +81,6 @@ export function ProjectDetailHeader({
               <span>Delete Project</span>
             </Button>
           )}
-          <Button
-            onClick={onNewService}
-            size="sm"
-            className="gap-1.5 text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
-          >
-            <Plus className="size-4" />
-            <span>Add Service</span>
-          </Button>
         </div>
       </div>
 

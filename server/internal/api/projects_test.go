@@ -156,3 +156,72 @@ func TestDeleteProjectWithServices(t *testing.T) {
 	}
 }
 
+func TestUpdateProject(t *testing.T) {
+	router, _ := setupTestRouter(t)
+
+	// 1. Create a project
+	createPayload := api.CreateProjectRequest{
+		Name:        "Old Name",
+		Slug:        "old-name",
+		Description: "Initial description",
+		Environment: "development",
+		Tags:        []string{"initial"},
+	}
+	body, _ := json.Marshal(createPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var created api.ProjectResponse
+	_ = json.NewDecoder(rec.Body).Decode(&created)
+
+	// 2. Update/Rename project using PATCH
+	newName := "Renamed Project"
+	newSlug := "renamed-project"
+	newDesc := "Updated description"
+	newEnv := "production"
+	newTags := []string{"renamed", "prod"}
+	updatePayload := api.UpdateProjectRequest{
+		Name:        &newName,
+		Slug:        &newSlug,
+		Description: &newDesc,
+		Environment: &newEnv,
+		Tags:        &newTags,
+	}
+	body, _ = json.Marshal(updatePayload)
+	req = httptest.NewRequest(http.MethodPatch, "/api/v1/projects/"+created.ID, bytes.NewReader(body))
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on PATCH, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var updated api.ProjectResponse
+	if err := json.NewDecoder(rec.Body).Decode(&updated); err != nil {
+		t.Fatalf("failed to decode updated project: %v", err)
+	}
+
+	if updated.Name != "Renamed Project" || updated.Slug != "renamed-project" || updated.Description != "Updated description" || updated.Environment != "production" {
+		t.Fatalf("unexpected updated project: %+v", updated)
+	}
+
+	// 3. Verify Get returns updated data
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+created.ID, nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on GET, got %d", rec.Code)
+	}
+	var fetched api.ProjectResponse
+	_ = json.NewDecoder(rec.Body).Decode(&fetched)
+	if fetched.Name != "Renamed Project" {
+		t.Fatalf("expected project name 'Renamed Project', got %q", fetched.Name)
+	}
+}
+

@@ -24,6 +24,7 @@ export interface CreateProjectInput {
 
 export interface UpdateProjectInput {
   name?: string;
+  slug?: string;
   description?: string;
   environment?: 'production' | 'staging' | 'development';
   tags?: string[];
