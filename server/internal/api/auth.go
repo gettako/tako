@@ -85,6 +85,10 @@ func registerAuthRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/sessions", handleGetSessions(orch))
 		r.Delete("/sessions/{id}", handleDeleteSession(orch))
 		r.Post("/sessions/revoke-others", handleRevokeOtherSessions(orch))
+		r.Get("/users", handleListUsers(orch))
+		r.Post("/users", handleCreateUser(orch))
+		r.Put("/users/{id}/role", handleUpdateUserRole(orch))
+		r.Delete("/users/{id}", handleDeleteUser(orch))
 	})
 }
 
@@ -575,3 +579,178 @@ func handleRevokeOtherSessions(orch *orchestrator.Orchestrator) http.HandlerFunc
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}
 }
+
+type CreateUserPayload struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password,omitempty"`
+	Role     string `json:"role"`
+}
+
+type UpdateRolePayload struct {
+	Role string `json:"role"`
+}
+
+func handleListUsers(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		users, err := orch.Queries().ListUsers(r.Context())
+		if err != nil {
+			http.Error(w, `{"error":"Failed to list users"}`, http.StatusInternalServerError)
+			return
+		}
+		type UserResp struct {
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			Email     string `json:"email"`
+			Role      string `json:"role"`
+			AvatarURL string `json:"avatarUrl,omitempty"`
+			CreatedAt string `json:"createdAt"`
+		}
+		resp := make([]UserResp, 0, len(users))
+		for _, u := range users {
+			var avatar string
+			if u.AvatarUrl.Valid {
+				avatar = u.AvatarUrl.String
+			}
+			resp = append(resp, UserResp{
+				ID:        u.ID,
+				Name:      u.Name,
+				Email:     u.Email,
+				Role:      u.Role,
+				AvatarURL: avatar,
+				CreatedAt: u.CreatedAt.Format(time.RFC3339),
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}
+}
+
+func handleCreateUser(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req CreateUserPayload
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+		if req.Email == "" || req.Name == "" {
+			http.Error(w, `{"error":"Name and email are required"}`, http.StatusBadRequest)
+			return
+		}
+		if req.Role == "" {
+			req.Role = "member"
+		}
+		pwd := req.Password
+		if pwd == "" {
+			pwd = "password123"
+		}
+		hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, `{"error":"Failed to hash password"}`, http.StatusInternalServerError)
+			return
+		}
+
+		id := fmt.Sprintf("usr-%d", time.Now().UnixMilli())
+		user, err := orch.Queries().CreateUser(r.Context(), db.CreateUserParams{
+			ID:           id,
+			Name:         req.Name,
+			Email:        req.Email,
+			PasswordHash: string(hash),
+			Role:         req.Role,
+			AvatarUrl:    sql.NullString{String: "", Valid: false},
+		})
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Failed to create user: %s"}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "create_user",
+			TargetType: "user",
+			TargetID:   user.ID,
+			TargetName: user.Name,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":        user.ID,
+			"name":      user.Name,
+			"email":     user.Email,
+			"role":      user.Role,
+			"createdAt": user.CreatedAt.Format(time.RFC3339),
+		})
+	}
+}
+
+func handleUpdateUserRole(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := chi.URLParam(r, "id")
+		var req UpdateRolePayload
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
+			return
+		}
+		if req.Role == "" {
+			http.Error(w, `{"error":"Role is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		query := `UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? RETURNING id, name, email, role, avatar_url, created_at, updated_at`
+		row := orch.DB().QueryRowContext(r.Context(), query, req.Role, userID)
+		var id, name, email, role string
+		var avatar sql.NullString
+		var createdAt, updatedAt time.Time
+		if err := row.Scan(&id, &name, &email, &role, &avatar, &createdAt, &updatedAt); err != nil {
+			if err == sql.ErrNoRows {
+				http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+			} else {
+				http.Error(w, fmt.Sprintf(`{"error":"Failed to update role: %s"}`, err.Error()), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "update_user_role",
+			TargetType: "user",
+			TargetID:   id,
+			TargetName: name,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":        id,
+			"name":      name,
+			"email":     email,
+			"role":      role,
+			"createdAt": createdAt.Format(time.RFC3339),
+		})
+	}
+}
+
+func handleDeleteUser(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := chi.URLParam(r, "id")
+		res, err := orch.DB().ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, userID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Failed to delete user: %s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+		rows, _ := res.RowsAffected()
+		if rows == 0 {
+			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+			return
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "delete_user",
+			TargetType: "user",
+			TargetID:   userID,
+			TargetName: userID,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}
+}
+

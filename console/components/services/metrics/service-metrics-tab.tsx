@@ -28,7 +28,14 @@ import {
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartCard,
+  ChartCardHeader,
+  ChartCardContent,
+} from '@/components/ui/chart';
 import { ResourceBar } from '@/components/ui/resource-bar';
 import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -488,394 +495,370 @@ export function ServiceMetricsTab({
       {/* 5. Main Telemetry Charts (2x2 Grid: CPU, RAM, Network Bandwidth, Disk I/O) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart 1: CPU Utilization (%) */}
-        <Card className="rounded-xl border border-border bg-card">
-          <CardHeader>
-            <SectionHeader
-              icon={Cpu}
-              title="CPU Compute Utilization"
-              description="Processor workload percentage over the selected time window"
-              action={
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="size-2 rounded-full bg-[var(--chart-cpu)]" />
-                    Current: <span className="font-semibold text-foreground">{summaryStats.currentCpu}%</span>
-                  </span>
-                </div>
-              }
-            />
-          </CardHeader>
+        <ChartCard>
+          <ChartCardHeader
+            icon={Cpu}
+            title="CPU Compute Utilization"
+            description="Processor workload percentage over the selected time window"
+            action={
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="size-2 rounded-full bg-[var(--chart-cpu)]" />
+                  Current: <span className="font-semibold text-foreground">{summaryStats.currentCpu}%</span>
+                </span>
+              </div>
+            }
+          />
 
-          <CardContent className="pt-2">
-            {!mounted || isLoading ? (
-              <div className="h-56 w-full animate-pulse rounded-md bg-muted/40" />
-            ) : (
-              <ChartContainer config={chartConfigs.cpu} className="h-56 w-full">
-                <AreaChart
-                  data={processedMetrics}
-                  margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="fill-service-cpu" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-cpu)" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="var(--chart-cpu)" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
+          <ChartCardContent isLoading={!mounted || isLoading} skeletonHeight="h-56">
+            <ChartContainer config={chartConfigs.cpu} className="h-56 w-full">
+              <AreaChart
+                data={processedMetrics}
+                margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="fill-service-cpu" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--chart-cpu)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="var(--chart-cpu)" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
 
-                  <CartesianGrid
-                    vertical={false}
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    strokeOpacity={0.35}
-                  />
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="3 3"
+                  stroke="var(--border)"
+                  strokeOpacity={0.35}
+                />
 
-                  <XAxis
-                    dataKey="time"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <XAxis
+                  dataKey="time"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={4}
-                    domain={[0, 100]}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={4}
+                  domain={[0, 100]}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <ReferenceLine
-                    y={85}
-                    stroke="var(--status-warning)"
-                    strokeDasharray="4 4"
-                    strokeOpacity={0.6}
-                  />
+                <ReferenceLine
+                  y={85}
+                  stroke="var(--status-warning)"
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.6}
+                />
 
-                  <ChartTooltip
-                    cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                    content={
-                      <ChartTooltipContent
-                        className="font-mono text-xs"
-                        formatter={(val) => [`${val}%`, 'CPU Utilization']}
-                      />
-                    }
-                  />
+                <ChartTooltip
+                  cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                  content={
+                    <ChartTooltipContent
+                      className="font-mono text-xs"
+                      formatter={(val) => [`${val}%`, 'CPU Utilization']}
+                    />
+                  }
+                />
 
-                  <Area
-                    type="monotone"
-                    dataKey="displayCpu"
-                    stroke="var(--chart-cpu)"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    fill="url(#fill-service-cpu)"
-                  />
-                </AreaChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+                <Area
+                  type="monotone"
+                  dataKey="displayCpu"
+                  stroke="var(--chart-cpu)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  fill="url(#fill-service-cpu)"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </ChartCardContent>
+        </ChartCard>
 
         {/* Chart 2: Memory (RAM) Usage (MB) */}
-        <Card className="rounded-xl border border-border bg-card">
-          <CardHeader>
-            <SectionHeader
-              icon={HardDrive}
-              title="Memory (RAM) Usage"
-              description="Physical memory footprint compared to the allocated quota limit"
-              action={
-                <div className="flex items-center gap-2 text-xs font-mono">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <span className="size-2 rounded-full bg-[var(--chart-ram)]" />
-                    Current: <span className="font-semibold text-foreground">{summaryStats.currentMem} MB</span>
-                  </span>
-                </div>
-              }
-            />
-          </CardHeader>
+        <ChartCard>
+          <ChartCardHeader
+            icon={HardDrive}
+            title="Memory (RAM) Usage"
+            description="Physical memory footprint compared to the allocated quota limit"
+            action={
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="size-2 rounded-full bg-[var(--chart-ram)]" />
+                  Current: <span className="font-semibold text-foreground">{summaryStats.currentMem} MB</span>
+                </span>
+              </div>
+            }
+          />
 
-          <CardContent className="pt-2">
-            {!mounted || isLoading ? (
-              <div className="h-56 w-full animate-pulse rounded-md bg-muted/40" />
-            ) : (
-              <ChartContainer config={chartConfigs.memory} className="h-56 w-full">
-                <AreaChart
-                  data={processedMetrics}
-                  margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="fill-service-mem" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-ram)" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="var(--chart-ram)" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
+          <ChartCardContent isLoading={!mounted || isLoading} skeletonHeight="h-56">
+            <ChartContainer config={chartConfigs.memory} className="h-56 w-full">
+              <AreaChart
+                data={processedMetrics}
+                margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="fill-service-mem" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--chart-ram)" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="var(--chart-ram)" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
 
-                  <CartesianGrid
-                    vertical={false}
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    strokeOpacity={0.35}
-                  />
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="3 3"
+                  stroke="var(--border)"
+                  strokeOpacity={0.35}
+                />
 
-                  <XAxis
-                    dataKey="time"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <XAxis
+                  dataKey="time"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={4}
-                    domain={[0, memoryLimitMb]}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={4}
+                  domain={[0, memoryLimitMb]}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <ReferenceLine
-                    y={memoryLimitMb}
-                    stroke="var(--status-danger)"
-                    strokeDasharray="4 4"
-                    strokeOpacity={0.5}
-                    label={{
-                      value: `Limit: ${memoryLimitMb}MB`,
-                      position: 'insideTopRight',
-                      fill: 'var(--muted-foreground)',
-                      fontSize: 10,
-                      fontFamily: 'monospace',
-                    }}
-                  />
+                <ReferenceLine
+                  y={memoryLimitMb}
+                  stroke="var(--status-danger)"
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.5}
+                  label={{
+                    value: `Limit: ${memoryLimitMb}MB`,
+                    position: 'insideTopRight',
+                    fill: 'var(--muted-foreground)',
+                    fontSize: 10,
+                    fontFamily: 'monospace',
+                  }}
+                />
 
-                  <ChartTooltip
-                    cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                    content={
-                      <ChartTooltipContent
-                        className="font-mono text-xs"
-                        formatter={(val, name, item) => [
-                          `${val} MB (${item.payload.displayMemoryPercent}%)`,
-                          'Memory Usage',
-                        ]}
-                      />
-                    }
-                  />
+                <ChartTooltip
+                  cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                  content={
+                    <ChartTooltipContent
+                      className="font-mono text-xs"
+                      formatter={(val, name, item) => [
+                        `${val} MB (${item.payload.displayMemoryPercent}%)`,
+                        'Memory Usage',
+                      ]}
+                    />
+                  }
+                />
 
-                  <Area
-                    type="monotone"
-                    dataKey="displayMemory"
-                    stroke="var(--chart-ram)"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    fill="url(#fill-service-mem)"
-                  />
-                </AreaChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+                <Area
+                  type="monotone"
+                  dataKey="displayMemory"
+                  stroke="var(--chart-ram)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  fill="url(#fill-service-mem)"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </ChartCardContent>
+        </ChartCard>
 
         {/* Chart 3: Network Throughput (Inbound & Outbound) */}
-        <Card className="rounded-xl border border-border bg-card">
-          <CardHeader>
-            <SectionHeader
-              icon={Network}
-              title="Network Bandwidth Throughput"
-              description="Ingress (Rx) incoming traffic and egress (Tx) outbound traffic"
-              action={
-                <div className="flex items-center gap-3 text-xs font-mono">
-                  <span className="flex items-center gap-1 text-[var(--chart-network)]">
-                    <ArrowDownLeft className="size-3" />
-                    {summaryStats.currentRx} KB/s
-                  </span>
-                  <span className="flex items-center gap-1 text-[var(--chart-cpu)]">
-                    <ArrowUpRight className="size-3" />
-                    {summaryStats.currentTx} KB/s
-                  </span>
-                </div>
-              }
-            />
-          </CardHeader>
+        <ChartCard>
+          <ChartCardHeader
+            icon={Network}
+            title="Network Bandwidth Throughput"
+            description="Ingress (Rx) incoming traffic and egress (Tx) outbound traffic"
+            action={
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <span className="flex items-center gap-1 text-[var(--chart-network)]">
+                  <ArrowDownLeft className="size-3" />
+                  {summaryStats.currentRx} KB/s
+                </span>
+                <span className="flex items-center gap-1 text-[var(--chart-cpu)]">
+                  <ArrowUpRight className="size-3" />
+                  {summaryStats.currentTx} KB/s
+                </span>
+              </div>
+            }
+          />
 
-          <CardContent className="pt-2">
-            {!mounted || isLoading ? (
-              <div className="h-56 w-full animate-pulse rounded-md bg-muted/40" />
-            ) : (
-              <ChartContainer config={chartConfigs.network} className="h-56 w-full">
-                <AreaChart
-                  data={processedMetrics}
-                  margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="fill-service-rx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-network)" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="var(--chart-network)" stopOpacity={0.0} />
-                    </linearGradient>
-                    <linearGradient id="fill-service-tx" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-cpu)" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="var(--chart-cpu)" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
+          <ChartCardContent isLoading={!mounted || isLoading} skeletonHeight="h-56">
+            <ChartContainer config={chartConfigs.network} className="h-56 w-full">
+              <AreaChart
+                data={processedMetrics}
+                margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="fill-service-rx" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--chart-network)" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="var(--chart-network)" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="fill-service-tx" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--chart-cpu)" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="var(--chart-cpu)" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
 
-                  <CartesianGrid
-                    vertical={false}
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    strokeOpacity={0.35}
-                  />
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="3 3"
+                  stroke="var(--border)"
+                  strokeOpacity={0.35}
+                />
 
-                  <XAxis
-                    dataKey="time"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <XAxis
+                  dataKey="time"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={4}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={4}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <ChartTooltip
-                    cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                    content={
-                      <ChartTooltipContent
-                        className="font-mono text-xs"
-                        formatter={(val, name) => [
-                          `${val} KB/s`,
-                          name === 'displayRx' ? 'Ingress (Rx)' : 'Egress (Tx)',
-                        ]}
-                      />
-                    }
-                  />
+                <ChartTooltip
+                  cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                  content={
+                    <ChartTooltipContent
+                      className="font-mono text-xs"
+                      formatter={(val, name) => [
+                        `${val} KB/s`,
+                        name === 'displayRx' ? 'Ingress (Rx)' : 'Egress (Tx)',
+                      ]}
+                    />
+                  }
+                />
 
-                  <Area
-                    type="monotone"
-                    dataKey="displayRx"
-                    stroke="var(--chart-network)"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    fill="url(#fill-service-rx)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="displayTx"
-                    stroke="var(--chart-cpu)"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    fill="url(#fill-service-tx)"
-                  />
-                </AreaChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+                <Area
+                  type="monotone"
+                  dataKey="displayRx"
+                  stroke="var(--chart-network)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  fill="url(#fill-service-rx)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="displayTx"
+                  stroke="var(--chart-cpu)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  fill="url(#fill-service-tx)"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </ChartCardContent>
+        </ChartCard>
 
         {/* Chart 4: Storage & Disk I/O */}
-        <Card className="rounded-xl border border-border bg-card">
-          <CardHeader>
-            <SectionHeader
-              icon={HardDrive}
-              title="Storage I/O Intensity"
-              description="Persistent block storage read and write throughput operations"
-              action={
-                <div className="flex items-center gap-3 text-xs font-mono">
-                  <span className="flex items-center gap-1 text-[var(--chart-disk)]">
-                    Read: {summaryStats.currentDiskRead} IOPS
-                  </span>
-                  <span className="flex items-center gap-1 text-[var(--chart-ram)]">
-                    Write: {summaryStats.currentDiskWrite} IOPS
-                  </span>
-                </div>
-              }
-            />
-          </CardHeader>
+        <ChartCard>
+          <ChartCardHeader
+            icon={HardDrive}
+            title="Storage I/O Intensity"
+            description="Persistent block storage read and write throughput operations"
+            action={
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <span className="flex items-center gap-1 text-[var(--chart-disk)]">
+                  Read: {summaryStats.currentDiskRead} IOPS
+                </span>
+                <span className="flex items-center gap-1 text-[var(--chart-ram)]">
+                  Write: {summaryStats.currentDiskWrite} IOPS
+                </span>
+              </div>
+            }
+          />
 
-          <CardContent className="pt-2">
-            {!mounted || isLoading ? (
-              <div className="h-56 w-full animate-pulse rounded-md bg-muted/40" />
-            ) : (
-              <ChartContainer config={chartConfigs.disk} className="h-56 w-full">
-                <AreaChart
-                  data={processedMetrics}
-                  margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="fill-service-read" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-disk)" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="var(--chart-disk)" stopOpacity={0.0} />
-                    </linearGradient>
-                    <linearGradient id="fill-service-write" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--chart-ram)" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="var(--chart-ram)" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
+          <ChartCardContent isLoading={!mounted || isLoading} skeletonHeight="h-56">
+            <ChartContainer config={chartConfigs.disk} className="h-56 w-full">
+              <AreaChart
+                data={processedMetrics}
+                margin={{ top: 8, right: 12, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="fill-service-read" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--chart-disk)" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="var(--chart-disk)" stopOpacity={0.0} />
+                  </linearGradient>
+                  <linearGradient id="fill-service-write" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--chart-ram)" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="var(--chart-ram)" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
 
-                  <CartesianGrid
-                    vertical={false}
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    strokeOpacity={0.35}
-                  />
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="3 3"
+                  stroke="var(--border)"
+                  strokeOpacity={0.35}
+                />
 
-                  <XAxis
-                    dataKey="time"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <XAxis
+                  dataKey="time"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={4}
-                    tick={{ fontSize: 11, fill: 'currentColor' }}
-                    className="text-muted-foreground font-mono"
-                  />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={4}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-muted-foreground font-mono"
+                />
 
-                  <ChartTooltip
-                    cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                    content={
-                      <ChartTooltipContent
-                        className="font-mono text-xs"
-                        formatter={(val, name) => [
-                          `${val} IOPS`,
-                          name === 'displayDiskRead' ? 'Storage Read' : 'Storage Write',
-                        ]}
-                      />
-                    }
-                  />
+                <ChartTooltip
+                  cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                  content={
+                    <ChartTooltipContent
+                      className="font-mono text-xs"
+                      formatter={(val, name) => [
+                        `${val} IOPS`,
+                        name === 'displayDiskRead' ? 'Storage Read' : 'Storage Write',
+                      ]}
+                    />
+                  }
+                />
 
-                  <Area
-                    type="monotone"
-                    dataKey="displayDiskRead"
-                    stroke="var(--chart-disk)"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    fill="url(#fill-service-read)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="displayDiskWrite"
-                    stroke="var(--chart-ram)"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    fill="url(#fill-service-write)"
-                  />
-                </AreaChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+                <Area
+                  type="monotone"
+                  dataKey="displayDiskRead"
+                  stroke="var(--chart-disk)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  fill="url(#fill-service-read)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="displayDiskWrite"
+                  stroke="var(--chart-ram)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  fill="url(#fill-service-write)"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </ChartCardContent>
+        </ChartCard>
       </div>
 
       {/* 6. Multi-Instance / Container Replicas Telemetry Table */}

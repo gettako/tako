@@ -18,22 +18,52 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { MoreHorizontalIcon, FolderIcon, ArrowRightIcon, Trash2Icon } from "lucide-react"
+import { toast } from "sonner"
+import { deleteProject } from "@/lib/api/projects"
+import { MoreHorizontalIcon, FolderIcon, Share2Icon, Trash2Icon } from "lucide-react"
 
 export function NavProjects({
   projects,
+  onProjectsChanged,
 }: {
   projects: {
+    id?: string
     name: string
     url: string
     icon: React.ReactNode
   }[]
+  onProjectsChanged?: () => void
 }) {
   const { isMobile, setOpenMobile } = useSidebar()
 
   const handleNavigate = () => {
     if (isMobile) {
       setOpenMobile(false)
+    }
+  }
+
+  const handleCopyLink = async (item: { name: string; url: string }) => {
+    try {
+      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${item.url}` : item.url
+      await navigator.clipboard.writeText(fullUrl)
+      toast.success(`Project link for "${item.name}" copied`)
+    } catch {
+      toast.error('Failed to copy project link')
+    }
+  }
+
+  const handleDelete = async (item: { id?: string; name: string; url: string }) => {
+    const projId = item.id || item.url.split('/').pop() || ''
+    if (!projId) return
+    if (!confirm(`Are you sure you want to delete project "${item.name}"? This action cannot be undone.`)) {
+      return
+    }
+    try {
+      await deleteProject(projId)
+      toast.success(`Project "${item.name}" deleted`)
+      onProjectsChanged?.()
+    } catch {
+      toast.error(`Failed to delete project "${item.name}"`)
     }
   }
 
@@ -80,17 +110,17 @@ export function NavProjects({
                   <span>View Project</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => alert(`Share ${item.name}`)}
-                  className="cursor-pointer"
+                  onClick={() => handleCopyLink(item)}
+                  className="cursor-pointer gap-2"
                 >
-                  <ArrowRightIcon className="size-4 text-muted-foreground" />
-                  <span>Open in App</span>
+                  <Share2Icon className="size-4 text-muted-foreground" />
+                  <span>Copy Project URL</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
-                  className="cursor-pointer text-status-danger"
-                  onClick={() => alert(`Delete ${item.name}`)}
+                  className="cursor-pointer text-status-danger gap-2"
+                  onClick={() => handleDelete(item)}
                 >
                   <Trash2Icon className="size-4" />
                   <span>Delete Project</span>

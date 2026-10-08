@@ -7,8 +7,20 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle2, Server, Boxes, Shield, Terminal, ArrowUpRight, Cpu, Sliders } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { getNodes } from '@/lib/api/nodes';
+import { getProjects } from '@/lib/api/projects';
 
 export function OverviewPanel() {
+  const { data: nodes = [] } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: getNodes,
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: getProjects,
+  });
   return (
     <div className="space-y-6">
       {/* Cluster Status Summary Card */}
@@ -83,7 +95,7 @@ export function OverviewPanel() {
             render={<Link href="/nodes" />}
             className="w-full text-sm h-9 text-primary hover:text-primary justify-between active:not-aria-[haspopup]:translate-y-px"
           >
-            <span>View 4 Nodes</span>
+            <span>View {nodes.length > 0 ? `${nodes.length} Nodes` : 'Nodes'}</span>
             <ArrowUpRight className="size-3.5" />
           </Button>
         </Card>
@@ -102,7 +114,7 @@ export function OverviewPanel() {
             render={<Link href="/projects" />}
             className="w-full text-sm h-9 text-primary hover:text-primary justify-between active:not-aria-[haspopup]:translate-y-px"
           >
-            <span>View Projects</span>
+            <span>View {projects.length > 0 ? `${projects.length} Projects` : 'Projects'}</span>
             <ArrowUpRight className="size-3.5" />
           </Button>
         </Card>

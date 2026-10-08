@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getDomainSettings, updateDomainSettings } from '@/lib/api/settings';
+import { getNodes } from '@/lib/api/nodes';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,14 @@ export function DomainPanel() {
     queryKey: ['domain-settings'],
     queryFn: getDomainSettings,
   });
+
+  const { data: nodes = [] } = useQuery({
+    queryKey: ['nodes'],
+    queryFn: getNodes,
+  });
+
+  const leaderNode = nodes.find((n) => n.role === 'leader') || nodes[0];
+  const leaderIp = settings?.customDnsIp || leaderNode?.publicIp || leaderNode?.ipAddress || '127.0.0.1';
 
   const [domain, setDomain] = useState(settings?.domain ?? 'console.gettako.dev');
   const [sslAutoRenew, setSslAutoRenew] = useState(settings?.sslAutoRenew ?? true);
@@ -91,7 +100,7 @@ export function DomainPanel() {
               <span className="text-muted-foreground">{domain}</span>
               <ArrowRight className="size-3.5 text-muted-foreground" />
               <span className="font-semibold text-foreground">
-                {settings?.customDnsIp || '159.89.120.44'}
+                {leaderIp}
               </span>
             </div>
           </div>

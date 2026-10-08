@@ -10,6 +10,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import { toast } from "sonner"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -114,7 +115,7 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem
                 className="cursor-pointer gap-2"
-                onClick={() => alert("Tako Cloud Enterprise plan is currently active.")}
+                onClick={() => toast.info("Tako Cloud Enterprise plan is active on this cluster.")}
               >
                 <SparklesIcon className="size-4 text-amber-500" />
                 <span>Enterprise Tier</span>

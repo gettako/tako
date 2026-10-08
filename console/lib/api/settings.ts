@@ -79,11 +79,60 @@ export * from './profile';
 
 /* --- Users & Team RBAC --- */
 export async function getUsers(): Promise<User[]> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/auth/users');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          users = data.map((u: Partial<User>) => ({
+            id: u.id || `usr-${Math.random().toString(36).slice(2, 8)}`,
+            name: u.name || 'User',
+            email: u.email || 'user@gettako.dev',
+            role: (u.role as UserRole) || 'member',
+            avatarUrl: getUserAvatarUrl(u.email || '', u.avatarUrl),
+            twoFactorEnabled: !!u.twoFactorEnabled,
+            createdAt: u.createdAt || new Date().toISOString(),
+          }));
+          return [...users];
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
   await simulateDelay();
   return [...users];
 }
 
 export async function updateUserRole(userId: string, role: UserRole): Promise<User> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/auth/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        const idx = users.findIndex((u) => u.id === userId);
+        if (idx !== -1) {
+          users[idx] = { ...users[idx], role };
+        }
+        return {
+          id: updated.id || userId,
+          name: updated.name || '',
+          email: updated.email || '',
+          role: updated.role || role,
+          avatarUrl: getUserAvatarUrl(updated.email || '', updated.avatarUrl),
+          twoFactorEnabled: !!updated.twoFactorEnabled,
+          createdAt: updated.createdAt || new Date().toISOString(),
+        };
+      }
+    } catch {
+      // Fallback
+    }
+  }
   await simulateDelay();
   const idx = users.findIndex((u) => u.id === userId);
   if (idx === -1) throw new Error('User not found');
@@ -95,11 +144,22 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<Us
 }
 
 export async function deactivateUser(userId: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    try {
+      await fetch(`/api/auth/users/${userId}`, { method: 'DELETE' });
+    } catch {
+      // Fallback
+    }
+  }
   await simulateDelay();
   users = users.filter((u) => u.id !== userId);
 }
 
 export async function getUserInvites(): Promise<UserInvite[]> {
+  const remote = await fetchSettingFromBFF<UserInvite[]>('user_invites', invites);
+  if (Array.isArray(remote)) {
+    invites = remote;
+  }
   await simulateDelay();
   return [...invites];
 }
@@ -115,12 +175,28 @@ export async function createUserInvite(email: string, role: UserRole, expiryDays
     createdAt: new Date().toISOString(),
   };
   invites.unshift(newInvite);
+  await saveSettingToBFF('user_invites', invites);
+
+  // Also provision the user record in database if online
+  if (typeof window !== 'undefined') {
+    fetch('/api/auth/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: email.split('@')[0],
+        email,
+        role,
+      }),
+    }).catch(() => {});
+  }
+
   return { ...newInvite };
 }
 
 export async function revokeUserInvite(inviteId: string): Promise<void> {
   await simulateDelay();
   invites = invites.filter((i) => i.id !== inviteId);
+  await saveSettingToBFF('user_invites', invites);
 }
 
 /* --- S3 Buckets --- */
@@ -266,6 +342,10 @@ export function setNotificationsMockData(newNotifs: Notification[]): void {
 }
 
 export async function getNotifications(): Promise<Notification[]> {
+  const remote = await fetchSettingFromBFF<Notification[]>('cluster_notifications', notifications);
+  if (Array.isArray(remote) && remote.length > 0) {
+    notifications = remote;
+  }
   await simulateDelay(50, 150);
   return [...notifications];
 }
@@ -273,9 +353,11 @@ export async function getNotifications(): Promise<Notification[]> {
 export async function markNotificationAsRead(id: string): Promise<void> {
   await simulateDelay(50, 100);
   notifications = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
+  await saveSettingToBFF('cluster_notifications', notifications);
 }
 
 export async function markAllNotificationsAsRead(): Promise<void> {
   await simulateDelay(50, 100);
   notifications = notifications.map((n) => ({ ...n, read: true }));
+  await saveSettingToBFF('cluster_notifications', notifications);
 }

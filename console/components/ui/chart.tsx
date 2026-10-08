@@ -363,3 +363,6 @@ export {
   ChartLegendContent,
   ChartStyle,
 }
+
+export * from '@/components/ui/chart-card';
+

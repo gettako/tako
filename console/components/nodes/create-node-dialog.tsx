@@ -23,7 +23,7 @@ import {
   Network,
   Loader2,
 } from 'lucide-react';
-import { createNode, createNodeEnrollToken } from '@/lib/api/nodes';
+import { createNodeEnrollToken } from '@/lib/api/nodes';
 import { Node } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -62,22 +62,6 @@ export function CreateNodeDialog({
     toast.success('Agent install command copied to clipboard');
     setTimeout(() => setCopied(false), 2000);
   };
-
-  // Simulated node connection for demo testing in the web console
-  const simulateJoinMutation = useMutation({
-    mutationFn: () => createNode(),
-    onSuccess: (newNode) => {
-      queryClient.invalidateQueries({ queryKey: ['nodes'] });
-      toast.success(`Worker node "${newNode.name}" connected and online!`);
-      onOpenChange(false);
-      if (onSuccess) {
-        onSuccess(newNode);
-      }
-    },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Simulation failed');
-    },
-  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -219,45 +203,23 @@ export function CreateNodeDialog({
           </div>
         </div>
 
-        <DialogFooter className="pt-3 border-t border-border flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="order-2 sm:order-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => simulateJoinMutation.mutate()}
-              disabled={simulateJoinMutation.isPending}
-              className="text-xs h-8 text-muted-foreground hover:text-foreground cursor-pointer active:not-aria-[haspopup]:translate-y-px"
-            >
-              {simulateJoinMutation.isPending ? (
-                <>
-                  <Loader2 className="size-3 animate-spin mr-1.5" />
-                  <span>Connecting...</span>
-                </>
-              ) : (
-                <span>Simulate Node Connection</span>
-              )}
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 sm:gap-2.5 order-1 sm:order-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="text-xs sm:text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
-            >
-              Close
-            </Button>
-            <Button
-              type="button"
-              onClick={handleCopyCommand}
-              className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
-            >
-              {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              <span>{copied ? 'Command Copied' : 'Copy Script'}</span>
-            </Button>
-          </div>
+        <DialogFooter className="pt-3 border-t border-border flex items-center justify-end gap-2 sm:gap-2.5">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="text-xs sm:text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+          >
+            Close
+          </Button>
+          <Button
+            type="button"
+            onClick={handleCopyCommand}
+            className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
+          >
+            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+            <span>{copied ? 'Command Copied' : 'Copy Script'}</span>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
