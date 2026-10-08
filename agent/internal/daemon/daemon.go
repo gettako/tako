@@ -317,52 +317,48 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 	}
 }
 
+func errString(err error) string {
+	if err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
 func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_StreamTasksClient, task *takov1.MasterTask) {
 	taskID := task.GetTaskId()
 	d.mu.RLock()
 	nodeID := d.state.NodeID
 	d.mu.RUnlock()
 
+	sendDeployLog := func(chunk *takov1.DeployLogChunk) {
+		_ = stream.Send(&takov1.AgentTaskResult{
+			TaskId: taskID,
+			NodeId: nodeID,
+			Result: &takov1.AgentTaskResult_DeployLog{
+				DeployLog: chunk,
+			},
+		})
+	}
+
 	switch t := task.GetTask().(type) {
 	case *takov1.MasterTask_Deploy:
 		deployReq := t.Deploy
 		log.Printf("[tako-agent] executing deploy task %s for service %s", taskID, deployReq.GetServiceName())
-		err := d.executor.ExecuteDeployWithCallback(ctx, deployReq, func(chunk *takov1.DeployLogChunk) {
-			_ = stream.Send(&takov1.AgentTaskResult{
-				TaskId: taskID,
-				NodeId: nodeID,
-				Result: &takov1.AgentTaskResult_DeployLog{
-					DeployLog: chunk,
-				},
-			})
-		})
-		if err != nil {
-			_ = stream.Send(&takov1.AgentTaskResult{
-				TaskId: taskID,
-				NodeId: nodeID,
-				Result: &takov1.AgentTaskResult_DeployLog{
-					DeployLog: &takov1.DeployLogChunk{
-						DeploymentId: deployReq.GetDeploymentId(),
-						Step:         "Error",
-						Message:      fmt.Sprintf("Deployment failed: %v", err),
-						Timestamp:    time.Now().Unix(),
-						IsError:      true,
-					},
-				},
+		if err := d.executor.ExecuteDeployWithCallback(ctx, deployReq, sendDeployLog); err != nil {
+			sendDeployLog(&takov1.DeployLogChunk{
+				DeploymentId: deployReq.GetDeploymentId(),
+				Step:         "Error",
+				Message:      fmt.Sprintf("Deployment failed: %v", err),
+				Timestamp:    time.Now().Unix(),
+				IsError:      true,
 			})
 		}
 
 	case *takov1.MasterTask_Exec:
 		execReq := t.Exec
-		containerID := execReq.GetContainerId()
-		cmd := execReq.GetCommand()
 		out, exitCode, err := "", 1, fmt.Errorf("docker client not available")
 		if d.dockerCli != nil {
-			out, exitCode, err = d.dockerCli.Exec(ctx, containerID, cmd)
-		}
-		errStr := ""
-		if err != nil {
-			errStr = err.Error()
+			out, exitCode, err = d.dockerCli.Exec(ctx, execReq.GetContainerId(), execReq.GetCommand())
 		}
 		_ = stream.Send(&takov1.AgentTaskResult{
 			TaskId: taskID,
@@ -371,15 +367,14 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 				ExecResult: &takov1.ExecCommandResponse{
 					ExitCode: int32(exitCode),
 					Output:   out,
-					Error:    errStr,
+					Error:    errString(err),
 				},
 			},
 		})
 
 	case *takov1.MasterTask_ContainerAction:
 		actionReq := t.ContainerAction
-		containerID := actionReq.GetContainerId()
-		action := actionReq.GetAction()
+		containerID, action := actionReq.GetContainerId(), actionReq.GetAction()
 		var err error
 		if d.dockerCli != nil {
 			err = d.dockerCli.ContainerAction(ctx, containerID, action)
@@ -388,8 +383,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 				if dynamicDir == "" {
 					dynamicDir = "/etc/tako/traefik/dynamic"
 				}
-				serviceName := strings.TrimPrefix(containerID, "tako-app-")
-				_ = traefik.RemoveDynamicConfig(dynamicDir, serviceName)
+				_ = traefik.RemoveDynamicConfig(dynamicDir, strings.TrimPrefix(containerID, "tako-app-"))
 			}
 		} else {
 			err = fmt.Errorf("docker client not available")
@@ -411,15 +405,9 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 
 	case *takov1.MasterTask_ContainerLogs:
 		logsReq := t.ContainerLogs
-		containerID := logsReq.GetContainerId()
-		tail := int(logsReq.GetTailLines())
 		logs, err := "", fmt.Errorf("docker client not available")
 		if d.dockerCli != nil {
-			logs, err = d.dockerCli.Logs(ctx, containerID, tail)
-		}
-		errStr := ""
-		if err != nil {
-			errStr = err.Error()
+			logs, err = d.dockerCli.Logs(ctx, logsReq.GetContainerId(), int(logsReq.GetTailLines()))
 		}
 		_ = stream.Send(&takov1.AgentTaskResult{
 			TaskId: taskID,
@@ -427,7 +415,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 			Result: &takov1.AgentTaskResult_ContainerLogsResult{
 				ContainerLogsResult: &takov1.ContainerLogsResponse{
 					Logs:  logs,
-					Error: errStr,
+					Error: errString(err),
 				},
 			},
 		})

@@ -257,40 +257,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 		if err == nil {
 			startErr := e.dockerCli.RawClient().ContainerStart(ctx, resp.ID, container.StartOptions{})
 			if startErr != nil && strings.Contains(startErr.Error(), "port is already allocated") {
-				sendLog("Deploy", fmt.Sprintf("Host port %d conflict detected on start, attempting resolution...", targetPort), false)
-
-				// Find and stop any container of this service occupying this port
-				running, _ := e.dockerCli.ListContainers(ctx, false)
-				for _, rc := range running {
-					if rc.ID == resp.ID {
-						continue
-					}
-					isServiceMatch := rc.Labels["tako.service.id"] == req.GetServiceId()
-					for _, n := range rc.Names {
-						if strings.HasPrefix(n, "/tako-app-"+serviceName) {
-							isServiceMatch = true
-							break
-						}
-					}
-					for _, p := range rc.Ports {
-						if p.PublicPort == uint16(targetPort) && isServiceMatch {
-							confName := rc.ID[:12]
-							if len(rc.Names) > 0 {
-								confName = strings.TrimPrefix(rc.Names[0], "/")
-							}
-							sendLog("Deploy", fmt.Sprintf("Stopping conflicting container %s occupying host port %d...", confName, targetPort), false)
-							_ = e.dockerCli.RawClient().ContainerStop(ctx, rc.ID, container.StopOptions{})
-							break
-						}
-					}
-				}
-
-				startErr = e.dockerCli.RawClient().ContainerStart(ctx, resp.ID, container.StartOptions{})
-			}
-
-			// If still failing because host port is occupied (e.g. by an external process or another service):
-			if startErr != nil && strings.Contains(startErr.Error(), "port is already allocated") {
-				sendLog("Deploy", fmt.Sprintf("Notice: host port %d is occupied by another process. Falling back to Traefik domain routing.", targetPort), false)
+				sendLog("Deploy", fmt.Sprintf("Notice: host port %d is occupied. Falling back to Traefik domain routing.", targetPort), false)
 
 				_ = e.dockerCli.RawClient().ContainerRemove(ctx, resp.ID, container.RemoveOptions{Force: true})
 				respFallback, createFallbackErr := e.dockerCli.RawClient().ContainerCreate(
