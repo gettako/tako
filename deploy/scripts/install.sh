@@ -270,6 +270,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ./data/agent:/data
+      - /proc/sysrq-trigger:/host-sysrq-trigger
     environment:
       - TAKO_SERVER_ADDR=${MASTER_URL}
       - TAKO_ENROLL_TOKEN=${AGENT_TOKEN}
@@ -414,6 +415,7 @@ services:
       - /etc/os-release:/etc/os-release:ro
       - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ./data/agent:/data
+      - /proc/sysrq-trigger:/host-sysrq-trigger
     environment:
       - TAKO_SERVER_ADDR=tako-server:50051
       - TAKO_MASTER_URL=tako-server:50051

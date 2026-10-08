@@ -392,7 +392,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 
 			go func() {
 				time.Sleep(1 * time.Second)
-				executeHostReboot()
+				d.executeHostReboot()
 			}()
 			return
 		}
@@ -444,8 +444,36 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 	}
 }
 
-func executeHostReboot() {
+func (d *Daemon) executeHostReboot() {
 	log.Printf("[tako-agent] executing host reboot sequence...")
+
+	// 1. Docker client privileged reboot helper container
+	if d.dockerCli != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := d.dockerCli.RebootHost(ctx); err == nil {
+			log.Printf("[tako-agent] host reboot helper container launched successfully via Docker socket")
+			return
+		} else {
+			log.Printf("[tako-agent] docker reboot helper container error: %v", err)
+		}
+	}
+
+	// 2. Direct docker CLI fallback if installed
+	if _, err := exec.LookPath("docker"); err == nil {
+		log.Printf("[tako-agent] attempting host reboot via docker CLI fallback...")
+		rebootCmd := `sync; (echo 1 > /host-proc/sys/kernel/sysrq 2>/dev/null || true); (echo b > /host-proc/sysrq-trigger 2>/dev/null || true); (chroot /host systemctl reboot 2>/dev/null || true); (chroot /host shutdown -r now 2>/dev/null || true); (chroot /host reboot 2>/dev/null || true); nsenter -t 1 -m -u -i -n -p reboot`
+		_ = exec.Command("docker", "run", "--rm", "--privileged", "--pid=host", "-v", "/:/host", "-v", "/proc:/host-proc", "alpine:latest", "sh", "-c", rebootCmd).Run()
+	}
+
+	// 3. Host direct proc sysrq (if /host-sysrq-trigger or /proc/sysrq-trigger writable)
+	if err := os.WriteFile("/host-sysrq-trigger", []byte("b"), 0644); err == nil {
+		return
+	}
+	_ = os.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
+	_ = os.WriteFile("/proc/sysrq-trigger", []byte("b"), 0644)
+
+	// 4. Host direct commands (for non-containerized standalone agent)
 	if err := exec.Command("systemctl", "reboot").Run(); err == nil {
 		return
 	}
@@ -455,6 +483,4 @@ func executeHostReboot() {
 	if err := exec.Command("reboot").Run(); err == nil {
 		return
 	}
-	_ = os.WriteFile("/proc/sysrq-trigger", []byte("s"), 0644)
-	_ = os.WriteFile("/proc/sysrq-trigger", []byte("b"), 0644)
 }

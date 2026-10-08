@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -266,6 +268,68 @@ func (c *Client) ContainerAction(ctx context.Context, containerName string, acti
 // RawClient returns the underlying *client.Client for advanced operations.
 func (c *Client) RawClient() *client.Client {
 	return c.cli
+}
+
+// RebootHost requests a host system reboot via an ephemeral privileged container on the host Docker daemon.
+func (c *Client) RebootHost(ctx context.Context) error {
+	if c.cli == nil {
+		return fmt.Errorf("docker client not available")
+	}
+
+	imageToUse := "alpine:latest"
+	if hostname, err := os.Hostname(); err == nil && hostname != "" {
+		if cInspect, err := c.cli.ContainerInspect(ctx, hostname); err == nil && cInspect.Config != nil && cInspect.Config.Image != "" {
+			imageToUse = cInspect.Config.Image
+		}
+	}
+
+	rebootCmd := `sync; (echo 1 > /host-proc/sys/kernel/sysrq 2>/dev/null || true); (echo b > /host-proc/sysrq-trigger 2>/dev/null || true); (chroot /host systemctl reboot 2>/dev/null || true); (chroot /host shutdown -r now 2>/dev/null || true); (chroot /host reboot 2>/dev/null || true); nsenter -t 1 -m -u -i -n -p reboot`
+
+	candidates := []string{imageToUse, "ghcr.io/gettakodev/tako-agent:latest", "alpine:3.20", "alpine:latest", "alpine"}
+	var lastErr error
+	var createdID string
+
+	for _, img := range candidates {
+		containerName := fmt.Sprintf("tako-host-reboot-%d", time.Now().UnixNano())
+		resp, err := c.cli.ContainerCreate(
+			ctx,
+			&container.Config{
+				Image:      img,
+				Entrypoint: []string{"sh", "-c"},
+				Cmd:        []string{rebootCmd},
+			},
+			&container.HostConfig{
+				Privileged:  true,
+				PidMode:     "host",
+				NetworkMode: "host",
+				IpcMode:     "host",
+				Binds: []string{
+					"/:/host",
+					"/proc:/host-proc",
+				},
+				AutoRemove: true,
+			},
+			nil,
+			nil,
+			containerName,
+		)
+		if err == nil {
+			createdID = resp.ID
+			break
+		}
+		lastErr = err
+	}
+
+	if createdID == "" {
+		return fmt.Errorf("failed to create host reboot container: %w", lastErr)
+	}
+
+	if err := c.cli.ContainerStart(ctx, createdID, container.StartOptions{}); err != nil {
+		_ = c.cli.ContainerRemove(ctx, createdID, container.RemoveOptions{Force: true})
+		return fmt.Errorf("failed to start host reboot container: %w", err)
+	}
+
+	return nil
 }
 
 // Close closes the Docker client connection.

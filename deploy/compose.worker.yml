@@ -26,6 +26,7 @@ services:
       - /etc/os-release:/etc/os-release:ro
       - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ../data/agent:/data
+      - /proc/sysrq-trigger:/host-sysrq-trigger
     environment:
       - TAKO_SERVER_ADDR=${TAKO_MASTER_URL:-127.0.0.1:50051}
       - TAKO_MASTER_URL=${TAKO_MASTER_URL:-127.0.0.1:50051}
