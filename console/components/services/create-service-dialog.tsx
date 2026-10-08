@@ -15,18 +15,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
+import { SearchableSelect, SearchableSelectOption } from '@/components/ui/searchable-select';
 import {
   Layers,
   Boxes,
   GitBranch,
-  Lock,
   Globe,
   Plus,
   Loader2,
@@ -39,11 +32,15 @@ import {
   ArrowLeft,
   Activity,
   CheckCircle2,
+  Building2,
+  User,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createService } from '@/lib/api/services';
 import { getProjects } from '@/lib/api/projects';
 import { getNodes } from '@/lib/api/nodes';
 import { getGitProviders, getSyncedRepos } from '@/lib/api/settings';
+import { getGitHubAppConfig } from '@/lib/api/github';
 import { Service, ServiceType, CreateServiceInput, Node } from '@/lib/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -109,6 +106,12 @@ export function CreateServiceDialog({
     enabled: open,
   });
 
+  const { data: githubApp } = useQuery({
+    queryKey: ['github-app'],
+    queryFn: getGitHubAppConfig,
+    enabled: open,
+  });
+
   const { data: gitProviders = [] } = useQuery({
     queryKey: ['git-providers'],
     queryFn: getGitProviders,
@@ -157,11 +160,91 @@ export function CreateServiceDialog({
   const [repoError, setRepoError] = useState<string>('');
   const [nodeError, setNodeError] = useState<string>('');
 
+  // Derived unique accounts/organizations from githubApp, gitProviders, and synced repos
+  const availableAccounts = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; username: string; type: string; avatarUrl?: string; repoCount: number }
+    >();
+
+    // 1. Primary: Seed from all GitHub App installations (Multi-Org source of truth)
+    if (githubApp?.installations && githubApp.installations.length > 0) {
+      githubApp.installations.forEach((inst) => {
+        if (!inst.account?.login) return;
+        const key = inst.account.login.toLowerCase();
+        map.set(key, {
+          id: inst.account.login,
+          name: inst.account.login,
+          username: inst.account.login,
+          type: inst.account.type === 'Organization' ? 'Organization' : 'Personal',
+          avatarUrl: inst.account.avatarUrl,
+          repoCount: 0,
+        });
+      });
+    } else if (githubApp?.owner?.login) {
+      const key = githubApp.owner.login.toLowerCase();
+      map.set(key, {
+        id: githubApp.owner.login,
+        name: githubApp.owner.login,
+        username: githubApp.owner.login,
+        type: githubApp.owner.type === 'Organization' ? 'Organization' : 'Personal',
+        avatarUrl: githubApp.owner.avatarUrl,
+        repoCount: 0,
+      });
+    }
+
+    // 2. Secondary: Seed from gitProviders
+    gitProviders.forEach((p) => {
+      if (!p.username) return;
+      const key = p.username.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, {
+          id: p.username,
+          name: p.name || p.username,
+          username: p.username,
+          type: 'Personal',
+          avatarUrl: p.avatarUrl,
+          repoCount: 0,
+        });
+      }
+    });
+
+    // 3. Count & discover repos from synced repos
+    syncedRepos.forEach((r) => {
+      const acct = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
+      if (!acct) return;
+      const key = acct.toLowerCase();
+      const existing = map.get(key);
+      const isOrg = r.accountType === 'Organization';
+      if (existing) {
+        existing.repoCount += 1;
+        if (isOrg) existing.type = 'Organization';
+      } else {
+        map.set(key, {
+          id: acct,
+          name: acct,
+          username: acct,
+          type: isOrg ? 'Organization' : 'Personal',
+          repoCount: 1,
+        });
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.username.localeCompare(b.username));
+  }, [githubApp, gitProviders, syncedRepos]);
+
   // Initial defaults on open
   useEffect(() => {
     if (open) {
-      if (gitProviders.length > 0 && !selectedAccountId) {
-        setSelectedAccountId(gitProviders[0].id);
+      if (
+        availableAccounts.length > 0 &&
+        (!selectedAccountId || !availableAccounts.some((a) => a.id.toLowerCase() === selectedAccountId.toLowerCase()))
+      ) {
+        if (availableAccounts.length > 1) {
+          setSelectedAccountId('all');
+        } else {
+          setSelectedAccountId(availableAccounts[0].id);
+        }
       }
 
       if (nodes.length > 0 && !selectedNodeId) {
@@ -172,12 +255,72 @@ export function CreateServiceDialog({
         }
       }
     }
-  }, [open, gitProviders, nodes, selectedAccountId, selectedNodeId]);
+  }, [open, availableAccounts, nodes, selectedAccountId, selectedNodeId]);
 
-  // Filter repositories based on selected account
-  const accountRepos = syncedRepos.filter(
-    (repo) => !selectedAccountId || repo.providerId === selectedAccountId
-  );
+  // Filter and sort repositories based on selected account (latest activity first)
+  const accountRepos = useMemo(() => {
+    const list = syncedRepos.filter((repo) => {
+      if (!selectedAccountId || selectedAccountId === 'all') return true;
+      const repoAccount = repo.account || (repo.fullName ? repo.fullName.split('/')[0] : '');
+      return (
+        repoAccount.toLowerCase() === selectedAccountId.toLowerCase() ||
+        repo.providerId.toLowerCase() === selectedAccountId.toLowerCase() ||
+        repo.providerId.toLowerCase() === `git-gh-${selectedAccountId.toLowerCase()}`
+      );
+    });
+
+    // Sort by latest activity (updatedAt descending)
+    return list.sort((a, b) => {
+      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return a.fullName.localeCompare(b.fullName);
+    });
+  }, [syncedRepos, selectedAccountId]);
+
+  // Options for Account Select (search automatically enabled if > 5)
+  const accountOptions: SearchableSelectOption[] = useMemo(() => {
+    const opts: SearchableSelectOption[] = [];
+    if (availableAccounts.length > 1) {
+      opts.push({
+        value: 'all',
+        label: 'All Organizations & Accounts',
+        description: `${syncedRepos.length} repositories across all accounts`,
+        icon: Globe,
+      });
+    }
+    availableAccounts.forEach((acc) => {
+      opts.push({
+        value: acc.id,
+        label: acc.username,
+        description: `${acc.repoCount} ${acc.repoCount === 1 ? 'repository' : 'repositories'} synced`,
+        avatarUrl: acc.avatarUrl,
+        icon: acc.type === 'Organization' ? Building2 : User,
+        badge: (
+          <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal text-muted-foreground">
+            {acc.type}
+          </Badge>
+        ),
+      });
+    });
+    return opts;
+  }, [availableAccounts, syncedRepos.length]);
+
+  // Options for Repository Select (sorted by latest activity, search automatically enabled if > 5)
+  const repoOptions: SearchableSelectOption[] = useMemo(() => {
+    return accountRepos.map((repo) => ({
+      value: repo.id,
+      label: repo.fullName,
+      icon: GitHubIcon,
+    }));
+  }, [accountRepos]);
+
+  // Keep selectedRepoId synchronized: if the currently selected repo is not in accountRepos, reset it cleanly
+  useEffect(() => {
+    if (selectedRepoId && !accountRepos.some((r) => r.id === selectedRepoId)) {
+      setSelectedRepoId('');
+    }
+  }, [accountRepos, selectedRepoId]);
 
   const resetForm = () => {
     setStep(1);
@@ -209,12 +352,16 @@ export function CreateServiceDialog({
   }, [open]);
 
   // Handle repository selection from account
-  const handleRepoChange = (repoId: string) => {
+  const handleRepoChange = (repoId: string | null | undefined) => {
+    if (!repoId || repoId === 'null' || repoId === 'undefined') {
+      setSelectedRepoId('');
+      return;
+    }
     setSelectedRepoId(repoId);
     setRepoError('');
     const repo = syncedRepos.find((r) => r.id === repoId);
     if (repo) {
-      if (!name) {
+      if (!name || !isSlugTouched) {
         setName(repo.name);
       }
       if (!isSlugTouched) {
@@ -601,33 +748,68 @@ export function CreateServiceDialog({
                           GitHub Account / Organization
                         </Label>
                         <div>
-                          <Select
-                            value={selectedAccountId}
+                          <SearchableSelect
+                            options={accountOptions}
+                            value={selectedAccountId || undefined}
                             onValueChange={(val) => {
+                              if (!val || val === 'null' || val === 'undefined') return;
                               const accountId = String(val);
                               setSelectedAccountId(accountId);
                               setSelectedRepoId('');
+                              setRepoError('');
+                              if (!isSlugTouched) {
+                                setName('');
+                                setSlug('');
+                              }
                             }}
-                          >
-                            <SelectTrigger className="h-9 w-full bg-card border-border text-xs sm:text-sm">
-                              <SelectValue placeholder="Select account..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-popover border border-border">
-                              {gitProviders.map((provider) => (
-                                <SelectItem key={provider.id} value={provider.id} className="py-2">
-                                  <div className="flex items-center gap-2">
-                                    <GitHubIcon className="size-3.5 text-muted-foreground" />
-                                    <span className="font-semibold text-xs text-foreground">
-                                      {provider.username}
-                                    </span>
-                                    <span className="text-[11px] text-muted-foreground">
-                                      ({provider.name})
+                            placeholder="Select account or organization..."
+                            searchPlaceholder="Search account or organization..."
+                            className="w-full"
+                            renderTrigger={(opt) => {
+                              if (!opt) {
+                                return (
+                                  <span className="text-muted-foreground font-normal">
+                                    Select account or organization...
+                                  </span>
+                                );
+                              }
+                              if (opt.value === 'all') {
+                                return (
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <Globe className="size-3.5 text-primary shrink-0" />
+                                    <span className="font-semibold text-xs text-foreground truncate">
+                                      All Organizations &amp; Accounts
                                     </span>
                                   </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                                );
+                              }
+                              const acc = availableAccounts.find((a) => a.id === opt.value);
+                              return (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  {acc?.avatarUrl ? (
+                                    <Avatar className="size-4 shrink-0">
+                                      <AvatarImage src={acc.avatarUrl} />
+                                      <AvatarFallback className="text-[9px]">
+                                        {acc.username.slice(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  ) : acc?.type === 'Organization' ? (
+                                    <Building2 className="size-3.5 text-blue-500 shrink-0" />
+                                  ) : (
+                                    <User className="size-3.5 text-muted-foreground shrink-0" />
+                                  )}
+                                  <span className="font-semibold text-xs text-foreground truncate">
+                                    {acc?.username || opt.label}
+                                  </span>
+                                  {acc?.type && (
+                                    <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal text-muted-foreground shrink-0">
+                                      {acc.type}
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            }}
+                          />
                         </div>
                       </div>
 
@@ -637,38 +819,44 @@ export function CreateServiceDialog({
                           Repository <span className="text-status-danger">*</span>
                         </Label>
                         <div>
-                          <Select
-                            value={selectedRepoId}
-                            onValueChange={(val) => handleRepoChange(String(val))}
-                          >
-                            <SelectTrigger
-                              className={cn( 'h-9 w-full bg-card border-border text-xs sm:text-sm', repoError && 'border-status-danger ring-1 ring-status-danger/40' )}
-                            >
-                              <SelectValue placeholder="Select repository..." />
-                            </SelectTrigger>
-                            <SelectContent className="bg-popover border border-border max-h-56">
-                              {accountRepos.length === 0 ? (
-                                <div className="p-3 text-xs text-center text-muted-foreground">
-                                  No repositories found for this account.
+                          <SearchableSelect
+                            options={repoOptions}
+                            value={selectedRepoId || undefined}
+                            onValueChange={(val) => {
+                              if (!val || val === 'null' || val === 'undefined') {
+                                handleRepoChange('');
+                              } else {
+                                handleRepoChange(String(val));
+                              }
+                            }}
+                            placeholder="Select repository..."
+                            searchPlaceholder="Search repository..."
+                            emptyText={
+                              accountRepos.length === 0
+                                ? 'No repositories found for this account.'
+                                : 'No matching repositories found.'
+                            }
+                            error={repoError}
+                            className="w-full"
+                            renderTrigger={(opt) => {
+                              if (!opt) {
+                                return (
+                                  <span className="text-muted-foreground font-normal">
+                                    Select repository...
+                                  </span>
+                                );
+                              }
+                              const repo = syncedRepos.find((r) => r.id === opt.value);
+                              return (
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <GitHubIcon className="size-3.5 text-muted-foreground shrink-0" />
+                                  <span className="font-mono text-xs font-medium text-foreground truncate">
+                                    {repo ? repo.fullName : opt.label}
+                                  </span>
                                 </div>
-                              ) : (
-                                accountRepos.map((repo) => (
-                                  <SelectItem key={repo.id} value={repo.id} className="py-2">
-                                    <div className="flex items-center justify-between w-full gap-2">
-                                      <span className="font-mono text-xs font-medium text-foreground truncate">
-                                        {repo.fullName}
-                                      </span>
-                                      {repo.private ? (
-                                        <Lock className="size-3 text-muted-foreground shrink-0" />
-                                      ) : (
-                                        <Globe className="size-3 text-muted-foreground shrink-0" />
-                                      )}
-                                    </div>
-                                  </SelectItem>
-                                ))
-                              )}
-                            </SelectContent>
-                          </Select>
+                              );
+                            }}
+                          />
                         </div>
                         {repoError && (
                           <p className="text-xs font-medium text-status-danger mt-1">{repoError}</p>

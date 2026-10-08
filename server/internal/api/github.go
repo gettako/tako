@@ -241,6 +241,9 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
+			// Refresh git_providers to include all multi-org installations
+			updateGitProvidersWithApp(r.Context(), orch, &config)
+
 			pub := toPublicResponse(&config)
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(pub)
@@ -658,7 +661,7 @@ func syncGitHubInstallationRepos(ctx context.Context, orch *orchestrator.Orchest
 					seenRepos[r.FullName] = true
 					allSynced = append(allSynced, map[string]any{
 						"id":             fmt.Sprintf("repo-%d", r.ID),
-						"providerId":     "git-github-app",
+						"providerId":     fmt.Sprintf("git-gh-%s", strings.ToLower(inst.Account.Login)),
 						"installationId": inst.ID,
 						"account":        inst.Account.Login,
 						"accountType":    inst.Account.Type,
@@ -733,37 +736,51 @@ func updateGitProvidersWithApp(ctx context.Context, orch *orchestrator.Orchestra
 		_ = json.Unmarshal([]byte(setting.Value), &providers)
 	}
 
-	name := config.Name
-	if name == "" {
-		name = "Tako"
-	}
-
-	appProvider := map[string]any{
-		"id":          "git-github-app",
-		"type":        "github",
-		"name":        fmt.Sprintf("GitHub (%s)", config.Owner.Login),
-		"username":    config.Owner.Login,
-		"connected":   true,
-		"avatarUrl":   config.Owner.AvatarURL,
-		"connectedAt": config.CreatedAt,
-		"authMethod":  "github_app",
-		"appId":       config.AppID,
-		"appSlug":     config.Slug,
-	}
-
-	found := false
-	for i, p := range providers {
-		if p["id"] == "git-github-app" || p["type"] == "github" {
-			providers[i] = appProvider
-			found = true
-			break
+	// Filter out existing github-app providers so we can re-populate with fresh installations
+	var filtered []map[string]any
+	for _, p := range providers {
+		pID, _ := p["id"].(string)
+		authMethod, _ := p["authMethod"].(string)
+		if authMethod != "github_app" && !strings.HasPrefix(pID, "git-gh-") && pID != "git-github-app" {
+			filtered = append(filtered, p)
 		}
 	}
-	if !found {
-		providers = append([]map[string]any{appProvider}, providers...)
+
+	if len(config.Installations) > 0 {
+		for _, inst := range config.Installations {
+			instType := inst.Account.Type
+			if instType == "" {
+				instType = "Account"
+			}
+			filtered = append(filtered, map[string]any{
+				"id":          fmt.Sprintf("git-gh-%s", strings.ToLower(inst.Account.Login)),
+				"type":        "github",
+				"name":        fmt.Sprintf("GitHub (%s)", inst.Account.Login),
+				"username":    inst.Account.Login,
+				"connected":   true,
+				"avatarUrl":   inst.Account.AvatarURL,
+				"connectedAt": inst.InstalledAt,
+				"authMethod":  "github_app",
+				"appId":       config.AppID,
+				"appSlug":     config.Slug,
+			})
+		}
+	} else if config.Owner.Login != "" {
+		filtered = append(filtered, map[string]any{
+			"id":          fmt.Sprintf("git-gh-%s", strings.ToLower(config.Owner.Login)),
+			"type":        "github",
+			"name":        fmt.Sprintf("GitHub (%s)", config.Owner.Login),
+			"username":    config.Owner.Login,
+			"connected":   true,
+			"avatarUrl":   config.Owner.AvatarURL,
+			"connectedAt": config.CreatedAt,
+			"authMethod":  "github_app",
+			"appId":       config.AppID,
+			"appSlug":     config.Slug,
+		})
 	}
 
-	b, _ := json.Marshal(providers)
+	b, _ := json.Marshal(filtered)
 	_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
 		Key:   "git_providers",
 		Value: string(b),
@@ -779,7 +796,9 @@ func removeGitProvider(ctx context.Context, orch *orchestrator.Orchestrator, id 
 	_ = json.Unmarshal([]byte(setting.Value), &providers)
 	var filtered []map[string]any
 	for _, p := range providers {
-		if p["id"] != id {
+		pID, _ := p["id"].(string)
+		authMethod, _ := p["authMethod"].(string)
+		if pID != id && authMethod != "github_app" && !strings.HasPrefix(pID, "git-gh-") {
 			filtered = append(filtered, p)
 		}
 	}

@@ -162,15 +162,22 @@ export function GitPanel() {
   };
 
   const filteredRepos = useMemo(() => {
-    return repos.filter((r) => {
-      const account = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
-      const matchesOrg = selectedOrg === 'all' || account.toLowerCase() === selectedOrg.toLowerCase();
-      const matchesSearch =
-        !searchQ ||
-        r.name.toLowerCase().includes(searchQ.toLowerCase()) ||
-        r.fullName.toLowerCase().includes(searchQ.toLowerCase());
-      return matchesOrg && matchesSearch;
-    });
+    return repos
+      .filter((r) => {
+        const account = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
+        const matchesOrg = selectedOrg === 'all' || account.toLowerCase() === selectedOrg.toLowerCase();
+        const matchesSearch =
+          !searchQ ||
+          r.name.toLowerCase().includes(searchQ.toLowerCase()) ||
+          r.fullName.toLowerCase().includes(searchQ.toLowerCase());
+        return matchesOrg && matchesSearch;
+      })
+      .sort((a, b) => {
+        const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+        const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+        if (timeB !== timeA) return timeB - timeA;
+        return a.fullName.localeCompare(b.fullName);
+      });
   }, [repos, selectedOrg, searchQ]);
 
   /* Handle manifest return ?code= */

@@ -11,6 +11,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ChevronDownIcon, CheckIcon } from 'lucide-react';
 
 export interface SearchableSelectOption {
@@ -18,8 +19,11 @@ export interface SearchableSelectOption {
   label: string;
   description?: string;
   disabled?: boolean;
-  icon?: React.ComponentType<{ className?: string }>;
+  icon?: React.ComponentType<{ className?: string }> | React.ReactNode;
   group?: string;
+  rightElement?: React.ReactNode;
+  avatarUrl?: string;
+  badge?: React.ReactNode;
 }
 
 export interface SearchableSelectProps {
@@ -34,11 +38,15 @@ export interface SearchableSelectProps {
   searchable?: boolean;
   size?: 'default' | 'sm';
   className?: string;
+  triggerClassName?: string;
   contentClassName?: string;
   align?: 'start' | 'center' | 'end';
   id?: string;
   name?: string;
   ariaLabel?: string;
+  error?: boolean | string;
+  renderTrigger?: (selectedOption?: SearchableSelectOption) => React.ReactNode;
+  renderOption?: (option: SearchableSelectOption, isSelected: boolean) => React.ReactNode;
 }
 
 export function SearchableSelect({
@@ -53,13 +61,18 @@ export function SearchableSelect({
   searchable,
   size = 'default',
   className,
+  triggerClassName,
   contentClassName,
   align = 'start',
   id,
   name,
   ariaLabel,
+  error,
+  renderTrigger,
+  renderOption,
 }: SearchableSelectProps) {
-  const isSearchable = searchable !== undefined ? searchable : options.length >= 5;
+  // Automatically show search whenever items count is greater than 5, or if explicitly enabled
+  const isSearchable = searchable !== undefined ? searchable : options.length > 5;
   const [open, setOpen] = React.useState(false);
   const [uncontrolledValue, setUncontrolledValue] = React.useState(defaultValue);
 
@@ -97,7 +110,7 @@ export function SearchableSelect({
     return map;
   }, [options]);
 
-  const SelectedIcon = selectedOption?.icon;
+  const hasError = Boolean(error);
 
   return (
     <div className={cn('relative w-full', className)}>
@@ -112,20 +125,55 @@ export function SearchableSelect({
               aria-expanded={open}
               aria-label={ariaLabel || placeholder}
               disabled={disabled}
-              className={cn( 'group flex w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent text-left transition-colors outline-none', 'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50', 'disabled:cursor-not-allowed disabled:opacity-50', 'dark:bg-card dark:border-border dark:text-foreground dark:placeholder:text-[#939DB8]', size === 'default' && 'h-9 px-3 py-1.5 text-sm', size === 'sm' && 'h-8 px-2.5 py-1 text-xs' )}
+              className={cn(
+                'group flex w-full items-center justify-between gap-2 rounded-md border border-input bg-transparent text-left transition-colors outline-none cursor-pointer',
+                'focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50',
+                'disabled:cursor-not-allowed disabled:opacity-50',
+                'dark:bg-card dark:border-border dark:text-foreground dark:placeholder:text-[#939DB8]',
+                size === 'default' && 'h-9 px-3 py-1.5 text-sm',
+                size === 'sm' && 'h-8 px-2.5 py-1 text-xs',
+                hasError && 'border-status-danger ring-1 ring-status-danger/40',
+                triggerClassName
+              )}
             />
           }
         >
-          <span className="flex items-center gap-2 truncate">
-            {SelectedIcon && <SelectedIcon className="size-4 shrink-0 text-muted-foreground" />}
-            {selectedOption ? (
-              <span className="truncate text-foreground font-normal">{selectedOption.label}</span>
-            ) : (
-              <span className="truncate text-muted-foreground">{placeholder}</span>
-            )}
-          </span>
+          {renderTrigger ? (
+            <div className="flex items-center gap-2 truncate min-w-0 flex-1">
+              {renderTrigger(selectedOption)}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 truncate min-w-0 flex-1">
+              {selectedOption?.avatarUrl ? (
+                <Avatar className="size-4 shrink-0">
+                  <AvatarImage src={selectedOption.avatarUrl} />
+                  <AvatarFallback className="text-[9px]">
+                    {selectedOption.label.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              ) : React.isValidElement(selectedOption?.icon) ? (
+                selectedOption.icon
+              ) : selectedOption?.icon && typeof selectedOption.icon === 'function' ? (
+                <selectedOption.icon className="size-4 shrink-0 text-muted-foreground" />
+              ) : null}
+
+              {selectedOption ? (
+                <span className="truncate text-foreground font-normal">{selectedOption.label}</span>
+              ) : (
+                <span className="truncate text-muted-foreground">{placeholder}</span>
+              )}
+
+              {selectedOption?.badge && (
+                <span className="shrink-0">{selectedOption.badge}</span>
+              )}
+            </div>
+          )}
+
           <ChevronDownIcon
-            className={cn( 'pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-150', open && 'rotate-180 text-foreground' )}
+            className={cn(
+              'pointer-events-none size-4 shrink-0 text-muted-foreground transition-transform duration-150',
+              open && 'rotate-180 text-foreground'
+            )}
           />
         </PopoverTrigger>
 
@@ -133,7 +181,10 @@ export function SearchableSelect({
           align={align}
           side="bottom"
           sideOffset={4}
-          className={cn( 'w-(--anchor-width) min-w-[200px] p-0 rounded-md bg-popover text-popover-foreground border border-border outline-none', contentClassName )}
+          className={cn(
+            'w-(--anchor-width) min-w-[240px] max-w-[420px] p-0 rounded-lg bg-popover text-popover-foreground border border-border shadow-lg outline-none',
+            contentClassName
+          )}
         >
           <Command className="w-full">
             {isSearchable && (
@@ -151,6 +202,7 @@ export function SearchableSelect({
                         option={option}
                         isSelected={option.value === currentValue}
                         onSelect={() => handleSelect(option.value)}
+                        renderOption={renderOption}
                       />
                     ))}
                   </CommandGroup>
@@ -163,6 +215,7 @@ export function SearchableSelect({
                       option={option}
                       isSelected={option.value === currentValue}
                       onSelect={() => handleSelect(option.value)}
+                      renderOption={renderOption}
                     />
                   ))}
                 </CommandGroup>
@@ -179,34 +232,79 @@ function CommandOptionItem({
   option,
   isSelected,
   onSelect,
+  renderOption,
 }: {
   option: SearchableSelectOption;
   isSelected: boolean;
   onSelect: () => void;
+  renderOption?: (option: SearchableSelectOption, isSelected: boolean) => React.ReactNode;
 }) {
-  const Icon = option.icon;
+  if (renderOption) {
+    return (
+      <CommandItem
+        value={`${option.label} ${option.value} ${option.description || ''}`}
+        onSelect={onSelect}
+        disabled={option.disabled}
+        className={cn(
+          'flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-sm cursor-pointer select-none outline-none',
+          'data-selected:bg-muted data-selected:text-foreground',
+          'dark:data-selected:bg-white/10 dark:data-selected:text-white',
+          isSelected && 'font-medium text-primary dark:text-white'
+        )}
+      >
+        {renderOption(option, isSelected)}
+      </CommandItem>
+    );
+  }
 
   return (
     <CommandItem
       value={`${option.label} ${option.value} ${option.description || ''}`}
       onSelect={onSelect}
       disabled={option.disabled}
-      className={cn( 'flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-sm text-sm cursor-pointer select-none outline-none', 'data-selected:bg-muted data-selected:text-foreground', 'dark:data-selected:bg-white/10 dark:data-selected:text-white', isSelected && 'font-medium text-primary dark:text-white' )}
+      className={cn(
+        'flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md text-sm cursor-pointer select-none outline-none',
+        'data-selected:bg-muted data-selected:text-foreground',
+        'dark:data-selected:bg-white/10 dark:data-selected:text-white',
+        isSelected && 'font-medium text-primary dark:text-white'
+      )}
     >
-      <div className="flex items-center gap-2 truncate">
-        {Icon && <Icon className="size-4 shrink-0 text-muted-foreground" />}
-        <div className="truncate">
-          <div className="truncate">{option.label}</div>
+      <div className="flex items-center gap-2.5 truncate min-w-0">
+        {option.avatarUrl ? (
+          <Avatar className="size-5 shrink-0 border border-border">
+            <AvatarImage src={option.avatarUrl} />
+            <AvatarFallback className="text-[9px]">
+              {option.label.slice(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        ) : React.isValidElement(option.icon) ? (
+          <span className="shrink-0">{option.icon}</span>
+        ) : option.icon && typeof option.icon === 'function' ? (
+          <option.icon className="size-4 shrink-0 text-muted-foreground" />
+        ) : null}
+
+        <div className="truncate text-left min-w-0">
+          <div className="flex items-center gap-1.5 truncate">
+            <span className="truncate font-medium">{option.label}</span>
+            {option.badge && <span className="shrink-0">{option.badge}</span>}
+          </div>
           {option.description && (
-            <div className="text-xs text-muted-foreground font-normal truncate">
+            <div className="text-[11px] text-muted-foreground font-normal truncate mt-0.5">
               {option.description}
             </div>
           )}
         </div>
       </div>
-      <CheckIcon
-        className={cn( 'size-4 shrink-0 text-primary transition-opacity', isSelected ? 'opacity-100' : 'opacity-0' )}
-      />
+
+      <div className="flex items-center gap-2 shrink-0 ml-2">
+        {option.rightElement}
+        <CheckIcon
+          className={cn(
+            'size-4 text-primary transition-opacity shrink-0',
+            isSelected ? 'opacity-100' : 'opacity-0'
+          )}
+        />
+      </div>
     </CommandItem>
   );
 }

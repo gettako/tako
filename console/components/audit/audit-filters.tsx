@@ -1,15 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@/components/ui/select';
+import { SearchableSelect, SearchableSelectOption } from '@/components/ui/searchable-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Search,
@@ -79,6 +74,26 @@ export function AuditFilters({
   const selectedActorObj = actors.find((a) => a.name === selectedActor);
   const hasActiveFilters = search.trim() !== '' || selectedActor !== 'all' || category !== 'all';
 
+  const actorOptions: SearchableSelectOption[] = useMemo(() => {
+    const opts: SearchableSelectOption[] = [
+      {
+        value: 'all',
+        label: 'All Actors',
+        description: 'Events from all operators',
+        icon: Users,
+      },
+    ];
+    actors.forEach((actor) => {
+      opts.push({
+        value: actor.name,
+        label: actor.name,
+        description: actor.email,
+        avatarUrl: actor.avatarUrl,
+      });
+    });
+    return opts;
+  }, [actors]);
+
   return (
     <div className="space-y-4">
       {/* Category Tabs (Base Vega specification via @base-ui/react/tabs) */}
@@ -143,81 +158,42 @@ export function AuditFilters({
 
         {/* Filter controls row */}
         <div className="flex items-center gap-2">
-          {/* Base Vega Clean Actor Select (No bleeding borders) */}
+          {/* Base Vega Clean Actor Select (No bleeding borders, searchable when > 5) */}
           <div className="relative w-full sm:w-60">
-            <Select
+            <SearchableSelect
               value={selectedActor}
               onValueChange={(val) => onActorChange(val ? String(val) : 'all')}
-            >
-              <SelectTrigger className="h-9 w-full bg-card border-border text-xs sm:text-sm cursor-pointer hover:bg-muted/40 transition-colors">
-                <div className="flex items-center gap-2 truncate">
-                  {selectedActor === 'all' ? (
-                    <>
+              options={actorOptions}
+              placeholder="Select actor..."
+              searchPlaceholder="Search actor name or email..."
+              triggerClassName="h-9 w-full bg-card border-border text-xs sm:text-sm cursor-pointer hover:bg-muted/40 transition-colors"
+              contentClassName="w-72"
+              renderTrigger={(selectedOpt) => {
+                if (!selectedOpt || selectedOpt.value === 'all') {
+                  return (
+                    <div className="flex items-center gap-2 truncate">
                       <div className="size-5 rounded-full bg-muted/80 border border-border flex items-center justify-center shrink-0 text-muted-foreground">
                         <Users className="size-3" />
                       </div>
                       <span className="truncate text-muted-foreground font-normal">All Actors</span>
-                    </>
-                  ) : (
-                    <>
-                      <Avatar className="size-5 shrink-0 border border-border">
-                        <AvatarImage src={selectedActorObj?.avatarUrl} alt={selectedActor} />
-                        <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-bold">
-                          {getInitials(selectedActor)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="truncate text-foreground font-semibold">
-                        {selectedActor}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </SelectTrigger>
-
-              <SelectContent
-                align="end"
-                className="w-72 bg-popover border border-border p-1 rounded-lg"
-              >
-                {/* All Actors option */}
-                <SelectItem value="all" className="py-2 rounded-md">
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-7 rounded-full bg-muted/80 border border-border flex items-center justify-center shrink-0 text-muted-foreground">
-                      <Users className="size-3.5" />
                     </div>
-                    <div className="truncate text-left">
-                      <div className="font-semibold text-xs text-foreground">All Actors</div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        Events from all operators
-                      </div>
-                    </div>
+                  );
+                }
+                return (
+                  <div className="flex items-center gap-2 truncate">
+                    <Avatar className="size-5 shrink-0 border border-border">
+                      <AvatarImage src={selectedOpt.avatarUrl} alt={selectedOpt.label} />
+                      <AvatarFallback className="text-[9px] bg-primary/10 text-primary font-bold">
+                        {getInitials(selectedOpt.label)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="truncate text-foreground font-semibold">
+                      {selectedOpt.label}
+                    </span>
                   </div>
-                </SelectItem>
-
-                {/* Individual Actors */}
-                {actors.map((actor) => (
-                  <SelectItem key={actor.id} value={actor.name} className="py-2 rounded-md">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar className="size-7 shrink-0 border border-border">
-                        <AvatarImage src={actor.avatarUrl} alt={actor.name} />
-                        <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-bold">
-                          {getInitials(actor.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="truncate text-left min-w-0">
-                        <div className="font-semibold text-xs text-foreground truncate">
-                          {actor.name}
-                        </div>
-                        {actor.email && (
-                          <div className="text-[11px] text-muted-foreground truncate font-mono">
-                            {actor.email}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                );
+              }}
+            />
           </div>
 
           {/* Quick Clear Actor button when filter is active */}
