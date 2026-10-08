@@ -47,7 +47,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getUserAvatarUrl } from '@/lib/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -364,13 +365,16 @@ export function Header() {
             aria-label="User account menu"
           >
             <Avatar className="size-8 ring-1 ring-border hover:ring-primary/50 transition-all">
+              <AvatarImage src={getUserAvatarUrl(user?.email, user?.avatarUrl)} alt={user?.name || 'User'} />
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                 {user?.name
                   ? user.name
                       .split(' ')
                       .map((n) => n[0])
                       .join('')
-                  : 'SM'}
+                      .slice(0, 2)
+                      .toUpperCase()
+                  : 'AD'}
               </AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
@@ -378,12 +382,12 @@ export function Header() {
             <DropdownMenuLabel className="px-2.5 py-2">
               <div className="flex flex-col space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">{user?.name || 'Supian M'}</span>
+                  <span className="text-sm font-semibold text-foreground">{user?.name || 'Administrator'}</span>
                   <span className="inline-flex items-center rounded-xs bg-primary/10 px-1.5 py-0.2 text-[10px] font-semibold text-primary capitalize">
-                    {user?.role || 'owner'}
+                    {user?.role || 'admin'}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground truncate">{user?.email || 'supianidz@gmail.com'}</span>
+                <span className="text-xs text-muted-foreground truncate">{user?.email || 'admin@gettako.dev'}</span>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

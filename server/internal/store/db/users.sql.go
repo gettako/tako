@@ -135,3 +135,66 @@ func (q *Queries) ListUsers(ctx context.Context) ([]ListUsersRow, error) {
 	}
 	return items, nil
 }
+
+const updateUserPassword = `-- name: UpdateUserPassword :one
+UPDATE users
+SET password_hash = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, email, password_hash, role, avatar_url, created_at, updated_at
+`
+
+type UpdateUserPasswordParams struct {
+	PasswordHash string `json:"password_hash"`
+	ID           string `json:"id"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserPassword, arg.PasswordHash, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateUserProfile = `-- name: UpdateUserProfile :one
+UPDATE users
+SET name = ?, email = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+RETURNING id, name, email, password_hash, role, avatar_url, created_at, updated_at
+`
+
+type UpdateUserProfileParams struct {
+	Name      string         `json:"name"`
+	Email     string         `json:"email"`
+	AvatarUrl sql.NullString `json:"avatar_url"`
+	ID        string         `json:"id"`
+}
+
+func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error) {
+	row := q.db.QueryRowContext(ctx, updateUserProfile,
+		arg.Name,
+		arg.Email,
+		arg.AvatarUrl,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.AvatarUrl,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

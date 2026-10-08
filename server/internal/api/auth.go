@@ -1,16 +1,21 @@
 package api
 
 import (
+	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	"gettako.dev/tako/internal/orchestrator"
+	"gettako.dev/tako/internal/store/db"
 )
 
 type LoginRequest struct {
@@ -19,11 +24,13 @@ type LoginRequest struct {
 }
 
 type AuthUserResponse struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	Role      string `json:"role"`
-	AvatarURL string `json:"avatarUrl,omitempty"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Email            string `json:"email"`
+	Role             string `json:"role"`
+	AvatarURL        string `json:"avatarUrl,omitempty"`
+	TwoFactorEnabled bool   `json:"twoFactorEnabled"`
+	CreatedAt        string `json:"createdAt,omitempty"`
 }
 
 type LoginResponse struct {
@@ -31,11 +38,55 @@ type LoginResponse struct {
 	User  AuthUserResponse `json:"user"`
 }
 
+type UpdateProfileRequest struct {
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	AvatarURL string `json:"avatarUrl,omitempty"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+type TwoFASetting struct {
+	Enabled       bool     `json:"enabled"`
+	Secret        string   `json:"secret,omitempty"`
+	RecoveryCodes []string `json:"recoveryCodes,omitempty"`
+}
+
+type PasskeyItem struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	CreatedAt  string `json:"createdAt"`
+	LastUsedAt string `json:"lastUsedAt,omitempty"`
+}
+
+type SessionItem struct {
+	ID         string `json:"id"`
+	UserID     string `json:"userId"`
+	IPAddress  string `json:"ipAddress"`
+	UserAgent  string `json:"userAgent"`
+	Device     string `json:"device"`
+	Location   string `json:"location"`
+	Current    bool   `json:"current"`
+	LastActive string `json:"lastActive"`
+}
+
 func registerAuthRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/login", handleLogin(orch))
 		r.Post("/logout", handleLogout())
 		r.Get("/me", handleGetMe(orch))
+		r.Put("/profile", handleUpdateProfile(orch))
+		r.Put("/password", handleChangePassword(orch))
+		r.Put("/2fa", handleUpdate2FA(orch))
+		r.Get("/passkeys", handleGetPasskeys(orch))
+		r.Post("/passkeys", handleAddPasskey(orch))
+		r.Delete("/passkeys/{id}", handleDeletePasskey(orch))
+		r.Get("/sessions", handleGetSessions(orch))
+		r.Delete("/sessions/{id}", handleDeleteSession(orch))
+		r.Post("/sessions/revoke-others", handleRevokeOtherSessions(orch))
 	})
 }
 
@@ -77,14 +128,18 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			avatar = user.AvatarUrl.String
 		}
 
+		twoFactorEnabled := is2FAEnabled(r.Context(), orch)
+
 		resp := LoginResponse{
 			Token: token,
 			User: AuthUserResponse{
-				ID:        user.ID,
-				Name:      user.Name,
-				Email:     user.Email,
-				Role:      user.Role,
-				AvatarURL: avatar,
+				ID:               user.ID,
+				Name:             user.Name,
+				Email:            user.Email,
+				Role:             user.Role,
+				AvatarURL:        avatar,
+				TwoFactorEnabled: twoFactorEnabled,
+				CreatedAt:        user.CreatedAt.Format(time.RFC3339),
 			},
 		}
 
@@ -102,6 +157,16 @@ func handleLogout() http.HandlerFunc {
 	}
 }
 
+func is2FAEnabled(ctx context.Context, orch *orchestrator.Orchestrator) bool {
+	if s, err := orch.Queries().GetSetting(ctx, "user_2fa"); err == nil {
+		var twoFA TwoFASetting
+		if err := json.Unmarshal([]byte(s.Value), &twoFA); err == nil {
+			return twoFA.Enabled
+		}
+	}
+	return false
+}
+
 func handleGetMe(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		users, err := orch.Queries().ListUsers(r.Context())
@@ -116,17 +181,401 @@ func handleGetMe(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			avatar = first.AvatarUrl.String
 		}
 
+		twoFactorEnabled := is2FAEnabled(r.Context(), orch)
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"authenticated": true,
 			"user": AuthUserResponse{
-				ID:        first.ID,
-				Name:      first.Name,
-				Email:     first.Email,
-				Role:      first.Role,
-				AvatarURL: avatar,
+				ID:               first.ID,
+				Name:             first.Name,
+				Email:            first.Email,
+				Role:             first.Role,
+				AvatarURL:        avatar,
+				TwoFactorEnabled: twoFactorEnabled,
+				CreatedAt:        first.CreatedAt.Format(time.RFC3339),
 			},
 		})
+	}
+}
+
+func handleUpdateProfile(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req UpdateProfileRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
+			return
+		}
+
+		req.Name = strings.TrimSpace(req.Name)
+		req.Email = strings.TrimSpace(req.Email)
+		if req.Name == "" || req.Email == "" {
+			http.Error(w, `{"error":"Name and email are required"}`, http.StatusBadRequest)
+			return
+		}
+
+		users, err := orch.Queries().ListUsers(r.Context())
+		if err != nil || len(users) == 0 {
+			http.Error(w, `{"error":"No authenticated user found"}`, http.StatusNotFound)
+			return
+		}
+
+		targetUser := users[0]
+		updated, err := orch.Queries().UpdateUserProfile(r.Context(), db.UpdateUserProfileParams{
+			ID:    targetUser.ID,
+			Name:  req.Name,
+			Email: req.Email,
+			AvatarUrl: sql.NullString{
+				String: req.AvatarURL,
+				Valid:  req.AvatarURL != "",
+			},
+		})
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"Failed to update profile: %s"}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "update_profile",
+			TargetType: "user",
+			TargetID:   updated.ID,
+			TargetName: updated.Name,
+		})
+
+		twoFactorEnabled := is2FAEnabled(r.Context(), orch)
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(AuthUserResponse{
+			ID:               updated.ID,
+			Name:             updated.Name,
+			Email:            updated.Email,
+			Role:             updated.Role,
+			AvatarURL:        req.AvatarURL,
+			TwoFactorEnabled: twoFactorEnabled,
+			CreatedAt:        updated.CreatedAt.Format(time.RFC3339),
+		})
+	}
+}
+
+func handleChangePassword(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req ChangePasswordRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
+			return
+		}
+
+		if req.CurrentPassword == "" || len(req.NewPassword) < 8 {
+			http.Error(w, `{"error":"New password must be at least 8 characters"}`, http.StatusBadRequest)
+			return
+		}
+
+		users, err := orch.Queries().ListUsers(r.Context())
+		if err != nil || len(users) == 0 {
+			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+			return
+		}
+
+		targetUser := users[0]
+		dbUser, err := orch.Queries().GetUserByID(r.Context(), targetUser.ID)
+		if err != nil {
+			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+			return
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(dbUser.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Current password is incorrect"})
+			return
+		}
+
+		newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, `{"error":"Failed to hash new password"}`, http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := orch.Queries().UpdateUserPassword(r.Context(), db.UpdateUserPasswordParams{
+			ID:           dbUser.ID,
+			PasswordHash: string(newHash),
+		}); err != nil {
+			http.Error(w, `{"error":"Failed to update password"}`, http.StatusInternalServerError)
+			return
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "change_password",
+			TargetType: "user",
+			TargetID:   dbUser.ID,
+			TargetName: dbUser.Name,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}
+}
+
+func handleUpdate2FA(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req TwoFASetting
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
+			return
+		}
+
+		data, err := json.Marshal(req)
+		if err != nil {
+			http.Error(w, `{"error":"Serialization error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		if _, err := orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+			Key:   "user_2fa",
+			Value: string(data),
+		}); err != nil {
+			http.Error(w, `{"error":"Failed to save 2FA status"}`, http.StatusInternalServerError)
+			return
+		}
+
+		action := "enable_2fa"
+		if !req.Enabled {
+			action = "disable_2fa"
+		}
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     action,
+			TargetType: "user_security",
+			TargetID:   "2fa",
+			TargetName: "Two-Factor Authentication",
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"enabled": req.Enabled,
+		})
+	}
+}
+
+func handleGetPasskeys(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		passkeys := []PasskeyItem{}
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_passkeys"); err == nil {
+			_ = json.Unmarshal([]byte(s.Value), &passkeys)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(passkeys)
+	}
+}
+
+func handleAddPasskey(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Name) == "" {
+			http.Error(w, `{"error":"Passkey name is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		passkeys := []PasskeyItem{}
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_passkeys"); err == nil {
+			_ = json.Unmarshal([]byte(s.Value), &passkeys)
+		}
+
+		newItem := PasskeyItem{
+			ID:         fmt.Sprintf("pk-%d", time.Now().UnixMilli()),
+			Name:       strings.TrimSpace(req.Name),
+			CreatedAt:  time.Now().UTC().Format(time.RFC3339),
+			LastUsedAt: "Just now",
+		}
+		passkeys = append(passkeys, newItem)
+
+		data, _ := json.Marshal(passkeys)
+		_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+			Key:   "user_passkeys",
+			Value: string(data),
+		})
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "add_passkey",
+			TargetType: "user_security",
+			TargetID:   newItem.ID,
+			TargetName: newItem.Name,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(newItem)
+	}
+}
+
+func handleDeletePasskey(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		if id == "" {
+			http.Error(w, `{"error":"ID is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		passkeys := []PasskeyItem{}
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_passkeys"); err == nil {
+			_ = json.Unmarshal([]byte(s.Value), &passkeys)
+		}
+
+		filtered := make([]PasskeyItem, 0, len(passkeys))
+		for _, pk := range passkeys {
+			if pk.ID != id {
+				filtered = append(filtered, pk)
+			}
+		}
+
+		data, _ := json.Marshal(filtered)
+		_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+			Key:   "user_passkeys",
+			Value: string(data),
+		})
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "remove_passkey",
+			TargetType: "user_security",
+			TargetID:   id,
+			TargetName: id,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}
+}
+
+func handleGetSessions(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sessions := []SessionItem{}
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_sessions"); err == nil {
+			_ = json.Unmarshal([]byte(s.Value), &sessions)
+		}
+
+		// Ensure there is at least the current session representing the user's connection
+		if len(sessions) == 0 {
+			ip := r.Header.Get("X-Forwarded-For")
+			if ip == "" {
+				ip = r.RemoteAddr
+			}
+			ua := r.UserAgent()
+			device := "Browser Session"
+			if strings.Contains(ua, "Macintosh") {
+				device = "MacBook (macOS)"
+			} else if strings.Contains(ua, "Windows") {
+				device = "PC (Windows)"
+			} else if strings.Contains(ua, "iPhone") {
+				device = "iPhone (iOS)"
+			} else if strings.Contains(ua, "Linux") {
+				device = "Linux Workstation"
+			}
+
+			sessions = append(sessions, SessionItem{
+				ID:         "sess-active",
+				UserID:     "usr_admin",
+				IPAddress:  ip,
+				UserAgent:  ua,
+				Device:     device,
+				Location:   "Active Connection",
+				Current:    true,
+				LastActive: "Just now",
+			})
+
+			data, _ := json.Marshal(sessions)
+			_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+				Key:   "user_sessions",
+				Value: string(data),
+			})
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(sessions)
+	}
+}
+
+func handleDeleteSession(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		if id == "" {
+			http.Error(w, `{"error":"ID is required"}`, http.StatusBadRequest)
+			return
+		}
+
+		sessions := []SessionItem{}
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_sessions"); err == nil {
+			_ = json.Unmarshal([]byte(s.Value), &sessions)
+		}
+
+		filtered := make([]SessionItem, 0, len(sessions))
+		for _, s := range sessions {
+			if s.ID != id {
+				filtered = append(filtered, s)
+			}
+		}
+
+		data, _ := json.Marshal(filtered)
+		_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+			Key:   "user_sessions",
+			Value: string(data),
+		})
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "revoke_session",
+			TargetType: "user_session",
+			TargetID:   id,
+			TargetName: id,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}
+}
+
+func handleRevokeOtherSessions(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sessions := []SessionItem{}
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_sessions"); err == nil {
+			_ = json.Unmarshal([]byte(s.Value), &sessions)
+		}
+
+		filtered := make([]SessionItem, 0, 1)
+		for _, s := range sessions {
+			if s.Current {
+				filtered = append(filtered, s)
+				break
+			}
+		}
+		if len(filtered) == 0 && len(sessions) > 0 {
+			filtered = append(filtered, sessions[0])
+		}
+
+		data, _ := json.Marshal(filtered)
+		_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+			Key:   "user_sessions",
+			Value: string(data),
+		})
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "revoke_all_other_sessions",
+			TargetType: "user_session",
+			TargetID:   "all_others",
+			TargetName: "All other sessions",
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}
 }

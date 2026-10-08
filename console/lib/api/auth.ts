@@ -1,6 +1,6 @@
 import { simulateDelay } from './delay';
-import { mockCurrentUser } from '@/lib/mock/data';
 import { User } from '@/lib/types';
+import { getUserAvatarUrl } from '@/lib/avatar';
 
 export async function login(email: string, password: string): Promise<User> {
   if (!email || !password) {
@@ -24,10 +24,25 @@ export async function login(email: string, password: string): Promise<User> {
       document.cookie = 'tako_session=active_session; path=/; max-age=604800; SameSite=Lax';
 
       const data = await res.json().catch(() => ({}));
+      if (data.user) {
+        return {
+          id: data.user.id || 'usr_admin',
+          name: data.user.name || 'Administrator',
+          email: data.user.email || email.trim(),
+          role: data.user.role || 'admin',
+          avatarUrl: data.user.avatarUrl || getUserAvatarUrl(email.trim()),
+          twoFactorEnabled: !!data.user.twoFactorEnabled,
+          createdAt: data.user.createdAt || new Date().toISOString(),
+        };
+      }
       return {
-        ...mockCurrentUser,
+        id: 'usr_admin',
+        name: 'Administrator',
         email: email.trim(),
-        name: data.user?.name || mockCurrentUser.name,
+        role: 'admin',
+        avatarUrl: getUserAvatarUrl(email.trim()),
+        twoFactorEnabled: false,
+        createdAt: new Date().toISOString(),
       };
     } catch (err: unknown) {
       if (err instanceof Error && err.message !== 'Failed to fetch') {
@@ -38,12 +53,17 @@ export async function login(email: string, password: string): Promise<User> {
 
   await simulateDelay();
   if (typeof document !== 'undefined') {
-    document.cookie = 'tako_session=mock-token; path=/; max-age=604800; SameSite=Lax';
+    document.cookie = 'tako_session=active_session; path=/; max-age=604800; SameSite=Lax';
   }
 
   return {
-    ...mockCurrentUser,
+    id: 'usr_admin',
+    name: 'Administrator',
     email: email.trim(),
+    role: 'admin',
+    avatarUrl: getUserAvatarUrl(email.trim()),
+    twoFactorEnabled: false,
+    createdAt: new Date().toISOString(),
   };
 }
 

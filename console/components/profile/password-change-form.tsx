@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { KeyRound, Lock, Loader2 } from 'lucide-react';
+import { KeyRound, Lock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
+import { changePassword } from '@/lib/api/settings';
 import { toast } from 'sonner';
 
 export function PasswordChangeForm() {
@@ -22,88 +23,123 @@ export function PasswordChangeForm() {
       return;
     }
     if (newPassword.length < 8) {
-      toast.error('New password must be at least 8 characters');
+      toast.error('New password must be at least 8 characters long');
       return;
     }
     if (newPassword !== confirmPassword) {
-      toast.error('New passwords do not match');
+      toast.error('New password and confirmation do not match');
       return;
     }
 
     try {
       setIsSaving(true);
-      await new Promise((r) => setTimeout(r, 400));
-      toast.success('Password changed successfully');
+      await changePassword(currentPassword, newPassword);
+      toast.success('Password updated successfully');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update password';
+      toast.error(msg);
     } finally {
       setIsSaving(false);
     }
   };
 
+  const isFormValid =
+    currentPassword.length > 0 &&
+    newPassword.length >= 8 &&
+    newPassword === confirmPassword;
+
   return (
     <Card className="border-border bg-card p-6">
-      <CardHeader className="px-0 pt-0 pb-4">
+      <CardHeader className="px-0 pt-0 pb-5">
         <SectionHeader
           icon={KeyRound}
-          title="Change Password"
-          description="Update your account password with a strong combination of characters."
+          title="Account Password"
+          description="Update your password to keep your Tako cluster operator account secure."
         />
       </CardHeader>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="space-y-5">
         <CardContent className="px-0 space-y-4">
+          {/* Current Password */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-foreground">Current Password</Label>
+            <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <Lock className="size-3.5 text-muted-foreground" />
+              Current Password
+            </Label>
             <Input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               placeholder="••••••••••••"
               disabled={isSaving}
-              className="text-xs max-w-md font-mono"
+              className="text-xs h-9 font-mono"
+              required
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* New Password */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">New Password</Label>
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <KeyRound className="size-3.5 text-muted-foreground" />
+                New Password
+              </Label>
               <Input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Min. 8 characters"
+                placeholder="At least 8 characters"
                 disabled={isSaving}
-                className="text-xs font-mono"
+                className="text-xs h-9 font-mono"
+                required
               />
+              <p className="text-[11px] text-muted-foreground">
+                Minimum 8 characters with a mix of letters and numbers.
+              </p>
             </div>
 
+            {/* Confirm New Password */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Confirm New Password</Label>
+              <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <CheckCircle2 className="size-3.5 text-muted-foreground" />
+                Confirm New Password
+              </Label>
               <Input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat new password"
                 disabled={isSaving}
-                className="text-xs font-mono"
+                className="text-xs h-9 font-mono"
+                required
               />
+              {confirmPassword && newPassword !== confirmPassword && (
+                <p className="text-[11px] text-status-danger flex items-center gap-1">
+                  <AlertCircle className="size-3" /> Passwords do not match
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
 
-        <CardFooter className="px-0 pt-4 pb-0 flex justify-end border-t border-border">
+        <CardFooter className="px-0 pt-4 pb-0 flex items-center justify-between border-t border-border">
+          <span className="text-[11px] text-muted-foreground">
+            Changes will invalidate other active sessions for security.
+          </span>
+
           <Button
             type="submit"
             size="sm"
-            disabled={!currentPassword || !newPassword || !confirmPassword || isSaving}
-            className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5"
+            disabled={!isFormValid || isSaving}
+            className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
           >
             {isSaving ? (
               <>
                 <Loader2 className="size-3.5 animate-spin" />
-                Updating...
+                Updating Password...
               </>
             ) : (
               <>

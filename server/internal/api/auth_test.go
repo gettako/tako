@@ -81,4 +81,103 @@ func TestAuthLogin(t *testing.T) {
 	if w3.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK for /auth/me, got %d", w3.Code)
 	}
+
+	// Case 4: PUT /api/v1/auth/profile
+	profBody, _ := json.Marshal(UpdateProfileRequest{
+		Name:      "Alex Lead",
+		Email:     "alex@gettako.dev",
+		AvatarURL: "https://example.com/avatar.png",
+	})
+	reqProf := httptest.NewRequest(http.MethodPut, "/api/v1/auth/profile", bytes.NewReader(profBody))
+	reqProf.Header.Set("Content-Type", "application/json")
+	wProf := httptest.NewRecorder()
+	router.ServeHTTP(wProf, reqProf)
+
+	if wProf.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for update profile, got %d: %s", wProf.Code, wProf.Body.String())
+	}
+
+	var updatedUser AuthUserResponse
+	if err := json.Unmarshal(wProf.Body.Bytes(), &updatedUser); err != nil {
+		t.Fatalf("failed to decode updated user: %v", err)
+	}
+	if updatedUser.Name != "Alex Lead" || updatedUser.Email != "alex@gettako.dev" {
+		t.Errorf("unexpected updated user: %+v", updatedUser)
+	}
+
+	// Case 5: PUT /api/v1/auth/password (wrong current password)
+	badPwdBody, _ := json.Marshal(ChangePasswordRequest{
+		CurrentPassword: "wrongpassword",
+		NewPassword:     "newsecret123456",
+	})
+	reqBadPwd := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", bytes.NewReader(badPwdBody))
+	reqBadPwd.Header.Set("Content-Type", "application/json")
+	wBadPwd := httptest.NewRecorder()
+	router.ServeHTTP(wBadPwd, reqBadPwd)
+	if wBadPwd.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for wrong current password, got %d", wBadPwd.Code)
+	}
+
+	// Case 6: PUT /api/v1/auth/password (valid current password)
+	goodPwdBody, _ := json.Marshal(ChangePasswordRequest{
+		CurrentPassword: "secret123",
+		NewPassword:     "newsecret123456",
+	})
+	reqGoodPwd := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", bytes.NewReader(goodPwdBody))
+	reqGoodPwd.Header.Set("Content-Type", "application/json")
+	wGoodPwd := httptest.NewRecorder()
+	router.ServeHTTP(wGoodPwd, reqGoodPwd)
+	if wGoodPwd.Code != http.StatusOK {
+		t.Fatalf("expected 200 for good password change, got %d", wGoodPwd.Code)
+	}
+
+	// Case 7: Passkeys
+	pkBody, _ := json.Marshal(map[string]string{"name": "MacBook Touch ID"})
+	reqPk := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkeys", bytes.NewReader(pkBody))
+	wPk := httptest.NewRecorder()
+	router.ServeHTTP(wPk, reqPk)
+	if wPk.Code != http.StatusCreated {
+		t.Fatalf("expected 201 for add passkey, got %d", wPk.Code)
+	}
+
+	var createdPk PasskeyItem
+	_ = json.Unmarshal(wPk.Body.Bytes(), &createdPk)
+
+	reqGetPk := httptest.NewRequest(http.MethodGet, "/api/v1/auth/passkeys", nil)
+	wGetPk := httptest.NewRecorder()
+	router.ServeHTTP(wGetPk, reqGetPk)
+	var passkeys []PasskeyItem
+	_ = json.Unmarshal(wGetPk.Body.Bytes(), &passkeys)
+	if len(passkeys) != 1 || passkeys[0].Name != "MacBook Touch ID" {
+		t.Errorf("unexpected passkeys: %+v", passkeys)
+	}
+
+	reqDelPk := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/passkeys/"+createdPk.ID, nil)
+	wDelPk := httptest.NewRecorder()
+	router.ServeHTTP(wDelPk, reqDelPk)
+	if wDelPk.Code != http.StatusOK {
+		t.Fatalf("expected 200 for delete passkey, got %d", wDelPk.Code)
+	}
+
+	// Case 8: 2FA status
+	twoFABody, _ := json.Marshal(TwoFASetting{
+		Enabled:       true,
+		Secret:        "TESTSECRET",
+		RecoveryCodes: []string{"abc-123"},
+	})
+	req2FA := httptest.NewRequest(http.MethodPut, "/api/v1/auth/2fa", bytes.NewReader(twoFABody))
+	w2FA := httptest.NewRecorder()
+	router.ServeHTTP(w2FA, req2FA)
+	if w2FA.Code != http.StatusOK {
+		t.Fatalf("expected 200 for update 2FA, got %d", w2FA.Code)
+	}
+
+	// Case 9: Sessions
+	reqSess := httptest.NewRequest(http.MethodGet, "/api/v1/auth/sessions", nil)
+	wSess := httptest.NewRecorder()
+	router.ServeHTTP(wSess, reqSess)
+	if wSess.Code != http.StatusOK {
+		t.Fatalf("expected 200 for get sessions, got %d", wSess.Code)
+	}
 }
+

@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { logout } from "@/lib/api/auth"
+import { getUserAvatarUrl } from "@/lib/avatar"
 import {
   Avatar,
   AvatarFallback,
@@ -57,6 +58,8 @@ export function NavUser({
     .slice(0, 2)
     .toUpperCase()
 
+  const avatarUrl = getUserAvatarUrl(user.email, user.avatar)
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -69,9 +72,9 @@ export function NavUser({
               />
             }
           >
-            <Avatar className="size-8 rounded-lg">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+            <Avatar className="size-8 rounded-full">
+              <AvatarImage src={avatarUrl} alt={user.name} className="rounded-full" />
+              <AvatarFallback className="rounded-full bg-primary/10 text-primary text-xs font-semibold">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -92,9 +95,9 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuLabel className="p-0 font-normal">
                 <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                  <Avatar className="size-8 rounded-lg">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-semibold">
+                  <Avatar className="size-8 rounded-full">
+                    <AvatarImage src={avatarUrl} alt={user.name} className="rounded-full" />
+                    <AvatarFallback className="rounded-full bg-primary/10 text-primary text-xs font-semibold">
                       {initials}
                     </AvatarFallback>
                   </Avatar>

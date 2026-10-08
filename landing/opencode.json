@@ -1,0 +1,20 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "atmo/deepseek-v4.1-flash",
+  "providers": {
+    "atmo": {
+      "name": "Atmo",
+      "env": ["ATMO_API_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://atmorouter.dev/v1"
+      },
+      "models": {
+        "deepseek-v4.1-flash": {
+          "name": "DeepSeek V4.1 Flash",
+          "modelID": "atmo/deepseek-v4.1-flash"
+        }
+      }
+    }
+  }
+}

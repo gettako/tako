@@ -27,6 +27,7 @@ import {
   NotificationSettings,
   Notification,
 } from '@/lib/types';
+import { getUserAvatarUrl } from '@/lib/avatar';
 
 let currentUser = { ...mockCurrentUser };
 let users = [...mockUsers];
@@ -74,42 +75,192 @@ async function saveSettingToBFF<T>(key: string, value: T): Promise<void> {
 
 /* --- Current User & Profile --- */
 export async function getCurrentUser(): Promise<User> {
-  await simulateDelay(50, 150);
-  return { ...currentUser };
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/auth');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          const u = data.user;
+          return {
+            id: u.id || 'usr_admin',
+            name: u.name || 'Administrator',
+            email: u.email || 'admin@gettako.dev',
+            role: u.role || 'admin',
+            avatarUrl: getUserAvatarUrl(u.email, u.avatarUrl),
+            twoFactorEnabled: !!u.twoFactorEnabled,
+            createdAt: u.createdAt || new Date().toISOString(),
+          };
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  return {
+    ...currentUser,
+    avatarUrl: getUserAvatarUrl(currentUser.email, currentUser.avatarUrl),
+  };
 }
 
 export async function updateCurrentUser(input: Partial<User>): Promise<User> {
-  await simulateDelay();
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/auth', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update profile');
+    }
+    const data = await res.json();
+    const u = data.user;
+    currentUser = {
+      ...u,
+      avatarUrl: getUserAvatarUrl(u.email, u.avatarUrl),
+    };
+    return { ...currentUser };
+  }
   currentUser = { ...currentUser, ...input };
-  const idx = users.findIndex((u) => u.id === currentUser.id);
-  if (idx !== -1) users[idx] = { ...currentUser };
   return { ...currentUser };
+}
+
+/* --- Password Change --- */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/auth/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update password');
+    }
+    return;
+  }
+  await simulateDelay();
+}
+
+/* --- Two-Factor Authentication (TOTP) --- */
+export async function get2FASetup(): Promise<{ secret: string; otpauthUrl: string; recoveryCodes: string[] }> {
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/auth/2fa');
+    if (res.ok) {
+      return res.json();
+    }
+  }
+  throw new Error('Failed to load 2FA setup configuration');
+}
+
+export async function verifyAndEnable2FA(code: string, secret: string, recoveryCodes: string[]): Promise<void> {
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/auth/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', code, secret, recoveryCodes }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Invalid 6-digit authentication code');
+    }
+    currentUser.twoFactorEnabled = true;
+    return;
+  }
+  currentUser.twoFactorEnabled = true;
+}
+
+export async function disable2FA(): Promise<void> {
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/auth/2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'disable' }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to disable 2FA');
+    }
+    currentUser.twoFactorEnabled = false;
+    return;
+  }
+  currentUser.twoFactorEnabled = false;
 }
 
 /* --- Sessions --- */
 export async function getSessions(): Promise<Session[]> {
-  await simulateDelay();
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/auth/sessions');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch {
+      // fallback
+    }
+  }
   return [...sessions];
 }
 
 export async function revokeSession(sessionId: string): Promise<void> {
-  await simulateDelay();
+  if (typeof window !== 'undefined') {
+    const res = await fetch(`/api/auth/sessions/${sessionId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to revoke session');
+    }
+    return;
+  }
   sessions = sessions.filter((s) => s.id !== sessionId);
 }
 
 export async function revokeAllOtherSessions(currentSessionId: string): Promise<void> {
-  await simulateDelay();
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/auth/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'revoke-others' }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to revoke sessions');
+    }
+    return;
+  }
   sessions = sessions.filter((s) => s.id === currentSessionId);
 }
 
 /* --- Passkeys --- */
 export async function getPasskeys(): Promise<Passkey[]> {
-  await simulateDelay();
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/auth/passkeys');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+      }
+    } catch {
+      // fallback
+    }
+  }
   return [...passkeys];
 }
 
 export async function addPasskey(name: string): Promise<Passkey> {
-  await simulateDelay(200, 400);
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/auth/passkeys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to register passkey');
+    }
+    return res.json();
+  }
   const newKey: Passkey = {
     id: `pk-${Date.now()}`,
     name,
@@ -121,7 +272,14 @@ export async function addPasskey(name: string): Promise<Passkey> {
 }
 
 export async function deletePasskey(id: string): Promise<void> {
-  await simulateDelay();
+  if (typeof window !== 'undefined') {
+    const res = await fetch(`/api/auth/passkeys/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to remove passkey');
+    }
+    return;
+  }
   passkeys = passkeys.filter((p) => p.id !== id);
 }
 
