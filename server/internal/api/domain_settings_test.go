@@ -135,3 +135,68 @@ func TestDomainSettingsAndVerification(t *testing.T) {
 		t.Fatalf("expected verify_cluster_domain audit log entry, found none in %d logs", len(logs))
 	}
 }
+
+func TestDomainSanitizationAndEdgeCases(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-secret")
+	router := NewRouter(db, orch)
+
+	// 1. Verify URL with protocol and port gets sanitized and checked
+	dirtyPayload, _ := json.Marshal(map[string]any{
+		"domain":     "https://cluster-43-156-243-241.sslip.io:8080/dashboard",
+		"expectedIp": "43.156.243.241",
+	})
+	reqDirty := httptest.NewRequest(http.MethodPost, "/api/v1/settings/domain/verify", bytes.NewReader(dirtyPayload))
+	reqDirty.Header.Set("Content-Type", "application/json")
+	wDirty := httptest.NewRecorder()
+	router.ServeHTTP(wDirty, reqDirty)
+	if wDirty.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for sanitized domain verify, got %d: %s", wDirty.Code, wDirty.Body.String())
+	}
+	var dirtyResp VerifyDomainResponse
+	_ = json.Unmarshal(wDirty.Body.Bytes(), &dirtyResp)
+	if dirtyResp.Domain != "cluster-43-156-243-241.sslip.io" {
+		t.Errorf("expected sanitized domain 'cluster-43-156-243-241.sslip.io', got '%s'", dirtyResp.Domain)
+	}
+	if !dirtyResp.DnsVerified {
+		t.Errorf("expected DNS to be verified for sslip.io")
+	}
+
+	// 2. Empty domain should return 400
+	emptyPayload, _ := json.Marshal(map[string]any{
+		"domain": "",
+	})
+	reqEmpty := httptest.NewRequest(http.MethodPost, "/api/v1/settings/domain/verify", bytes.NewReader(emptyPayload))
+	reqEmpty.Header.Set("Content-Type", "application/json")
+	wEmpty := httptest.NewRecorder()
+	router.ServeHTTP(wEmpty, reqEmpty)
+	if wEmpty.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request for empty domain, got %d", wEmpty.Code)
+	}
+
+	// 3. PUT domain_settings with protocol prefix gets sanitized and accepted
+	putPayload, _ := json.Marshal(map[string]any{
+		"value": map[string]any{
+			"domain":       "https://my-cluster.gettako.dev/",
+			"sslAutoRenew": true,
+		},
+	})
+	reqPut := httptest.NewRequest(http.MethodPut, "/api/v1/settings/domain_settings", bytes.NewReader(putPayload))
+	reqPut.Header.Set("Content-Type", "application/json")
+	wPut := httptest.NewRecorder()
+	router.ServeHTTP(wPut, reqPut)
+	if wPut.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for PUT domain_settings, got %d: %s", wPut.Code, wPut.Body.String())
+	}
+}
+

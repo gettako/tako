@@ -1,6 +1,6 @@
 import { simulateDelay } from './delay';
 import { mockNodes } from '@/lib/mock/data';
-import { Node, NodeStatus, CreateNodeInput } from '@/lib/types';
+import { Node, NodeStatus, CreateNodeInput, NodeTraefikConfig } from '@/lib/types';
 
 let nodes = [...mockNodes];
 
@@ -174,4 +174,112 @@ export const getNodeEnrollToken = createNodeEnrollToken;
 export function getNodeEventsStreamUrl(): string {
   return '/api/sse/nodes';
 }
+
+/* --- Node Traefik Ingress Configuration --- */
+const localTraefikConfigs = new Map<string, NodeTraefikConfig>();
+
+export async function getNodeTraefikConfig(nodeId: string): Promise<NodeTraefikConfig> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${nodeId}/traefik`);
+      if (res.ok) {
+        const data = await res.json();
+        localTraefikConfigs.set(nodeId, data);
+        return data as NodeTraefikConfig;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(50, 150);
+  if (localTraefikConfigs.has(nodeId)) {
+    return { ...localTraefikConfigs.get(nodeId)! };
+  }
+
+  const fallback: NodeTraefikConfig = {
+    nodeId,
+    enabled: true,
+    httpPort: 80,
+    httpsPort: 443,
+    dashboardEnabled: false,
+    dashboardPort: 8080,
+    acmeEmail: 'admin@gettako.dev',
+    logLevel: 'INFO',
+    accessLogEnabled: true,
+    forceHttps: true,
+    dynamicConfigDir: '/etc/tako/traefik/dynamic',
+    certResolver: 'letsencrypt',
+    metricsEnabled: true,
+    lastReloadedAt: new Date().toISOString(),
+    activeRoutersCount: 1,
+    activeServicesCount: 1,
+  };
+  localTraefikConfigs.set(nodeId, fallback);
+  return fallback;
+}
+
+export async function updateNodeTraefikConfig(
+  nodeId: string,
+  input: Partial<NodeTraefikConfig>
+): Promise<NodeTraefikConfig> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${nodeId}/traefik`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        localTraefikConfigs.set(nodeId, data);
+        return data as NodeTraefikConfig;
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(100, 250);
+  const existing = await getNodeTraefikConfig(nodeId);
+  const updated: NodeTraefikConfig = {
+    ...existing,
+    ...input,
+    nodeId,
+    lastReloadedAt: new Date().toISOString(),
+  };
+  localTraefikConfigs.set(nodeId, updated);
+  return updated;
+}
+
+export async function reloadNodeTraefik(
+  nodeId: string
+): Promise<{ success: boolean; message: string; reloadedAt: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/nodes/${nodeId}/traefik/reload`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  await simulateDelay(150, 300);
+  const now = new Date().toISOString();
+  if (localTraefikConfigs.has(nodeId)) {
+    const existing = localTraefikConfigs.get(nodeId)!;
+    existing.lastReloadedAt = now;
+    localTraefikConfigs.set(nodeId, existing);
+  }
+  return {
+    success: true,
+    message: 'Traefik configuration rules successfully reloaded on node',
+    reloadedAt: now,
+  };
+}
+
 

@@ -28,3 +28,22 @@ export interface CreateNodeInput {
   publicIp?: string;
   role?: NodeRole;
 }
+
+export interface NodeTraefikConfig {
+  nodeId: string;
+  enabled: boolean;
+  httpPort: number;
+  httpsPort: number;
+  dashboardEnabled: boolean;
+  dashboardPort: number;
+  acmeEmail: string;
+  logLevel: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+  accessLogEnabled: boolean;
+  forceHttps: boolean;
+  dynamicConfigDir: string;
+  certResolver: string;
+  metricsEnabled: boolean;
+  lastReloadedAt?: string;
+  activeRoutersCount?: number;
+  activeServicesCount?: number;
+}

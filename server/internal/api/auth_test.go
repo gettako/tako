@@ -181,3 +181,94 @@ func TestAuthLogin(t *testing.T) {
 	}
 }
 
+func TestUserManagementAndPermissions(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	if err := store.SeedDefaultAdmin(context.Background(), db, "admin@gettako.dev", "secret123"); err != nil {
+		t.Fatalf("SeedDefaultAdmin failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-secret")
+	router := NewRouter(db, orch)
+
+	// 1. Test GET /api/v1/auth/users
+	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/users", nil)
+	listW := httptest.NewRecorder()
+	router.ServeHTTP(listW, listReq)
+	if listW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for list users, got %d", listW.Code)
+	}
+
+	var users []AuthUserResponse
+	if err := json.Unmarshal(listW.Body.Bytes(), &users); err != nil {
+		t.Fatalf("failed to parse users json: %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("expected 1 user, got %d", len(users))
+	}
+	// Verify user avatar generation
+	if users[0].AvatarURL == "" {
+		t.Errorf("expected non-empty AvatarURL for user")
+	}
+
+	// 2. Test POST /api/v1/auth/users (create new user)
+	createBody, _ := json.Marshal(map[string]string{
+		"name":  "Budi Santoso",
+		"email": "budi@gettako.dev",
+		"role":  "member",
+	})
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/users", bytes.NewReader(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createW := httptest.NewRecorder()
+	router.ServeHTTP(createW, createReq)
+	if createW.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for user creation, got %d: %s", createW.Code, createW.Body.String())
+	}
+
+	var createdUser AuthUserResponse
+	if err := json.Unmarshal(createW.Body.Bytes(), &createdUser); err != nil {
+		t.Fatalf("failed to decode created user: %v", err)
+	}
+	if createdUser.Role != "member" || createdUser.Email != "budi@gettako.dev" {
+		t.Errorf("unexpected created user: %+v", createdUser)
+	}
+
+	// 3. Test PUT /api/v1/auth/users/{id}/role (update user role)
+	updateRoleBody, _ := json.Marshal(map[string]string{
+		"role": "admin",
+	})
+	updateReq := httptest.NewRequest(http.MethodPut, "/api/v1/auth/users/"+createdUser.ID+"/role", bytes.NewReader(updateRoleBody))
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateW := httptest.NewRecorder()
+	router.ServeHTTP(updateW, updateReq)
+	if updateW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for update role, got %d: %s", updateW.Code, updateW.Body.String())
+	}
+
+	// 4. Test DELETE /api/v1/auth/users/{id}
+	delReq := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/users/"+createdUser.ID, nil)
+	delW := httptest.NewRecorder()
+	router.ServeHTTP(delW, delReq)
+	if delW.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for delete user, got %d: %s", delW.Code, delW.Body.String())
+	}
+
+	// 5. Test idempotent DELETE on non-existent or already deleted user
+	delReq2 := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/users/non-existent-user-123", nil)
+	delW2 := httptest.NewRecorder()
+	router.ServeHTTP(delW2, delReq2)
+	if delW2.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for idempotent delete on non-existent user, got %d: %s", delW2.Code, delW2.Body.String())
+	}
+}
+
+
