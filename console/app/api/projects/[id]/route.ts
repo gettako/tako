@@ -27,7 +27,14 @@ export async function DELETE(
     return NextResponse.json(res);
   } catch (err: unknown) {
     if (err instanceof APIError) {
-      return NextResponse.json({ error: err.message }, { status: err.status });
+      let message = err.message;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.error) message = parsed.error;
+      } catch {
+        // raw string
+      }
+      return NextResponse.json({ error: message }, { status: err.status });
     }
     return NextResponse.json({ error: 'Failed to delete project' }, { status: 502 });
   }

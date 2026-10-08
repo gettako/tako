@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Layers, Tag } from 'lucide-react';
+import { ChevronRight, Layers, Tag, Trash2, MoreHorizontal, Folder } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -11,14 +11,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Project } from '@/lib/types';
 
 export interface ProjectsTableProps {
   projects: Project[];
+  onDeleteProject?: (project: Project) => void;
 }
 
-export function ProjectsTable({ projects }: ProjectsTableProps) {
+export function ProjectsTable({ projects, onDeleteProject }: ProjectsTableProps) {
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <Table>
@@ -122,15 +130,47 @@ export function ProjectsTable({ projects }: ProjectsTableProps) {
                 </TableCell>
 
                 {/* Actions */}
-                <TableCell className="text-right">
-                  <Link
-                    href={`/projects/${project.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
-                  >
-                    <ChevronRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                    <span className="sr-only">View project</span>
-                  </Link>
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    {onDeleteProject && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                          aria-label={`More options for ${project.name}`}
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              window.location.href = `/projects/${project.id}`;
+                            }}
+                            className="cursor-pointer gap-2"
+                          >
+                            <Folder className="size-4 text-muted-foreground" />
+                            <span>View Project</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            className="cursor-pointer text-status-danger gap-2"
+                            onClick={() => onDeleteProject(project)}
+                          >
+                            <Trash2 className="size-4" />
+                            <span>Delete Project</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
+                    >
+                      <ChevronRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
+                      <span className="sr-only">View project</span>
+                    </Link>
+                  </div>
                 </TableCell>
               </TableRow>
             );

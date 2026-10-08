@@ -19,8 +19,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { toast } from "sonner"
-import { deleteProject } from "@/lib/api/projects"
 import { MoreHorizontalIcon, FolderIcon, Share2Icon, Trash2Icon } from "lucide-react"
+import { DeleteProjectDialog } from "@/components/projects/delete-project-dialog"
 
 export function NavProjects({
   projects,
@@ -35,6 +35,7 @@ export function NavProjects({
   onProjectsChanged?: () => void
 }) {
   const { isMobile, setOpenMobile } = useSidebar()
+  const [projectToDelete, setProjectToDelete] = React.useState<{ id: string; name: string } | null>(null)
 
   const handleNavigate = () => {
     if (isMobile) {
@@ -52,19 +53,10 @@ export function NavProjects({
     }
   }
 
-  const handleDelete = async (item: { id?: string; name: string; url: string }) => {
+  const handleDelete = (item: { id?: string; name: string; url: string }) => {
     const projId = item.id || item.url.split('/').pop() || ''
     if (!projId) return
-    if (!confirm(`Are you sure you want to delete project "${item.name}"? This action cannot be undone.`)) {
-      return
-    }
-    try {
-      await deleteProject(projId)
-      toast.success(`Project "${item.name}" deleted`)
-      onProjectsChanged?.()
-    } catch {
-      toast.error(`Failed to delete project "${item.name}"`)
-    }
+    setProjectToDelete({ id: projId, name: item.name })
   }
 
   return (
@@ -139,6 +131,15 @@ export function NavProjects({
           </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
+
+      {projectToDelete && (
+        <DeleteProjectDialog
+          open={!!projectToDelete}
+          onOpenChange={(open) => !open && setProjectToDelete(null)}
+          project={projectToDelete}
+          onSuccess={() => onProjectsChanged?.()}
+        />
+      )}
     </SidebarGroup>
   )
 }

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Layers, ChevronRight } from 'lucide-react';
+import { Layers, ChevronRight, Trash2 } from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -16,6 +16,7 @@ import { Project } from '@/lib/types';
 
 export interface ProjectCardProps {
   project: Project;
+  onDeleteProject?: (project: Project) => void;
 }
 
 function formatRelativeTime(dateStr?: string) {
@@ -37,7 +38,7 @@ function formatRelativeTime(dateStr?: string) {
   }
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, onDeleteProject }: ProjectCardProps) {
   const isStopped = project.status === 'stopped';
   const issueCount = Math.max(0, project.servicesCount - project.healthyServicesCount);
 
@@ -61,8 +62,23 @@ export function ProjectCard({ project }: ProjectCardProps) {
               </div>
             </div>
 
-            <CardAction>
+            <CardAction className="flex items-center gap-1.5">
               <StatusBadge status={project.status} size="sm" />
+              {onDeleteProject && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDeleteProject(project);
+                  }}
+                  className="size-6 inline-flex items-center justify-center rounded text-muted-foreground/60 hover:text-status-danger hover:bg-status-danger/10 transition-colors"
+                  title="Delete Project"
+                  aria-label={`Delete ${project.name}`}
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
             </CardAction>
           </CardHeader>
 

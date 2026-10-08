@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"gettako.dev/tako/internal/api"
+	"gettako.dev/tako/internal/orchestrator"
+	"gettako.dev/tako/internal/store/db"
+	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
 func TestProjectLifecycle(t *testing.T) {
@@ -82,3 +85,74 @@ func TestProjectLifecycle(t *testing.T) {
 		t.Fatalf("expected 404 NotFound after deletion, got %d", rec.Code)
 	}
 }
+
+func TestDeleteProjectWithServices(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := t.Context()
+
+	// 1. Create project
+	proj, err := orch.Queries().CreateProject(ctx, db.CreateProjectParams{
+		ID:          "prj-has-services",
+		Name:        "Project with Services",
+		Slug:        "project-with-services",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+	if err != nil {
+		t.Fatalf("failed to create project: %v", err)
+	}
+
+	// 2. Register node and create service under this project
+	_, _ = orch.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+		NodeId:      "node-proj-del",
+		Name:        "Node Proj Del",
+		EnrollToken: "test-enroll",
+	})
+
+	srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
+		ProjectID:  proj.ID,
+		NodeID:     "node-proj-del",
+		Name:       "Worker Service",
+		Slug:       "worker-service",
+		Type:       "app",
+		Repository: "https://github.com/gettako/sample",
+	})
+	if err != nil {
+		t.Fatalf("failed to create service: %v", err)
+	}
+
+	// 3. Try to DELETE project while it still has services -> should fail with 400
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+proj.ID, nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request when deleting project with services, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 4. Delete the service
+	err = orch.Queries().DeleteService(ctx, srv.ID)
+	if err != nil {
+		t.Fatalf("failed to delete service: %v", err)
+	}
+
+	// 5. Try to DELETE project again -> should succeed with 200
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+proj.ID, nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK after services deleted, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 6. Verify project is gone
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+proj.ID, nil)
+	rec = httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 NotFound after project deletion, got %d", rec.Code)
+	}
+}
+

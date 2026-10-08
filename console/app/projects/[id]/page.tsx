@@ -15,6 +15,7 @@ import { ProjectDetailHeader } from '@/components/projects/project-detail-header
 import { ServiceCard } from '@/components/projects/service-card';
 import { ServiceRow } from '@/components/projects/service-row';
 import { CreateServiceDialog } from '@/components/services/create-service-dialog';
+import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { getProjectById } from '@/lib/api/projects';
 import { getServices } from '@/lib/api/services';
 
@@ -30,6 +31,7 @@ export default function ProjectDetailPage({
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [createServiceOpen, setCreateServiceOpen] = useState(false);
+  const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
 
   useEffect(() => {
     const handleOpen = () => setCreateServiceOpen(true);
@@ -102,6 +104,7 @@ export default function ProjectDetailPage({
           project={project}
           services={services}
           onNewService={() => setCreateServiceOpen(true)}
+          onDeleteProject={() => setDeleteProjectOpen(true)}
         />
 
         {/* Services Controls Bar */}
@@ -187,6 +190,16 @@ export default function ProjectDetailPage({
         projectId={projectId}
         onSuccess={(newService) => {
           router.push(`/projects/${projectId}/services/${newService.id}`);
+        }}
+      />
+
+      <DeleteProjectDialog
+        open={deleteProjectOpen}
+        onOpenChange={setDeleteProjectOpen}
+        project={project}
+        servicesCount={services.length}
+        onSuccess={() => {
+          router.push('/projects');
         }}
       />
     </>

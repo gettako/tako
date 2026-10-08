@@ -16,10 +16,13 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
+import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { getProjects } from '@/lib/api/projects';
+import { Project } from '@/lib/types';
 
 export default function ProjectsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEnv, setSelectedEnv] = useState<EnvironmentFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -176,11 +179,18 @@ export default function ProjectsPage() {
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProjects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onDeleteProject={(p) => setProjectToDelete(p)}
+              />
             ))}
           </div>
         ) : (
-          <ProjectsTable projects={filteredProjects} />
+          <ProjectsTable
+            projects={filteredProjects}
+            onDeleteProject={(p) => setProjectToDelete(p)}
+          />
         )}
 
         {/* Create Project Modal Form */}
@@ -188,6 +198,16 @@ export default function ProjectsPage() {
           open={isCreateOpen}
           onOpenChange={setIsCreateOpen}
         />
+
+        {/* Delete Project Confirmation Dialog */}
+        {projectToDelete && (
+          <DeleteProjectDialog
+            open={!!projectToDelete}
+            onOpenChange={(open) => !open && setProjectToDelete(null)}
+            project={projectToDelete}
+            servicesCount={projectToDelete.servicesCount}
+          />
+        )}
       </div>
     </>
   );

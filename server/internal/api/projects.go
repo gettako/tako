@@ -145,13 +145,35 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
-			p, _ := orch.Queries().GetProjectByID(r.Context(), id)
-			targetName := id
-			if p.Name != "" {
-				targetName = p.Name
+			p, err := orch.Queries().GetProjectByID(r.Context(), id)
+			if err != nil && errors.Is(err, sql.ErrNoRows) {
+				p, err = orch.Queries().GetProjectBySlug(r.Context(), id)
+			}
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					http.Error(w, `{"error":"project not found"}`, http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
 			}
 
-			if err := orch.Queries().DeleteProject(r.Context(), id); err != nil {
+			// Project can only be deleted if it has no services
+			services, err := orch.Queries().ListServicesByProject(r.Context(), p.ID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if len(services) > 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				_ = json.NewEncoder(w).Encode(map[string]string{
+					"error": "cannot delete project: project contains services. Please delete all services first.",
+				})
+				return
+			}
+
+			if err := orch.Queries().DeleteProject(r.Context(), p.ID); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
@@ -159,8 +181,8 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 				Action:     "delete_project",
 				TargetType: "project",
-				TargetID:   id,
-				TargetName: targetName,
+				TargetID:   p.ID,
+				TargetName: p.Name,
 			})
 
 			w.Header().Set("Content-Type", "application/json")

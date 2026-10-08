@@ -124,12 +124,32 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
 
 export async function deleteProject(id: string): Promise<void> {
   if (typeof window !== 'undefined') {
+    let res: Response | null = null;
     try {
-      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
     } catch {
-      // Fallback
+      // Network failure / offline
+    }
+
+    if (res) {
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete project');
+      }
+    } else {
+      // Fallback check against mock services
+      const hasServices = mockServices.some((s) => s.projectId === id);
+      if (hasServices) {
+        throw new Error('Cannot delete project: project contains services. Please delete all services first.');
+      }
+    }
+  } else {
+    const hasServices = mockServices.some((s) => s.projectId === id);
+    if (hasServices) {
+      throw new Error('Cannot delete project: project contains services. Please delete all services first.');
     }
   }
+
   await simulateDelay();
-  projects = projects.filter((p) => p.id !== id);
+  projects = projects.filter((p) => p.id !== id && p.slug !== id);
 }

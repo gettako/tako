@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Plus, Server, Layers, Activity } from 'lucide-react';
+import { Plus, Server, Layers, Activity, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { StatCard } from '@/components/ui/stat-card';
@@ -11,12 +11,14 @@ export interface ProjectDetailHeaderProps {
   project: Project;
   services: Service[];
   onNewService?: () => void;
+  onDeleteProject?: () => void;
 }
 
 export function ProjectDetailHeader({
   project,
   services,
   onNewService,
+  onDeleteProject,
 }: ProjectDetailHeaderProps) {
   const healthyCount = services.filter((s) => s.status === 'healthy').length;
   const totalReplicas = services.reduce((acc, s) => acc + s.replicas, 0);
@@ -47,6 +49,17 @@ export function ProjectDetailHeader({
         </div>
 
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          {onDeleteProject && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDeleteProject}
+              className="gap-1.5 text-sm h-9 border-border/80 text-muted-foreground hover:text-status-danger hover:border-status-danger/40 hover:bg-status-danger/10 transition-colors active:not-aria-[haspopup]:translate-y-px"
+            >
+              <Trash2 className="size-4" />
+              <span>Delete Project</span>
+            </Button>
+          )}
           <Button
             onClick={onNewService}
             size="sm"
