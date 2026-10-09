@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Globe, Server, Database, Box, Layers, ChevronRight } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { TableRow, TableCell } from '@/components/ui/table';
@@ -13,6 +14,7 @@ export interface ServiceRowProps {
 }
 
 export function ServiceRow({ service }: ServiceRowProps) {
+  const router = useRouter();
   const primaryDomain = service.domains.find((d) => d.primary) || service.domains[0];
 
   const getTypeIcon = (type: Service['type']) => {
@@ -32,7 +34,7 @@ export function ServiceRow({ service }: ServiceRowProps) {
     <TableRow
       className="group h-14 hover:bg-muted/30 transition-colors cursor-pointer"
       onClick={() => {
-        window.location.href = `/services/${service.id}`;
+        router.push(`/services/${service.id}`);
       }}
     >
       {/* Service Name & Type */}
@@ -85,7 +87,7 @@ export function ServiceRow({ service }: ServiceRowProps) {
 
       {/* Resources & Replicas */}
       <TableCell className="hidden lg:table-cell text-xs font-mono text-muted-foreground">
-        {service.usage.cpuPercent}% CPU • {service.usage.memoryUsedMb}MB RAM ({service.replicas}x)
+        {(service.usage?.cpuPercent ?? 0)}% CPU • {(service.usage?.memoryUsedMb ?? 0)}MB RAM ({service.replicas}x)
       </TableCell>
 
       {/* Action */}

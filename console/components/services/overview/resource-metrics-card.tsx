@@ -11,15 +11,18 @@ export interface ResourceMetricsCardProps {
 }
 
 export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsCardProps) {
+  const cpuPercent = service.usage?.cpuPercent ?? 0;
+  const memoryUsedMb = service.usage?.memoryUsedMb ?? 0;
+  const diskUsedGb = service.usage?.diskUsedGb ?? 1;
+
   const hasMemoryLimit = (service.limits?.memoryMb || 0) > 0;
   const memoryPercent = hasMemoryLimit
-    ? Math.min(100, Math.round((service.usage.memoryUsedMb / service.limits.memoryMb) * 100))
+    ? Math.min(100, Math.round((memoryUsedMb / service.limits.memoryMb) * 100))
     : 0;
 
   const hasCpuLimit = (service.limits?.cpuCores || 0) > 0;
   const diskLimit = service.limits?.diskGb || 10;
-  const diskUsed = service.usage.diskUsedGb || 1;
-  const diskPercent = Math.min(100, Math.round((diskUsed / Math.max(1, diskLimit)) * 100));
+  const diskPercent = Math.min(100, Math.round((diskUsedGb / Math.max(1, diskLimit)) * 100));
 
   return (
     <div className="space-y-3">
@@ -28,7 +31,7 @@ export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsC
         {/* 1. CPU Compute */}
         <StatCard
           title="CPU Compute"
-          value={`${service.usage.cpuPercent}%`}
+          value={`${cpuPercent}%`}
           subtext={
             hasCpuLimit
               ? `Quota: ${service.limits.cpuCores} ${service.limits.cpuCores === 1 ? 'core' : 'cores'}`
@@ -36,27 +39,27 @@ export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsC
           }
           icon={Cpu}
           statusAccent={
-            service.usage.cpuPercent >= 85
+            cpuPercent >= 85
               ? 'unhealthy'
-              : service.usage.cpuPercent >= 65
+              : cpuPercent >= 65
               ? 'warning'
               : 'healthy'
           }
           change={{
             value:
-              service.usage.cpuPercent >= 85
+              cpuPercent >= 85
                 ? 'High Load'
-                : service.usage.cpuPercent >= 65
+                : cpuPercent >= 65
                 ? 'Elevated'
                 : 'Normal',
-            trend: service.usage.cpuPercent >= 85 ? 'down' : 'up',
+            trend: cpuPercent >= 85 ? 'down' : 'up',
           }}
         />
 
         {/* 2. Memory (RAM) */}
         <StatCard
           title="Memory (RAM)"
-          value={`${service.usage.memoryUsedMb} MB`}
+          value={`${memoryUsedMb} MB`}
           subtext={
             hasMemoryLimit
               ? `Limit: ${service.limits.memoryMb} MB`
@@ -83,7 +86,7 @@ export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsC
         {/* 3. Persistent Disk */}
         <StatCard
           title="Persistent Disk"
-          value={`${diskUsed} GB`}
+          value={`${diskUsedGb} GB`}
           subtext={`Quota: ${diskLimit} GB allocated`}
           icon={Database}
           change={{

@@ -30,15 +30,17 @@ type UpdateProjectRequest struct {
 }
 
 type ProjectResponse struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Slug        string   `json:"slug"`
-	Description string   `json:"description"`
-	Environment string   `json:"environment"`
-	Status      string   `json:"status"`
-	Tags        []string `json:"tags"`
-	CreatedAt   string   `json:"createdAt"`
-	UpdatedAt   string   `json:"updatedAt"`
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	Slug                 string   `json:"slug"`
+	Description          string   `json:"description"`
+	Environment          string   `json:"environment"`
+	Status               string   `json:"status"`
+	Tags                 []string `json:"tags"`
+	CreatedAt            string   `json:"createdAt"`
+	UpdatedAt            string   `json:"updatedAt"`
+	ServicesCount        int      `json:"servicesCount"`
+	HealthyServicesCount int      `json:"healthyServicesCount"`
 }
 
 func randomHexID(n int) string {
@@ -47,7 +49,7 @@ func randomHexID(n int) string {
 	return hex.EncodeToString(b)
 }
 
-func mapProjectToResponse(p db.Project) ProjectResponse {
+func mapProjectToResponse(p db.Project, servicesCount, healthyServicesCount int) ProjectResponse {
 	var tags []string
 	if p.Tags != "" {
 		_ = json.Unmarshal([]byte(p.Tags), &tags)
@@ -57,15 +59,17 @@ func mapProjectToResponse(p db.Project) ProjectResponse {
 	}
 
 	return ProjectResponse{
-		ID:          p.ID,
-		Name:        p.Name,
-		Slug:        p.Slug,
-		Description: p.Description,
-		Environment: p.Environment,
-		Status:      p.Status,
-		Tags:        tags,
-		CreatedAt:   p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:   p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:                   p.ID,
+		Name:                 p.Name,
+		Slug:                 p.Slug,
+		Description:          p.Description,
+		Environment:          p.Environment,
+		Status:               p.Status,
+		Tags:                 tags,
+		CreatedAt:            p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:            p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ServicesCount:        servicesCount,
+		HealthyServicesCount: healthyServicesCount,
 	}
 }
 
@@ -77,9 +81,21 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			// Pre-compute service counts per project in O(N)
+			allServices, _ := orch.Queries().ListAllServices(r.Context())
+			servicesCountMap := make(map[string]int)
+			healthyCountMap := make(map[string]int)
+			for _, s := range allServices {
+				servicesCountMap[s.ProjectID]++
+				if s.Status == "running" || s.Status == "healthy" {
+					healthyCountMap[s.ProjectID]++
+				}
+			}
+
 			items := make([]ProjectResponse, 0, len(projects))
 			for _, p := range projects {
-				items = append(items, mapProjectToResponse(p))
+				items = append(items, mapProjectToResponse(p, servicesCountMap[p.ID], healthyCountMap[p.ID]))
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(items)
@@ -130,7 +146,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p))
+			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p, 0, 0))
 		})
 
 		r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -147,8 +163,17 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			services, _ := orch.Queries().ListServicesByProject(r.Context(), p.ID)
+			healthyCount := 0
+			for _, s := range services {
+				if s.Status == "running" || s.Status == "healthy" {
+					healthyCount++
+				}
+			}
+
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p))
+			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p, len(services), healthyCount))
 		})
 
 		updateHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -224,8 +249,16 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				},
 			})
 
+			services, _ := orch.Queries().ListServicesByProject(r.Context(), updated.ID)
+			healthyCount := 0
+			for _, s := range services {
+				if s.Status == "running" || s.Status == "healthy" {
+					healthyCount++
+				}
+			}
+
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapProjectToResponse(updated))
+			_ = json.NewEncoder(w).Encode(mapProjectToResponse(updated, len(services), healthyCount))
 		}
 
 		r.Patch("/{id}", updateHandler)

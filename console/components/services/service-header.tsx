@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   Rocket,
   RotateCw,
@@ -15,6 +16,7 @@ import {
   Layers,
   CheckCircle2,
   Play,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -122,6 +124,28 @@ export function ServiceHeader({
       {/* Header Title & Info */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1.5 min-w-0">
+          {/* Breadcrumb Hierarchy */}
+          <nav className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
+            <Link
+              href="/projects"
+              className="hover:text-foreground transition-colors"
+            >
+              Projects
+            </Link>
+            <ChevronRight className="size-3 text-muted-foreground/60" />
+            <Link
+              href={`/projects/${projectId}`}
+              className="hover:text-foreground transition-colors truncate max-w-[150px]"
+              title={projectName}
+            >
+              {projectName}
+            </Link>
+            <ChevronRight className="size-3 text-muted-foreground/60" />
+            <span className="text-foreground font-medium truncate max-w-[200px]" title={service.name}>
+              {service.name}
+            </span>
+          </nav>
+
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-bold tracking-tight text-foreground">{service.name}</h1>
             <StatusBadge status={service.status} />

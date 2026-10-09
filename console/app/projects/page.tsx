@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FolderKanban, SearchX } from 'lucide-react';
 import { ProjectsHeader } from '@/components/projects/projects-header';
@@ -31,30 +31,26 @@ export default function ProjectsPage() {
   const [selectedEnv, setSelectedEnv] = useState<EnvironmentFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
 
-  useEffect(() => {
-    const handleOpen = () => setIsCreateOpen(true);
-    window.addEventListener('open-create-project-dialog', handleOpen);
-    return () => window.removeEventListener('open-create-project-dialog', handleOpen);
-  }, []);
-
   const {
     data: projects = [],
     isLoading,
+    isRefetching,
     error,
     refetch,
   } = useQuery({
     queryKey: ['projects'],
     queryFn: getProjects,
+    refetchInterval: 10000,
   });
 
   // Calculate cluster-wide aggregate workload metrics
   const totalServices = useMemo(
-    () => projects.reduce((acc, p) => acc + p.servicesCount, 0),
+    () => projects.reduce((acc, p) => acc + (p.servicesCount ?? 0), 0),
     [projects]
   );
 
   const healthyServices = useMemo(
-    () => projects.reduce((acc, p) => acc + p.healthyServicesCount, 0),
+    () => projects.reduce((acc, p) => acc + (p.healthyServicesCount ?? 0), 0),
     [projects]
   );
 
@@ -125,6 +121,8 @@ export default function ProjectsPage() {
           healthyCount={healthyProjects}
           issuesCount={issuesCount}
           onNewProject={() => setIsCreateOpen(true)}
+          onRefresh={() => refetch()}
+          isRefreshing={isRefetching}
         />
 
         {/* 2. Top Aggregate Stat Cards */}
@@ -220,7 +218,7 @@ export default function ProjectsPage() {
             open={!!projectToDelete}
             onOpenChange={(open) => !open && setProjectToDelete(null)}
             project={projectToDelete}
-            servicesCount={projectToDelete.servicesCount}
+            servicesCount={projectToDelete.servicesCount ?? 0}
           />
         )}
       </div>

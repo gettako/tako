@@ -41,14 +41,16 @@ function formatRelativeTime(dateStr?: string) {
 }
 
 export function ProjectCard({ project, onEditProject, onDeleteProject }: ProjectCardProps) {
+  const servicesCount = project.servicesCount ?? 0;
+  const healthyServicesCount = project.healthyServicesCount ?? 0;
   const isStopped = project.status === 'stopped';
-  const issueCount = Math.max(0, project.servicesCount - project.healthyServicesCount);
+  const issueCount = Math.max(0, servicesCount - healthyServicesCount);
 
   return (
-    <Link href={`/projects/${project.id}`} className="block group outline-hidden h-[170px]">
+    <Link href={`/projects/${project.id}`} className="block group outline-hidden min-h-[175px] h-full">
       <Card
         size="sm"
-        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
+        className="relative min-h-[175px] h-full flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
       >
         <div className="p-4 pb-3 space-y-2.5">
           {/* Header: Project Name, Environment & Status */}
@@ -112,7 +114,7 @@ export function ProjectCard({ project, onEditProject, onDeleteProject }: Project
           <div className="flex items-center gap-1.5 text-muted-foreground text-xs shrink-0">
             <Layers className="size-3 text-muted-foreground" />
             <span>
-              {project.servicesCount} {project.servicesCount === 1 ? 'service' : 'services'}
+              {servicesCount} {servicesCount === 1 ? 'service' : 'services'}
             </span>
           </div>
 

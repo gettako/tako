@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Service, Project } from '@/lib/types';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,8 @@ export function NodeServicesTable({
   projects,
   nodeName,
 }: NodeServicesTableProps) {
+  const router = useRouter();
+
   const getProjectName = (projectId: string) => {
     const proj = projects.find((p) => p.id === projectId);
     return proj ? proj.name : 'Unknown Project';
@@ -104,7 +107,7 @@ export function NodeServicesTable({
                       key={service.id}
                       className="h-14 hover:bg-muted/30 transition-colors group cursor-pointer"
                       onClick={() => {
-                        window.location.href = `/projects/${service.projectId}/services/${service.id}`;
+                        router.push(`/projects/${service.projectId}/services/${service.id}`);
                       }}
                     >
                       {/* 1. Service Name & Slug/Port */}
@@ -137,7 +140,7 @@ export function NodeServicesTable({
                               {service.name}
                             </Link>
                             <div className="text-[11px] text-muted-foreground font-mono truncate">
-                              {service.slug} • port {service.ports.join(', ')}
+                              {service.slug} • port {service.ports && service.ports.length > 0 ? service.ports.join(', ') : 'none'}
                             </div>
                           </div>
                         </div>
@@ -175,20 +178,26 @@ export function NodeServicesTable({
 
                       {/* 5. Compute (CPU & RAM) */}
                       <TableCell className="font-mono text-xs">
-                        <div className="space-y-0.5">
-                          <div>
-                            <span className={getComputeColor(service.usage.cpuPercent)}>
-                              {service.usage.cpuPercent}%
-                            </span>
-                            <span className="text-[10px] text-muted-foreground ml-1 font-sans">
-                              CPU
-                            </span>
-                          </div>
-                          <div className="text-muted-foreground text-[11px]">
-                            {service.usage.memoryUsedMb} MB
-                            <span className="text-[10px] ml-1 font-sans">RAM</span>
-                          </div>
-                        </div>
+                        {(() => {
+                          const cpuPct = service.usage?.cpuPercent ?? 0;
+                          const memMb = service.usage?.memoryUsedMb ?? 0;
+                          return (
+                            <div className="space-y-0.5">
+                              <div>
+                                <span className={getComputeColor(cpuPct)}>
+                                  {cpuPct}%
+                                </span>
+                                <span className="text-[10px] text-muted-foreground ml-1 font-sans">
+                                  CPU
+                                </span>
+                              </div>
+                              <div className="text-muted-foreground text-[11px]">
+                                {memMb} MB
+                                <span className="text-[10px] ml-1 font-sans">RAM</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
 
                       {/* 6. Action */}

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronRight, Layers, Tag, Trash2, MoreHorizontal, Folder, Pencil } from 'lucide-react';
 import {
   Table,
@@ -28,6 +29,7 @@ export interface ProjectsTableProps {
 }
 
 export function ProjectsTable({ projects, onEditProject, onDeleteProject }: ProjectsTableProps) {
+  const router = useRouter();
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -45,15 +47,17 @@ export function ProjectsTable({ projects, onEditProject, onDeleteProject }: Proj
         </TableHeader>
         <TableBody className="divide-y divide-border/40">
           {projects.map((project) => {
+            const servicesCount = project.servicesCount ?? 0;
+            const healthyServicesCount = project.healthyServicesCount ?? 0;
             const isStopped = project.status === 'stopped';
-            const issueCount = Math.max(0, project.servicesCount - project.healthyServicesCount);
+            const issueCount = Math.max(0, servicesCount - healthyServicesCount);
 
             return (
               <TableRow
                 key={project.id}
                 className="group h-14 transition-colors hover:bg-muted/30 cursor-pointer"
                 onClick={() => {
-                  window.location.href = `/projects/${project.id}`;
+                  router.push(`/projects/${project.id}`);
                 }}
               >
                 {/* Project Name & Slug */}
@@ -85,18 +89,18 @@ export function ProjectsTable({ projects, onEditProject, onDeleteProject }: Proj
                   <div className="flex items-center gap-2 text-xs">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Layers className="size-3.5" />
-                      <span className="font-medium text-foreground">{project.servicesCount}</span>
+                      <span className="font-medium text-foreground">{servicesCount}</span>
                     </div>
-                    {project.healthyServicesCount > 0 && (
+                    {healthyServicesCount > 0 && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-status-success/20 bg-status-success/10 px-2 py-0.5 text-[11px] font-medium text-status-success">
                         <span className="size-1 rounded-full bg-status-success" />
-                        {project.healthyServicesCount} ok
+                        {healthyServicesCount} ok
                       </span>
                     )}
                     {isStopped ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-status-neutral/20 bg-status-neutral/10 px-2 py-0.5 text-[11px] font-medium text-status-neutral">
                         <span className="size-1 rounded-full bg-status-neutral" />
-                        {project.servicesCount} stopped
+                        {servicesCount} stopped
                       </span>
                     ) : issueCount > 0 ? (
                       <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/20 bg-status-warning/10 px-2 py-0.5 text-[11px] font-medium text-status-warning">
@@ -145,7 +149,7 @@ export function ProjectsTable({ projects, onEditProject, onDeleteProject }: Proj
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
                             onClick={() => {
-                              window.location.href = `/projects/${project.id}`;
+                              router.push(`/projects/${project.id}`);
                             }}
                             className="cursor-pointer gap-2"
                           >

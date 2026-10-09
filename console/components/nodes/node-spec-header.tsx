@@ -286,7 +286,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               Storage Volume
             </span>
             <div className="font-mono text-foreground font-medium text-xs">
-              {node.diskTotalGb} GB NVMe/SSD
+              {node.diskTotalGb >= 10 ? Math.round(node.diskTotalGb) : node.diskTotalGb.toFixed(1)} GB NVMe/SSD
             </div>
           </div>
 

@@ -7,12 +7,13 @@ import { getServices } from '@/lib/api/services';
 import { getProjects } from '@/lib/api/projects';
 import { getTimeSeriesMetrics } from '@/lib/api/metrics';
 import { NodeSpecHeader } from '@/components/nodes/node-spec-header';
-import { NodeMetricsCharts } from '@/components/nodes/node-metrics-charts';
+import { NodeMetricsCharts, NodeTimeRange } from '@/components/nodes/node-metrics-charts';
 import { NodeServicesTable } from '@/components/nodes/node-services-table';
 import { NodeTraefikPanel } from '@/components/nodes/node-traefik-panel';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { Activity, Sliders } from 'lucide-react';
+import { useNodeEvents } from '@/hooks/use-node-events';
 
 export default function NodeDetailPage({
   params,
@@ -22,7 +23,11 @@ export default function NodeDetailPage({
   const resolvedParams = React.use(params);
   const { id } = resolvedParams;
 
+  // Subscribe to live node events via SSE (metrics & status changes)
+  useNodeEvents();
+
   const [activeTab, setActiveTab] = useState<'overview' | 'traefik'>('overview');
+  const [timeRange, setTimeRange] = useState<NodeTimeRange>('1h');
 
   const {
     data: node,
@@ -32,12 +37,17 @@ export default function NodeDetailPage({
   } = useQuery({
     queryKey: ['node', id],
     queryFn: () => getNodeById(id),
+    refetchInterval: 10000,
   });
 
-  const { data: metrics = [] } = useQuery({
-    queryKey: ['node-metrics', id],
-    queryFn: () => getTimeSeriesMetrics(id, '1h'),
+  const {
+    data: metrics = [],
+    refetch: refetchMetrics,
+  } = useQuery({
+    queryKey: ['node-metrics', id, timeRange],
+    queryFn: () => getTimeSeriesMetrics(id, timeRange),
     enabled: !!node,
+    refetchInterval: 15000,
   });
 
   const { data: allServices = [] } = useQuery({
@@ -51,6 +61,10 @@ export default function NodeDetailPage({
     queryFn: getProjects,
     enabled: !!node,
   });
+
+  const handleRefresh = async () => {
+    await Promise.all([refetchNode(), refetchMetrics()]);
+  };
 
   const titleText = node ? `${node.name} — Takō Cloud` : 'Node Details — Takō Cloud';
 
@@ -83,7 +97,7 @@ export default function NodeDetailPage({
       <title>{titleText}</title>
       <div className="space-y-6">
         {/* Node Specifications & Header */}
-        <NodeSpecHeader node={node} onRefresh={() => refetchNode()} />
+        <NodeSpecHeader node={node} onRefresh={handleRefresh} />
 
         {/* Navigation Tabs */}
         <div className="flex items-center gap-1 border-b border-border">
@@ -118,7 +132,12 @@ export default function NodeDetailPage({
         {activeTab === 'overview' && (
           <div className="space-y-6">
             {/* 4-Chart Telemetry Breakdown */}
-            <NodeMetricsCharts metrics={metrics} nodeName={node.name} />
+            <NodeMetricsCharts
+              metrics={metrics}
+              nodeName={node.name}
+              timeRange={timeRange}
+              onTimeRangeChange={setTimeRange}
+            />
 
             {/* Connected Container Services */}
             <NodeServicesTable

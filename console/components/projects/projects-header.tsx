@@ -1,14 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export interface ProjectsHeaderProps {
   totalCount: number;
   healthyCount: number;
   issuesCount: number;
   onNewProject?: () => void;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function ProjectsHeader({
@@ -16,6 +19,8 @@ export function ProjectsHeader({
   healthyCount,
   issuesCount,
   onNewProject,
+  onRefresh,
+  isRefreshing = false,
 }: ProjectsHeaderProps) {
   const isAllHealthy = totalCount > 0 && issuesCount === 0;
 
@@ -46,6 +51,18 @@ export function ProjectsHeader({
       </div>
 
       <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+        {onRefresh && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+            className="gap-1.5 text-xs sm:text-sm h-9 px-3"
+          >
+            <RotateCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </Button>
+        )}
         <Button
           onClick={onNewProject}
           size="sm"

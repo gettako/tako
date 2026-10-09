@@ -6,21 +6,37 @@ import { MetricPoint } from '@/lib/api/metrics';
 import { Activity, Cpu, Network, HardDrive, Layers } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 
+export type NodeTimeRange = '1h' | '6h' | '24h' | '7d';
+
 interface NodeMetricsChartsProps {
   metrics: MetricPoint[];
   nodeName: string;
+  timeRange?: NodeTimeRange;
+  onTimeRangeChange?: (range: NodeTimeRange) => void;
 }
 
-export function NodeMetricsCharts({ metrics, nodeName }: NodeMetricsChartsProps) {
-  const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h'>('1h');
-
+export function NodeMetricsCharts({
+  metrics,
+  nodeName,
+  timeRange = '1h',
+  onTimeRangeChange,
+}: NodeMetricsChartsProps) {
   const latest = metrics[metrics.length - 1] || {
-    cpu: 24,
-    memory: 45,
-    networkRx: 420,
-    networkTx: 890,
-    disk: 40,
+    cpu: 0,
+    memory: 0,
+    networkRx: 0,
+    networkTx: 0,
+    disk: 0,
   };
+
+  const timeRangeLabel =
+    timeRange === '1h'
+      ? 'the last hour'
+      : timeRange === '6h'
+      ? 'the last 6 hours'
+      : timeRange === '24h'
+      ? 'the last 24 hours'
+      : 'the last 7 days';
 
   return (
     <div className="space-y-4">
@@ -28,24 +44,26 @@ export function NodeMetricsCharts({ metrics, nodeName }: NodeMetricsChartsProps)
       <SectionHeader
         icon={Activity}
         title="Host Telemetry & Metrics"
-        description={`Real-time resource utilization for ${nodeName} (sampled over the last hour)`}
+        description={`Real-time resource utilization for ${nodeName} (sampled over ${timeRangeLabel})`}
         action={
-          <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border bg-muted/20">
-            {(['1h', '6h', '24h'] as const).map((range) => (
-              <button
-                key={range}
-                type="button"
-                onClick={() => setTimeRange(range)}
-                className={`px-2.5 py-1 text-xs font-mono rounded-md transition-all active:not-aria-[haspopup]:translate-y-px ${
-                  timeRange === range
-                    ? 'bg-background text-foreground  font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {range}
-              </button>
-            ))}
-          </div>
+          onTimeRangeChange ? (
+            <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border bg-muted/20">
+              {(['1h', '6h', '24h', '7d'] as const).map((range) => (
+                <button
+                  key={range}
+                  type="button"
+                  onClick={() => onTimeRangeChange(range)}
+                  className={`px-2.5 py-1 text-xs font-mono rounded-md transition-all active:not-aria-[haspopup]:translate-y-px ${
+                    timeRange === range
+                      ? 'bg-background text-foreground font-semibold'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
+          ) : null
         }
       />
 
