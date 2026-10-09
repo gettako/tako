@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Copy, Check, ArrowDown, Search, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,27 +51,31 @@ export function LogViewer({
     }
   };
 
-  // Normalize logs to LogLine[]
-  const parsedLogs: LogLine[] = logs.map((item, idx) => {
-    if (typeof item === 'string') {
-      const lower = item.toLowerCase();
-      let level: LogLine['level'] = 'info';
-      if (lower.includes('error') || lower.includes('fail') || lower.includes('fatal')) {
-        level = 'error';
-      } else if (lower.includes('warn')) {
-        level = 'warn';
-      } else if (lower.includes('debug')) {
-        level = 'debug';
+  // Normalize logs to LogLine[] - memoized to prevent GC thrashing
+  const parsedLogs: LogLine[] = useMemo(() => {
+    return logs.map((item, idx) => {
+      if (typeof item === 'string') {
+        const lower = item.toLowerCase();
+        let level: LogLine['level'] = 'info';
+        if (lower.includes('error') || lower.includes('fail') || lower.includes('fatal')) {
+          level = 'error';
+        } else if (lower.includes('warn')) {
+          level = 'warn';
+        } else if (lower.includes('debug')) {
+          level = 'debug';
+        }
+        return { id: idx, message: item, level };
       }
-      return { id: idx, message: item, level };
-    }
-    return { ...item, id: item.id ?? idx };
-  });
+      return { ...item, id: item.id ?? idx };
+    });
+  }, [logs]);
 
-  // Filter logs by search query
-  const filteredLogs = searchQuery
-    ? parsedLogs.filter((l) => l.message.toLowerCase().includes(searchQuery.toLowerCase()))
-    : parsedLogs;
+  // Filter logs by search query - memoized
+  const filteredLogs = useMemo(() => {
+    if (!searchQuery) return parsedLogs;
+    const q = searchQuery.toLowerCase();
+    return parsedLogs.filter((l) => l.message.toLowerCase().includes(q));
+  }, [parsedLogs, searchQuery]);
 
   const count = filteredLogs.length;
 

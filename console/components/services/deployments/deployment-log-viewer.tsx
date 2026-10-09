@@ -32,6 +32,8 @@ const ALL_STEPS: DeploymentStepName[] = [
   'Live',
 ];
 
+const MAX_LIVE_LOGS = 1500;
+
 export function DeploymentLogViewer({
   deployment,
   serviceName,
@@ -43,6 +45,13 @@ export function DeploymentLogViewer({
   const [liveLogs, setLiveLogs] = useState<LiveLogChunk[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const appendLogs = (chunks: LiveLogChunk[]) => {
+    setLiveLogs((prev) => {
+      const next = [...prev, ...chunks];
+      return next.length > MAX_LIVE_LOGS ? next.slice(next.length - MAX_LIVE_LOGS) : next;
+    });
+  };
 
   // Connect to SSE log stream
   useEffect(() => {
@@ -71,8 +80,7 @@ export function DeploymentLogViewer({
               cleanMsg = msgMatch[1].trim();
             }
 
-            setLiveLogs((prev) => [
-              ...prev,
+            appendLogs([
               {
                 step: matchedStep,
                 message: cleanMsg,
@@ -85,6 +93,7 @@ export function DeploymentLogViewer({
         } catch {
           // Plain text line
           const lines = event.data.split('\n');
+          const newChunks: LiveLogChunk[] = [];
           for (const line of lines) {
             if (!line.trim()) continue;
             let step: DeploymentStepName = 'Build';
@@ -107,14 +116,14 @@ export function DeploymentLogViewer({
               }
             }
 
-            setLiveLogs((prev) => [
-              ...prev,
-              {
-                step,
-                message,
-                timestamp: new Date().toISOString(),
-              },
-            ]);
+            newChunks.push({
+              step,
+              message,
+              timestamp: new Date().toISOString(),
+            });
+          }
+          if (newChunks.length > 0) {
+            appendLogs(newChunks);
           }
         }
       };
@@ -146,103 +155,99 @@ export function DeploymentLogViewer({
   }, [liveLogs, autoFollow]);
 
   // Determine logs source: liveLogs > stored deployment.logs > mock
-  let effectiveLogs = liveLogs;
-  if (effectiveLogs.length === 0 && deployment.logs) {
-    const rawLines = deployment.logs.split('\n');
-    const parsedStored: LiveLogChunk[] = [];
-    for (const line of rawLines) {
-      if (!line.trim()) continue;
-      let step: DeploymentStepName = 'Build';
-      let message = line.trim();
-      const match = line.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[(.*?)\]\s*)?(.*)$/);
-      if (match) {
-        if (match[1]) {
-          const found = ALL_STEPS.find((s) => s.toLowerCase() === match[1].toLowerCase());
-          if (found) step = found;
-        } else if (/queue/i.test(line)) {
-          step = 'Queued';
+  const effectiveLogs = useMemo<LiveLogChunk[]>(() => {
+    if (liveLogs.length > 0) return liveLogs;
+    if (deployment.logs) {
+      const rawLines = deployment.logs.split('\n');
+      const parsedStored: LiveLogChunk[] = [];
+      for (const line of rawLines) {
+        if (!line.trim()) continue;
+        let step: DeploymentStepName = 'Build';
+        let message = line.trim();
+        const match = line.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[(.*?)\]\s*)?(.*)$/);
+        if (match) {
+          if (match[1]) {
+            const found = ALL_STEPS.find((s) => s.toLowerCase() === match[1].toLowerCase());
+            if (found) step = found;
+          } else if (/queue/i.test(line)) {
+            step = 'Queued';
+          }
+          if (match[2]) {
+            message = match[2].trim();
+          }
         }
-        if (match[2]) {
-          message = match[2].trim();
-        }
+        parsedStored.push({
+          step,
+          message,
+          timestamp: deployment.startedAt || new Date().toISOString(),
+        });
       }
-      parsedStored.push({
-        step,
-        message,
-        timestamp: deployment.startedAt || new Date().toISOString(),
-      });
+      if (parsedStored.length > 0) {
+        return parsedStored;
+      }
     }
-    if (parsedStored.length > 0) {
-      effectiveLogs = parsedStored;
-    }
-  }
-
-  // Construct sections
-  let sections: {
-    stepName: DeploymentStepName;
-    status: StepStatus;
-    logs: LogLine[];
-    durationMs?: number;
-  }[] = [];
+    return [];
+  }, [liveLogs, deployment.logs, deployment.startedAt]);
 
   const isDeploymentFinished = deployment.status === 'live';
 
-  if (effectiveLogs.length > 0) {
-    // Find the latest step that has logs
-    const latestLoggedStepIdx = Math.max(
-      -1,
-      ...effectiveLogs.map((l) => ALL_STEPS.indexOf(l.step))
-    );
+  // Construct sections - memoized to prevent recomputing across unrelated renders
+  const sections = useMemo(() => {
+    if (effectiveLogs.length > 0) {
+      // Find the latest step that has logs
+      const latestLoggedStepIdx = Math.max(
+        -1,
+        ...effectiveLogs.map((l) => ALL_STEPS.indexOf(l.step))
+      );
 
-    // Group logs by steps
-    sections = ALL_STEPS.map((step, idx) => {
-      const stepLogs = effectiveLogs.filter((l) => l.step === step);
-      const stepMeta = deployment.steps?.find((s) => s.name === step);
-      const hasError = stepLogs.some((l) => l.isError) || stepMeta?.status === 'failed';
+      // Group logs by steps
+      return ALL_STEPS.map((step, idx) => {
+        const stepLogs = effectiveLogs.filter((l) => l.step === step);
+        const stepMeta = deployment.steps?.find((s) => s.name === step);
+        const hasError = stepLogs.some((l) => l.isError) || stepMeta?.status === 'failed';
 
-      let status: StepStatus = 'pending';
+        let status: StepStatus = 'pending';
 
-      if (hasError) {
-        status = 'failed';
-      } else if (isDeploymentFinished) {
-        // Entire deployment is finished successfully
-        status = stepLogs.length > 0 || (stepMeta && stepMeta.status !== 'pending') ? 'success' : 'pending';
-      } else if (stepLogs.length > 0 || (stepMeta && stepMeta.status !== 'pending')) {
-        // Deployment still in progress
-        if (idx < latestLoggedStepIdx) {
-          status = 'success';
-        } else if (idx === latestLoggedStepIdx) {
-          if (step === 'Live' || !isStreaming) {
+        if (hasError) {
+          status = 'failed';
+        } else if (isDeploymentFinished) {
+          status = stepLogs.length > 0 || (stepMeta && stepMeta.status !== 'pending') ? 'success' : 'pending';
+        } else if (stepLogs.length > 0 || (stepMeta && stepMeta.status !== 'pending')) {
+          if (idx < latestLoggedStepIdx) {
             status = 'success';
+          } else if (idx === latestLoggedStepIdx) {
+            if (step === 'Live' || !isStreaming) {
+              status = 'success';
+            } else {
+              status = 'running';
+            }
           } else {
-            status = 'running';
+            status = 'pending';
           }
-        } else {
-          status = 'pending';
         }
-      }
 
-      const formattedLogs: LogLine[] = stepLogs.map((l) => ({
-        timestamp: l.timestamp,
-        message: l.message,
-        level: l.isError ? 'error' : 'info',
-      }));
+        const formattedLogs: LogLine[] = stepLogs.map((l) => ({
+          timestamp: l.timestamp,
+          message: l.message,
+          level: l.isError ? 'error' : 'info',
+        }));
 
-      const filteredLogs = searchQuery
-        ? formattedLogs.filter((l) => l.message.toLowerCase().includes(searchQuery.toLowerCase()))
-        : formattedLogs;
+        const filteredLogs = searchQuery
+          ? formattedLogs.filter((l) => l.message.toLowerCase().includes(searchQuery.toLowerCase()))
+          : formattedLogs;
 
-      return {
-        stepName: step,
-        status,
-        logs: filteredLogs,
-        durationMs: stepMeta?.durationMs,
-      };
-    }).filter((s) => s.logs.length > 0 || s.status !== 'pending');
-  } else {
+        return {
+          stepName: step,
+          status,
+          logs: filteredLogs,
+          durationMs: stepMeta?.durationMs,
+        };
+      }).filter((s) => s.logs.length > 0 || s.status !== 'pending');
+    }
+
     // Fallback to mock build logs
     const mockGroups = getMockBuildLogs(serviceName, deployment.commitHash);
-    sections = mockGroups.map((group) => {
+    return mockGroups.map((group) => {
       const stepMeta = deployment.steps?.find((s) => s.name === group.stepName);
       let status: StepStatus = 'pending';
       if (isDeploymentFinished) {
@@ -264,7 +269,7 @@ export function DeploymentLogViewer({
         durationMs: stepMeta?.durationMs,
       };
     });
-  }
+  }, [effectiveLogs, deployment.steps, isDeploymentFinished, isStreaming, searchQuery, serviceName, deployment.commitHash]);
 
   const handleCopyAll = async () => {
     const allLines = sections
