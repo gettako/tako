@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getAuditLogs } from '@/lib/api/audit';
 import { AuditFilters, AuditCategory } from '@/components/audit/audit-filters';
@@ -10,10 +10,12 @@ import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { History, ShieldCheck, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { useDebounce } from '@/hooks/use-debounce';
 
 export default function AuditLogsPage() {
   const [category, setCategory] = useState<AuditCategory>('all');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 200);
   const [selectedActor, setSelectedActor] = useState('all');
 
   const { data: logs = [], isLoading } = useQuery({
@@ -21,19 +23,21 @@ export default function AuditLogsPage() {
     queryFn: getAuditLogs,
   });
 
-  // Extract unique actors for filter dropdown
-  const actorsMap: Record<string, { id: string; name: string; email?: string; avatarUrl?: string }> = {};
-  logs.forEach((l) => {
-    actorsMap[l.actor.id] = {
-      id: l.actor.id,
-      name: l.actor.name,
-      email: l.actor.email,
-      avatarUrl: l.actor.avatarUrl,
-    };
-  });
-  const uniqueActors = Object.values(actorsMap);
+  // Extract unique actors for filter dropdown (memoized)
+  const uniqueActors = useMemo(() => {
+    const actorsMap: Record<string, { id: string; name: string; email?: string; avatarUrl?: string }> = {};
+    logs.forEach((l) => {
+      actorsMap[l.actor.id] = {
+        id: l.actor.id,
+        name: l.actor.name,
+        email: l.actor.email,
+        avatarUrl: l.actor.avatarUrl,
+      };
+    });
+    return Object.values(actorsMap);
+  }, [logs]);
 
-  const categoryCounts = React.useMemo(() => {
+  const categoryCounts = useMemo(() => {
     return {
       all: logs.length,
       auth: logs.filter((l) => l.action.startsWith('auth.') || l.targetType === 'user').length,
@@ -50,35 +54,37 @@ export default function AuditLogsPage() {
     setSelectedActor('all');
   };
 
-  const filteredLogs = logs.filter((log) => {
-    // 1. Category filter
-    if (category !== 'all') {
-      if (category === 'auth') {
-        const isAuthAction = log.action.startsWith('auth.');
-        const isUserTarget = log.targetType === 'user';
-        if (!isAuthAction && !isUserTarget) return false;
-      } else if (log.targetType !== category) {
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      // 1. Category filter
+      if (category !== 'all') {
+        if (category === 'auth') {
+          const isAuthAction = log.action.startsWith('auth.');
+          const isUserTarget = log.targetType === 'user';
+          if (!isAuthAction && !isUserTarget) return false;
+        } else if (log.targetType !== category) {
+          return false;
+        }
+      }
+
+      // 2. Actor filter
+      if (selectedActor !== 'all' && log.actor.name !== selectedActor) {
         return false;
       }
-    }
 
-    // 2. Actor filter
-    if (selectedActor !== 'all' && log.actor.name !== selectedActor) {
-      return false;
-    }
+      // 3. Search filter
+      if (debouncedSearch.trim()) {
+        const q = debouncedSearch.toLowerCase();
+        const matchAction = log.action.toLowerCase().includes(q);
+        const matchTarget = log.targetName.toLowerCase().includes(q);
+        const matchActor = log.actor.name.toLowerCase().includes(q);
+        const matchIp = log.ipAddress.toLowerCase().includes(q);
+        if (!matchAction && !matchTarget && !matchActor && !matchIp) return false;
+      }
 
-    // 3. Search filter
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const matchAction = log.action.toLowerCase().includes(q);
-      const matchTarget = log.targetName.toLowerCase().includes(q);
-      const matchActor = log.actor.name.toLowerCase().includes(q);
-      const matchIp = log.ipAddress.toLowerCase().includes(q);
-      if (!matchAction && !matchTarget && !matchActor && !matchIp) return false;
-    }
-
-    return true;
-  });
+      return true;
+    });
+  }, [logs, category, selectedActor, debouncedSearch]);
 
   const handleExportJson = () => {
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(filteredLogs, null, 2));

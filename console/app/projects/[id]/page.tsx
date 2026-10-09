@@ -19,6 +19,7 @@ import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog
 import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { getProjectById } from '@/lib/api/projects';
 import { getServices } from '@/lib/api/services';
+import { useDebounce } from '@/hooks/use-debounce';
 
 export default function ProjectDetailPage({
   params,
@@ -30,6 +31,7 @@ export default function ProjectDetailPage({
   const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 200);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [createServiceOpen, setCreateServiceOpen] = useState(false);
   const [editProjectOpen, setEditProjectOpen] = useState(false);
@@ -62,8 +64,8 @@ export default function ProjectDetailPage({
   });
 
   const filteredServices = useMemo(() => {
-    if (!searchQuery.trim()) return services;
-    const q = searchQuery.toLowerCase();
+    if (!debouncedSearch.trim()) return services;
+    const q = debouncedSearch.toLowerCase();
     return services.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
@@ -71,7 +73,7 @@ export default function ProjectDetailPage({
         s.nodeName.toLowerCase().includes(q) ||
         s.domains.some((d) => d.domain.toLowerCase().includes(q))
     );
-  }, [services, searchQuery]);
+  }, [services, debouncedSearch]);
 
   const titleText = project ? `${project.name} — Takō Cloud` : 'Project Details — Takō Cloud';
 

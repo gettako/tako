@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, Copy, Check, ArrowDown, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BuildLogSection } from './build-log-section';
@@ -20,6 +20,13 @@ interface LiveLogChunk {
   message: string;
   timestamp: string;
   isError?: boolean;
+}
+
+export interface DeploymentLogSection {
+  stepName: DeploymentStepName;
+  status: StepStatus;
+  logs: LogLine[];
+  durationMs?: number;
 }
 
 const ALL_STEPS: DeploymentStepName[] = [
@@ -192,7 +199,7 @@ export function DeploymentLogViewer({
   const isDeploymentFinished = deployment.status === 'live';
 
   // Construct sections - memoized to prevent recomputing across unrelated renders
-  const sections = useMemo(() => {
+  const sections = useMemo<DeploymentLogSection[]>(() => {
     if (effectiveLogs.length > 0) {
       // Find the latest step that has logs
       const latestLoggedStepIdx = Math.max(

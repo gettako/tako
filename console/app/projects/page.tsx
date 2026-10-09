@@ -20,12 +20,14 @@ import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { getProjects } from '@/lib/api/projects';
 import { Project } from '@/lib/types';
+import { useDebounce } from '@/hooks/use-debounce';
 
 export default function ProjectsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 200);
   const [selectedEnv, setSelectedEnv] = useState<EnvironmentFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
 
@@ -83,8 +85,8 @@ export default function ProjectsPage() {
       result = result.filter((p) => p.environment.toLowerCase() === selectedEnv);
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
@@ -96,7 +98,7 @@ export default function ProjectsPage() {
     }
 
     return result;
-  }, [projects, selectedEnv, searchQuery]);
+  }, [projects, selectedEnv, debouncedSearch]);
 
   if (error) {
     return (

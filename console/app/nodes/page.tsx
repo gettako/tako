@@ -17,10 +17,12 @@ import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { Server, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNodeEvents } from '@/hooks/use-node-events';
+import { useDebounce } from '@/hooks/use-debounce';
 
 export default function NodesPage() {
   useNodeEvents();
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 200);
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
 
@@ -45,8 +47,8 @@ export default function NodesPage() {
       result = result.filter((n) => n.status === selectedStatus);
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(
         (n) =>
           n.name.toLowerCase().includes(q) ||
@@ -57,7 +59,7 @@ export default function NodesPage() {
     }
 
     return result;
-  }, [nodes, selectedStatus, search]);
+  }, [nodes, selectedStatus, debouncedSearch]);
 
   const offlineNodes = nodes.filter((n) => n.status === 'offline');
   const hasActiveFilters = search.trim().length > 0 || selectedStatus !== 'all';
