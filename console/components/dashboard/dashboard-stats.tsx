@@ -33,30 +33,43 @@ export function DashboardStats({ projects, services, nodes }: DashboardStatsProp
       <StatCard
         title="Total Services"
         value={totalServices}
-        subtext={`${healthyServices} running healthy`}
+        subtext={totalServices === 0 ? 'No workloads provisioned' : `${healthyServices} running healthy`}
         icon={Layers}
-        statusAccent={healthyServices === totalServices && totalServices > 0 ? 'healthy' : totalServices > 0 ? 'warning' : undefined}
+        statusAccent={totalServices === 0 ? undefined : healthyServices === totalServices ? 'healthy' : 'warning'}
         change={{
-          value: `${Math.round((healthyServices / (totalServices || 1)) * 100)}% Healthy`,
-          trend: healthyServices === totalServices ? 'up' : 'down',
+          value: totalServices === 0 ? '0 Workloads' : `${Math.round((healthyServices / totalServices) * 100)}% Healthy`,
+          trend: totalServices === 0 ? 'neutral' : healthyServices === totalServices ? 'up' : 'down',
         }}
       />
       <StatCard
         title="Cluster Nodes"
-        value={`${onlineNodes}/${totalNodes}`}
-        subtext={totalNodes - onlineNodes > 0 ? `${totalNodes - onlineNodes} ${totalNodes - onlineNodes === 1 ? 'node' : 'nodes'} offline` : 'All nodes online'}
+        value={totalNodes === 0 ? '0' : `${onlineNodes}/${totalNodes}`}
+        subtext={
+          totalNodes === 0
+            ? 'No hosts registered'
+            : totalNodes - onlineNodes > 0
+            ? `${totalNodes - onlineNodes} ${totalNodes - onlineNodes === 1 ? 'node' : 'nodes'} offline`
+            : 'All nodes online'
+        }
         icon={Server}
-        statusAccent={totalNodes - onlineNodes > 0 ? 'warning' : 'healthy'}
+        statusAccent={totalNodes === 0 ? undefined : totalNodes - onlineNodes > 0 ? 'warning' : 'healthy'}
         change={{
-          value: totalNodes - onlineNodes > 0 ? `${totalNodes - onlineNodes} Degraded` : '100% Online',
-          trend: totalNodes - onlineNodes > 0 ? 'down' : 'up',
+          value:
+            totalNodes === 0
+              ? 'No Nodes'
+              : totalNodes - onlineNodes > 0
+              ? `${totalNodes - onlineNodes} Degraded`
+              : '100% Online',
+          trend: totalNodes === 0 ? 'neutral' : totalNodes - onlineNodes > 0 ? 'down' : 'up',
         }}
       />
       <StatCard
         title="Attention Needed"
         value={degradedOrUnhealthy}
         subtext={
-          degradedOrUnhealthy === 0
+          totalServices === 0
+            ? 'No workloads to monitor'
+            : degradedOrUnhealthy === 0
             ? 'No degraded workloads'
             : `${degradedOrUnhealthy} ${degradedOrUnhealthy === 1 ? 'workload' : 'workloads'} impaired`
         }

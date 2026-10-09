@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const appendDeploymentLog = `-- name: AppendDeploymentLog :exec
@@ -131,6 +132,144 @@ func (q *Queries) ListDeploymentsByService(ctx context.Context, serviceID string
 		if err := rows.Scan(
 			&i.ID,
 			&i.ServiceID,
+			&i.CommitHash,
+			&i.CommitMessage,
+			&i.Branch,
+			&i.Author,
+			&i.Status,
+			&i.Steps,
+			&i.Logs,
+			&i.DurationMs,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.CreatedAt,
+			&i.Url,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeploymentsWithServiceByService = `-- name: ListDeploymentsWithServiceByService :many
+SELECT 
+    d.id, d.service_id, COALESCE(s.name, 'Service') as service_name,
+    d.commit_hash, d.commit_message, d.branch, d.author,
+    d.status, d.steps, d.logs, d.duration_ms, d.started_at,
+    d.finished_at, d.created_at, d.url
+FROM deployments d
+LEFT JOIN services s ON d.service_id = s.id
+WHERE d.service_id = ?
+ORDER BY d.created_at DESC
+`
+
+type ListDeploymentsWithServiceByServiceRow struct {
+	ID            string       `json:"id"`
+	ServiceID     string       `json:"service_id"`
+	ServiceName   string       `json:"service_name"`
+	CommitHash    string       `json:"commit_hash"`
+	CommitMessage string       `json:"commit_message"`
+	Branch        string       `json:"branch"`
+	Author        string       `json:"author"`
+	Status        string       `json:"status"`
+	Steps         string       `json:"steps"`
+	Logs          string       `json:"logs"`
+	DurationMs    int64        `json:"duration_ms"`
+	StartedAt     time.Time    `json:"started_at"`
+	FinishedAt    sql.NullTime `json:"finished_at"`
+	CreatedAt     time.Time    `json:"created_at"`
+	Url           string       `json:"url"`
+}
+
+func (q *Queries) ListDeploymentsWithServiceByService(ctx context.Context, serviceID string) ([]ListDeploymentsWithServiceByServiceRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDeploymentsWithServiceByService, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDeploymentsWithServiceByServiceRow{}
+	for rows.Next() {
+		var i ListDeploymentsWithServiceByServiceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ServiceID,
+			&i.ServiceName,
+			&i.CommitHash,
+			&i.CommitMessage,
+			&i.Branch,
+			&i.Author,
+			&i.Status,
+			&i.Steps,
+			&i.Logs,
+			&i.DurationMs,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.CreatedAt,
+			&i.Url,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecentDeployments = `-- name: ListRecentDeployments :many
+SELECT 
+    d.id, d.service_id, COALESCE(s.name, 'Service') as service_name,
+    d.commit_hash, d.commit_message, d.branch, d.author,
+    d.status, d.steps, d.logs, d.duration_ms, d.started_at,
+    d.finished_at, d.created_at, d.url
+FROM deployments d
+LEFT JOIN services s ON d.service_id = s.id
+ORDER BY d.created_at DESC
+LIMIT ?
+`
+
+type ListRecentDeploymentsRow struct {
+	ID            string       `json:"id"`
+	ServiceID     string       `json:"service_id"`
+	ServiceName   string       `json:"service_name"`
+	CommitHash    string       `json:"commit_hash"`
+	CommitMessage string       `json:"commit_message"`
+	Branch        string       `json:"branch"`
+	Author        string       `json:"author"`
+	Status        string       `json:"status"`
+	Steps         string       `json:"steps"`
+	Logs          string       `json:"logs"`
+	DurationMs    int64        `json:"duration_ms"`
+	StartedAt     time.Time    `json:"started_at"`
+	FinishedAt    sql.NullTime `json:"finished_at"`
+	CreatedAt     time.Time    `json:"created_at"`
+	Url           string       `json:"url"`
+}
+
+func (q *Queries) ListRecentDeployments(ctx context.Context, limit int64) ([]ListRecentDeploymentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentDeployments, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentDeploymentsRow{}
+	for rows.Next() {
+		var i ListRecentDeploymentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ServiceID,
+			&i.ServiceName,
 			&i.CommitHash,
 			&i.CommitMessage,
 			&i.Branch,

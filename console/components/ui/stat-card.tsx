@@ -31,9 +31,23 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <div
-      className={cn( 'relative rounded-xl border border-border bg-card p-5 text-card-foreground transition-colors overflow-hidden', className )}
+      className={cn(
+        'relative rounded-xl border border-border bg-card p-5 text-card-foreground transition-colors overflow-hidden',
+        className
+      )}
       {...props}
     >
+      {statusAccent && statusAccent !== 'neutral' && (
+        <div
+          className={cn(
+            'absolute inset-x-0 top-0 h-0.5',
+            statusAccent === 'healthy' && 'bg-status-success/70',
+            statusAccent === 'warning' && 'bg-status-warning/70',
+            statusAccent === 'unhealthy' && 'bg-status-danger/70',
+            statusAccent === 'degraded' && 'bg-status-warning/70'
+          )}
+        />
+      )}
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-muted-foreground">{title}</span>
         {Icon && (

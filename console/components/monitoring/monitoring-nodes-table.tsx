@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Node } from '@/lib/types';
 import {
   Card,
@@ -26,6 +27,8 @@ interface MonitoringNodesTableProps {
 }
 
 export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
+  const router = useRouter();
+
   const getMetricColor = (pct: number) => {
     if (pct >= 90) return 'text-status-danger font-semibold';
     if (pct >= 70) return 'text-status-warning font-semibold';
@@ -60,14 +63,17 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
             <TableBody className="divide-y divide-border/40">
               {nodes.map((node) => {
                 const isOffline = node.status === 'offline';
-                const memPct =
-                  node.memoryTotalMb > 0
-                    ? Math.round((node.usage.memoryUsedMb / node.memoryTotalMb) * 100)
-                    : 0;
-                const diskPct =
-                  node.diskTotalGb > 0
-                    ? Math.round(((node.usage.diskUsedGb || 0) / node.diskTotalGb) * 100)
-                    : 0;
+                const cpuVal = node.usage?.cpuPercent || 0;
+                const memUsed = node.usage?.memoryUsedMb || 0;
+                const memLimit = node.memoryTotalMb || node.usage?.memoryLimitMb || 1;
+                const memPct = node.memoryTotalMb > 0
+                  ? Math.min(100, Math.round((memUsed / memLimit) * 100))
+                  : 0;
+                const diskUsed = node.usage?.diskUsedGb || 0;
+                const diskTotal = node.diskTotalGb || node.usage?.diskTotalGb || 1;
+                const diskPct = node.diskTotalGb > 0
+                  ? Math.min(100, Math.round((diskUsed / diskTotal) * 100))
+                  : 0;
 
                 const formatGb = (val: number) => {
                   const rounded = Math.round(val * 100) / 100;
@@ -79,7 +85,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                     key={node.id}
                     className="h-14 hover:bg-muted/30 transition-colors group cursor-pointer"
                     onClick={() => {
-                      window.location.href = `/nodes/${node.id}`;
+                      router.push(`/nodes/${node.id}`);
                     }}
                   >
                     {/* Node Host & OS */}
@@ -121,8 +127,8 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                         <span className="text-muted-foreground">0%</span>
                       ) : (
                         <div>
-                          <span className={getMetricColor(node.usage.cpuPercent)}>
-                            {node.usage.cpuPercent}%
+                          <span className={getMetricColor(cpuVal)}>
+                            {cpuVal}%
                           </span>
                           <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
                             ({node.cpuTotalCores} cores)
@@ -134,13 +140,13 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                           className={`h-full rounded-full transition-all duration-300 ${
                             isOffline
                               ? 'bg-muted'
-                              : node.usage.cpuPercent >= 90
+                              : cpuVal >= 90
                               ? 'bg-status-danger'
-                              : node.usage.cpuPercent >= 70
+                              : cpuVal >= 70
                               ? 'bg-status-warning'
                               : 'bg-status-success'
                           }`}
-                          style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, node.usage.cpuPercent))}%` }}
+                          style={{ width: `${isOffline ? 0 : Math.min(100, Math.max(0, cpuVal))}%` }}
                         />
                       </div>
                     </TableCell>
@@ -153,7 +159,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                         <div>
                           <span className={getMetricColor(memPct)}>{memPct}%</span>
                           <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
-                            ({formatGb(node.usage.memoryUsedMb / 1024)} / {formatGb(node.memoryTotalMb / 1024)})
+                            ({formatGb(memUsed / 1024)} / {formatGb((node.memoryTotalMb || memLimit) / 1024)})
                           </span>
                         </div>
                       )}
@@ -181,7 +187,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                         <div>
                           <span className={getMetricColor(diskPct)}>{diskPct}%</span>
                           <span className="text-[11px] text-muted-foreground ml-1.5 font-normal">
-                            ({formatGb(node.usage.diskUsedGb || 0)} / {formatGb(node.diskTotalGb)})
+                            ({formatGb(diskUsed)} / {formatGb(node.diskTotalGb || diskTotal)})
                           </span>
                         </div>
                       )}

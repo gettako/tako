@@ -390,13 +390,24 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 		return nil, status.Errorf(codes.Internal, "failed to update heartbeat: %v", err)
 	}
 
+	memTotal := int64(8192)
+	diskTotal := int64(100)
+	if node, err := o.queries.GetNodeByID(ctx, nodeID); err == nil {
+		if node.MemoryTotalMb > 0 {
+			memTotal = node.MemoryTotalMb
+		}
+		if node.DiskTotalGb > 0 {
+			diskTotal = int64(node.DiskTotalGb)
+		}
+	}
+
 	_, _ = o.queries.RecordNodeMetric(ctx, db.RecordNodeMetricParams{
 		NodeID:        nodeID,
 		CpuPercent:    req.GetCpuPercent(),
 		MemoryUsedMb:  req.GetMemoryUsedMb(),
-		MemoryTotalMb: 0,
+		MemoryTotalMb: memTotal,
 		DiskUsedGb:    int64(req.GetDiskUsedGb()),
-		DiskTotalGb:   0,
+		DiskTotalGb:   diskTotal,
 		NetworkRxKbps: req.GetNetworkRxKbps(),
 		NetworkTxKbps: req.GetNetworkTxKbps(),
 	})

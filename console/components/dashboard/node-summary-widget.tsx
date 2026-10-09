@@ -57,8 +57,10 @@ export function NodeSummaryWidget({ nodes }: NodeSummaryWidgetProps) {
         ) : (
           <div className="divide-y divide-border/50">
             {nodes.map((node) => {
-              const memoryPercent = Math.round(
-                (node.usage.memoryUsedMb / node.usage.memoryLimitMb) * 100
+              const memLimit = node.usage?.memoryLimitMb || node.memoryTotalMb || 1;
+              const memoryPercent = Math.min(
+                100,
+                Math.round(((node.usage?.memoryUsedMb || 0) / memLimit) * 100)
               );
 
               return (

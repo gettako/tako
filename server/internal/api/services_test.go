@@ -359,6 +359,28 @@ func TestServiceDeploymentsAndLogs(t *testing.T) {
 		}
 	})
 
+	// 4b. GET /api/v1/deployments (cluster-wide recent deployments)
+	t.Run("List Recent Deployments Cluster Wide", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/deployments", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+
+		var deps []map[string]any
+		if err := json.Unmarshal(rec.Body.Bytes(), &deps); err != nil {
+			t.Fatalf("failed to decode deployments: %v", err)
+		}
+		if len(deps) == 0 {
+			t.Fatalf("expected at least 1 recent deployment, got 0")
+		}
+		if deps[0]["service_name"] == "" {
+			t.Errorf("expected service_name to be populated, got empty")
+		}
+	})
+
 	// 5. GET /api/v1/deployments/{id}/logs (SSE)
 	t.Run("Stream Deployment Logs SSE", func(t *testing.T) {
 		// Populate some initial logs in the deployment

@@ -19,11 +19,15 @@ import { getTimeSeriesMetrics } from '@/lib/api/metrics';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
+import { useNodeEvents } from '@/hooks/use-node-events';
 
 export default function DashboardPage() {
   const [timeRange, setTimeRange] = useState<'1h' | '6h' | '24h' | '7d'>('1h');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false);
+
+  // Subscribe to live node events via SSE (metrics & status changes)
+  useNodeEvents();
 
   useEffect(() => {
     const handleOpen = () => setIsCreateProjectOpen(true);
@@ -39,6 +43,7 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['projects'],
     queryFn: getProjects,
+    refetchInterval: 30000,
   });
 
   const {
@@ -49,6 +54,7 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['services'],
     queryFn: () => getServices(),
+    refetchInterval: 15000,
   });
 
   const {
@@ -59,6 +65,7 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['nodes'],
     queryFn: getNodes,
+    refetchInterval: 10000,
   });
 
   const {
@@ -69,6 +76,7 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['deployments'],
     queryFn: () => getDeployments(),
+    refetchInterval: 15000,
   });
 
   const {
@@ -79,6 +87,7 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['metrics', 'cluster', timeRange],
     queryFn: () => getTimeSeriesMetrics('cluster', timeRange),
+    refetchInterval: 15000,
   });
 
   const handleRefresh = async () => {
@@ -259,13 +268,29 @@ export default function DashboardPage() {
                 Cluster Overview
               </h1>
               <div
-                className={cn( 'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium', isAllHealthy ? 'border-status-success/30 bg-status-success/10 text-status-success' : 'border-status-warning/30 bg-status-warning/10 text-status-warning' )}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                  totalServices === 0
+                    ? 'border-border bg-muted/40 text-muted-foreground'
+                    : isAllHealthy
+                    ? 'border-status-success/30 bg-status-success/10 text-status-success'
+                    : 'border-status-warning/30 bg-status-warning/10 text-status-warning'
+                )}
               >
                 <span
-                  className={cn( 'size-1.5 rounded-full', isAllHealthy ? 'bg-status-success animate-pulse' : 'bg-status-warning' )}
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    totalServices === 0
+                      ? 'bg-muted-foreground/60'
+                      : isAllHealthy
+                      ? 'bg-status-success animate-pulse'
+                      : 'bg-status-warning'
+                  )}
                 />
                 <span>
-                  {isAllHealthy
+                  {totalServices === 0
+                    ? 'No Active Workloads'
+                    : isAllHealthy
                     ? 'All Systems Operational'
                     : `${totalServices - healthyServices} Workload${
                         totalServices - healthyServices === 1 ? '' : 's'

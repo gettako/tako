@@ -8,7 +8,67 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
+
+const listClusterMetrics = `-- name: ListClusterMetrics :many
+SELECT 
+    recorded_at,
+    AVG(cpu_percent) as avg_cpu_percent,
+    SUM(memory_used_mb) as total_memory_used_mb,
+    SUM(memory_total_mb) as total_memory_total_mb,
+    SUM(disk_used_gb) as total_disk_used_gb,
+    SUM(disk_total_gb) as total_disk_total_gb,
+    SUM(network_rx_kbps) as total_network_rx_kbps,
+    SUM(network_tx_kbps) as total_network_tx_kbps
+FROM node_metrics
+WHERE recorded_at >= datetime('now', ? || ' seconds')
+GROUP BY strftime('%Y-%m-%d %H:%M', recorded_at)
+ORDER BY recorded_at ASC
+`
+
+type ListClusterMetricsRow struct {
+	RecordedAt         time.Time       `json:"recorded_at"`
+	AvgCpuPercent      sql.NullFloat64 `json:"avg_cpu_percent"`
+	TotalMemoryUsedMb  sql.NullFloat64 `json:"total_memory_used_mb"`
+	TotalMemoryTotalMb sql.NullFloat64 `json:"total_memory_total_mb"`
+	TotalDiskUsedGb    sql.NullFloat64 `json:"total_disk_used_gb"`
+	TotalDiskTotalGb   sql.NullFloat64 `json:"total_disk_total_gb"`
+	TotalNetworkRxKbps sql.NullFloat64 `json:"total_network_rx_kbps"`
+	TotalNetworkTxKbps sql.NullFloat64 `json:"total_network_tx_kbps"`
+}
+
+func (q *Queries) ListClusterMetrics(ctx context.Context, dollar_1 sql.NullString) ([]ListClusterMetricsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listClusterMetrics, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListClusterMetricsRow{}
+	for rows.Next() {
+		var i ListClusterMetricsRow
+		if err := rows.Scan(
+			&i.RecordedAt,
+			&i.AvgCpuPercent,
+			&i.TotalMemoryUsedMb,
+			&i.TotalMemoryTotalMb,
+			&i.TotalDiskUsedGb,
+			&i.TotalDiskTotalGb,
+			&i.TotalNetworkRxKbps,
+			&i.TotalNetworkTxKbps,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
 
 const listNodeMetrics = `-- name: ListNodeMetrics :many
 SELECT id, node_id, cpu_percent, memory_used_mb, memory_total_mb, disk_used_gb, disk_total_gb, network_rx_kbps, network_tx_kbps, recorded_at FROM node_metrics

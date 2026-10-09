@@ -94,7 +94,7 @@ function generatePreviewUrl(commitHash?: string, depId?: string): string {
   return {
     id: String(d.id),
     serviceId: (d.serviceId as string) || (d.service_id as string) || '',
-    serviceName: (d.serviceName as string) || 'Service',
+    serviceName: (d.serviceName as string) || (d.service_name as string) || 'Service',
     commitHash: resolvedCommit,
     commitMessage: (d.commitMessage as string) || (d.commit_message as string) || 'Trigger deployment',
     branch: (d.branch as string) || 'main',

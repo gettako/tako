@@ -41,7 +41,7 @@ export function RecentDeploymentsWidget({ deployments }: RecentDeploymentsWidget
             href="/projects"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline group shrink-0 self-start sm:self-auto"
           >
-            <span>All Services</span>
+            <span>View Projects</span>
             <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
@@ -78,7 +78,7 @@ export function RecentDeploymentsWidget({ deployments }: RecentDeploymentsWidget
                       </Link>
                       <span className="inline-flex items-center gap-1 rounded bg-muted/70 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
                         <GitCommit className="size-2.5" />
-                        {dep.commitHash.substring(0, 7)}
+                        {(dep.commitHash || 'main').substring(0, 7)}
                       </span>
                       <span className="hidden sm:inline font-mono text-xs text-muted-foreground/80 truncate">
                         {dep.branch}

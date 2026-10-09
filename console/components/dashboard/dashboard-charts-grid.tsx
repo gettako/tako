@@ -18,11 +18,11 @@ export function DashboardChartsGrid({
   onTimeRangeChange,
 }: DashboardChartsGridProps) {
   const latest = metrics[metrics.length - 1] || {
-    cpu: 34,
-    memory: 48,
-    networkRx: 540,
-    networkTx: 820,
-    disk: 42,
+    cpu: 0,
+    memory: 0,
+    networkRx: 0,
+    networkTx: 0,
+    disk: 0,
   };
 
   const timeRangeLabels: Record<string, string> = {

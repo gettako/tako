@@ -51,11 +51,15 @@ export function ClusterMetricChart({
 
   useEffect(() => {
     setMounted(true);
-    const initial: Record<string, boolean> = {};
-    series.forEach((s) => {
-      initial[s.node.id] = true;
+    setVisibleNodes((prev) => {
+      const next = { ...prev };
+      series.forEach((s) => {
+        if (next[s.node.id] === undefined) {
+          next[s.node.id] = true;
+        }
+      });
+      return next;
     });
-    setVisibleNodes(initial);
   }, [series]);
 
   const toggleNode = (nodeId: string) => {
@@ -66,8 +70,7 @@ export function ClusterMetricChart({
   };
 
   // Build combined data array
-  // Reference the first series for timestamps
-  const baseMetrics = series[0]?.metrics || [];
+  const baseMetrics = series.find((s) => s.metrics && s.metrics.length > 0)?.metrics || [];
   const chartData = baseMetrics.map((point, index) => {
     const row: Record<string, string | number> = {
       timestamp: point.timestamp,
@@ -78,10 +81,12 @@ export function ClusterMetricChart({
     };
 
     series.forEach((s) => {
-      const p = s.metrics[index];
+      const p = s.metrics?.[index];
       if (p) {
         // If node is offline, show 0
-        row[s.node.id] = s.node.status === 'offline' ? 0 : p[metricKey];
+        row[s.node.id] = s.node.status === 'offline' ? 0 : (p[metricKey] ?? 0);
+      } else {
+        row[s.node.id] = 0;
       }
     });
 

@@ -35,8 +35,19 @@ export async function getTimeSeriesMetrics(
       const res = await fetch(`/api/metrics?nodeId=${encodeURIComponent(entityId)}&range=${encodeURIComponent(timeRange)}`);
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          return data;
+        if (Array.isArray(data)) {
+          return data.map((d: any) => ({
+            timestamp: d.timestamp || new Date().toISOString(),
+            cpu: typeof d.cpu === 'number' ? d.cpu : 0,
+            memory: d.memoryPercent !== undefined
+              ? Number(d.memoryPercent)
+              : (d.memory > 100 ? Math.min(100, Math.round(d.memory / 81.92)) : Number(d.memory) || 0),
+            networkRx: typeof d.networkRx === 'number' ? d.networkRx : 0,
+            networkTx: typeof d.networkTx === 'number' ? d.networkTx : 0,
+            disk: d.diskPercent !== undefined
+              ? Number(d.diskPercent)
+              : (d.disk > 100 ? Math.min(100, Math.round(d.disk / 1.0)) : Number(d.disk) || 0),
+          }));
         }
       }
     } catch {

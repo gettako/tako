@@ -868,7 +868,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			serviceID := r.URL.Query().Get("serviceId")
 			if serviceID != "" {
-				deps, err := orch.Queries().ListDeploymentsByService(r.Context(), serviceID)
+				deps, err := orch.Queries().ListDeploymentsWithServiceByService(r.Context(), serviceID)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
@@ -877,8 +877,13 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				_ = json.NewEncoder(w).Encode(deps)
 				return
 			}
+			deps, err := orch.Queries().ListRecentDeployments(r.Context(), 10)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]any{})
+			_ = json.NewEncoder(w).Encode(deps)
 		})
 
 		// GET /api/v1/deployments/{id}
