@@ -11,6 +11,7 @@ import {
 } from '@/components/nodes/nodes-filter-bar';
 import { NodeCard } from '@/components/nodes/node-card';
 import { NodesTable } from '@/components/nodes/nodes-table';
+import { CreateNodeDialog } from '@/components/nodes/create-node-dialog';
 import { ViewMode } from '@/components/ui/view-toggle';
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
@@ -25,10 +26,17 @@ export default function NodesPage() {
   const debouncedSearch = useDebounce(search, 200);
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const { data: nodes = [], isLoading } = useQuery({
+  const {
+    data: nodes = [],
+    isLoading,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ['nodes'],
     queryFn: getNodes,
+    refetchInterval: 10000,
   });
 
   const statusCounts = useMemo(() => {
@@ -74,6 +82,9 @@ export default function NodesPage() {
           onlineCount={statusCounts.online}
           offlineCount={statusCounts.offline}
           degradedCount={statusCounts.degraded}
+          onCreateNode={() => setCreateDialogOpen(true)}
+          onRefresh={refetch}
+          isRefreshing={isRefetching}
         />
 
         {isLoading ? (
@@ -146,10 +157,7 @@ export default function NodesPage() {
                       }
                     : {
                         label: 'Create First Node',
-                        onClick: () =>
-                          window.dispatchEvent(
-                            new CustomEvent('open-create-node-dialog')
-                          ),
+                        onClick: () => setCreateDialogOpen(true),
                       }
                 }
               />
@@ -165,6 +173,11 @@ export default function NodesPage() {
           </>
         )}
       </div>
+
+      <CreateNodeDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+      />
     </>
   );
 }

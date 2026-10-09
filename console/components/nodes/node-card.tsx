@@ -34,20 +34,25 @@ export function NodeCard({ node }: NodeCardProps) {
   };
 
   const isOffline = node.status === 'offline';
+  const cpuVal = node.usage?.cpuPercent ?? 0;
+  const memUsed = node.usage?.memoryUsedMb ?? 0;
+  const memLimit = node.memoryTotalMb || node.usage?.memoryLimitMb || 1;
   const memPct =
     node.memoryTotalMb > 0
-      ? Math.round((node.usage.memoryUsedMb / node.memoryTotalMb) * 100)
+      ? Math.min(100, Math.round((memUsed / memLimit) * 100))
       : 0;
+  const diskUsed = node.usage?.diskUsedGb ?? 0;
+  const diskTotal = node.diskTotalGb || node.usage?.diskTotalGb || 1;
   const diskPct =
     node.diskTotalGb > 0
-      ? Math.round(((node.usage.diskUsedGb || 0) / node.diskTotalGb) * 100)
+      ? Math.min(100, Math.round((diskUsed / diskTotal) * 100))
       : 0;
 
   return (
-    <Link href={`/nodes/${node.id}`} className="block group outline-hidden h-[170px]">
+    <Link href={`/nodes/${node.id}`} className="block group outline-hidden min-h-[175px] h-full">
       <Card
         size="sm"
-        className="relative h-[170px] flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
+        className="relative min-h-[175px] h-full flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
       >
         <div className="p-4 pb-3 space-y-3">
           {/* Canonical CardHeader with CardAction */}
@@ -102,7 +107,7 @@ export function NodeCard({ node }: NodeCardProps) {
                 <div className="space-y-0.5">
                   <ResourceBar
                     label="CPU"
-                    value={node.usage.cpuPercent}
+                    value={cpuVal}
                     unit="%"
                     size="sm"
                     showPercentage={false}
@@ -124,9 +129,9 @@ export function NodeCard({ node }: NodeCardProps) {
                     className="space-y-1"
                   />
                   <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
-                    {(node.memoryTotalMb / 1024) % 1 === 0
-                      ? `${(node.memoryTotalMb / 1024).toFixed(0)} GiB`
-                      : `${(node.memoryTotalMb / 1024).toFixed(2)} GiB`}
+                    {((node.memoryTotalMb || memLimit) / 1024) % 1 === 0
+                      ? `${((node.memoryTotalMb || memLimit) / 1024).toFixed(0)} GiB`
+                      : `${((node.memoryTotalMb || memLimit) / 1024).toFixed(1)} GiB`}
                   </span>
                 </div>
 
@@ -141,7 +146,7 @@ export function NodeCard({ node }: NodeCardProps) {
                     className="space-y-1"
                   />
                   <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
-                    {node.diskTotalGb} GB
+                    {Math.round(diskTotal)} GB
                   </span>
                 </div>
               </div>

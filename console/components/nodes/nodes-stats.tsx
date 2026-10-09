@@ -15,15 +15,17 @@ export function NodesStats({ nodes }: NodesStatsProps) {
   const offlineNodes = nodes.filter((n) => n.status === 'offline').length;
   const degradedNodes = nodes.filter((n) => n.status === 'degraded').length;
 
-  const totalCores = nodes.reduce((acc, n) => acc + n.cpuTotalCores, 0);
-  const totalMemoryMb = nodes.reduce((acc, n) => acc + n.memoryTotalMb, 0);
-  const totalDiskGb = nodes.reduce((acc, n) => acc + n.diskTotalGb, 0);
+  const totalCores = nodes.reduce((acc, n) => acc + (n.cpuTotalCores || 0), 0);
+  const totalMemoryMb = nodes.reduce((acc, n) => acc + (n.memoryTotalMb || 0), 0);
+  const totalDiskGb = nodes.reduce((acc, n) => acc + (n.diskTotalGb || 0), 0);
 
   const formattedMemory = `${Math.round(totalMemoryMb / 1024)} GB`;
   const formattedDisk =
     totalDiskGb >= 1000
       ? `${(totalDiskGb / 1000).toFixed(1)} TB`
-      : `${totalDiskGb} GB`;
+      : totalDiskGb > 0
+      ? `${totalDiskGb >= 10 ? Math.round(totalDiskGb) : totalDiskGb.toFixed(1)} GB`
+      : '0 GB';
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

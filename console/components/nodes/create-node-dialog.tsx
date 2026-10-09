@@ -41,14 +41,17 @@ export function CreateNodeDialog({
   const queryClient = useQueryClient();
   const [copied, setCopied] = useState(false);
   const [token, setToken] = useState<string>('');
+  const [loadingToken, setLoadingToken] = useState(false);
 
   React.useEffect(() => {
     if (open) {
+      setLoadingToken(true);
       createNodeEnrollToken()
         .then((data) => {
           if (data?.token) setToken(data.token);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setLoadingToken(false));
     }
   }, [open]);
 
@@ -57,6 +60,7 @@ export function CreateNodeDialog({
     : 'curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent';
 
   const handleCopyCommand = () => {
+    if (loadingToken) return;
     navigator.clipboard.writeText(installCommand);
     setCopied(true);
     toast.success('Agent install command copied to clipboard');
@@ -95,16 +99,24 @@ export function CreateNodeDialog({
             </div>
 
             <div className="relative rounded-xl border border-border bg-[#0B0C14] p-3.5 sm:p-4 font-mono text-xs sm:text-sm text-slate-200">
-              <pre className="overflow-x-auto whitespace-pre-wrap break-all leading-relaxed pr-10">
-                <code className="text-emerald-400 font-semibold">{installCommand}</code>
-              </pre>
+              {loadingToken ? (
+                <div className="flex items-center gap-2 text-slate-400 py-1 font-sans text-xs">
+                  <Loader2 className="size-4 animate-spin text-primary" />
+                  <span>Generating secure cluster enroll token...</span>
+                </div>
+              ) : (
+                <pre className="overflow-x-auto whitespace-pre-wrap break-all leading-relaxed pr-10">
+                  <code className="text-emerald-400 font-semibold">{installCommand}</code>
+                </pre>
+              )}
 
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
                 onClick={handleCopyCommand}
-                className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 size-7 text-slate-400 hover:text-white hover:bg-white/10 active:not-aria-[haspopup]:translate-y-px cursor-pointer"
+                disabled={loadingToken}
+                className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 size-7 text-slate-400 hover:text-white hover:bg-white/10 active:not-aria-[haspopup]:translate-y-px cursor-pointer disabled:opacity-40"
                 title="Copy Command"
               >
                 {copied ? (
@@ -215,7 +227,8 @@ export function CreateNodeDialog({
           <Button
             type="button"
             onClick={handleCopyCommand}
-            className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
+            disabled={loadingToken}
+            className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5 disabled:opacity-50"
           >
             {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
             <span>{copied ? 'Command Copied' : 'Copy Script'}</span>
