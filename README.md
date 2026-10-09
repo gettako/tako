@@ -2,9 +2,9 @@
 
 <img src="docs/images/tako.png" alt="Tako Logo" width="120" />
 
-# Tako PaaS
+# Tako
 
-**The modern, lightweight, self-hosted Platform-as-a-Service.**  
+**The lightweight, self-hosted Platform-as-a-Service.**  
 Zero-SSH multi-node orchestration, automated Let's Encrypt TLS, dynamic Traefik routing, and WebAuthn security.
 
 [![Go Version](https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=flat-square&logo=go&logoColor=white)](https://golang.org)
@@ -24,6 +24,9 @@ Zero-SSH multi-node orchestration, automated Let's Encrypt TLS, dynamic Traefik 
 ## Overview
 
 **Tako** is an open-source, resilient PaaS designed to give developers and DevOps teams the seamless developer experience of Heroku or Coolify without the bloat, complex dependencies, or security hazards of opening SSH ports on remote servers.
+
+> [!WARNING]
+> **Active Heavy Development**: Tako is under rapid, continuous development and is currently in early preview. Features, database schemas, and configuration structures may change abruptly, and bugs are to be expected. It is not yet recommended for mission-critical production workloads.
 
 Written in **Go** and **Next.js**, Tako coordinates deployments across one or dozens of server nodes using outbound **gRPC streaming** and powers edge routing with **Traefik v3**.
 
