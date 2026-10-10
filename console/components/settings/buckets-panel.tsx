@@ -11,7 +11,8 @@ import {
   testS3BucketConnection,
 } from '@/lib/api/settings';
 import { S3Bucket } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -269,31 +270,25 @@ export function BucketsPanel() {
     <>
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-              <HardDrive className="size-5" />
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <CardTitle>S3 Compatible Object Storage</CardTitle>
-              <CardDescription>
-                Connect Cloudflare R2, AWS S3, MinIO, or DigitalOcean Spaces for persistent volume snapshots.
-              </CardDescription>
-            </div>
-          </div>
-          <CardAction>
-            <Button
-              size="default"
-              onClick={() => {
-                resetForm();
-                setIsDefault(buckets.length === 0);
-                setAddDialogOpen(true);
-              }}
-              className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
-            >
-              <Plus className="size-3.5" />
-              Add S3 Bucket
-            </Button>
-          </CardAction>
+          <SettingsSectionHeader
+            icon={HardDrive}
+            title="S3 Compatible Object Storage"
+            description="Connect Cloudflare R2, AWS S3, MinIO, or DigitalOcean Spaces for persistent volume snapshots."
+            action={
+              <Button
+                size="default"
+                onClick={() => {
+                  resetForm();
+                  setIsDefault(buckets.length === 0);
+                  setAddDialogOpen(true);
+                }}
+                className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
+              >
+                <Plus className="size-3.5" />
+                Add S3 Bucket
+              </Button>
+            }
+          />
         </CardHeader>
 
         <CardContent className="pt-2">

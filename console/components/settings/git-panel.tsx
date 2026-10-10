@@ -57,7 +57,7 @@ import {
   Settings,
   Key,
 } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { toast } from 'sonner';
 
 /* ─── Icons ──────────────────────────────────────────────────────────────── */
@@ -325,7 +325,7 @@ export function GitPanel() {
 
       {/* ── Connected Accounts ───────────────────────────────────────────── */}
       <div>
-        <SectionHeader
+        <SettingsSectionHeader
           icon={PlugZap}
           title="Connected Accounts"
           description="Git provider accounts authorized to deploy services."
@@ -547,7 +547,7 @@ export function GitPanel() {
 
       {/* ── Repositories ─────────────────────────────────────────────────── */}
       <div>
-        <SectionHeader
+        <SettingsSectionHeader
           icon={GitBranch}
           title="Repositories"
           description="Repositories authorized for Takō to clone, build, and deploy."

@@ -11,7 +11,7 @@ import {
   getS3Buckets,
 } from '@/lib/api/settings';
 import { ClusterBackupSnapshot } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -46,7 +46,7 @@ import {
   AlertTriangle,
   FileText,
 } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { toast } from 'sonner';
 
 export function BackupsPanel() {
@@ -140,7 +140,7 @@ export function BackupsPanel() {
       {/* 1. Automated Schedule & Snapshot Generator */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
-          <SectionHeader
+          <SettingsSectionHeader
             icon={Database}
             title="Tako Control Plane Backups"
             description="Automate scheduled cryptographic dumps of the internal Tako cluster state, service configs, and encrypted secrets."
@@ -288,7 +288,7 @@ export function BackupsPanel() {
       {/* 2. Cluster Snapshot Files Listing & Restore */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
-          <SectionHeader
+          <SettingsSectionHeader
             icon={Archive}
             title="Cluster Snapshots History"
             description="Available snapshot archives in storage. You can inspect checksums or validate and restore state."

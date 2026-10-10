@@ -5,7 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDomainSettings, updateDomainSettings, verifyDomainAndSSL } from '@/lib/api/settings';
 import { getNodes, reloadNodeTraefik } from '@/lib/api/nodes';
 import { DomainVerificationResult } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -224,54 +225,48 @@ export function DomainPanel() {
     <Card>
       <form onSubmit={handleSave}>
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-              <Globe className="size-5" />
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <CardTitle>Cluster Hostname & SSL Configuration</CardTitle>
-              <CardDescription>
-                Configure the primary web console domain, wildcard routes, and Let&apos;s Encrypt TLS termination.
-              </CardDescription>
-            </div>
-          </div>
-          <CardAction>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleReloadTraefik}
-                disabled={isReloadingTraefik}
-                className="h-7 text-xs font-medium gap-1.5 border-border"
-                title="Reload Traefik dynamic routing and ACME certificate resolver"
-              >
-                {isReloadingTraefik ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <RotateCw className="size-3" />
-                )}
-                <span>Reload Traefik</span>
-              </Button>
-              <Badge
-                variant="outline"
-                className={
-                  badgeConfig.variant === 'success'
-                    ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
-                    : badgeConfig.variant === 'warning'
-                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
-                      : 'bg-primary/10 text-primary border-primary/30 font-mono text-xs gap-1'
-                }
-              >
-                {badgeConfig.variant === 'success' ? (
-                  <ShieldCheck className="size-3.5" />
-                ) : (
-                  <Lock className="size-3.5" />
-                )}
-                {badgeConfig.label}
-              </Badge>
-            </div>
-          </CardAction>
+          <SettingsSectionHeader
+            icon={Globe}
+            title="Cluster Hostname & SSL Configuration"
+            description="Configure the primary web console domain, wildcard routes, and Let's Encrypt TLS termination."
+            action={
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReloadTraefik}
+                  disabled={isReloadingTraefik}
+                  className="h-7 text-xs font-medium gap-1.5 border-border"
+                  title="Reload Traefik dynamic routing and ACME certificate resolver"
+                >
+                  {isReloadingTraefik ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <RotateCw className="size-3" />
+                  )}
+                  <span>Reload Traefik</span>
+                </Button>
+                <Badge
+                  variant="outline"
+                  className={
+                    badgeConfig.variant === 'success'
+                      ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
+                      : badgeConfig.variant === 'warning'
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
+                        : 'bg-primary/10 text-primary border-primary/30 font-mono text-xs gap-1'
+                  }
+                >
+                  {badgeConfig.variant === 'success' ? (
+                    <ShieldCheck className="size-3.5" />
+                  ) : (
+                    <Lock className="size-3.5" />
+                  )}
+                  {badgeConfig.label}
+                </Badge>
+              </div>
+            }
+          />
         </CardHeader>
 
         <CardContent className="space-y-6 pt-2">

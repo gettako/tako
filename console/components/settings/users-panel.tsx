@@ -12,7 +12,7 @@ import {
   getCurrentUser,
 } from '@/lib/api/settings';
 import { User, UserRole, UserInvite } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +36,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Users, UserPlus, Mail, Copy, Check, Trash2, Shield, Clock, Plus, AlertTriangle } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { getUserAvatarUrl } from '@/lib/avatar';
 import { toast } from 'sonner';
 
@@ -130,7 +130,7 @@ export function UsersPanel() {
       {/* Team Members Card */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
-          <SectionHeader
+          <SettingsSectionHeader
             icon={Users}
             title="Team Members & Permissions"
             description="Manage operators who can deploy services, configure cluster settings, and inspect logs."
@@ -262,7 +262,7 @@ export function UsersPanel() {
       {invites.length > 0 && (
         <Card className="border-border bg-card p-6">
           <CardHeader className="px-0 pt-0 pb-4">
-            <SectionHeader
+            <SettingsSectionHeader
               icon={Mail}
               title="Pending Member Invitations"
               description="Outstanding invite links awaiting recipient registration."

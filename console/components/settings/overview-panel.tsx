@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -81,30 +82,24 @@ export function OverviewPanel() {
       {/* 1. Control Plane & Consensus Engine */}
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-              <Sliders className="size-5" />
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <CardTitle>Tako Control Plane Specifications</CardTitle>
-              <CardDescription>
-                Real-time orchestrator runtime state, consensus topology, and leader election specifications.
-              </CardDescription>
-            </div>
-          </div>
-          <CardAction>
-            <Badge
-              variant="outline"
-              className={
-                isClusterHealthy
-                  ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
-                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
-              }
-            >
-              <CheckCircle2 className="size-3" />
-              {isClusterHealthy ? 'Consensus Healthy' : 'Degraded Quorum'}
-            </Badge>
-          </CardAction>
+          <SettingsSectionHeader
+            icon={Sliders}
+            title="Tako Control Plane Specifications"
+            description="Real-time orchestrator runtime state, consensus topology, and leader election specifications."
+            action={
+              <Badge
+                variant="outline"
+                className={
+                  isClusterHealthy
+                    ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
+                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
+                }
+              >
+                <CheckCircle2 className="size-3" />
+                {isClusterHealthy ? 'Consensus Healthy' : 'Degraded Quorum'}
+              </Badge>
+            }
+          />
         </CardHeader>
 
         <CardContent className="space-y-4 pt-2">
@@ -182,36 +177,30 @@ export function OverviewPanel() {
         {/* Ingress Subsystem Card */}
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-                <Globe className="size-5" />
-              </div>
-              <div className="space-y-0.5 min-w-0">
-                <CardTitle>Edge Ingress & Hostname</CardTitle>
-                <CardDescription>
-                  Traefik reverse proxy and Let&apos;s Encrypt TLS certificate state.
-                </CardDescription>
-              </div>
-            </div>
-            <CardAction>
-              {domainSettings?.domain ? (
-                <Badge
-                  variant="outline"
-                  className={
-                    domainSettings?.sslActive
-                      ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
-                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
-                  }
-                >
-                  <ShieldCheck className="size-3" />
-                  {domainSettings?.sslActive ? 'TLS Active' : 'Pending DNS'}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="font-mono text-xs text-muted-foreground">
-                  Node IP Ingress
-                </Badge>
-              )}
-            </CardAction>
+            <SettingsSectionHeader
+              icon={Globe}
+              title="Edge Ingress & Hostname"
+              description="Traefik reverse proxy and Let's Encrypt TLS certificate state."
+              action={
+                domainSettings?.domain ? (
+                  <Badge
+                    variant="outline"
+                    className={
+                      domainSettings?.sslActive
+                        ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
+                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
+                    }
+                  >
+                    <ShieldCheck className="size-3" />
+                    {domainSettings?.sslActive ? 'TLS Active' : 'Pending DNS'}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="font-mono text-xs text-muted-foreground">
+                    Node IP Ingress
+                  </Badge>
+                )
+              }
+            />
           </CardHeader>
 
           <CardContent className="space-y-3 pt-2 text-xs">
@@ -244,30 +233,24 @@ export function OverviewPanel() {
         {/* Object Storage Subsystem Card */}
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-                <HardDrive className="size-5" />
-              </div>
-              <div className="space-y-0.5 min-w-0">
-                <CardTitle>Storage & Snapshots</CardTitle>
-                <CardDescription>
-                  S3 storage destination and automated cluster dump scheduling.
-                </CardDescription>
-              </div>
-            </div>
-            <CardAction>
-              <Badge
-                variant="outline"
-                className={
-                  buckets.length > 0
-                    ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
-                    : 'bg-muted text-muted-foreground border-border font-mono text-xs'
-                }
-              >
-                <Database className="size-3" />
-                {buckets.length > 0 ? `${buckets.length} Buckets Connected` : 'No S3 Configured'}
-              </Badge>
-            </CardAction>
+            <SettingsSectionHeader
+              icon={HardDrive}
+              title="Storage & Snapshots"
+              description="S3 storage destination and automated cluster dump scheduling."
+              action={
+                <Badge
+                  variant="outline"
+                  className={
+                    buckets.length > 0
+                      ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
+                      : 'bg-muted text-muted-foreground border-border font-mono text-xs'
+                  }
+                >
+                  <Database className="size-3" />
+                  {buckets.length > 0 ? `${buckets.length} Buckets Connected` : 'No S3 Configured'}
+                </Badge>
+              }
+            />
           </CardHeader>
 
           <CardContent className="space-y-3 pt-2 text-xs">
@@ -305,24 +288,18 @@ export function OverviewPanel() {
       {/* 3. Aggregate Hardware Allocation & Workloads */}
       <Card>
         <CardHeader className="pb-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
-              <Cpu className="size-5" />
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <CardTitle>Cluster Resource Allocation & Workload Capacity</CardTitle>
-              <CardDescription>
-                Aggregated physical hardware resources and active container workloads across all cluster nodes.
-              </CardDescription>
-            </div>
-          </div>
-          <CardAction>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-mono">
-                {runningServices.length} / {services.length} Services Running
-              </span>
-            </div>
-          </CardAction>
+          <SettingsSectionHeader
+            icon={Cpu}
+            title="Cluster Resource Allocation & Workload Capacity"
+            description="Aggregated physical hardware resources and active container workloads across all cluster nodes."
+            action={
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground font-mono">
+                  {runningServices.length} / {services.length} Services Running
+                </span>
+              </div>
+            }
+          />
         </CardHeader>
 
         <CardContent className="pt-2">

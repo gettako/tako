@@ -22,7 +22,7 @@ import {
   BellRing,
   CheckCircle2,
 } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/section-header';
+import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { toast } from 'sonner';
 
 export function NotificationsPanel() {
@@ -110,7 +110,7 @@ export function NotificationsPanel() {
       {/* 1. Email (SMTP) Channel */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
-          <SectionHeader
+          <SettingsSectionHeader
             icon={Mail}
             title="Email Alerts (SMTP)"
             description="Send critical alerts for node outages, failed deployments, and security incidents."
@@ -202,7 +202,7 @@ export function NotificationsPanel() {
       {/* 2. Slack Webhook Channel */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
-          <SectionHeader
+          <SettingsSectionHeader
             icon={MessageSquare}
             title="Slack Webhook"
             description="Stream deployments and health status notifications into a Slack channel."
@@ -277,7 +277,7 @@ export function NotificationsPanel() {
       {/* 3. Discord Webhook Channel */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
-          <SectionHeader
+          <SettingsSectionHeader
             icon={MessageSquare}
             title="Discord Webhook"
             description="Post cluster events, failed health checks, and build notifications to a Discord channel."
@@ -364,7 +364,7 @@ export function NotificationsPanel() {
       {/* 4. Telegram Bot Channel */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
-          <SectionHeader
+          <SettingsSectionHeader
             icon={Send}
             title="Telegram Bot"
             description="Receive instant cluster heartbeat alerts via Telegram bot messages."
