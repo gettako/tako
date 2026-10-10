@@ -52,7 +52,7 @@ func New(cfg Config) (*Client, error) {
 			MinConnectTimeout: 5 * time.Second,
 		}),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time:                15 * time.Second,
+			Time:                30 * time.Second,
 			Timeout:             5 * time.Second,
 			PermitWithoutStream: true,
 		}),

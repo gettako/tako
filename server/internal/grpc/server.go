@@ -7,7 +7,9 @@ import (
 	"gettako.dev/tako/internal/orchestrator"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
+
 
 type ServerConfig struct {
 	AgentSecret  string
@@ -107,6 +109,15 @@ func (h *AgentHandler) StreamTasks(stream takov1.AgentService_StreamTasksServer)
 // NewServer initializes and configures a gRPC server with authentication and service stubs.
 func NewServer(cfg ServerConfig) *grpc.Server {
 	opts := []grpc.ServerOption{
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             5 * time.Second,
+			PermitWithoutStream: true,
+		}),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle: 15 * time.Minute,
+			Time:              30 * time.Second,
+			Timeout:           5 * time.Second,
+		}),
 		grpc.UnaryInterceptor(AuthInterceptor(cfg.AgentSecret)),
 		grpc.StreamInterceptor(StreamAuthInterceptor(cfg.AgentSecret)),
 	}

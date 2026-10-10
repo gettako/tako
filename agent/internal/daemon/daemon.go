@@ -173,9 +173,10 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return fmt.Errorf("initial registration failed: %w", err)
 	}
 
-	// Start docker events watcher if docker is present
+	// Start docker events watcher & background telemetry poller if docker is present
 	if d.dockerCli != nil {
 		go d.watchDockerEvents(ctx)
+		go d.pollTelemetry(ctx)
 	}
 
 	// Start bi-directional task streaming loop with master
@@ -199,10 +200,25 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 }
 
+func (d *Daemon) pollTelemetry(ctx context.Context) {
+	ticker := time.NewTicker(3 * time.Second)
+	defer ticker.Stop()
+
+	// Initial collection in background
+	_, _ = d.dockerCli.UpdateCachedTelemetry(ctx)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			_, _ = d.dockerCli.UpdateCachedTelemetry(ctx)
+		}
+	}
+}
+
 func (d *Daemon) sendHeartbeat(ctx context.Context) {
 	snap := d.collector.Collect(ctx)
-	hbCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-	defer cancel()
 
 	d.mu.RLock()
 	nodeID := d.state.NodeID
@@ -210,9 +226,7 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 
 	var containers []*takov1.ContainerTelemetry
 	if d.dockerCli != nil {
-		if cStats, err := d.dockerCli.CollectContainersTelemetry(hbCtx); err == nil && len(cStats) > 0 {
-			containers = cStats
-		}
+		containers = d.dockerCli.GetCachedTelemetry()
 	}
 
 	req := &takov1.HeartbeatRequest{
@@ -227,7 +241,11 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 		Containers:     containers,
 	}
 
-	resp, err := d.grpcCli.Heartbeat(hbCtx, req)
+	// Dedicated RPC context with 5s timeout
+	rpcCtx, rpcCancel := context.WithTimeout(ctx, 5*time.Second)
+	defer rpcCancel()
+
+	resp, err := d.grpcCli.Heartbeat(rpcCtx, req)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
 			log.Printf("[tako-agent] warning: heartbeat failed: %v", err)
