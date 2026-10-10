@@ -15,6 +15,24 @@ Unlike traditional continuous deployment pipelines that re-trigger an entire git
 4. **Health Check Gate:** Even during a rollback, the container must pass the configured HTTP health check loop before Traefik shifts traffic.
 5. **Zero Downtime:** If the rollback container fails to start, existing traffic continues serving from the active container without interruption.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant Console as Web Console
+    participant Server as Control Plane
+    participant Agent as Worker Agent
+    participant Traefik as Traefik Proxy
+
+    Dev->>Console: Click "Rollback" on previous release
+    Console->>Server: POST /api/services/{id}/deployments/{id}/rollback
+    Server->>Agent: Dispatch RollbackJob (target image tag)
+    Note over Agent: Uses cached local Docker image (zero build time)
+    Agent->>Agent: Launch container & run health check loop
+    Agent->>Traefik: Atomic cutover in dynamic routing
+    Traefik-->>Dev: Serving rollback version (zero dropped requests)
+```
+
 ---
 
 ## Step-by-Step Rollback Procedure

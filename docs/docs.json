@@ -38,7 +38,7 @@
         "groups": [
           {
             "group": "Overview",
-            "icon": "book-2",
+            "icon": "book-open",
             "pages": [
               "introduction",
               "why-tako",
@@ -55,7 +55,7 @@
           },
           {
             "group": "Core Concepts",
-            "icon": "topology-star",
+            "icon": "layers",
             "pages": [
               "concepts/architecture",
               "concepts/projects-and-services",
@@ -67,7 +67,7 @@
           },
           {
             "group": "Guides",
-            "icon": "map",
+            "icon": "compass",
             "pages": [
               "guides/adding-a-server",
               "guides/connecting-github",
@@ -80,7 +80,7 @@
           },
           {
             "group": "Self-Hosting",
-            "icon": "cloud-upload",
+            "icon": "server",
             "pages": [
               "self-hosting/requirements",
               "self-hosting/backup"
@@ -100,7 +100,7 @@
         "groups": [
           {
             "group": "Control Plane API",
-            "icon": "api",
+            "icon": "terminal",
             "openapi": "api-reference/openapi.yaml"
           }
         ]
@@ -108,7 +108,7 @@
     ]
   },
   "icons": {
-    "library": "tabler"
+    "library": "lucide"
   },
   "favicon": {
     "light": "/images/favicon.ico",
@@ -132,4 +132,3 @@
     "family": "Inter"
   }
 }
-

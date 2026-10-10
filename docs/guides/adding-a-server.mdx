@@ -15,6 +15,24 @@ Before adding a server, verify the target machine meets these conditions:
 - **Outbound Connectivity:** The server must be able to establish an outbound TCP connection to your Tako control plane on port `50051`.
 - **No Inbound Management Ports:** Remote servers do not need port 22 or any management ports open to the control plane.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Administrator
+    participant Console as Web Console
+    participant Server as Control Plane (:50051)
+    participant Worker as Remote Worker VPS
+
+    Admin->>Console: Click "Add Server"
+    Console->>Server: Request one-time enrollment token
+    Server-->>Console: Return token (15m TTL)
+    Admin->>Worker: Run install-agent.sh with token
+    Worker->>Server: Outbound gRPC Enroll(token, specs)
+    Server-->>Worker: EnrollResponse(node_id, node_secret)
+    Worker->>Server: Open persistent StreamNodeSession
+    Server-->>Console: Push notification: Node worker-01 is online
+```
+
 ---
 
 ## Step-by-Step Instructions

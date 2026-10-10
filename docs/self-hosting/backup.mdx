@@ -42,6 +42,18 @@ Tako avoids this issue using SQLite's native `VACUUM INTO` command:
 2. The snapshot file is compressed with gzip.
 3. The compressed archive is streamed directly to your configured S3 destination.
 
+```mermaid
+flowchart LR
+    ActiveDB[("Live SQLite WAL DB (tako.db)")]
+    Vacuum["SQLite VACUUM INTO 'snapshot.db'"]
+    Gzip["gzip compression (.tar.gz)"]
+    S3Dest[("S3 Storage (R2, AWS, MinIO)")]
+
+    ActiveDB -->|Zero-Lock Snapshot| Vacuum
+    Vacuum --> Gzip
+    Gzip -->|Stream Upload| S3Dest
+```
+
 <Warning>
 **CRITICAL: Master Key Retention (`TAKO_SECRET_KEY` / `/etc/tako/master.key`)**
 

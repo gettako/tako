@@ -47,6 +47,20 @@ The agent pulls the verified image, initializes the persistent volume, and start
 
 Databases run on the isolated `tako_network` bridge. They are not exposed to the public internet by default, protecting them from automated network scanners.
 
+```mermaid
+flowchart LR
+    subgraph PrivateBridge["Docker Network: tako_network (Isolated Bridge)"]
+        WebApp["Web App Container (tako-app-web)"]
+        DBContainer[("Postgres Container (postgres-main:5432)")]
+        Volume[("Persistent Docker Volume")]
+
+        WebApp -->|"Internal Connection String (DATABASE_URL)"| DBContainer
+        DBContainer --- Volume
+    end
+
+    PublicTraffic["Public Internet (:80, :443)"] -.->|Blocked / Not Published| DBContainer
+```
+
 ### One-Click Connection String Injection
 To connect a web application or worker in the same project:
 

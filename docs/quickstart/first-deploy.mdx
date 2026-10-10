@@ -5,6 +5,26 @@ description: "Walkthrough for deploying a web application from GitHub to a manag
 
 This guide walks you through connecting your GitHub account, creating a project, configuring a service, and deploying an application with zero downtime and automatic SSL.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer
+    participant Console as Web Console
+    participant Server as Control Plane
+    participant Agent as Node Agent
+    participant Traefik as Traefik Ingress
+
+    Dev->>Console: 1. Connect GitHub (OAuth App)
+    Dev->>Console: 2. Create Project & Service
+    Dev->>Console: 3. Click "Start Deployment"
+    Console->>Server: Dispatch DeployJob
+    Server->>Agent: Stream build task via gRPC
+    Agent->>Agent: Git clone & Docker build
+    Agent->>Agent: Health check gate (HTTP 200)
+    Agent->>Traefik: Cut over dynamic routing
+    Traefik-->>Dev: Live HTTPS on custom domain
+```
+
 ## Step 1: Connect GitHub
 
 Before creating a service, connect your GitHub account so Tako can clone your repositories and receive push webhooks:

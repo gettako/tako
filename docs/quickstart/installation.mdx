@@ -16,6 +16,27 @@ Before beginning, ensure your host server meets the baseline requirements:
 - **Docker:** Docker Engine 24.0 or newer with Docker Compose v2.
 - **Network ports:** Inbound ports `80`, `443`, and `50051` accessible from the internet (port `50051` is required for worker agent gRPC communication).
 
+## Installation Topology
+
+```mermaid
+flowchart TD
+    subgraph Host["Primary Host Server (:80, :443, :50051)"]
+        Traefik["Traefik v3 (Ports :80, :443)"]
+        Console["Next.js Console (Port :3000)"]
+        Server["Go Server & SQLite (:8080, :50051)"]
+        Agent["Local Node Agent"]
+        Docker["Docker Engine (/var/run/docker.sock)"]
+
+        Traefik -->|HTTP/HTTPS Routing| Console
+        Console -->|Internal /api/*| Server
+        Agent -->|Outbound gRPC :50051| Server
+        Agent --> Docker
+        Agent -->|Dynamic YAML| Traefik
+    end
+
+    Installer["curl https://gettako.dev/install.sh | bash"] -.-> Host
+```
+
 ---
 
 ## Option 1: Automated installation (Recommended)
