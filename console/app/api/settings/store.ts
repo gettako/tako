@@ -5,6 +5,7 @@ import {
   mockS3Buckets,
   mockBackupSchedule,
   mockNotificationSettings,
+  mockNotifications,
   mockUsers,
 } from '@/lib/mock/data';
 
@@ -15,6 +16,7 @@ const defaultSettings: Record<string, unknown> = {
   s3_buckets: [...mockS3Buckets],
   backup_schedule: { ...mockBackupSchedule },
   notification_settings: { ...mockNotificationSettings },
+  cluster_notifications: [...mockNotifications],
   team_users: [...mockUsers],
   user_invites: [],
 };

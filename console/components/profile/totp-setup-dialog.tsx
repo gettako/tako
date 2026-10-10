@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Check, ArrowRight, Download, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
-import { get2FASetup, verifyAndEnable2FA } from '@/lib/api/settings';
+import { get2FASetup, verifyAndEnable2FA } from '@/lib/api/profile';
 import { toast } from 'sonner';
 
 interface TotpSetupDialogProps {

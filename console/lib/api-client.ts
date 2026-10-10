@@ -20,7 +20,16 @@ export async function fetchServer<T>(path: string, options: RequestInit = {}): P
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new APIError(res.status, errorText || `HTTP ${res.status}`);
+    let errorMessage = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      if (parsed && typeof parsed === 'object' && typeof parsed.error === 'string') {
+        errorMessage = parsed.error;
+      }
+    } catch {
+      // Keep plain text
+    }
+    throw new APIError(res.status, errorMessage || `HTTP ${res.status}`);
   }
 
   // Handle empty responses
