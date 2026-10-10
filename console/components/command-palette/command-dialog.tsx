@@ -256,7 +256,7 @@ export function GlobalCommandPalette() {
                 {projects.map((proj) => (
                   <CommandItem
                     key={proj.id}
-                    onSelect={() => runCommand(() => router.push(`/projects/${proj.id}`))}
+                    onSelect={() => runCommand(() => router.push(`/projects/${proj.slug || proj.id}`))}
                     className="flex items-center justify-between gap-3 py-2 cursor-pointer"
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">

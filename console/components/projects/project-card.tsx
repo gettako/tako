@@ -47,7 +47,7 @@ export function ProjectCard({ project, onEditProject, onDeleteProject }: Project
   const issueCount = Math.max(0, servicesCount - healthyServicesCount);
 
   return (
-    <Link href={`/projects/${project.id}`} className="block group outline-hidden min-h-[175px] h-full">
+    <Link href={`/projects/${project.slug || project.id}`} className="block group outline-hidden min-h-[175px] h-full">
       <Card
         size="sm"
         className="relative min-h-[175px] h-full flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"

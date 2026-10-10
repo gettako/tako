@@ -53,7 +53,7 @@ export default function ProjectDetailPage({
     data: services = [],
     isLoading: loadingServices,
     error: errorServices,
-  } = useServices(projectId, {
+  } = useServices(project?.id || projectId, {
     enabled: !!project,
   });
 
@@ -186,9 +186,9 @@ export default function ProjectDetailPage({
       <CreateServiceDialog
         open={createServiceOpen}
         onOpenChange={setCreateServiceOpen}
-        projectId={projectId}
+        projectId={project?.id || projectId}
         onSuccess={(newService) => {
-          router.push(`/projects/${projectId}/services/${newService.id}`);
+          router.push(`/projects/${project?.slug || projectId}/services/${newService.id}`);
         }}
       />
 

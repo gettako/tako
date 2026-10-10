@@ -101,13 +101,15 @@ export function NodeServicesTable({
                 {services.map((service) => {
                   const isDatabase = service.type === 'database';
                   const isCompose = service.type === 'compose';
+                  const parentProject = projects.find((p) => p.id === service.projectId);
+                  const projectPath = parentProject?.slug || service.projectId;
 
                   return (
                     <TableRow
                       key={service.id}
                       className="h-14 hover:bg-muted/30 transition-colors group cursor-pointer"
                       onClick={() => {
-                        router.push(`/projects/${service.projectId}/services/${service.id}`);
+                        router.push(`/projects/${projectPath}/services/${service.id}`);
                       }}
                     >
                       {/* 1. Service Name & Slug/Port */}
@@ -133,7 +135,7 @@ export function NodeServicesTable({
 
                           <div className="min-w-0">
                             <Link
-                              href={`/projects/${service.projectId}/services/${service.id}`}
+                              href={`/projects/${projectPath}/services/${service.id}`}
                               onClick={(e) => e.stopPropagation()}
                               className="font-semibold text-foreground group-hover:text-primary transition-colors truncate block text-sm"
                             >
@@ -149,12 +151,12 @@ export function NodeServicesTable({
                       {/* 2. Parent Project */}
                       <TableCell>
                         <Link
-                          href={`/projects/${service.projectId}`}
+                          href={`/projects/${projectPath}`}
                           onClick={(e) => e.stopPropagation()}
                           className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 group/link"
                         >
                           <span className="truncate max-w-[150px]">
-                            {getProjectName(service.projectId)}
+                            {parentProject ? parentProject.name : 'Unknown Project'}
                           </span>
                           <ExternalLink className="size-3 text-muted-foreground/70 group-hover/link:text-foreground shrink-0" />
                         </Link>
@@ -207,7 +209,7 @@ export function NodeServicesTable({
                           size="sm"
                           render={
                             <Link
-                              href={`/projects/${service.projectId}/services/${service.id}`}
+                              href={`/projects/${projectPath}/services/${service.id}`}
                               onClick={(e) => e.stopPropagation()}
                             />
                           }

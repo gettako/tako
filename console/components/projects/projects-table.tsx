@@ -48,7 +48,7 @@ export function ProjectsTable({ projects, onEditProject, onDeleteProject }: Proj
                 key={project.id}
                 className="group h-14 transition-colors hover:bg-muted/30 cursor-pointer"
                 onClick={() => {
-                  router.push(`/projects/${project.id}`);
+                  router.push(`/projects/${project.slug || project.id}`);
                 }}
               >
                 {/* Project Name & Slug */}

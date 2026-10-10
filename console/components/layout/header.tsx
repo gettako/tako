@@ -189,7 +189,7 @@ export function Header() {
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                   <BreadcrumbLink
-                    href={`/projects/${effectiveProjectId}`}
+                    href={`/projects/${currentProject?.slug || effectiveProjectId}`}
                     className="text-xs sm:text-sm font-medium truncate max-w-[140px] lg:max-w-[180px]"
                     title={projectName}
                   >

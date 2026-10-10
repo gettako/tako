@@ -58,7 +58,7 @@ export function CreateProjectDialog({
     onSuccess: (newProject) => {
       onOpenChange(false);
       onSuccess?.(newProject);
-      router.push(`/projects/${newProject.id}`);
+      router.push(`/projects/${newProject.slug || newProject.id}`);
     },
     onError: (err) => {
       const parsed = parseApiError(err);
