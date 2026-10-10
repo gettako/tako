@@ -21,7 +21,7 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			if serviceID != "" {
 				deps, err := orch.Queries().ListDeploymentsWithServiceByService(r.Context(), serviceID)
 				if err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
+					RespondError(w, http.StatusInternalServerError, err.Error())
 					return
 				}
 				w.Header().Set("Content-Type", "application/json")
@@ -30,7 +30,7 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 			deps, err := orch.Queries().ListRecentDeployments(r.Context(), 10)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -43,10 +43,10 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			dep, err := orch.GetDeployment(r.Context(), id)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					http.Error(w, "deployment not found", http.StatusNotFound)
+					RespondError(w, http.StatusNotFound, "deployment not found")
 					return
 				}
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -59,7 +59,7 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			id := chi.URLParam(r, "id")
 			dep, err := orch.RollbackDeployment(r.Context(), id)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -76,19 +76,20 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			id := chi.URLParam(r, "id")
 			dep, err := orch.GetDeployment(r.Context(), id)
 			if err != nil {
-				http.Error(w, "deployment not found", http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "deployment not found")
 				return
 			}
 
 			flusher, ok := w.(http.Flusher)
 			if !ok {
-				http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, "Streaming unsupported")
 				return
 			}
 
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("X-Accel-Buffering", "no")
 
 			// Initial logs
 			if dep.Logs != "" {
@@ -100,6 +101,19 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					}
 				}
 				flusher.Flush()
+			}
+
+			// If already terminal state, emit terminal event and return
+			if dep.Status == "live" || dep.Status == "failed" {
+				terminalMsg, _ := json.Marshal(map[string]any{
+					"deployment_id": id,
+					"status":        dep.Status,
+					"step":          "Live",
+					"done":          true,
+				})
+				_, _ = fmt.Fprintf(w, "event: log\ndata: %s\n\n", terminalMsg)
+				flusher.Flush()
+				return
 			}
 
 			sub := orch.Bus().Subscribe()
@@ -119,6 +133,10 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 							data, _ := json.Marshal(p)
 							_, _ = fmt.Fprintf(w, "event: log\ndata: %s\n\n", data)
 							flusher.Flush()
+
+							if p["step"] == "Live" || p["status"] == "live" || p["status"] == "failed" || p["is_error"] == true {
+								return
+							}
 						}
 					}
 				}
@@ -130,7 +148,7 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			id := chi.URLParam(r, "id")
 			dep, err := orch.GetDeployment(r.Context(), id)
 			if err != nil {
-				http.Error(w, "deployment not found", http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "deployment not found")
 				return
 			}
 

@@ -181,7 +181,60 @@ export function ServiceDeploymentTab({
             <DeploymentLogViewer
               deployment={selectedDeployment}
               serviceName={service.name}
-              onLiveStepUpdate={(step) => setActiveStep(step)}
+              onLiveStepUpdate={(step, status) => {
+                setActiveStep(step);
+                setSelectedDeployment((prev) => {
+                  if (!prev) return prev;
+                  const ALL_STEPS: DeploymentStepName[] = [
+                    'Queued',
+                    'Clone',
+                    'Build',
+                    'Push/Load image',
+                    'Deploy',
+                    'Health check',
+                    'Live',
+                  ];
+                  const currentIdx = ALL_STEPS.indexOf(step);
+                  const isFinished = step === 'Live' || status === 'live';
+                  const isFailed = status === 'failed';
+
+                  const updatedSteps = ALL_STEPS.map((sName, sIdx) => {
+                    const existing = prev.steps.find((s) => s.name === sName);
+                    let st = existing?.status || 'pending';
+                    if (isFinished) {
+                      st = 'success';
+                    } else if (isFailed && sName === step) {
+                      st = 'failed';
+                    } else if (currentIdx > -1) {
+                      if (sIdx < currentIdx) {
+                        st = 'success';
+                      } else if (sIdx === currentIdx) {
+                        st = isFailed ? 'failed' : 'running';
+                      } else {
+                        st = 'pending';
+                      }
+                    }
+                    return {
+                      name: sName,
+                      status: st,
+                      durationMs: existing?.durationMs,
+                      startedAt: existing?.startedAt,
+                      finishedAt: existing?.finishedAt,
+                      logs: existing?.logs,
+                    };
+                  });
+
+                  return {
+                    ...prev,
+                    status: isFinished ? 'live' : isFailed ? 'failed' : prev.status,
+                    steps: updatedSteps,
+                  };
+                });
+
+                if (status === 'live' || status === 'failed' || step === 'Live') {
+                  onDeploymentsUpdated?.();
+                }
+              }}
             />
           )}
         </div>

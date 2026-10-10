@@ -5,14 +5,14 @@ import { Search, Copy, Check, ArrowDown, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BuildLogSection } from './build-log-section';
 import { Deployment, DeploymentStepName, StepStatus } from '@/lib/types';
-import { getDeploymentLogsStreamUrl } from '@/lib/api/deployments';
+import { getDeploymentLogsStreamUrl, subscribeDeploymentLogs } from '@/lib/api/deployments';
 import { getMockBuildLogs } from '@/lib/mock/log-streamer';
 import { LogLine } from '@/components/ui/log-viewer';
 
 export interface DeploymentLogViewerProps {
   deployment: Deployment;
   serviceName: string;
-  onLiveStepUpdate?: (step: DeploymentStepName) => void;
+  onLiveStepUpdate?: (step: DeploymentStepName, status?: string) => void;
 }
 
 interface LiveLogChunk {
@@ -60,97 +60,53 @@ export function DeploymentLogViewer({
     });
   };
 
-  // Connect to SSE log stream
+  // Connect to SSE log stream with reconnect handler
   useEffect(() => {
-    let es: EventSource | null = null;
     let mounted = true;
+    setIsStreaming(true);
 
-    try {
-      const url = getDeploymentLogsStreamUrl(deployment.id);
-      es = new EventSource(url);
-      setIsStreaming(true);
+    const unsubscribe = subscribeDeploymentLogs(
+      deployment.id,
+      (chunk) => {
+        if (!mounted) return;
 
-      const handleLog = (event: MessageEvent) => {
-        if (!mounted || !event.data) return;
+        const rawStep = chunk.step || 'Build';
+        const matchedStep: DeploymentStepName =
+          ALL_STEPS.find((s) => s.toLowerCase() === rawStep.toLowerCase()) || 'Build';
+        onLiveStepUpdate?.(matchedStep, chunk.status);
 
-        try {
-          const parsed = JSON.parse(event.data);
-          if (parsed && (parsed.message || parsed.step)) {
-            const rawStep = parsed.step || 'Build';
-            const matchedStep: DeploymentStepName =
-              ALL_STEPS.find((s) => s.toLowerCase() === rawStep.toLowerCase()) || 'Build';
-            onLiveStepUpdate?.(matchedStep);
-
-            let cleanMsg = parsed.message || '';
-            const msgMatch = cleanMsg.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[.*?\]\s*)?(.*)$/);
-            if (msgMatch && msgMatch[1]) {
-              cleanMsg = msgMatch[1].trim();
-            }
-
-            appendLogs([
-              {
-                step: matchedStep,
-                message: cleanMsg,
-                timestamp: new Date().toISOString(),
-                isError: parsed.status === 'failed' || parsed.is_error === true,
-              },
-            ]);
-            return;
-          }
-        } catch {
-          // Plain text line
-          const lines = event.data.split('\n');
-          const newChunks: LiveLogChunk[] = [];
-          for (const line of lines) {
-            if (!line.trim()) continue;
-            let step: DeploymentStepName = 'Build';
-            let message = line.trim();
-
-            const match = line.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[(.*?)\]\s*)?(.*)$/);
-            if (match) {
-              if (match[1]) {
-                const found = ALL_STEPS.find((s) => s.toLowerCase() === match[1].toLowerCase());
-                if (found) {
-                  step = found;
-                  onLiveStepUpdate?.(found);
-                }
-              } else if (/queue/i.test(line)) {
-                step = 'Queued';
-                onLiveStepUpdate?.('Queued');
-              }
-              if (match[2]) {
-                message = match[2].trim();
-              }
-            }
-
-            newChunks.push({
-              step,
-              message,
-              timestamp: new Date().toISOString(),
-            });
-          }
-          if (newChunks.length > 0) {
-            appendLogs(newChunks);
-          }
+        let cleanMsg = chunk.message || '';
+        const msgMatch = cleanMsg.match(/^(?:\[\d{2}:\d{2}:\d{2}\]\s*)?(?:\[.*?\]\s*)?(.*)$/);
+        if (msgMatch && msgMatch[1]) {
+          cleanMsg = msgMatch[1].trim();
         }
-      };
 
-      es.addEventListener('log', handleLog);
-      es.onmessage = handleLog;
-
-      es.onerror = () => {
-        if (mounted) {
-          setIsStreaming(false);
-        }
-        es?.close();
-      };
-    } catch {
-      setIsStreaming(false);
-    }
+        appendLogs([
+          {
+            step: matchedStep,
+            message: cleanMsg,
+            timestamp: new Date().toISOString(),
+            isError: chunk.status === 'failed' || chunk.is_error === true,
+          },
+        ]);
+      },
+      {
+        onStatusChange: (status, step) => {
+          if (!mounted) return;
+          if (step) {
+            const matched = ALL_STEPS.find((s) => s.toLowerCase() === step.toLowerCase());
+            if (matched) onLiveStepUpdate?.(matched, status);
+          }
+          if (status === 'live' || status === 'failed') {
+            setIsStreaming(false);
+          }
+        },
+      }
+    );
 
     return () => {
       mounted = false;
-      es?.close();
+      unsubscribe();
     };
   }, [deployment.id]);
 
@@ -160,6 +116,25 @@ export function DeploymentLogViewer({
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
     }
   }, [liveLogs, autoFollow]);
+
+  // Handle manual scroll to auto-lock/unlock follow mode
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 40;
+    if (!isAtBottom && autoFollow) {
+      setAutoFollow(false);
+    } else if (isAtBottom && !autoFollow) {
+      setAutoFollow(true);
+    }
+  };
+
+  const toggleFollow = () => {
+    const next = !autoFollow;
+    setAutoFollow(next);
+    if (next && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  };
 
   // Determine logs source: liveLogs > stored deployment.logs > mock
   const effectiveLogs = useMemo<LiveLogChunk[]>(() => {
@@ -320,7 +295,7 @@ export function DeploymentLogViewer({
           {/* Follow toggle */}
           <button
             type="button"
-            onClick={() => setAutoFollow(!autoFollow)}
+            onClick={toggleFollow}
             className={`inline-flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-medium transition-colors ${
               autoFollow
                 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
@@ -346,6 +321,7 @@ export function DeploymentLogViewer({
       {/* Sections Container */}
       <div
         ref={scrollContainerRef}
+        onScroll={handleScroll}
         className="divide-y divide-border/60 max-h-[560px] overflow-y-auto bg-background"
       >
         {sections.map((section) => (

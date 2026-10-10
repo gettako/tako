@@ -14,12 +14,14 @@ func RespondJSON(w http.ResponseWriter, status int, data any) {
 	}
 }
 
-// RespondError writes a standardized error JSON payload {"error": message}.
+// RespondError writes a standardized error JSON payload {"error": message, "status": status}.
 func RespondError(w http.ResponseWriter, status int, message string) {
-	RespondJSON(w, status, map[string]string{
-		"error": message,
+	RespondJSON(w, status, map[string]any{
+		"error":  message,
+		"status": status,
 	})
 }
+
 
 // RespondNoContent writes a 204 No Content status header.
 func RespondNoContent(w http.ResponseWriter) {

@@ -92,7 +92,7 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			nodes, err := orch.Queries().ListNodes(r.Context())
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -111,10 +111,10 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			node, err := orch.Queries().GetNodeByID(r.Context(), id)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					http.Error(w, "node not found", http.StatusNotFound)
+					RespondError(w, http.StatusNotFound, "node not found")
 					return
 				}
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -132,7 +132,7 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			if err := orch.Queries().DeleteNode(r.Context(), id); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -171,16 +171,16 @@ func handleUpdateNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		node, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "node not found")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		var req UpdateNodeRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
@@ -210,13 +210,13 @@ func handleUpdateNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`, newName, newIP, newPublicIP, id)
 		if err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":"failed to update node: %v"}`, err), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, fmt.Sprintf("failed to update node: %v", err))
 			return
 		}
 
 		updatedNode, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -231,10 +231,10 @@ func handleRebootNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		node, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "node not found")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 

@@ -16,7 +16,7 @@ func handleListServiceDomains(orch *orchestrator.Orchestrator) http.HandlerFunc 
 		id := chi.URLParam(r, "id")
 		domainsDB, err := orch.Queries().ListServiceDomains(r.Context(), id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		res := make([]ServiceDomainResponse, 0, len(domainsDB))
@@ -42,7 +42,7 @@ func handleCreateServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 		id := chi.URLParam(r, "id")
 		srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 		if err != nil {
-			http.Error(w, "service not found", http.StatusNotFound)
+			RespondError(w, http.StatusNotFound, "service not found")
 			return
 		}
 
@@ -56,13 +56,13 @@ func handleCreateServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 			CertificateType string `json:"certificateType"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
 		req.Domain = strings.TrimSpace(strings.ToLower(req.Domain))
 		if req.Domain == "" {
-			http.Error(w, "domain is required", http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "domain is required")
 			return
 		}
 		if req.Port <= 0 {
@@ -102,7 +102,7 @@ func handleCreateServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 			CertificateType: certType,
 		})
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to create domain: %v", err), http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, fmt.Sprintf("failed to create domain: %v", err))
 			return
 		}
 
@@ -143,7 +143,7 @@ func handleDeleteServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 		domID := chi.URLParam(r, "domainId")
 		srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 		if err != nil {
-			http.Error(w, "service not found", http.StatusNotFound)
+			RespondError(w, http.StatusNotFound, "service not found")
 			return
 		}
 
@@ -152,7 +152,7 @@ func handleDeleteServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 
 		_, err = orch.DB().ExecContext(r.Context(), "DELETE FROM service_domains WHERE id = ? AND service_id = ?", domID, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 

@@ -14,7 +14,7 @@ func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 		id := chi.URLParam(r, "id")
 		envDB, err := orch.Queries().ListServiceEnvVars(r.Context(), id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -38,7 +38,7 @@ func handleUpdateServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFun
 		id := chi.URLParam(r, "id")
 		srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 		if err != nil {
-			http.Error(w, "service not found", http.StatusNotFound)
+			RespondError(w, http.StatusNotFound, "service not found")
 			return
 		}
 
@@ -48,7 +48,7 @@ func handleUpdateServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFun
 			IsSecret bool   `json:"isSecret"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&reqVars); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 

@@ -78,7 +78,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			projects, err := orch.Queries().ListProjects(r.Context())
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -104,11 +104,11 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 			var req CreateProjectRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "invalid request body", http.StatusBadRequest)
+				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
 			if req.Name == "" {
-				http.Error(w, "name is required", http.StatusBadRequest)
+				RespondError(w, http.StatusBadRequest, "name is required")
 				return
 			}
 			if req.Slug == "" {
@@ -129,7 +129,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Tags:        string(tagsJSON),
 			})
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -157,10 +157,10 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					http.Error(w, "project not found", http.StatusNotFound)
+					RespondError(w, http.StatusNotFound, "project not found")
 					return
 				}
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -184,16 +184,16 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					http.Error(w, `{"error":"project not found"}`, http.StatusNotFound)
+					RespondError(w, http.StatusNotFound, "project not found")
 					return
 				}
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
 			var req UpdateProjectRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
 
@@ -272,30 +272,26 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					http.Error(w, `{"error":"project not found"}`, http.StatusNotFound)
+					RespondError(w, http.StatusNotFound, "project not found")
 					return
 				}
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
 			// Project can only be deleted if it has no services
 			services, err := orch.Queries().ListServicesByProject(r.Context(), p.ID)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 			if len(services) > 0 {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				_ = json.NewEncoder(w).Encode(map[string]string{
-					"error": "cannot delete project: project contains services. Please delete all services first.",
-				})
+				RespondError(w, http.StatusBadRequest, "cannot delete project: project contains services. Please delete all services first.")
 				return
 			}
 
 			if err := orch.Queries().DeleteProject(r.Context(), p.ID); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 

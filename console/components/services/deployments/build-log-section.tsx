@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, CheckCircle2, Loader2, XCircle, Clock } from
 import { DeploymentStepName, StepStatus } from '@/lib/types';
 import { LogLine } from '@/components/ui/log-viewer';
 import { cn } from '@/lib/utils';
+import { AnsiText } from './ansi-text';
 
 export interface BuildLogSectionProps {
   stepName: DeploymentStepName;
@@ -82,7 +83,9 @@ export function BuildLogSection({
                 <span className="w-8 shrink-0 select-none text-right text-[11px] text-muted-foreground/40 font-mono">
                   {idx + 1}
                 </span>
-                <span className="break-all whitespace-pre-wrap">{line.message}</span>
+                <span className="break-all whitespace-pre-wrap">
+                  <AnsiText text={line.message} />
+                </span>
               </div>
             ))
           )}

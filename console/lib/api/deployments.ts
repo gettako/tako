@@ -28,15 +28,21 @@ export function normalizeDeployment(d: Record<string, unknown>): Deployment {
   const rawStatus = ((d.status as string)?.toLowerCase() as DeploymentStatus) || 'live';
 
   if (steps.length === 0) {
-    steps = [
-      { name: 'Queued', status: 'success', durationMs: 800 },
-      { name: 'Clone', status: 'success', durationMs: 1200 },
-      { name: 'Build', status: 'success', durationMs: 3000 },
-      { name: 'Push/Load image', status: 'success', durationMs: 1500 },
-      { name: 'Deploy', status: 'success', durationMs: 2000 },
-      { name: 'Health check', status: 'success', durationMs: 500 },
-      { name: 'Live', status: 'success', durationMs: 100 },
-    ];
+    if (rawStatus === 'queued' || rawStatus === 'running' || rawStatus === 'building' || rawStatus === 'deploying') {
+      steps = [
+        { name: 'Queued', status: 'running', startedAt: (d.startedAt as string) || (d.created_at as string) || new Date().toISOString() },
+      ];
+    } else if (rawStatus === 'live') {
+      steps = [
+        { name: 'Queued', status: 'success', durationMs: 800 },
+        { name: 'Clone', status: 'success', durationMs: 1200 },
+        { name: 'Build', status: 'success', durationMs: 3000 },
+        { name: 'Push/Load image', status: 'success', durationMs: 1500 },
+        { name: 'Deploy', status: 'success', durationMs: 2000 },
+        { name: 'Health check', status: 'success', durationMs: 500 },
+        { name: 'Live', status: 'success', durationMs: 100 },
+      ];
+    }
   } else {
     if (rawStatus === 'live') {
       steps = steps.map((s) => ({
@@ -147,10 +153,13 @@ export async function triggerDeployment(
     throw new Error(data.error || `Failed to trigger deployment for service ${serviceId}`);
   }
   const triggerRes = await res.json();
-  const depId = triggerRes.deploymentId;
+  const depId = triggerRes.deploymentId || (triggerRes.deployment && triggerRes.deployment.id);
   if (depId) {
     const fetched = await getDeploymentById(depId).catch(() => null);
     if (fetched) return fetched;
+  }
+  if (triggerRes.deployment) {
+    return normalizeDeployment(triggerRes.deployment);
   }
   return {
     id: depId || `dep-${Date.now()}`,
@@ -160,16 +169,10 @@ export async function triggerDeployment(
     commitMessage: `deploy: pipeline triggered via console (${branch})`,
     branch,
     author: 'Admin',
-    status: (triggerRes.status as DeploymentStatus) || 'running',
+    status: (triggerRes.status as DeploymentStatus) || 'queued',
     startedAt: new Date().toISOString(),
     steps: [
-      { name: 'Queued', status: 'success', durationMs: 500 },
-      { name: 'Clone', status: 'running', logs: ['Initiating git clone...'] },
-      { name: 'Build', status: 'pending' },
-      { name: 'Push/Load image', status: 'pending' },
-      { name: 'Deploy', status: 'pending' },
-      { name: 'Health check', status: 'pending' },
-      { name: 'Live', status: 'pending' },
+      { name: 'Queued', status: 'running', startedAt: new Date().toISOString() },
     ],
   };
 }
@@ -181,10 +184,13 @@ export async function rollbackDeployment(deploymentId: string): Promise<Deployme
     throw new Error(data.error || `Failed to rollback deployment ${deploymentId}`);
   }
   const triggerRes = await res.json();
-  const newDepId = triggerRes.deploymentId;
+  const newDepId = triggerRes.deploymentId || (triggerRes.deployment && triggerRes.deployment.id);
   if (newDepId) {
     const fetched = await getDeploymentById(newDepId).catch(() => null);
     if (fetched) return fetched;
+  }
+  if (triggerRes.deployment) {
+    return normalizeDeployment(triggerRes.deployment);
   }
   return {
     id: newDepId || `dep-${Date.now()}`,
@@ -194,22 +200,104 @@ export async function rollbackDeployment(deploymentId: string): Promise<Deployme
     commitMessage: `rollback: revert to revision of ${deploymentId}`,
     branch: 'main',
     author: 'Admin',
-    status: (triggerRes.status as DeploymentStatus) || 'running',
+    status: (triggerRes.status as DeploymentStatus) || 'queued',
     startedAt: new Date().toISOString(),
     rollbackFromId: deploymentId,
     isRollback: true,
     steps: [
-      { name: 'Queued', status: 'success', durationMs: 500 },
-      { name: 'Clone', status: 'running', logs: ['Reverting to revision...'] },
-      { name: 'Build', status: 'pending' },
-      { name: 'Push/Load image', status: 'pending' },
-      { name: 'Deploy', status: 'pending' },
-      { name: 'Health check', status: 'pending' },
-      { name: 'Live', status: 'pending' },
+      { name: 'Queued', status: 'running', startedAt: new Date().toISOString() },
     ],
   };
 }
 
 export function getDeploymentLogsStreamUrl(deploymentId: string): string {
   return `/api/sse/deployments/${deploymentId}/logs`;
+}
+
+export interface DeploymentLogStreamChunk {
+  deployment_id?: string;
+  step?: string;
+  message: string;
+  status?: string;
+  is_error?: boolean;
+  done?: boolean;
+}
+
+export function subscribeDeploymentLogs(
+  deploymentId: string,
+  onChunk: (chunk: DeploymentLogStreamChunk) => void,
+  options?: {
+    onStatusChange?: (status: string, step?: string) => void;
+    onError?: (err: Event) => void;
+  }
+): () => void {
+  let es: EventSource | null = null;
+  let isClosed = false;
+  let retryCount = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = () => {
+    if (isClosed) return;
+    try {
+      const url = getDeploymentLogsStreamUrl(deploymentId);
+      es = new EventSource(url);
+
+      const handleEvent = (event: MessageEvent) => {
+        if (isClosed || !event.data) return;
+        retryCount = 0; // reset retry counter on successful reception
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed) {
+            onChunk(parsed);
+            if (parsed.status && options?.onStatusChange) {
+              options.onStatusChange(parsed.status, parsed.step);
+            }
+            if (parsed.done || parsed.status === 'live' || parsed.status === 'failed') {
+              isClosed = true;
+              es?.close();
+            }
+            return;
+          }
+        } catch {
+          // Plain text log line
+          onChunk({
+            deployment_id: deploymentId,
+            message: event.data,
+          });
+        }
+      };
+
+      es.addEventListener('log', handleEvent);
+      es.onmessage = handleEvent;
+
+      es.onerror = (err) => {
+        if (isClosed) return;
+        options?.onError?.(err);
+        es?.close();
+        es = null;
+
+        // Auto-reconnect with exponential backoff if stream was interrupted
+        if (!isClosed) {
+          const delay = Math.min(1000 * Math.pow(1.5, retryCount), 10000);
+          retryCount++;
+          retryTimer = setTimeout(connect, delay);
+        }
+      };
+    } catch {
+      if (!isClosed) {
+        retryTimer = setTimeout(connect, 2000);
+      }
+    }
+  };
+
+  connect();
+
+  return () => {
+    isClosed = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    if (es) {
+      es.close();
+      es = null;
+    }
+  };
 }

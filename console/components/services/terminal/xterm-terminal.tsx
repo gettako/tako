@@ -89,6 +89,8 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
     const historyRef = useRef<string[]>([]);
     const historyIndexRef = useRef<number>(-1);
     const isProcessingRef = useRef<boolean>(false);
+    const wsRef = useRef<WebSocket | null>(null);
+    const isWsConnectedRef = useRef<boolean>(false);
 
     // Standard root container shell prompt
     const getPrompt = () => {
@@ -135,17 +137,72 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
       termRef.current.options.theme = themeConfig;
     }, [resolvedTheme]);
 
-    // Handle container change cleanly without double-banner stacking
+    // Connect WebSocket stream
+    const connectWebSocket = (targetContainer: string) => {
+      if (typeof window === 'undefined') return;
+
+      // Close previous connection
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {
+          // ignore
+        }
+        wsRef.current = null;
+        isWsConnectedRef.current = false;
+      }
+
+      try {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const hostname = window.location.hostname;
+        // Connect to port 8080 if running on standard dev/preview 3000 port, or current port
+        const port = window.location.port === '3000' ? '8080' : window.location.port;
+        const host = port ? `${hostname}:${port}` : window.location.host;
+        const wsUrl = `${protocol}//${host}/api/v1/services/${serviceRef.current.id}/terminal?container=${encodeURIComponent(targetContainer)}`;
+
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          isWsConnectedRef.current = true;
+          if (termRef.current) {
+            termRef.current.clear();
+          }
+        };
+
+        ws.onmessage = (event) => {
+          if (termRef.current && typeof event.data === 'string') {
+            termRef.current.write(event.data);
+          }
+        };
+
+        ws.onerror = () => {
+          isWsConnectedRef.current = false;
+        };
+
+        ws.onclose = () => {
+          if (isWsConnectedRef.current && termRef.current) {
+            termRef.current.writeln('\r\n\x1b[33m[Connection closed]\x1b[0m\r\n');
+          }
+          isWsConnectedRef.current = false;
+        };
+      } catch {
+        isWsConnectedRef.current = false;
+      }
+    };
+
+    // Handle container change cleanly
     const prevContainerRef = useRef<string>(containerName);
     useEffect(() => {
       if (!termRef.current) return;
       if (prevContainerRef.current === containerName) return;
 
       prevContainerRef.current = containerName;
-      // Clear previous container session and show clean connection line
       termRef.current.clear();
       printConnectedMessage(termRef.current, containerName);
       inputBufferRef.current = '';
+
+      connectWebSocket(containerName);
     }, [containerName]);
 
     // Initialize xterm.js once
@@ -222,7 +279,10 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
         prevContainerRef.current = currentTarget;
         printConnectedMessage(term, currentTarget);
 
-        // Command Execution Engine
+        // Try establishing bidirectional WebSocket connection
+        connectWebSocket(currentTarget);
+
+        // Command Execution Engine for fallback HTTP mode
         const executeCommand = async (cmdStr: string) => {
           const trimmed = cmdStr.trim();
           if (!trimmed) {
@@ -242,6 +302,12 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
 
           if (trimmed.toLowerCase() === 'exit') {
             term.writeln('\x1b[33mContainer session is persistent. To close, use the Minimize or Fullscreen controls.\x1b[0m');
+            term.write(getPrompt());
+            return;
+          }
+
+          if (trimmed.toLowerCase() === 'sh' || trimmed.toLowerCase() === 'bash') {
+            term.writeln('BusyBox v1.36.1 (2026-06-15 08:35:10 UTC) built-in shell (ash)\r\nEnter \'help\' for a list of built-in commands.');
             term.write(getPrompt());
             return;
           }
@@ -268,6 +334,12 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
 
         // Handle raw keyboard events in terminal
         term.onData(async (data) => {
+          // If live WebSocket is connected, forward raw stream directly
+          if (isWsConnectedRef.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(data);
+            return;
+          }
+
           if (isProcessingRef.current) return;
 
           // Enter key
@@ -289,6 +361,13 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
             inputBufferRef.current = '';
             term.write('^C\r\n');
             term.write(getPrompt());
+          }
+          // Ctrl+D
+          else if (data === '\x04') {
+            if (inputBufferRef.current.length === 0) {
+              term.write('exit\r\n');
+              term.write(getPrompt());
+            }
           }
           // Ctrl+L (Clear screen)
           else if (data === '\x0c') {
@@ -351,6 +430,8 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
               'top',
               'date',
               'clear',
+              'sh',
+              'bash',
             ];
             const current = inputBufferRef.current.trim();
             if (current) {
@@ -376,6 +457,14 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
         isMounted = false;
         if (resizeObserver) {
           resizeObserver.disconnect();
+        }
+        if (wsRef.current) {
+          try {
+            wsRef.current.close();
+          } catch {
+            // ignore
+          }
+          wsRef.current = null;
         }
         if (termRef.current) {
           termRef.current.dispose();

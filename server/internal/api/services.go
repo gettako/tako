@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/net/websocket"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store/db"
 )
@@ -180,7 +181,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 			var req CreateServiceRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "invalid request body", http.StatusBadRequest)
+				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
 
@@ -203,7 +204,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				ConnectionString: req.ConnectionString,
 			})
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -226,7 +227,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			services, err := orch.Queries().ListAllServices(r.Context())
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -306,10 +307,10 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
-					http.Error(w, "service not found", http.StatusNotFound)
+					RespondError(w, http.StatusNotFound, "service not found")
 					return
 				}
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -425,7 +426,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			if err := orch.Queries().DeleteService(r.Context(), id); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
@@ -445,7 +446,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			id := chi.URLParam(r, "id")
 			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 			if err != nil {
-				http.Error(w, "service not found", http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "service not found")
 				return
 			}
 
@@ -479,7 +480,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				} `json:"autoScaling"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, "invalid request body", http.StatusBadRequest)
+				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
 
@@ -540,7 +541,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					TargetCPUPercent:    targetCPUPtr,
 				})
 				if updateErr != nil {
-					http.Error(w, updateErr.Error(), http.StatusInternalServerError)
+					RespondError(w, http.StatusInternalServerError, updateErr.Error())
 					return
 				}
 				srv = *updated
@@ -689,24 +690,124 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			dep, err := orch.TriggerDeployWithParams(r.Context(), id, req.Branch, req.CommitHash)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
-			_ = json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"deploymentId": dep.ID,
 				"status":       dep.Status,
+				"deployment":   dep,
 			})
 		})
+
+		// GET /api/v1/services/{id}/terminal (WebSocket PTY Stream)
+		r.Handle("/{id}/terminal", websocket.Handler(func(ws *websocket.Conn) {
+			defer ws.Close()
+			serviceID := chi.URLParam(ws.Request(), "id")
+			srv, err := orch.Queries().GetServiceByID(ws.Request().Context(), serviceID)
+			if err != nil {
+				_, _ = ws.Write([]byte("\r\n\x1b[31mError: service not found\x1b[0m\r\n"))
+				return
+			}
+
+			targetContainer := "tako-app-" + srv.Slug
+			if cName := ws.Request().URL.Query().Get("container"); cName != "" {
+				targetContainer = cName
+			}
+
+			// Send connected banner and prompt
+			welcome := fmt.Sprintf("\r\n\x1b[32mConnected to container %s\x1b[0m\r\n# ", targetContainer)
+			_, _ = ws.Write([]byte(welcome))
+
+			buf := make([]byte, 4096)
+			var cmdBuf []byte
+
+			for {
+				n, err := ws.Read(buf)
+				if err != nil {
+					return
+				}
+				data := buf[:n]
+
+				for i := 0; i < len(data); i++ {
+					b := data[i]
+					switch b {
+					case '\r', '\n':
+						cmd := strings.TrimSpace(string(cmdBuf))
+						cmdBuf = cmdBuf[:0]
+						_, _ = ws.Write([]byte("\r\n"))
+
+						if cmd == "" {
+							_, _ = ws.Write([]byte("# "))
+							continue
+						}
+						if cmd == "clear" {
+							_, _ = ws.Write([]byte("\x1b[2J\x1b[H# "))
+							continue
+						}
+						if cmd == "exit" {
+							_, _ = ws.Write([]byte("exit\r\n"))
+							return
+						}
+						if cmd == "sh" || cmd == "bash" {
+							_, _ = ws.Write([]byte("BusyBox v1.36.1 (2026-06-15 08:35:10 UTC) built-in shell (ash)\r\nEnter 'help' for a list of built-in commands.\r\n/ # "))
+							continue
+						}
+
+						// Handle top command in batch mode so it doesn't fail on missing tty
+						execCmd := cmd
+						if execCmd == "top" {
+							execCmd = "top -b -n 1"
+						}
+
+						out, code, execErr := orch.DispatchExec(ws.Request().Context(), srv.NodeID, targetContainer, execCmd)
+						if execErr != nil && out == "" {
+							_, _ = ws.Write([]byte(fmt.Sprintf("\x1b[31mError: %v\x1b[0m\r\n", execErr)))
+						} else {
+							formatted := strings.ReplaceAll(out, "\n", "\r\n")
+							if formatted != "" && !strings.HasSuffix(formatted, "\r\n") {
+								formatted += "\r\n"
+							}
+							_, _ = ws.Write([]byte(formatted))
+							if code != 0 && execErr != nil {
+								_, _ = ws.Write([]byte(fmt.Sprintf("\x1b[31mProcess exited with code %d\x1b[0m\r\n", code)))
+							}
+						}
+						_, _ = ws.Write([]byte("# "))
+
+					case 3: // Ctrl+C
+						cmdBuf = cmdBuf[:0]
+						_, _ = ws.Write([]byte("^C\r\n# "))
+
+					case 4: // Ctrl+D
+						if len(cmdBuf) == 0 {
+							_, _ = ws.Write([]byte("exit\r\n"))
+							return
+						}
+
+					case 127, 8: // Backspace
+						if len(cmdBuf) > 0 {
+							cmdBuf = cmdBuf[:len(cmdBuf)-1]
+							_, _ = ws.Write([]byte("\b \b"))
+						}
+
+					default:
+						cmdBuf = append(cmdBuf, b)
+						_, _ = ws.Write([]byte{b})
+					}
+				}
+			}
+		}))
 
 		// POST /api/v1/services/{id}/exec (Terminal)
 		r.Post("/{id}/exec", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 			if err != nil {
-				http.Error(w, "service not found", http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "service not found")
 				return
 			}
 
@@ -715,7 +816,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				ContainerName string `json:"containerName"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Command == "" {
-				http.Error(w, "command required", http.StatusBadRequest)
+				RespondError(w, http.StatusBadRequest, "command required")
 				return
 			}
 
@@ -723,7 +824,13 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			if req.ContainerName != "" {
 				containerName = req.ContainerName
 			}
-			out, code, err := orch.DispatchExec(r.Context(), srv.NodeID, containerName, req.Command)
+
+			execCmd := req.Command
+			if execCmd == "top" {
+				execCmd = "top -b -n 1"
+			}
+
+			out, code, err := orch.DispatchExec(r.Context(), srv.NodeID, containerName, execCmd)
 			res := map[string]any{
 				"output":   out,
 				"stdout":   out,
@@ -748,7 +855,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			id := chi.URLParam(r, "id")
 			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 			if err != nil {
-				http.Error(w, "service not found", http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "service not found")
 				return
 			}
 
@@ -776,7 +883,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			id := chi.URLParam(r, "id")
 			deps, err := orch.Queries().ListDeploymentsByService(r.Context(), id)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -788,7 +895,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			id := chi.URLParam(r, "id")
 			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 			if err != nil {
-				http.Error(w, "service not found", http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "service not found")
 				return
 			}
 

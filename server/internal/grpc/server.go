@@ -126,7 +126,47 @@ func NewServer(cfg ServerConfig) *grpc.Server {
 
 	takov1.RegisterAgentServiceServer(srv, &AgentHandler{orchestrator: cfg.Orchestrator})
 	takov1.RegisterDeploymentServiceServer(srv, &takov1.UnimplementedDeploymentServiceServer{})
-	takov1.RegisterContainerServiceServer(srv, &takov1.UnimplementedContainerServiceServer{})
+	takov1.RegisterContainerServiceServer(srv, &ContainerHandler{orchestrator: cfg.Orchestrator})
 
 	return srv
+}
+
+type ContainerHandler struct {
+	takov1.UnimplementedContainerServiceServer
+	orchestrator *orchestrator.Orchestrator
+}
+
+func (h *ContainerHandler) ExecCommand(ctx context.Context, req *takov1.ExecCommandRequest) (*takov1.ExecCommandResponse, error) {
+	if h.orchestrator == nil {
+		return &takov1.ExecCommandResponse{ExitCode: 1, Error: "orchestrator not configured"}, nil
+	}
+	out, code, err := h.orchestrator.DispatchExec(ctx, "tako-master-01", req.GetContainerId(), req.GetCommand())
+	errStr := ""
+	if err != nil {
+		errStr = err.Error()
+	}
+	return &takov1.ExecCommandResponse{
+		ExitCode: int32(code),
+		Output:   out,
+		Error:    errStr,
+	}, nil
+}
+
+func (h *ContainerHandler) GetContainerLogs(ctx context.Context, req *takov1.GetContainerLogsRequest) (*takov1.ContainerLogsResponse, error) {
+	if h.orchestrator == nil {
+		return &takov1.ContainerLogsResponse{Error: "orchestrator not configured"}, nil
+	}
+	tail := int(req.GetTailLines())
+	if tail <= 0 {
+		tail = 100
+	}
+	logs, err := h.orchestrator.DispatchContainerLogs(ctx, "tako-master-01", req.GetContainerId(), tail)
+	errStr := ""
+	if err != nil {
+		errStr = err.Error()
+	}
+	return &takov1.ContainerLogsResponse{
+		Logs:  logs,
+		Error: errStr,
+	}, nil
 }
