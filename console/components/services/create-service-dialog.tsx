@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   Building2,
   User,
+  Database,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { createService } from '@/lib/api/services';
@@ -57,6 +58,41 @@ function GitHubIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+export const DATABASE_PRESETS = [
+  {
+    type: 'postgresql' as const,
+    name: 'PostgreSQL',
+    port: 5432,
+    defaultTag: 'latest',
+    tags: ['latest', '16-alpine', '15-alpine'],
+    desc: 'Relational database with JSON support & ACID transactions.',
+  },
+  {
+    type: 'mysql' as const,
+    name: 'MySQL',
+    port: 3306,
+    defaultTag: 'latest',
+    tags: ['latest', '8.0', '8.4'],
+    desc: 'Fast, widely adopted relational SQL database.',
+  },
+  {
+    type: 'redis' as const,
+    name: 'Redis',
+    port: 6379,
+    defaultTag: 'latest',
+    tags: ['latest', '7-alpine', '6-alpine'],
+    desc: 'Ultra-fast in-memory key-value cache and message broker.',
+  },
+  {
+    type: 'mongodb' as const,
+    name: 'MongoDB',
+    port: 27017,
+    defaultTag: 'latest',
+    tags: ['latest', '7.0', '6.0'],
+    desc: 'Document-oriented NoSQL database with flexible JSON documents.',
+  },
+];
 
 export interface CreateServiceDialogProps {
   open: boolean;
@@ -130,6 +166,10 @@ export function CreateServiceDialog({
 
   // Compose specific config
   const [composeFilePath, setComposeFilePath] = useState<string>('docker-compose.yml');
+
+  // Database specific config
+  const [databaseType, setDatabaseType] = useState<'postgresql' | 'mysql' | 'redis' | 'mongodb'>('postgresql');
+  const [databaseVersion, setDatabaseVersion] = useState<string>('latest');
 
   // Form State - Step 2 (Node & Allocation)
   const [selectedNodeId, setSelectedNodeId] = useState<string>('');
@@ -319,6 +359,8 @@ export function CreateServiceDialog({
     setPublishToHost(true);
     setDockerfilePath('Dockerfile');
     setComposeFilePath('docker-compose.yml');
+    setDatabaseType('postgresql');
+    setDatabaseVersion('latest');
     setCpuCores(1);
     setMemoryMb(1024);
     setNameError('');
@@ -411,6 +453,13 @@ export function CreateServiceDialog({
       setSlugError('');
     }
 
+    if (serviceType === 'database') {
+      if (!databaseVersion.trim()) {
+        setDatabaseVersion('latest');
+      }
+      return valid;
+    }
+
     if (sourceMode === 'account') {
       if (!selectedRepoId) {
         setRepoError('Please select a repository');
@@ -447,7 +496,7 @@ export function CreateServiceDialog({
       queryClient.invalidateQueries({ queryKey: ['project-services', newService.projectId] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(
-        `${serviceType === 'compose' ? 'Compose stack' : 'Application'} "${newService.name}" deployed successfully!`
+        `${serviceType === 'database' ? 'Database instance' : serviceType === 'compose' ? 'Compose stack' : 'Application'} "${newService.name}" deployed successfully!`
       );
       onOpenChange(false);
       resetForm();
@@ -491,17 +540,23 @@ export function CreateServiceDialog({
       repoUrl = foundRepo ? foundRepo.htmlUrl : '';
     }
 
+    const dbPreset = DATABASE_PRESETS.find((p) => p.type === databaseType);
+    const dbPort = dbPreset ? dbPreset.port : 5432;
+
     createMutation.mutate({
       projectId: resolvedProjectId,
       name: name.trim(),
+      slug: slug.trim(),
       type: serviceType,
       nodeId: selectedNodeId,
-      repository: repoUrl,
-      branch: branch.trim() || 'main',
+      repository: serviceType === 'database' ? '' : repoUrl,
+      branch: serviceType === 'database' ? 'main' : (branch.trim() || 'main'),
       dockerfile: serviceType === 'app' ? dockerfilePath.trim() : undefined,
       composeFile: serviceType === 'compose' ? composeFilePath.trim() : undefined,
-      ports: serviceType === 'app' ? [parseInt(port, 10) || 80] : [80],
-      publishToHost: serviceType === 'app' ? publishToHost : false,
+      databaseType: serviceType === 'database' ? databaseType : undefined,
+      databaseVersion: serviceType === 'database' ? (databaseVersion.trim() || 'latest') : undefined,
+      ports: serviceType === 'database' ? [dbPort] : serviceType === 'app' ? [parseInt(port, 10) || 80] : [80],
+      publishToHost: serviceType === 'database' ? true : (serviceType === 'app' ? publishToHost : false),
       limits: {
         cpuCores,
         memoryMb,
@@ -530,7 +585,7 @@ export function CreateServiceDialog({
             Create New Service
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Deploy an Application container or multi-container Compose stack to your cluster.
+            Deploy an Application container, multi-container Compose stack, or 1-Click Database instance to your cluster.
           </DialogDescription>
         </DialogHeader>
 
@@ -587,7 +642,7 @@ export function CreateServiceDialog({
                 <Label className="text-xs font-semibold text-foreground">
                   Select Service Type <span className="text-status-danger">*</span>
                 </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   {/* Application Card */}
                   <button
                     type="button"
@@ -605,13 +660,13 @@ export function CreateServiceDialog({
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">Application</span>
                           <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
-                            Single Container
+                            Single
                           </Badge>
                         </div>
                         {serviceType === 'app' && <Check className="size-3.5 text-primary shrink-0" />}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                        Web app, microservice, or API backend built from Dockerfile or source repository.
+                        Web app or API backend from Dockerfile or repo.
                       </p>
                     </div>
                   </button>
@@ -633,21 +688,138 @@ export function CreateServiceDialog({
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">Compose</span>
                           <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
-                            Multi-Container
+                            Multi
                           </Badge>
                         </div>
                         {serviceType === 'compose' && <Check className="size-3.5 text-primary shrink-0" />}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                        Multi-service architecture orchestrating web, worker, and cache via docker-compose.
+                        Multi-service stack via docker-compose.
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Database Card (1-Click DB) */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setServiceType('database');
+                      if (!name || name === 'web-frontend' || name === 'backend-stack' || !isSlugTouched) {
+                        setName(`${databaseType}-db`);
+                        setSlug(`${databaseType}-db`);
+                      }
+                    }}
+                    disabled={createMutation.isPending}
+                    className={cn( 'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', serviceType === 'database' ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground' )}
+                  >
+                    <div
+                      className={cn( 'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border', serviceType === 'database' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted/60 border-border text-foreground' )}
+                    >
+                      <Database className="size-4.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">Database</span>
+                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                            1-Click
+                          </Badge>
+                        </div>
+                        {serviceType === 'database' && <Check className="size-3.5 text-primary shrink-0" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 leading-snug">
+                        Postgres, MySQL, Redis, Mongo with storage.
                       </p>
                     </div>
                   </button>
                 </div>
               </div>
 
-              {/* 2. Git Source Selection */}
-              <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-3.5">
+              {/* 2. Database Engine & Tag OR Git Source Selection */}
+              {serviceType === 'database' ? (
+                <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Database className="size-4 text-foreground" />
+                      <span className="text-xs font-semibold text-foreground">Database Engine & Tag</span>
+                    </div>
+                    <Badge variant="secondary" className="text-[11px] font-mono">
+                      Persistent Docker Volume
+                    </Badge>
+                  </div>
+
+                  {/* 4 DB Engines Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    {DATABASE_PRESETS.map((p) => {
+                      const isSelected = databaseType === p.type;
+                      return (
+                        <button
+                          key={p.type}
+                          type="button"
+                          onClick={() => {
+                            setDatabaseType(p.type);
+                            if (!isSlugTouched || name.endsWith('-db')) {
+                              setName(`${p.type}-db`);
+                              setSlug(`${p.type}-db`);
+                            }
+                          }}
+                          className={cn(
+                            'flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer outline-none',
+                            isSelected
+                              ? 'border-primary bg-primary/10 ring-1 ring-primary/40 text-foreground'
+                              : 'border-border bg-card/40 hover:bg-muted/40 text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-xs font-bold text-foreground">{p.name}</span>
+                            {isSelected && <Check className="size-3 text-primary" />}
+                          </div>
+                          <span className="text-[10px] font-mono text-muted-foreground mt-1">Port {p.port}</span>
+                          <span className="text-[10px] text-muted-foreground/80 mt-1 line-clamp-1">{p.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Image Tag / Version Input Field (Default 'latest', editable by user) */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="db-image-tag" className="text-xs font-semibold text-foreground">
+                        Image Tag / Version <span className="text-status-danger">*</span>
+                      </Label>
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        Target Image: {databaseType === 'mongodb' ? 'mongo' : databaseType}:{databaseVersion || 'latest'}
+                      </span>
+                    </div>
+                    <Input
+                      id="db-image-tag"
+                      value={databaseVersion}
+                      onChange={(e) => setDatabaseVersion(e.target.value)}
+                      placeholder="latest"
+                      className="h-9 text-xs sm:text-sm font-mono"
+                    />
+                    <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                      <span className="text-[11px] text-muted-foreground">Version Presets:</span>
+                      {(DATABASE_PRESETS.find((p) => p.type === databaseType)?.tags || ['latest']).map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => setDatabaseVersion(tag)}
+                          className={cn(
+                            'text-[10px] px-2 py-0.5 rounded border transition-all cursor-pointer font-mono',
+                            databaseVersion === tag
+                              ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                              : 'bg-muted/50 text-muted-foreground border-border hover:text-foreground'
+                          )}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-3.5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
                   <div className="flex items-center gap-2">
                     <FolderGit2 className="size-4 text-foreground" />
@@ -839,6 +1011,7 @@ export function CreateServiceDialog({
                   </div>
                 </div>
               </div>
+            )}
 
               {/* 3. Service Identity */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -933,7 +1106,7 @@ export function CreateServiceDialog({
                     </p>
                   </div>
                 </div>
-              ) : (
+              ) : serviceType === 'compose' ? (
                 <div className="space-y-1.5">
                   <Label htmlFor="compose-file-path" className="text-xs font-semibold text-foreground">
                     Compose File Path
@@ -948,6 +1121,21 @@ export function CreateServiceDialog({
                   <p className="text-[11px] text-muted-foreground">
                     Relative path to compose specification file (e.g. <code>docker-compose.yml</code> or <code>compose.yaml</code>).
                   </p>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg border border-border bg-muted/20 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Persistent Storage:</span>
+                    <span className="font-mono text-foreground font-medium">tako-data-{slug || 'db'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Default User:</span>
+                    <span className="font-mono text-foreground font-medium">tako</span>
+                  </div>
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Credentials & Connection URI:</span>
+                    <span className="text-[11px] text-primary font-medium">Auto-generated & encrypted on deployment</span>
+                  </div>
                 </div>
               )}
             </div>

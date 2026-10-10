@@ -53,6 +53,14 @@ function normalizeService(s: Record<string, unknown>): Service {
     image: s.image as string | undefined,
     databaseType: s.databaseType as Service['databaseType'],
     databaseVersion: s.databaseVersion as string | undefined,
+    connectionString: s.connectionString as string | undefined,
+    autoRollbackEnabled:
+      s.autoRollbackEnabled !== undefined
+        ? Boolean(s.autoRollbackEnabled)
+        : s.auto_rollback_enabled !== undefined
+        ? Boolean(s.auto_rollback_enabled)
+        : true,
+    autoScaling: s.autoScaling as Service['autoScaling'] | undefined,
     ports: Array.isArray(s.ports) ? (s.ports as number[]) : [80],
     domains,
     publishToHost:
@@ -132,16 +140,20 @@ export async function createService(input: CreateServiceInput): Promise<Service>
           projectId: input.projectId,
           nodeId: input.nodeId,
           name: input.name,
-          slug: input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          slug: input.slug || input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
           type: input.type,
+          databaseType: input.databaseType,
+          databaseVersion: input.databaseVersion,
+          connectionString: input.connectionString,
           repository: input.repository || '',
           branch: input.branch || 'main',
           dockerfile: input.dockerfile || 'Dockerfile',
           image: input.image || '',
-          ports: input.ports || [80],
+          ports: input.ports || (input.type === 'database' ? [] : [80]),
           domains: [],
           environmentVars: {},
           publishToHost: input.publishToHost !== undefined ? input.publishToHost : true,
+          autoScaling: input.autoScaling,
         }),
       });
       if (res.ok) {
@@ -234,6 +246,8 @@ export async function updateService(id: string, input: UpdateServiceInput): Prom
     composeFile: input.composeFile !== undefined ? input.composeFile : current.composeFile,
     image: input.image !== undefined ? input.image : current.image,
     publishToHost: input.publishToHost !== undefined ? input.publishToHost : current.publishToHost,
+    autoRollbackEnabled: input.autoRollbackEnabled !== undefined ? input.autoRollbackEnabled : current.autoRollbackEnabled,
+    autoScaling: input.autoScaling !== undefined ? input.autoScaling : current.autoScaling,
     replicas: input.replicas !== undefined ? input.replicas : current.replicas,
     limits: input.limits
       ? {

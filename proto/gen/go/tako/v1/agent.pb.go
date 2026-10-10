@@ -221,6 +221,130 @@ func (x *RegisterNodeResponse) GetAuthToken() string {
 	return ""
 }
 
+type ContainerTelemetry struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ContainerId    string                 `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	ServiceId      string                 `protobuf:"bytes,3,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
+	ServiceSlug    string                 `protobuf:"bytes,4,opt,name=service_slug,json=serviceSlug,proto3" json:"service_slug,omitempty"`
+	CpuPercent     float64                `protobuf:"fixed64,5,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
+	MemoryUsedMb   int64                  `protobuf:"varint,6,opt,name=memory_used_mb,json=memoryUsedMb,proto3" json:"memory_used_mb,omitempty"`
+	MemoryLimitMb  int64                  `protobuf:"varint,7,opt,name=memory_limit_mb,json=memoryLimitMb,proto3" json:"memory_limit_mb,omitempty"`
+	NetworkRxKbps  float64                `protobuf:"fixed64,8,opt,name=network_rx_kbps,json=networkRxKbps,proto3" json:"network_rx_kbps,omitempty"`
+	NetworkTxKbps  float64                `protobuf:"fixed64,9,opt,name=network_tx_kbps,json=networkTxKbps,proto3" json:"network_tx_kbps,omitempty"`
+	DiskReadBytes  int64                  `protobuf:"varint,10,opt,name=disk_read_bytes,json=diskReadBytes,proto3" json:"disk_read_bytes,omitempty"`
+	DiskWriteBytes int64                  `protobuf:"varint,11,opt,name=disk_write_bytes,json=diskWriteBytes,proto3" json:"disk_write_bytes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ContainerTelemetry) Reset() {
+	*x = ContainerTelemetry{}
+	mi := &file_tako_v1_agent_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContainerTelemetry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContainerTelemetry) ProtoMessage() {}
+
+func (x *ContainerTelemetry) ProtoReflect() protoreflect.Message {
+	mi := &file_tako_v1_agent_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContainerTelemetry.ProtoReflect.Descriptor instead.
+func (*ContainerTelemetry) Descriptor() ([]byte, []int) {
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ContainerTelemetry) GetContainerId() string {
+	if x != nil {
+		return x.ContainerId
+	}
+	return ""
+}
+
+func (x *ContainerTelemetry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ContainerTelemetry) GetServiceId() string {
+	if x != nil {
+		return x.ServiceId
+	}
+	return ""
+}
+
+func (x *ContainerTelemetry) GetServiceSlug() string {
+	if x != nil {
+		return x.ServiceSlug
+	}
+	return ""
+}
+
+func (x *ContainerTelemetry) GetCpuPercent() float64 {
+	if x != nil {
+		return x.CpuPercent
+	}
+	return 0
+}
+
+func (x *ContainerTelemetry) GetMemoryUsedMb() int64 {
+	if x != nil {
+		return x.MemoryUsedMb
+	}
+	return 0
+}
+
+func (x *ContainerTelemetry) GetMemoryLimitMb() int64 {
+	if x != nil {
+		return x.MemoryLimitMb
+	}
+	return 0
+}
+
+func (x *ContainerTelemetry) GetNetworkRxKbps() float64 {
+	if x != nil {
+		return x.NetworkRxKbps
+	}
+	return 0
+}
+
+func (x *ContainerTelemetry) GetNetworkTxKbps() float64 {
+	if x != nil {
+		return x.NetworkTxKbps
+	}
+	return 0
+}
+
+func (x *ContainerTelemetry) GetDiskReadBytes() int64 {
+	if x != nil {
+		return x.DiskReadBytes
+	}
+	return 0
+}
+
+func (x *ContainerTelemetry) GetDiskWriteBytes() int64 {
+	if x != nil {
+		return x.DiskWriteBytes
+	}
+	return 0
+}
+
 type HeartbeatRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -231,13 +355,14 @@ type HeartbeatRequest struct {
 	NetworkTxKbps float64                `protobuf:"fixed64,6,opt,name=network_tx_kbps,json=networkTxKbps,proto3" json:"network_tx_kbps,omitempty"`
 	UptimeSeconds int64                  `protobuf:"varint,7,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
 	Timestamp     int64                  `protobuf:"varint,8,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Containers    []*ContainerTelemetry  `protobuf:"bytes,9,rep,name=containers,proto3" json:"containers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_tako_v1_agent_proto_msgTypes[2]
+	mi := &file_tako_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -249,7 +374,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tako_v1_agent_proto_msgTypes[2]
+	mi := &file_tako_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -262,7 +387,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_tako_v1_agent_proto_rawDescGZIP(), []int{2}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *HeartbeatRequest) GetNodeId() string {
@@ -321,6 +446,13 @@ func (x *HeartbeatRequest) GetTimestamp() int64 {
 	return 0
 }
 
+func (x *HeartbeatRequest) GetContainers() []*ContainerTelemetry {
+	if x != nil {
+		return x.Containers
+	}
+	return nil
+}
+
 type HeartbeatResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Acknowledged  bool                   `protobuf:"varint,1,opt,name=acknowledged,proto3" json:"acknowledged,omitempty"`
@@ -331,7 +463,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_tako_v1_agent_proto_msgTypes[3]
+	mi := &file_tako_v1_agent_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -343,7 +475,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tako_v1_agent_proto_msgTypes[3]
+	mi := &file_tako_v1_agent_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -356,7 +488,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_tako_v1_agent_proto_rawDescGZIP(), []int{3}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HeartbeatResponse) GetAcknowledged() bool {
@@ -390,7 +522,7 @@ type MasterTask struct {
 
 func (x *MasterTask) Reset() {
 	*x = MasterTask{}
-	mi := &file_tako_v1_agent_proto_msgTypes[4]
+	mi := &file_tako_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +534,7 @@ func (x *MasterTask) String() string {
 func (*MasterTask) ProtoMessage() {}
 
 func (x *MasterTask) ProtoReflect() protoreflect.Message {
-	mi := &file_tako_v1_agent_proto_msgTypes[4]
+	mi := &file_tako_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +547,7 @@ func (x *MasterTask) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MasterTask.ProtoReflect.Descriptor instead.
 func (*MasterTask) Descriptor() ([]byte, []int) {
-	return file_tako_v1_agent_proto_rawDescGZIP(), []int{4}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *MasterTask) GetTaskId() string {
@@ -520,7 +652,7 @@ type AgentTaskResult struct {
 
 func (x *AgentTaskResult) Reset() {
 	*x = AgentTaskResult{}
-	mi := &file_tako_v1_agent_proto_msgTypes[5]
+	mi := &file_tako_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -532,7 +664,7 @@ func (x *AgentTaskResult) String() string {
 func (*AgentTaskResult) ProtoMessage() {}
 
 func (x *AgentTaskResult) ProtoReflect() protoreflect.Message {
-	mi := &file_tako_v1_agent_proto_msgTypes[5]
+	mi := &file_tako_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -545,7 +677,7 @@ func (x *AgentTaskResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentTaskResult.ProtoReflect.Descriptor instead.
 func (*AgentTaskResult) Descriptor() ([]byte, []int) {
-	return file_tako_v1_agent_proto_rawDescGZIP(), []int{5}
+	return file_tako_v1_agent_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AgentTaskResult) GetTaskId() string {
@@ -658,7 +790,22 @@ const file_tako_v1_agent_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12#\n" +
 	"\rregistered_at\x18\x03 \x01(\tR\fregisteredAt\x12\x1d\n" +
 	"\n" +
-	"auth_token\x18\x04 \x01(\tR\tauthToken\"\xa9\x02\n" +
+	"auth_token\x18\x04 \x01(\tR\tauthToken\"\x9e\x03\n" +
+	"\x12ContainerTelemetry\x12!\n" +
+	"\fcontainer_id\x18\x01 \x01(\tR\vcontainerId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"service_id\x18\x03 \x01(\tR\tserviceId\x12!\n" +
+	"\fservice_slug\x18\x04 \x01(\tR\vserviceSlug\x12\x1f\n" +
+	"\vcpu_percent\x18\x05 \x01(\x01R\n" +
+	"cpuPercent\x12$\n" +
+	"\x0ememory_used_mb\x18\x06 \x01(\x03R\fmemoryUsedMb\x12&\n" +
+	"\x0fmemory_limit_mb\x18\a \x01(\x03R\rmemoryLimitMb\x12&\n" +
+	"\x0fnetwork_rx_kbps\x18\b \x01(\x01R\rnetworkRxKbps\x12&\n" +
+	"\x0fnetwork_tx_kbps\x18\t \x01(\x01R\rnetworkTxKbps\x12&\n" +
+	"\x0fdisk_read_bytes\x18\n" +
+	" \x01(\x03R\rdiskReadBytes\x12(\n" +
+	"\x10disk_write_bytes\x18\v \x01(\x03R\x0ediskWriteBytes\"\xe6\x02\n" +
 	"\x10HeartbeatRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12\x1f\n" +
 	"\vcpu_percent\x18\x02 \x01(\x01R\n" +
@@ -669,7 +816,10 @@ const file_tako_v1_agent_proto_rawDesc = "" +
 	"\x0fnetwork_rx_kbps\x18\x05 \x01(\x01R\rnetworkRxKbps\x12&\n" +
 	"\x0fnetwork_tx_kbps\x18\x06 \x01(\x01R\rnetworkTxKbps\x12%\n" +
 	"\x0euptime_seconds\x18\a \x01(\x03R\ruptimeSeconds\x12\x1c\n" +
-	"\ttimestamp\x18\b \x01(\x03R\ttimestamp\"U\n" +
+	"\ttimestamp\x18\b \x01(\x03R\ttimestamp\x12;\n" +
+	"\n" +
+	"containers\x18\t \x03(\v2\x1b.tako.v1.ContainerTelemetryR\n" +
+	"containers\"U\n" +
 	"\x11HeartbeatResponse\x12\"\n" +
 	"\facknowledged\x18\x01 \x01(\bR\facknowledged\x12\x1c\n" +
 	"\ttimestamp\x18\x02 \x01(\x03R\ttimestamp\"\xc4\x02\n" +
@@ -709,43 +859,45 @@ func file_tako_v1_agent_proto_rawDescGZIP() []byte {
 	return file_tako_v1_agent_proto_rawDescData
 }
 
-var file_tako_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_tako_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_tako_v1_agent_proto_goTypes = []any{
 	(*RegisterNodeRequest)(nil),     // 0: tako.v1.RegisterNodeRequest
 	(*RegisterNodeResponse)(nil),    // 1: tako.v1.RegisterNodeResponse
-	(*HeartbeatRequest)(nil),        // 2: tako.v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),       // 3: tako.v1.HeartbeatResponse
-	(*MasterTask)(nil),              // 4: tako.v1.MasterTask
-	(*AgentTaskResult)(nil),         // 5: tako.v1.AgentTaskResult
-	(*DeployRequest)(nil),           // 6: tako.v1.DeployRequest
-	(*ExecCommandRequest)(nil),      // 7: tako.v1.ExecCommandRequest
-	(*ContainerActionRequest)(nil),  // 8: tako.v1.ContainerActionRequest
-	(*GetContainerLogsRequest)(nil), // 9: tako.v1.GetContainerLogsRequest
-	(*DeployLogChunk)(nil),          // 10: tako.v1.DeployLogChunk
-	(*ExecCommandResponse)(nil),     // 11: tako.v1.ExecCommandResponse
-	(*ContainerActionResponse)(nil), // 12: tako.v1.ContainerActionResponse
-	(*ContainerLogsResponse)(nil),   // 13: tako.v1.ContainerLogsResponse
+	(*ContainerTelemetry)(nil),      // 2: tako.v1.ContainerTelemetry
+	(*HeartbeatRequest)(nil),        // 3: tako.v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil),       // 4: tako.v1.HeartbeatResponse
+	(*MasterTask)(nil),              // 5: tako.v1.MasterTask
+	(*AgentTaskResult)(nil),         // 6: tako.v1.AgentTaskResult
+	(*DeployRequest)(nil),           // 7: tako.v1.DeployRequest
+	(*ExecCommandRequest)(nil),      // 8: tako.v1.ExecCommandRequest
+	(*ContainerActionRequest)(nil),  // 9: tako.v1.ContainerActionRequest
+	(*GetContainerLogsRequest)(nil), // 10: tako.v1.GetContainerLogsRequest
+	(*DeployLogChunk)(nil),          // 11: tako.v1.DeployLogChunk
+	(*ExecCommandResponse)(nil),     // 12: tako.v1.ExecCommandResponse
+	(*ContainerActionResponse)(nil), // 13: tako.v1.ContainerActionResponse
+	(*ContainerLogsResponse)(nil),   // 14: tako.v1.ContainerLogsResponse
 }
 var file_tako_v1_agent_proto_depIdxs = []int32{
-	6,  // 0: tako.v1.MasterTask.deploy:type_name -> tako.v1.DeployRequest
-	7,  // 1: tako.v1.MasterTask.exec:type_name -> tako.v1.ExecCommandRequest
-	8,  // 2: tako.v1.MasterTask.container_action:type_name -> tako.v1.ContainerActionRequest
-	9,  // 3: tako.v1.MasterTask.container_logs:type_name -> tako.v1.GetContainerLogsRequest
-	10, // 4: tako.v1.AgentTaskResult.deploy_log:type_name -> tako.v1.DeployLogChunk
-	11, // 5: tako.v1.AgentTaskResult.exec_result:type_name -> tako.v1.ExecCommandResponse
-	12, // 6: tako.v1.AgentTaskResult.container_action_result:type_name -> tako.v1.ContainerActionResponse
-	13, // 7: tako.v1.AgentTaskResult.container_logs_result:type_name -> tako.v1.ContainerLogsResponse
-	0,  // 8: tako.v1.AgentService.RegisterNode:input_type -> tako.v1.RegisterNodeRequest
-	2,  // 9: tako.v1.AgentService.Heartbeat:input_type -> tako.v1.HeartbeatRequest
-	5,  // 10: tako.v1.AgentService.StreamTasks:input_type -> tako.v1.AgentTaskResult
-	1,  // 11: tako.v1.AgentService.RegisterNode:output_type -> tako.v1.RegisterNodeResponse
-	3,  // 12: tako.v1.AgentService.Heartbeat:output_type -> tako.v1.HeartbeatResponse
-	4,  // 13: tako.v1.AgentService.StreamTasks:output_type -> tako.v1.MasterTask
-	11, // [11:14] is the sub-list for method output_type
-	8,  // [8:11] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	2,  // 0: tako.v1.HeartbeatRequest.containers:type_name -> tako.v1.ContainerTelemetry
+	7,  // 1: tako.v1.MasterTask.deploy:type_name -> tako.v1.DeployRequest
+	8,  // 2: tako.v1.MasterTask.exec:type_name -> tako.v1.ExecCommandRequest
+	9,  // 3: tako.v1.MasterTask.container_action:type_name -> tako.v1.ContainerActionRequest
+	10, // 4: tako.v1.MasterTask.container_logs:type_name -> tako.v1.GetContainerLogsRequest
+	11, // 5: tako.v1.AgentTaskResult.deploy_log:type_name -> tako.v1.DeployLogChunk
+	12, // 6: tako.v1.AgentTaskResult.exec_result:type_name -> tako.v1.ExecCommandResponse
+	13, // 7: tako.v1.AgentTaskResult.container_action_result:type_name -> tako.v1.ContainerActionResponse
+	14, // 8: tako.v1.AgentTaskResult.container_logs_result:type_name -> tako.v1.ContainerLogsResponse
+	0,  // 9: tako.v1.AgentService.RegisterNode:input_type -> tako.v1.RegisterNodeRequest
+	3,  // 10: tako.v1.AgentService.Heartbeat:input_type -> tako.v1.HeartbeatRequest
+	6,  // 11: tako.v1.AgentService.StreamTasks:input_type -> tako.v1.AgentTaskResult
+	1,  // 12: tako.v1.AgentService.RegisterNode:output_type -> tako.v1.RegisterNodeResponse
+	4,  // 13: tako.v1.AgentService.Heartbeat:output_type -> tako.v1.HeartbeatResponse
+	5,  // 14: tako.v1.AgentService.StreamTasks:output_type -> tako.v1.MasterTask
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_tako_v1_agent_proto_init() }
@@ -755,13 +907,13 @@ func file_tako_v1_agent_proto_init() {
 	}
 	file_tako_v1_deployment_proto_init()
 	file_tako_v1_container_proto_init()
-	file_tako_v1_agent_proto_msgTypes[4].OneofWrappers = []any{
+	file_tako_v1_agent_proto_msgTypes[5].OneofWrappers = []any{
 		(*MasterTask_Deploy)(nil),
 		(*MasterTask_Exec)(nil),
 		(*MasterTask_ContainerAction)(nil),
 		(*MasterTask_ContainerLogs)(nil),
 	}
-	file_tako_v1_agent_proto_msgTypes[5].OneofWrappers = []any{
+	file_tako_v1_agent_proto_msgTypes[6].OneofWrappers = []any{
 		(*AgentTaskResult_DeployLog)(nil),
 		(*AgentTaskResult_ExecResult)(nil),
 		(*AgentTaskResult_ContainerActionResult)(nil),
@@ -773,7 +925,7 @@ func file_tako_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tako_v1_agent_proto_rawDesc), len(file_tako_v1_agent_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

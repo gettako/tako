@@ -11,6 +11,7 @@ const (
 	EventNodeMetrics       EventType = "node.metrics"
 	EventDeploymentLog     EventType = "deployment.log"
 	EventAuditCreated      EventType = "audit.created"
+	EventServiceUpdated    EventType = "service.updated"
 )
 
 type Event struct {

@@ -244,6 +244,18 @@ func (e *Executor) ExecuteDeployWithCallback(
 			containerResources.MemorySwap = memBytes
 		}
 
+		var binds []string
+		lowerImg := strings.ToLower(targetImage)
+		if strings.Contains(lowerImg, "postgres") {
+			binds = append(binds, fmt.Sprintf("tako-data-%s:/var/lib/postgresql/data", serviceName))
+		} else if strings.Contains(lowerImg, "mysql") {
+			binds = append(binds, fmt.Sprintf("tako-data-%s:/var/lib/mysql", serviceName))
+		} else if strings.Contains(lowerImg, "redis") {
+			binds = append(binds, fmt.Sprintf("tako-data-%s:/data", serviceName))
+		} else if strings.Contains(lowerImg, "mongo") {
+			binds = append(binds, fmt.Sprintf("tako-data-%s:/data/db", serviceName))
+		}
+
 		resp, err := e.dockerCli.RawClient().ContainerCreate(
 			ctx,
 			&container.Config{
@@ -256,6 +268,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 				RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 				PortBindings:  portBindings,
 				Resources:     containerResources,
+				Binds:         binds,
 			},
 			&network.NetworkingConfig{
 				EndpointsConfig: map[string]*network.EndpointSettings{
@@ -283,6 +296,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 						RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 						PortBindings:  nil,
 						Resources:     containerResources,
+						Binds:         binds,
 					},
 					&network.NetworkingConfig{
 						EndpointsConfig: map[string]*network.EndpointSettings{
@@ -313,7 +327,42 @@ func (e *Executor) ExecuteDeployWithCallback(
 
 	// Step 4: Health Check & Live
 	sendLog("Health check", "Verifying service container status...", false)
-	time.Sleep(50 * time.Millisecond)
+	if e.dockerCli != nil {
+		healthy := false
+		var lastInspectErr error
+		for i := 0; i < 5; i++ {
+			time.Sleep(time.Duration(100+i*150) * time.Millisecond)
+			inspect, err := e.dockerCli.RawClient().ContainerInspect(ctx, containerName)
+			if err != nil {
+				lastInspectErr = err
+				continue
+			}
+
+			if inspect.State != nil {
+				if !inspect.State.Running && inspect.State.ExitCode != 0 {
+					errMsg := fmt.Sprintf("Health check FAILED: container exited prematurely with code %d (Error: %s)", inspect.State.ExitCode, inspect.State.Error)
+					sendLog("Health check", errMsg, true)
+					return fmt.Errorf("container exited prematurely with code %d", inspect.State.ExitCode)
+				}
+				if inspect.State.OOMKilled {
+					errMsg := "Health check FAILED: container terminated by OOM killer"
+					sendLog("Health check", errMsg, true)
+					return fmt.Errorf("container terminated by OOM killer")
+				}
+				if inspect.State.Running {
+					healthy = true
+				}
+			}
+		}
+
+		if !healthy && lastInspectErr != nil {
+			sendLog("Health check", fmt.Sprintf("Notice: container inspect returned: %v", lastInspectErr), false)
+		} else if healthy {
+			sendLog("Health check", fmt.Sprintf("Health check passed: container %s is running and stable", containerName), false)
+		}
+	} else {
+		time.Sleep(50 * time.Millisecond)
+	}
 
 	// Retention Pruning: enforce maximum number of retained preview deployments
 	e.pruneOldDeployments(ctx, req, dynamicDir, sendLog)

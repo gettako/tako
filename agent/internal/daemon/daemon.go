@@ -208,6 +208,13 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 	nodeID := d.state.NodeID
 	d.mu.RUnlock()
 
+	var containers []*takov1.ContainerTelemetry
+	if d.dockerCli != nil {
+		if cStats, err := d.dockerCli.CollectContainersTelemetry(hbCtx); err == nil && len(cStats) > 0 {
+			containers = cStats
+		}
+	}
+
 	req := &takov1.HeartbeatRequest{
 		NodeId:         nodeID,
 		CpuPercent:     snap.CPUPercent,
@@ -217,6 +224,7 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 		NetworkTxKbps:  snap.NetworkTxKBps,
 		UptimeSeconds:  snap.UptimeSeconds,
 		Timestamp:      snap.Timestamp,
+		Containers:     containers,
 	}
 
 	resp, err := d.grpcCli.Heartbeat(hbCtx, req)

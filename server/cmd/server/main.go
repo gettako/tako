@@ -46,6 +46,7 @@ func main() {
 	defer stop()
 
 	orch.StartLivenessWatcher(ctx, 5*time.Second, 15)
+	orch.StartAutoScaler(ctx, 15*time.Second)
 
 	router := api.NewRouter(db, orch)
 

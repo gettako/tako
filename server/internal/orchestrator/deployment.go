@@ -26,34 +26,46 @@ type DeploymentStepJSON struct {
 }
 
 type CreateServiceParams struct {
-	ProjectID       string
-	NodeID          string
-	Name            string
-	Slug            string
-	Type            string
-	Repository      string
-	Branch          string
-	Dockerfile      string
-	Image           string
-	Ports           []int32
-	Domains         []string
-	EnvironmentVars map[string]string
-	PublishToHost   *bool
+	ProjectID        string
+	NodeID           string
+	Name             string
+	Slug             string
+	Type             string
+	Repository       string
+	Branch           string
+	Dockerfile       string
+	Image            string
+	Ports            []int32
+	Domains          []string
+	EnvironmentVars  map[string]string
+	PublishToHost    *bool
+	DatabaseType     string
+	DatabaseVersion  string
+	ConnectionString string
 }
 
 type UpdateServiceParams struct {
-	Name          *string
-	Repository    *string
-	Branch        *string
-	CommitHash    *string
-	Dockerfile    *string
-	BuildCommand  *string
-	Image         *string
-	Replicas      *int64
-	PublishToHost *bool
-	CPULimit      *float64
-	MemoryLimitMB *int64
-	SwapLimitMB   *int64
+	Name               *string
+	Repository         *string
+	Branch             *string
+	CommitHash         *string
+	Dockerfile         *string
+	BuildCommand       *string
+	Image              *string
+	Replicas           *int64
+	PublishToHost      *bool
+	CPULimit           *float64
+	MemoryLimitMB      *int64
+	SwapLimitMB        *int64
+	AutoRollbackEnabled *bool
+	AutoScalingEnabled  *bool
+	AutoScalingMetric   *string
+	TargetMemoryPercent *float64
+	ScaleDownCPUPercent *float64
+	CooldownSeconds     *int64
+	MinReplicas         *int64
+	MaxReplicas         *int64
+	TargetCPUPercent    *float64
 }
 
 func fallbackVal[T comparable](ptr *T, fallback T) T {
@@ -125,6 +137,42 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 		return nil, fmt.Errorf("failed to update service: %w", err)
 	}
 
+	if p.AutoRollbackEnabled != nil {
+		arVal := int64(0)
+		if *p.AutoRollbackEnabled {
+			arVal = 1
+		}
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET auto_rollback_enabled = ? WHERE id = ?", arVal, id)
+	}
+	if p.AutoScalingEnabled != nil {
+		asVal := int64(0)
+		if *p.AutoScalingEnabled {
+			asVal = 1
+		}
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET auto_scaling_enabled = ? WHERE id = ?", asVal, id)
+	}
+	if p.AutoScalingMetric != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET auto_scaling_metric = ? WHERE id = ?", *p.AutoScalingMetric, id)
+	}
+	if p.TargetMemoryPercent != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET target_memory_percent = ? WHERE id = ?", *p.TargetMemoryPercent, id)
+	}
+	if p.ScaleDownCPUPercent != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET scale_down_cpu_percent = ? WHERE id = ?", *p.ScaleDownCPUPercent, id)
+	}
+	if p.CooldownSeconds != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET cooldown_seconds = ? WHERE id = ?", *p.CooldownSeconds, id)
+	}
+	if p.MinReplicas != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET min_replicas = ? WHERE id = ?", *p.MinReplicas, id)
+	}
+	if p.MaxReplicas != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET max_replicas = ? WHERE id = ?", *p.MaxReplicas, id)
+	}
+	if p.TargetCPUPercent != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET target_cpu_percent = ? WHERE id = ?", *p.TargetCPUPercent, id)
+	}
+
 	updated, err := o.queries.GetServiceByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -189,6 +237,128 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 		p.Dockerfile = "Dockerfile"
 	}
 
+	// 1-Click Database Provisioning Defaults
+	if p.Type == "database" {
+		if p.DatabaseVersion == "" {
+			p.DatabaseVersion = "latest"
+		}
+		if p.EnvironmentVars == nil {
+			p.EnvironmentVars = make(map[string]string)
+		}
+
+		nodeIP := "127.0.0.1"
+		if node, err := o.queries.GetNodeByID(ctx, p.NodeID); err == nil {
+			if node.PublicIp != "" {
+				nodeIP = node.PublicIp
+			} else if node.IpAddress != "" {
+				nodeIP = node.IpAddress
+			}
+		}
+
+		cleanDBName := strings.ReplaceAll(p.Slug, "-", "_")
+		if cleanDBName == "" {
+			cleanDBName = "tako_db"
+		}
+		defaultPass := randomHex(10)
+
+		switch strings.ToLower(p.DatabaseType) {
+		case "postgresql", "postgres":
+			p.DatabaseType = "postgresql"
+			if p.Image == "" {
+				p.Image = "postgres:" + p.DatabaseVersion
+			}
+			if len(p.Ports) == 0 {
+				p.Ports = []int32{5432}
+			}
+			if _, ok := p.EnvironmentVars["POSTGRES_DB"]; !ok {
+				p.EnvironmentVars["POSTGRES_DB"] = cleanDBName
+			}
+			if _, ok := p.EnvironmentVars["POSTGRES_USER"]; !ok {
+				p.EnvironmentVars["POSTGRES_USER"] = "tako"
+			}
+			if _, ok := p.EnvironmentVars["POSTGRES_PASSWORD"]; !ok {
+				p.EnvironmentVars["POSTGRES_PASSWORD"] = defaultPass
+			}
+			if p.ConnectionString == "" {
+				p.ConnectionString = fmt.Sprintf("postgresql://%s:%s@%s:%d/%s",
+					p.EnvironmentVars["POSTGRES_USER"],
+					p.EnvironmentVars["POSTGRES_PASSWORD"],
+					nodeIP, p.Ports[0],
+					p.EnvironmentVars["POSTGRES_DB"],
+				)
+			}
+
+		case "mysql":
+			p.DatabaseType = "mysql"
+			if p.Image == "" {
+				p.Image = "mysql:" + p.DatabaseVersion
+			}
+			if len(p.Ports) == 0 {
+				p.Ports = []int32{3306}
+			}
+			if _, ok := p.EnvironmentVars["MYSQL_DATABASE"]; !ok {
+				p.EnvironmentVars["MYSQL_DATABASE"] = cleanDBName
+			}
+			if _, ok := p.EnvironmentVars["MYSQL_USER"]; !ok {
+				p.EnvironmentVars["MYSQL_USER"] = "tako"
+			}
+			if _, ok := p.EnvironmentVars["MYSQL_PASSWORD"]; !ok {
+				p.EnvironmentVars["MYSQL_PASSWORD"] = defaultPass
+			}
+			if _, ok := p.EnvironmentVars["MYSQL_ROOT_PASSWORD"]; !ok {
+				p.EnvironmentVars["MYSQL_ROOT_PASSWORD"] = defaultPass
+			}
+			if p.ConnectionString == "" {
+				p.ConnectionString = fmt.Sprintf("mysql://%s:%s@tcp(%s:%d)/%s",
+					p.EnvironmentVars["MYSQL_USER"],
+					p.EnvironmentVars["MYSQL_PASSWORD"],
+					nodeIP, p.Ports[0],
+					p.EnvironmentVars["MYSQL_DATABASE"],
+				)
+			}
+
+		case "redis":
+			p.DatabaseType = "redis"
+			if p.Image == "" {
+				p.Image = "redis:" + p.DatabaseVersion
+			}
+			if len(p.Ports) == 0 {
+				p.Ports = []int32{6379}
+			}
+			if pass, ok := p.EnvironmentVars["REDIS_PASSWORD"]; ok && pass != "" {
+				p.ConnectionString = fmt.Sprintf("redis://:%s@%s:%d", pass, nodeIP, p.Ports[0])
+			} else {
+				p.ConnectionString = fmt.Sprintf("redis://%s:%d", nodeIP, p.Ports[0])
+			}
+
+		case "mongodb", "mongo":
+			p.DatabaseType = "mongodb"
+			if p.Image == "" {
+				p.Image = "mongo:" + p.DatabaseVersion
+			}
+			if len(p.Ports) == 0 {
+				p.Ports = []int32{27017}
+			}
+			if _, ok := p.EnvironmentVars["MONGO_INITDB_ROOT_USERNAME"]; !ok {
+				p.EnvironmentVars["MONGO_INITDB_ROOT_USERNAME"] = "tako"
+			}
+			if _, ok := p.EnvironmentVars["MONGO_INITDB_ROOT_PASSWORD"]; !ok {
+				p.EnvironmentVars["MONGO_INITDB_ROOT_PASSWORD"] = defaultPass
+			}
+			if _, ok := p.EnvironmentVars["MONGO_INITDB_DATABASE"]; !ok {
+				p.EnvironmentVars["MONGO_INITDB_DATABASE"] = cleanDBName
+			}
+			if p.ConnectionString == "" {
+				p.ConnectionString = fmt.Sprintf("mongodb://%s:%s@%s:%d/%s?authSource=admin",
+					p.EnvironmentVars["MONGO_INITDB_ROOT_USERNAME"],
+					p.EnvironmentVars["MONGO_INITDB_ROOT_PASSWORD"],
+					nodeIP, p.Ports[0],
+					p.EnvironmentVars["MONGO_INITDB_DATABASE"],
+				)
+			}
+		}
+	}
+
 	portsJSON, _ := json.Marshal(p.Ports)
 
 	publishToHostVal := int64(1)
@@ -219,9 +389,9 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 		CommitHash:       "",
 		BuildCommand:     "",
 		ComposeFile:      "",
-		DatabaseType:     "",
-		DatabaseVersion:  "",
-		ConnectionString: "",
+		DatabaseType:     p.DatabaseType,
+		DatabaseVersion:  p.DatabaseVersion,
+		ConnectionString: p.ConnectionString,
 		PublishToHost:    publishToHostVal,
 	})
 	if err != nil {
@@ -613,6 +783,82 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 					Logs:       curDep.Logs,
 					Url:        previewURL,
 				})
+			}
+
+			// Auto-Rollback on Health Check Failure
+			if finalStatus == "failed" {
+				var autoRollbackEnabled int64 = 1
+				_ = o.db.QueryRowContext(bgCtx, "SELECT auto_rollback_enabled FROM services WHERE id = ?", srv.ID).Scan(&autoRollbackEnabled)
+				if autoRollbackEnabled == 0 {
+					disabledMsg := fmt.Sprintf("[%s] [Auto-Rollback Disabled] Health check failure detected. Auto-rollback is disabled in service settings. Container remains in failed state for manual debugging.\n",
+						time.Now().Format("15:04:05"))
+					_ = o.queries.AppendDeploymentLog(bgCtx, db.AppendDeploymentLogParams{
+						ID:     depID,
+						Logs:   disabledMsg,
+						Status: "failed",
+						Steps:  string(finalStepsBytes),
+					})
+					o.bus.Publish(events.Event{
+						Type: events.EventDeploymentLog,
+						Payload: map[string]any{
+							"deployment_id": depID,
+							"service_id":    srv.ID,
+							"step":          "Health check",
+							"message":       disabledMsg,
+							"status":        "failed",
+						},
+					})
+					return
+				}
+
+				allDeps, errList := o.queries.ListDeploymentsByService(bgCtx, srv.ID)
+				var lastHealthy *db.Deployment
+				if errList == nil {
+					for _, d := range allDeps {
+						if d.ID != depID && (d.Status == "live" || d.Status == "healthy") {
+							copyD := d
+							lastHealthy = &copyD
+							break
+						}
+					}
+				}
+
+				if lastHealthy != nil {
+					autoRollbackMsg := fmt.Sprintf("[%s] [Auto-Rollback] Health check failure detected. Automatically triggering rollback to previous stable deployment: %s (%s)...\n",
+						time.Now().Format("15:04:05"), lastHealthy.ID, lastHealthy.CommitHash)
+					_ = o.queries.AppendDeploymentLog(bgCtx, db.AppendDeploymentLogParams{
+						ID:     depID,
+						Logs:   autoRollbackMsg,
+						Status: "failed_rolled_back",
+						Steps:  string(finalStepsBytes),
+					})
+					o.bus.Publish(events.Event{
+						Type: events.EventDeploymentLog,
+						Payload: map[string]any{
+							"deployment_id": depID,
+							"service_id":    srv.ID,
+							"step":          "Health check",
+							"message":       autoRollbackMsg,
+							"status":        "failed_rolled_back",
+						},
+					})
+					_, _ = o.RecordAudit(bgCtx, AuditLogInput{
+						Action:     "auto_rollback_triggered",
+						TargetType: "service",
+						TargetID:   srv.ID,
+						TargetName: srv.Name,
+						Metadata: map[string]any{
+							"failedDeployment": depID,
+							"targetDeployment": lastHealthy.ID,
+							"reason":           "health_check_failed",
+						},
+					})
+
+					go func(targetID string) {
+						time.Sleep(500 * time.Millisecond)
+						_, _ = o.RollbackDeployment(context.Background(), targetID)
+					}(lastHealthy.ID)
+				}
 			}
 			return
 		case <-time.After(15 * time.Minute):

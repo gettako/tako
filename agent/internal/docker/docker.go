@@ -3,10 +3,14 @@ package docker
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -15,10 +19,20 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
+type containerMetricSample struct {
+	recordedAt time.Time
+	cpuTotal   uint64
+	rxBytes    uint64
+	txBytes    uint64
+}
+
 type Client struct {
-	cli *client.Client
+	cli           *client.Client
+	prevMetricsMu sync.Mutex
+	prevMetrics   map[string]containerMetricSample
 }
 
 // New creates a Docker engine client connected via environment or local socket.
@@ -31,7 +45,10 @@ func New() (*Client, error) {
 		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	return &Client{cli: cli}, nil
+	return &Client{
+		cli:         cli,
+		prevMetrics: make(map[string]containerMetricSample),
+	}, nil
 }
 
 // Version returns the Docker engine version string.
@@ -374,4 +391,156 @@ func (c *Client) Close() error {
 		return c.cli.Close()
 	}
 	return nil
+}
+
+// CollectContainersTelemetry queries real-time cgroup telemetry from running containers.
+func (c *Client) CollectContainersTelemetry(ctx context.Context) ([]*takov1.ContainerTelemetry, error) {
+	if c.cli == nil {
+		return nil, nil
+	}
+
+	running, err := c.cli.ContainerList(ctx, container.ListOptions{All: false})
+	if err != nil {
+		return nil, err
+	}
+
+	var results []*takov1.ContainerTelemetry
+
+	for _, cont := range running {
+		cName := ""
+		if len(cont.Names) > 0 {
+			cName = cont.Names[0]
+		}
+
+		serviceID := cont.Labels["tako.service.id"]
+		serviceSlug := cont.Labels["tako.service.name"]
+
+		// Only monitor Tako application and database containers
+		isTakoContainer := serviceID != "" || serviceSlug != "" || strings.HasPrefix(strings.TrimPrefix(cName, "/"), "tako-app-")
+		if !isTakoContainer {
+			continue
+		}
+
+		serviceSlug = extractServiceSlug(cName, serviceSlug)
+
+		statsResp, err := c.cli.ContainerStats(ctx, cont.ID, false)
+		if err != nil {
+			continue
+		}
+
+		var stats types.StatsJSON
+		decodeErr := json.NewDecoder(statsResp.Body).Decode(&stats)
+		_ = statsResp.Body.Close()
+		if decodeErr != nil && decodeErr != io.EOF {
+			continue
+		}
+
+		// Calculate CPU %
+		cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage) - float64(stats.PreCPUStats.CPUUsage.TotalUsage)
+		systemDelta := float64(stats.CPUStats.SystemUsage) - float64(stats.PreCPUStats.SystemUsage)
+		onlineCPUs := float64(stats.CPUStats.OnlineCPUs)
+		if onlineCPUs == 0 {
+			onlineCPUs = float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
+		}
+		if onlineCPUs == 0 {
+			onlineCPUs = 1
+		}
+
+		var cpuPct float64
+		if systemDelta > 0.0 && cpuDelta > 0.0 {
+			cpuPct = (cpuDelta / systemDelta) * onlineCPUs * 100.0
+		}
+
+		now := time.Now()
+		c.prevMetricsMu.Lock()
+		prev, hasPrev := c.prevMetrics[cont.ID]
+		if cpuPct == 0 && hasPrev {
+			sec := now.Sub(prev.recordedAt).Seconds()
+			if sec > 0 && stats.CPUStats.CPUUsage.TotalUsage > prev.cpuTotal {
+				usedNanos := float64(stats.CPUStats.CPUUsage.TotalUsage - prev.cpuTotal)
+				cpuPct = (usedNanos / (sec * 1e9)) * onlineCPUs * 100.0
+			}
+		}
+		cpuPct = math.Round(cpuPct*100) / 100
+
+		// Memory
+		memUsed := stats.MemoryStats.Usage
+		if cache, ok := stats.MemoryStats.Stats["inactive_file"]; ok && memUsed > cache {
+			memUsed -= cache
+		} else if cache, ok := stats.MemoryStats.Stats["total_inactive_file"]; ok && memUsed > cache {
+			memUsed -= cache
+		}
+		memUsedMb := int64(memUsed / (1024 * 1024))
+		memLimitMb := int64(stats.MemoryStats.Limit / (1024 * 1024))
+
+		// Network
+		var rxBytes, txBytes uint64
+		for _, netStat := range stats.Networks {
+			rxBytes += netStat.RxBytes
+			txBytes += netStat.TxBytes
+		}
+
+		var rxKbps, txKbps float64
+		if hasPrev {
+			sec := now.Sub(prev.recordedAt).Seconds()
+			if sec > 0 {
+				if rxBytes >= prev.rxBytes {
+					rxKbps = math.Round(((float64(rxBytes-prev.rxBytes)/1024.0)/sec)*100) / 100
+				}
+				if txBytes >= prev.txBytes {
+					txKbps = math.Round(((float64(txBytes-prev.txBytes)/1024.0)/sec)*100) / 100
+				}
+			}
+		}
+
+		c.prevMetrics[cont.ID] = containerMetricSample{
+			recordedAt: now,
+			cpuTotal:   stats.CPUStats.CPUUsage.TotalUsage,
+			rxBytes:    rxBytes,
+			txBytes:    txBytes,
+		}
+		c.prevMetricsMu.Unlock()
+
+		// Disk I/O
+		var diskRead, diskWrite int64
+		for _, entry := range stats.BlkioStats.IoServiceBytesRecursive {
+			op := strings.ToLower(entry.Op)
+			if op == "read" {
+				diskRead += int64(entry.Value)
+			} else if op == "write" {
+				diskWrite += int64(entry.Value)
+			}
+		}
+
+		results = append(results, &takov1.ContainerTelemetry{
+			ContainerId:    cont.ID,
+			Name:           strings.TrimPrefix(cName, "/"),
+			ServiceId:      serviceID,
+			ServiceSlug:    serviceSlug,
+			CpuPercent:     cpuPct,
+			MemoryUsedMb:   memUsedMb,
+			MemoryLimitMb:  memLimitMb,
+			NetworkRxKbps:  rxKbps,
+			NetworkTxKbps:  txKbps,
+			DiskReadBytes:  diskRead,
+			DiskWriteBytes: diskWrite,
+		})
+	}
+
+	return results, nil
+}
+
+func extractServiceSlug(containerName, fallbackSlug string) string {
+	if fallbackSlug != "" {
+		return fallbackSlug
+	}
+	clean := strings.TrimPrefix(strings.TrimPrefix(containerName, "/"), "tako-app-")
+	parts := strings.Split(clean, "-")
+	if len(parts) > 1 {
+		last := parts[len(parts)-1]
+		if len(last) <= 8 || last == "preview" || last == "latest" {
+			return strings.Join(parts[:len(parts)-1], "-")
+		}
+	}
+	return clean
 }

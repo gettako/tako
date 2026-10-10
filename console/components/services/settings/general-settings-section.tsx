@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings, Network } from 'lucide-react';
+import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings, Network, ShieldCheck, RotateCcw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { SectionHeader } from '@/components/ui/section-header';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface GeneralSettingsSectionProps {
@@ -24,6 +25,9 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
   const [buildCommand, setBuildCommand] = useState(service.buildCommand || '');
   const [repository, setRepository] = useState(service.repository || '');
   const [publishToHost, setPublishToHost] = useState(service.publishToHost !== undefined ? service.publishToHost : true);
+  const [autoRollbackEnabled, setAutoRollbackEnabled] = useState(
+    service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const isDirty =
@@ -33,7 +37,8 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     dockerfile !== (service.dockerfile || 'Dockerfile') ||
     buildCommand !== (service.buildCommand || '') ||
     repository !== (service.repository || '') ||
-    publishToHost !== (service.publishToHost !== undefined ? service.publishToHost : true);
+    publishToHost !== (service.publishToHost !== undefined ? service.publishToHost : true) ||
+    autoRollbackEnabled !== (service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
 
   useEffect(() => {
     if (!isDirty) {
@@ -44,6 +49,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
       setBuildCommand(service.buildCommand || '');
       setRepository(service.repository || '');
       setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
+      setAutoRollbackEnabled(service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
     }
   }, [service, isDirty]);
 
@@ -55,6 +61,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     setBuildCommand(service.buildCommand || '');
     setRepository(service.repository || '');
     setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
+    setAutoRollbackEnabled(service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -74,6 +81,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
         buildCommand: buildCommand.trim(),
         repository: repository.trim() || undefined,
         publishToHost,
+        autoRollbackEnabled,
       });
       toast.success('General settings saved successfully');
     } catch (err: unknown) {
@@ -153,6 +161,47 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
               id="publish-to-host"
               checked={publishToHost}
               onCheckedChange={setPublishToHost}
+              disabled={isSaving}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Deployment Safety & Auto-Rollback Card */}
+      <Card className="border-border bg-card p-6">
+        <CardHeader className="px-0 pt-0 pb-4">
+          <SectionHeader
+            icon={ShieldCheck}
+            title="Deployment Reliability & Auto-Rollback"
+            description="Protect live services from bad builds and crashing releases."
+          />
+        </CardHeader>
+
+        <CardContent className="px-0">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1 pr-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="auto-rollback" className="text-sm font-semibold text-foreground cursor-pointer flex items-center gap-1.5">
+                  <RotateCcw className="size-4 text-primary" />
+                  Auto-Rollback on Health Check Failure
+                </Label>
+                <span className={cn(
+                  'text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold',
+                  autoRollbackEnabled
+                    ? 'bg-status-success/10 text-status-success border border-status-success/20'
+                    : 'bg-status-warning/10 text-status-warning border border-status-warning/20'
+                )}>
+                  {autoRollbackEnabled ? 'Active Protection' : 'Disabled (Manual Debugging)'}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
+                When enabled, Takō monitors startup health probes. If the new deployment crashes or fails health verification, traffic is automatically reverted to the previous healthy container release without downtime.
+              </p>
+            </div>
+            <Switch
+              id="auto-rollback"
+              checked={autoRollbackEnabled}
+              onCheckedChange={setAutoRollbackEnabled}
               disabled={isSaving}
             />
           </div>

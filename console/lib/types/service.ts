@@ -49,6 +49,21 @@ export interface Service {
   usage: ResourceUsage;
   envVars: EnvVar[];
   
+  // Deployment Safety
+  autoRollbackEnabled?: boolean;
+
+  // Auto Scaling & Limits
+  autoScaling?: {
+    enabled: boolean;
+    minReplicas: number;
+    maxReplicas: number;
+    targetCpuPercent: number;
+    metric?: 'cpu' | 'memory' | 'both';
+    targetMemoryPercent?: number;
+    scaleDownCpuPercent?: number;
+    cooldownSeconds?: number;
+  };
+
   // Meta
   createdAt: string;
   updatedAt: string;
@@ -57,6 +72,7 @@ export interface Service {
 export interface CreateServiceInput {
   projectId: string;
   name: string;
+  slug?: string;
   type: ServiceType;
   nodeId: string;
   repository?: string;
@@ -66,9 +82,22 @@ export interface CreateServiceInput {
   composeFile?: string;
   image?: string;
   databaseType?: 'postgresql' | 'mysql' | 'redis' | 'mongodb';
+  databaseVersion?: string;
+  connectionString?: string;
   ports?: number[];
   publishToHost?: boolean;
   limits?: Partial<ResourceLimit>;
+  autoRollbackEnabled?: boolean;
+  autoScaling?: {
+    enabled: boolean;
+    minReplicas: number;
+    maxReplicas: number;
+    targetCpuPercent: number;
+    metric?: 'cpu' | 'memory' | 'both';
+    targetMemoryPercent?: number;
+    scaleDownCpuPercent?: number;
+    cooldownSeconds?: number;
+  };
 }
 
 export interface UpdateServiceInput {
@@ -81,8 +110,19 @@ export interface UpdateServiceInput {
   composeFile?: string;
   image?: string;
   publishToHost?: boolean;
+  autoRollbackEnabled?: boolean;
   limits?: Partial<ResourceLimit>;
   replicas?: number;
+  autoScaling?: {
+    enabled: boolean;
+    minReplicas: number;
+    maxReplicas: number;
+    targetCpuPercent: number;
+    metric?: 'cpu' | 'memory' | 'both';
+    targetMemoryPercent?: number;
+    scaleDownCpuPercent?: number;
+    cooldownSeconds?: number;
+  };
 }
 
 export interface BackupItem {

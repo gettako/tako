@@ -73,22 +73,38 @@ func (s *AgentSession) HandleResult(res *takov1.AgentTaskResult) {
 	}
 }
 
+type ServiceTelemetryPoint struct {
+	Timestamp      time.Time `json:"timestamp"`
+	CPUPercent     float64   `json:"cpuPercent"`
+	MemoryUsedMB   int64     `json:"memoryUsedMb"`
+	MemoryLimitMB  int64     `json:"memoryLimitMb"`
+	NetworkRxKBps  float64   `json:"networkRxKbps"`
+	NetworkTxKBps  float64   `json:"networkTxKbps"`
+	DiskReadBytes  int64     `json:"diskReadBytes"`
+	DiskWriteBytes int64     `json:"diskWriteBytes"`
+}
+
 type Orchestrator struct {
-	db          *sql.DB
-	queries     *db.Queries
-	bus         *events.Bus
-	enrollToken string
-	agentsMu    sync.RWMutex
-	agents      map[string]*AgentSession
+	db               *sql.DB
+	queries          *db.Queries
+	bus              *events.Bus
+	enrollToken      string
+	agentsMu         sync.RWMutex
+	agents           map[string]*AgentSession
+	telemetryMu      sync.RWMutex
+	latestTelemetry  map[string]ServiceTelemetryPoint
+	historyTelemetry map[string][]ServiceTelemetryPoint
 }
 
 func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 	return &Orchestrator{
-		db:          database,
-		queries:     db.New(database),
-		bus:         bus,
-		enrollToken: enrollToken,
-		agents:      make(map[string]*AgentSession),
+		db:               database,
+		queries:          db.New(database),
+		bus:              bus,
+		enrollToken:      enrollToken,
+		agents:           make(map[string]*AgentSession),
+		latestTelemetry:  make(map[string]ServiceTelemetryPoint),
+		historyTelemetry: make(map[string][]ServiceTelemetryPoint),
 	}
 }
 
@@ -412,6 +428,46 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 		NetworkTxKbps: req.GetNetworkTxKbps(),
 	})
 
+	// Process container-level real-time telemetry from agent
+	if len(req.GetContainers()) > 0 {
+		o.telemetryMu.Lock()
+		now := time.Now().UTC()
+		for _, c := range req.GetContainers() {
+			pt := ServiceTelemetryPoint{
+				Timestamp:      now,
+				CPUPercent:     c.GetCpuPercent(),
+				MemoryUsedMB:   c.GetMemoryUsedMb(),
+				MemoryLimitMB:  c.GetMemoryLimitMb(),
+				NetworkRxKBps:  c.GetNetworkRxKbps(),
+				NetworkTxKBps:  c.GetNetworkTxKbps(),
+				DiskReadBytes:  c.GetDiskReadBytes(),
+				DiskWriteBytes: c.GetDiskWriteBytes(),
+			}
+
+			keys := make(map[string]struct{})
+			if c.GetServiceId() != "" {
+				keys[c.GetServiceId()] = struct{}{}
+			}
+			if c.GetServiceSlug() != "" {
+				keys[c.GetServiceSlug()] = struct{}{}
+			}
+			if c.GetName() != "" {
+				keys[c.GetName()] = struct{}{}
+			}
+
+			for k := range keys {
+				o.latestTelemetry[k] = pt
+				hist := o.historyTelemetry[k]
+				hist = append(hist, pt)
+				if len(hist) > 120 {
+					hist = hist[len(hist)-120:]
+				}
+				o.historyTelemetry[k] = hist
+			}
+		}
+		o.telemetryMu.Unlock()
+	}
+
 	o.bus.Publish(events.Event{
 		Type: events.EventNodeMetrics,
 		Payload: map[string]any{
@@ -429,6 +485,36 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 		Acknowledged: true,
 		Timestamp:    time.Now().Unix(),
 	}, nil
+}
+
+// GetLatestServiceTelemetry returns the most recently recorded telemetry sample for a service.
+func (o *Orchestrator) GetLatestServiceTelemetry(serviceID, serviceSlug string) (ServiceTelemetryPoint, bool) {
+	o.telemetryMu.RLock()
+	defer o.telemetryMu.RUnlock()
+	if pt, ok := o.latestTelemetry[serviceID]; ok {
+		return pt, true
+	}
+	if pt, ok := o.latestTelemetry[serviceSlug]; ok {
+		return pt, true
+	}
+	return ServiceTelemetryPoint{}, false
+}
+
+// GetServiceTelemetryHistory returns historical recorded telemetry points for a service.
+func (o *Orchestrator) GetServiceTelemetryHistory(serviceID, serviceSlug string) []ServiceTelemetryPoint {
+	o.telemetryMu.RLock()
+	defer o.telemetryMu.RUnlock()
+	if hist, ok := o.historyTelemetry[serviceID]; ok && len(hist) > 0 {
+		res := make([]ServiceTelemetryPoint, len(hist))
+		copy(res, hist)
+		return res
+	}
+	if hist, ok := o.historyTelemetry[serviceSlug]; ok && len(hist) > 0 {
+		res := make([]ServiceTelemetryPoint, len(hist))
+		copy(res, hist)
+		return res
+	}
+	return nil
 }
 
 // StartLivenessWatcher monitors inactive nodes and transitions them to 'offline' if timeout exceeds threshold.

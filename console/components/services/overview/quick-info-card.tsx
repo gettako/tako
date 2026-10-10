@@ -13,11 +13,14 @@ import {
   Database,
   HardDrive,
   Network,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Button } from '@/components/ui/button';
 import { Service } from '@/lib/types';
+import { toast } from 'sonner';
 
 export interface QuickInfoCardProps {
   service: Service;
@@ -26,6 +29,7 @@ export interface QuickInfoCardProps {
 
 export function QuickInfoCard({ service, onNavigateTab }: QuickInfoCardProps) {
   const isDatabase = service.type === 'database';
+  const [copied, setCopied] = React.useState(false);
 
   const buildSpec =
     service.dockerfile ||
@@ -116,9 +120,38 @@ export function QuickInfoCard({ service, onNavigateTab }: QuickInfoCardProps) {
                     Volume Mount
                   </dt>
                   <dd className="font-mono text-muted-foreground text-[11px]">
-                    /var/lib/{service.databaseType || 'database'}/data
+                    tako-data-{service.slug || 'db'}
                   </dd>
                 </div>
+
+                {/* Connection URI */}
+                {service.connectionString && (
+                  <div className="py-2.5 flex items-center justify-between">
+                    <dt className="text-muted-foreground flex items-center gap-1.5 font-medium">
+                      <KeyRound className="size-3.5 text-muted-foreground" />
+                      Connection URI
+                    </dt>
+                    <dd className="flex items-center gap-2">
+                      <code className="text-[11px] font-mono text-foreground bg-muted/50 px-1.5 py-0.5 rounded max-w-[200px] truncate" title={service.connectionString}>
+                        {service.connectionString}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(service.connectionString || '');
+                          setCopied(true);
+                          toast.success('Connection string copied to clipboard');
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                      >
+                        {copied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
+                      </Button>
+                    </dd>
+                  </div>
+                )}
               </>
             ) : (
               <>
