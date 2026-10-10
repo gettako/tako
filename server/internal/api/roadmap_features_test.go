@@ -202,6 +202,13 @@ func TestOneClickDatabaseProvisioning(t *testing.T) {
 			if !strings.HasPrefix(res.ConnectionString, tt.checkConnStr) {
 				t.Errorf("expected connection string to start with '%s', got '%s'", tt.checkConnStr, res.ConnectionString)
 			}
+
+			deps, errDeps := orch.Queries().ListDeploymentsByService(context.Background(), res.ID)
+			if errDeps == nil && len(deps) > 0 {
+				if deps[0].Url != "" {
+					t.Errorf("expected empty preview URL for database deployment, got '%s'", deps[0].Url)
+				}
+			}
 		})
 	}
 }

@@ -15,6 +15,7 @@ import {
   Layers,
   CheckCircle2,
   Play,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -99,12 +100,14 @@ export function ServiceHeader({
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 8);
 
-  let previewUrl = latestDeployment?.previewUrl || null;
+  let previewUrl = service.type === 'database' ? null : (latestDeployment?.previewUrl || null);
 
-  if (previewUrl && dashedNodeIp && previewUrl.includes('127-0-0-1') && dashedNodeIp !== '127-0-0-1') {
-    previewUrl = previewUrl.replace('127-0-0-1', dashedNodeIp);
-  } else if (!previewUrl && (service.commitHash || latestDeployment?.commitHash)) {
-    previewUrl = `http://${commitHashPrefix || 'preview'}-${dashedNodeIp || '127-0-0-1'}.sslip.io`;
+  if (service.type !== 'database') {
+    if (previewUrl && dashedNodeIp && previewUrl.includes('127-0-0-1') && dashedNodeIp !== '127-0-0-1') {
+      previewUrl = previewUrl.replace('127-0-0-1', dashedNodeIp);
+    } else if (!previewUrl && (service.commitHash || latestDeployment?.commitHash)) {
+      previewUrl = `http://${commitHashPrefix || 'preview'}-${dashedNodeIp || '127-0-0-1'}.sslip.io`;
+    }
   }
 
   const activeUrl = primaryDomain ? `https://${primaryDomain.domain}` : previewUrl;
@@ -140,7 +143,31 @@ export function ServiceHeader({
               {service.nodeName}
             </span>
 
-            {primaryDomain ? (
+            {service.type === 'database' ? (
+              service.connectionString ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(service.connectionString || '');
+                    setActionMessage('Connection URI copied to clipboard');
+                    setTimeout(() => setActionMessage(null), 3000);
+                  }}
+                  className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer group"
+                  title="Click to copy connection URI"
+                >
+                  <Database className="size-3.5 text-emerald-500 shrink-0" />
+                  <span className="truncate max-w-[280px]">
+                    {service.connectionString.replace(/:([^@]+)@/, ':••••••••@')}
+                  </span>
+                  <Copy className="size-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+                </button>
+              ) : (
+                <span className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                  <Database className="size-3.5 text-emerald-500" />
+                  <span>Port {service.ports?.[0] || (service.databaseType === 'redis' ? 6379 : 5432)} (TCP)</span>
+                </span>
+              )
+            ) : primaryDomain ? (
               <a
                 href={`https://${primaryDomain.domain}`}
                 target="_blank"
@@ -165,7 +192,7 @@ export function ServiceHeader({
               </a>
             ) : null}
 
-            {service.commitHash && (
+            {service.commitHash && service.type !== 'database' && (
               <span className="flex items-center gap-1" title={`Commit: ${service.commitHash}`}>
                 <GitCommit className="size-3.5" />
                 <span className="font-mono">{service.commitHash.slice(0, 8)}</span>

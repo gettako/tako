@@ -1,16 +1,22 @@
 'use client';
 
 import React from 'react';
-import { Plus, Server, Layers, Activity, Trash2, Pencil } from 'lucide-react';
+import { Plus, Server, Layers, Activity, Trash2, Pencil, ChevronDown, Boxes, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { StatCard } from '@/components/ui/stat-card';
-import { Project, Service } from '@/lib/types';
+import { Project, Service, ServiceType } from '@/lib/types';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
 export interface ProjectDetailHeaderProps {
   project: Project;
   services: Service[];
-  onNewService?: () => void;
+  onNewService?: (type?: ServiceType) => void;
   onEditProject?: () => void;
   onDeleteProject?: () => void;
 }
@@ -51,14 +57,52 @@ export function ProjectDetailHeader({
         </div>
 
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
-          <Button
-            onClick={onNewService}
-            size="sm"
-            className="gap-1.5 text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
-          >
-            <Plus className="size-4" />
-            <span>Add Service</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  size="sm"
+                  className="gap-1.5 text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+                />
+              }
+            >
+              <Plus className="size-4" />
+              <span>Add Service</span>
+              <ChevronDown className="size-3.5 opacity-70" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60 p-1">
+              <DropdownMenuItem
+                onClick={() => onNewService?.('app')}
+                className="flex items-center gap-2.5 px-3 py-2 cursor-pointer"
+              >
+                <Layers className="size-4 text-primary shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-foreground">Application</span>
+                  <span className="text-[11px] text-muted-foreground">Git repo or Dockerfile</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onNewService?.('compose')}
+                className="flex items-center gap-2.5 px-3 py-2 cursor-pointer"
+              >
+                <Boxes className="size-4 text-primary shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-foreground">Compose</span>
+                  <span className="text-[11px] text-muted-foreground">Multi-container stack</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onNewService?.('database')}
+                className="flex items-center gap-2.5 px-3 py-2 cursor-pointer"
+              >
+                <Database className="size-4 text-primary shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-semibold text-foreground">Database</span>
+                  <span className="text-[11px] text-muted-foreground">Postgres, Redis, MySQL, Mongo</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {onEditProject && (
             <Button
               variant="outline"

@@ -101,8 +101,14 @@ export function normalizeDeployment(d: Record<string, unknown>): Deployment {
     isRollback: Boolean(d.isRollback),
     logs: (d.logs as string) || undefined,
     previewUrl:
-      previewUrlCandidate ||
-      generatePreviewUrl(resolvedCommit, String(d.id)),
+      (d.serviceType === 'database' ||
+      d.service_type === 'database' ||
+      Boolean(d.databaseType || d.database_type))
+        ? undefined
+        : previewUrlCandidate ||
+          (resolvedCommit && resolvedCommit !== 'main'
+            ? generatePreviewUrl(resolvedCommit, String(d.id))
+            : undefined),
   };
 }
 

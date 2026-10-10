@@ -398,18 +398,20 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 		return nil, fmt.Errorf("failed to create service: %w", err)
 	}
 
-	// Insert domains
-	for _, domain := range p.Domains {
-		_, _ = o.queries.CreateServiceDomain(ctx, db.CreateServiceDomainParams{
-			ID:              "dom-" + randomHex(8),
-			ServiceID:       serviceID,
-			Domain:          domain,
-			Ssl:             1,
-			IsPrimary:       1,
-			Port:            80,
-			Path:            "/",
-			CertificateType: "letsencrypt",
-		})
+	// Insert domains (skip for databases)
+	if p.Type != "database" {
+		for _, domain := range p.Domains {
+			_, _ = o.queries.CreateServiceDomain(ctx, db.CreateServiceDomainParams{
+				ID:              "dom-" + randomHex(8),
+				ServiceID:       serviceID,
+				Domain:          domain,
+				Ssl:             1,
+				IsPrimary:       1,
+				Port:            80,
+				Path:            "/",
+				CertificateType: "letsencrypt",
+			})
+		}
 	}
 
 	// Insert env vars
@@ -490,7 +492,10 @@ func (o *Orchestrator) TriggerDeployWithParams(ctx context.Context, serviceID, b
 			nodeIP = node.IpAddress
 		}
 	}
-	previewDomain, previewURL := buildPreviewURL(targetCommit, depID, nodeIP)
+	var previewDomain, previewURL string
+	if srv.Type != "database" {
+		previewDomain, previewURL = buildPreviewURL(targetCommit, depID, nodeIP)
+	}
 
 	dep, err := o.queries.CreateDeployment(ctx, db.CreateDeploymentParams{
 		ID:            depID,
@@ -541,25 +546,27 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		}
 
 		// Compute node IP & canonical domain (e.g. tako-demo-hello-43-156-243-241.sslip.io)
-		node, errNode := o.queries.GetNodeByID(bgCtx, srv.NodeID)
-		nodeIP := "127.0.0.1"
-		if errNode == nil {
-			if node.PublicIp != "" {
-				nodeIP = node.PublicIp
-			} else if node.IpAddress != "" {
-				nodeIP = node.IpAddress
+		if srv.Type != "database" {
+			node, errNode := o.queries.GetNodeByID(bgCtx, srv.NodeID)
+			nodeIP := "127.0.0.1"
+			if errNode == nil {
+				if node.PublicIp != "" {
+					nodeIP = node.PublicIp
+				} else if node.IpAddress != "" {
+					nodeIP = node.IpAddress
+				}
 			}
-		}
-		cleanIP := "127.0.0.1"
-		if nodeIP != "" {
-			cleanIP = strings.Split(nodeIP, ":")[0]
-		}
-		dashedIP := strings.ReplaceAll(cleanIP, ".", "-")
-		canonicalDomain := fmt.Sprintf("%s-%s.sslip.io", srv.Slug, dashedIP)
-		domainList = append(domainList, canonicalDomain)
+			cleanIP := "127.0.0.1"
+			if nodeIP != "" {
+				cleanIP = strings.Split(nodeIP, ":")[0]
+			}
+			dashedIP := strings.ReplaceAll(cleanIP, ".", "-")
+			canonicalDomain := fmt.Sprintf("%s-%s.sslip.io", srv.Slug, dashedIP)
+			domainList = append(domainList, canonicalDomain)
 
-		if previewDomain != "" && previewDomain != canonicalDomain {
-			domainList = append(domainList, previewDomain)
+			if previewDomain != "" && previewDomain != canonicalDomain {
+				domainList = append(domainList, previewDomain)
+			}
 		}
 
 		// Gather env vars
@@ -982,7 +989,10 @@ func (o *Orchestrator) RollbackDeployment(ctx context.Context, depID string) (*d
 			nodeIP = node.IpAddress
 		}
 	}
-	previewDomain, previewURL := buildPreviewURL(srv.CommitHash, newDepID, nodeIP)
+	var previewDomain, previewURL string
+	if srv.Type != "database" {
+		previewDomain, previewURL = buildPreviewURL(srv.CommitHash, newDepID, nodeIP)
+	}
 
 	shortCommit := srv.CommitHash
 	if len(shortCommit) > 7 {

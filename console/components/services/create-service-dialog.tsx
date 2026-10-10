@@ -17,8 +17,6 @@ import { FieldError } from '@/components/ui/field';
 import { parseApiError } from '@/lib/form-errors';
 import { SearchableSelect, SearchableSelectOption } from '@/components/ui/searchable-select';
 import {
-  Layers,
-  Boxes,
   GitBranch,
   Globe,
   Plus,
@@ -102,6 +100,7 @@ export interface CreateServiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId?: string;
+  initialServiceType?: ServiceType;
   onSuccess?: (service: Service) => void;
 }
 
@@ -109,6 +108,7 @@ export function CreateServiceDialog({
   open,
   onOpenChange,
   projectId: initialProjectId,
+  initialServiceType = 'app',
   onSuccess,
 }: CreateServiceDialogProps) {
   // Wizard Step: 1 = Service & Source, 2 = Node & Resources
@@ -126,7 +126,7 @@ export function CreateServiceDialog({
   const currentProject = projects.find((p) => p.id === resolvedProjectId) || projects[0];
 
   // Form State - Step 1
-  const [serviceType, setServiceType] = useState<ServiceType>('app');
+  const [serviceType, setServiceType] = useState<ServiceType>(initialServiceType);
   const [sourceMode, setSourceMode] = useState<'account' | 'url'>('account');
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [selectedRepoId, setSelectedRepoId] = useState<string>('');
@@ -237,6 +237,11 @@ export function CreateServiceDialog({
   // Initial defaults on open
   useEffect(() => {
     if (open) {
+      setServiceType(initialServiceType);
+      if (initialServiceType === 'database') {
+        setName((prev) => (prev && !prev.endsWith('-db') ? prev : 'postgresql-db'));
+        setSlug((prev) => (prev && !prev.endsWith('-db') ? prev : 'postgresql-db'));
+      }
       if (
         availableAccounts.length > 0 &&
         (!selectedAccountId || !availableAccounts.some((a) => a.id.toLowerCase() === selectedAccountId.toLowerCase()))
@@ -256,7 +261,7 @@ export function CreateServiceDialog({
         }
       }
     }
-  }, [open, availableAccounts, nodes, selectedAccountId, selectedNodeId]);
+  }, [open, initialServiceType, availableAccounts, nodes, selectedAccountId, selectedNodeId]);
 
   // Filter and sort repositories based on selected account (latest activity first)
   const accountRepos = useMemo(() => {
@@ -325,13 +330,13 @@ export function CreateServiceDialog({
 
   const resetForm = () => {
     setStep(1);
-    setServiceType('app');
+    setServiceType(initialServiceType);
     setSourceMode('account');
     setSelectedRepoId('');
     setCustomGitUrl('');
     setBranch('main');
-    setName('');
-    setSlug('');
+    setName(initialServiceType === 'database' ? 'postgresql-db' : '');
+    setSlug(initialServiceType === 'database' ? 'postgresql-db' : '');
     setIsSlugTouched(false);
     setPort('3000');
     setPublishToHost(true);
@@ -372,11 +377,6 @@ export function CreateServiceDialog({
       }
       if (repo.defaultBranch) {
         setBranch(repo.defaultBranch);
-      }
-
-      // If repo name looks like compose stack, suggest compose
-      if (repo.name.toLowerCase().includes('compose') && serviceType === 'app') {
-        setServiceType('compose');
       }
     }
   };
@@ -580,48 +580,113 @@ export function CreateServiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl lg:max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Strict No-Icon DialogHeader */}
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight text-foreground font-sans">
-            Create New Service
+            {serviceType === 'database'
+              ? 'Create Database'
+              : serviceType === 'compose'
+              ? 'Deploy Compose Stack'
+              : 'Create Application'}
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Deploy an Application container, multi-container Compose stack, or 1-Click Database instance to your cluster.
+            {serviceType === 'database'
+              ? 'Deploy a dedicated database instance with persistent volume storage to your cluster.'
+              : serviceType === 'compose'
+              ? 'Deploy a multi-container workload defined by a docker-compose specification.'
+              : 'Deploy a single container web application or backend service to your cluster.'}
           </DialogDescription>
         </DialogHeader>
 
         {/* Wizard Stepper */}
-        <div className="flex items-center gap-2 border-b border-border py-2.5">
-          {/* Stepper Buttons */}
+        <div className="grid grid-cols-2 gap-4 pb-3 border-b border-border">
+          {/* Step 1 */}
           <button
             type="button"
             onClick={() => setStep(1)}
-            className={cn( 'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer', step === 1 ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground' )}
+            className="group flex flex-col gap-1.5 text-left cursor-pointer outline-none active:not-aria-[haspopup]:translate-y-px"
           >
-            <span
-              className={cn( 'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors', step === 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground border border-border' )}
-            >
-              1
-            </span>
-            <span>Service & Source</span>
+            <div className="flex items-center justify-between text-xs">
+              <span
+                className={cn(
+                  'font-semibold transition-colors flex items-center gap-2',
+                  step === 1 ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-5 rounded-full flex items-center justify-center text-[11px] font-bold font-mono transition-colors',
+                    step === 1
+                      ? 'bg-primary text-primary-foreground'
+                      : step > 1
+                      ? 'bg-status-success/20 text-status-success'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {step > 1 ? <Check className="size-3 stroke-[2.5]" /> : '1'}
+                </span>
+                <span>Service & Source</span>
+              </span>
+              <span
+                className={cn(
+                  'text-[11px] font-mono transition-colors',
+                  step === 1 ? 'text-primary font-medium' : 'text-status-success font-medium'
+                )}
+              >
+                {step === 1 ? 'In progress' : 'Completed'}
+              </span>
+            </div>
+            <div
+              className={cn(
+                'h-1 rounded-full transition-all duration-200',
+                step === 1 ? 'bg-primary' : 'bg-status-success/70'
+              )}
+            />
           </button>
 
-          <span className="text-muted-foreground/60 text-xs font-mono">/</span>
-
+          {/* Step 2 */}
           <button
             type="button"
             onClick={() => {
               if (validateStep1()) setStep(2);
             }}
-            className={cn( 'flex items-center gap-2 text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer', step === 2 ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground hover:text-foreground' )}
+            className="group flex flex-col gap-1.5 text-left cursor-pointer outline-none active:not-aria-[haspopup]:translate-y-px"
           >
-            <span
-              className={cn( 'size-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors', step === 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground border border-border' )}
-            >
-              2
-            </span>
-            <span>Node & Resources</span>
+            <div className="flex items-center justify-between text-xs">
+              <span
+                className={cn(
+                  'font-semibold transition-colors flex items-center gap-2',
+                  step === 2 ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-5 rounded-full flex items-center justify-center text-[11px] font-bold font-mono transition-colors',
+                    step === 2
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  2
+                </span>
+                <span>Node & Resources</span>
+              </span>
+              <span
+                className={cn(
+                  'text-[11px] font-mono transition-colors',
+                  step === 2 ? 'text-primary font-medium' : 'text-muted-foreground/60'
+                )}
+              >
+                {step === 2 ? 'In progress' : 'Next step'}
+              </span>
+            </div>
+            <div
+              className={cn(
+                'h-1 rounded-full transition-all duration-200',
+                step === 2 ? 'bg-primary' : 'bg-muted'
+              )}
+            />
           </button>
         </div>
 
@@ -639,112 +704,15 @@ export function CreateServiceDialog({
           {/* ================= STEP 1: SERVICE & SOURCE ================= */}
           {step === 1 && (
             <div className="space-y-5">
-              {/* 1. Service Type Selector (Application vs Compose) */}
-              <div className="space-y-2.5">
-                <Label className="text-xs font-semibold text-foreground">
-                  Select Service Type <span className="text-status-danger">*</span>
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  {/* Application Card */}
-                  <button
-                    type="button"
-                    onClick={() => setServiceType('app')}
-                    disabled={createMutation.isPending}
-                    className={cn( 'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', serviceType === 'app' ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground' )}
-                  >
-                    <div
-                      className={cn( 'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border', serviceType === 'app' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted/60 border-border text-foreground' )}
-                    >
-                      <Layers className="size-4.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">Application</span>
-                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
-                            Single
-                          </Badge>
-                        </div>
-                        {serviceType === 'app' && <Check className="size-3.5 text-primary shrink-0" />}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                        Web app or API backend from Dockerfile or repo.
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* Compose Card */}
-                  <button
-                    type="button"
-                    onClick={() => setServiceType('compose')}
-                    disabled={createMutation.isPending}
-                    className={cn( 'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', serviceType === 'compose' ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground' )}
-                  >
-                    <div
-                      className={cn( 'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border', serviceType === 'compose' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted/60 border-border text-foreground' )}
-                    >
-                      <Boxes className="size-4.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">Compose</span>
-                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
-                            Multi
-                          </Badge>
-                        </div>
-                        {serviceType === 'compose' && <Check className="size-3.5 text-primary shrink-0" />}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                        Multi-service stack via docker-compose.
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* Database Card (1-Click DB) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setServiceType('database');
-                      if (!name || name === 'web-frontend' || name === 'backend-stack' || !isSlugTouched) {
-                        setName(`${databaseType}-db`);
-                        setSlug(`${databaseType}-db`);
-                      }
-                    }}
-                    disabled={createMutation.isPending}
-                    className={cn( 'relative flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all cursor-pointer active:not-aria-[haspopup]:translate-y-px outline-none', serviceType === 'database' ? 'border-primary bg-primary/5 text-foreground ring-1 ring-primary/40' : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground' )}
-                  >
-                    <div
-                      className={cn( 'size-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border', serviceType === 'database' ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-muted/60 border-border text-foreground' )}
-                    >
-                      <Database className="size-4.5" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">Database</span>
-                          <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
-                            1-Click
-                          </Badge>
-                        </div>
-                        {serviceType === 'database' && <Check className="size-3.5 text-primary shrink-0" />}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                        Postgres, MySQL, Redis, Mongo with storage.
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* 2. Database Engine & Tag OR Git Source Selection */}
+              {/* Database Engine & Tag OR Git Source Selection */}
               {serviceType === 'database' ? (
-                <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-4">
-                  <div className="flex items-center justify-between border-b border-border pb-2.5">
-                    <div className="flex items-center gap-2">
-                      <Database className="size-4 text-foreground" />
-                      <span className="text-xs font-semibold text-foreground">Database Engine & Tag</span>
-                    </div>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Database className="size-3.5 text-foreground" />
+                      <span>Database Engine &amp; Tag</span>
+                      <span className="text-status-danger">*</span>
+                    </Label>
                     <Badge variant="secondary" className="text-[11px] font-mono">
                       Persistent Docker Volume
                     </Badge>
@@ -766,10 +734,10 @@ export function CreateServiceDialog({
                             }
                           }}
                           className={cn(
-                            'flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer outline-none',
+                            'flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer outline-none active:not-aria-[haspopup]:translate-y-px',
                             isSelected
                               ? 'border-primary bg-primary/10 ring-1 ring-primary/40 text-foreground'
-                              : 'border-border bg-card/40 hover:bg-muted/40 text-muted-foreground hover:text-foreground'
+                              : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground'
                           )}
                         >
                           <div className="flex items-center justify-between w-full">
@@ -808,7 +776,7 @@ export function CreateServiceDialog({
                           type="button"
                           onClick={() => setDatabaseVersion(tag)}
                           className={cn(
-                            'text-[10px] px-2 py-0.5 rounded border transition-all cursor-pointer font-mono',
+                            'text-[10px] px-2 py-0.5 rounded border transition-all cursor-pointer font-mono active:not-aria-[haspopup]:translate-y-px',
                             databaseVersion === tag
                               ? 'bg-primary text-primary-foreground border-primary font-semibold'
                               : 'bg-muted/50 text-muted-foreground border-border hover:text-foreground'
@@ -821,195 +789,206 @@ export function CreateServiceDialog({
                   </div>
                 </div>
               ) : (
-                <div className="rounded-xl border border-border bg-card/60 p-3.5 space-y-3.5">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-border pb-3">
-                  <div className="flex items-center gap-2">
-                    <FolderGit2 className="size-4 text-foreground" />
-                    <span className="text-xs font-semibold text-foreground">Git Source Repository</span>
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <FolderGit2 className="size-3.5 text-foreground" />
+                      <span>Git Source Repository</span>
+                      <span className="text-status-danger">*</span>
+                    </Label>
+
+                    {/* Toggle Mode: Select Account/Repo vs Git URL */}
+                    <div className="flex items-center p-0.5 rounded-lg border border-border bg-muted/40 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setSourceMode('account')}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer text-xs active:not-aria-[haspopup]:translate-y-px',
+                          sourceMode === 'account'
+                            ? 'bg-background text-foreground shadow-xs border border-border/80'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        GitHub Account &amp; Repo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSourceMode('url')}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer text-xs active:not-aria-[haspopup]:translate-y-px',
+                          sourceMode === 'url'
+                            ? 'bg-background text-foreground shadow-xs border border-border/80'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        Custom Git URL
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Toggle Mode: Select Account/Repo vs Git URL */}
-                  <div className="flex items-center p-0.5 rounded-lg border border-border bg-muted/30 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setSourceMode('account')}
-                      className={cn( 'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer', sourceMode === 'account' ? 'bg-background text-foreground border border-border' : 'text-muted-foreground hover:text-foreground' )}
-                    >
-                      GitHub Account & Repo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSourceMode('url')}
-                      className={cn( 'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer', sourceMode === 'url' ? 'bg-background text-foreground border border-border' : 'text-muted-foreground hover:text-foreground' )}
-                    >
-                      Custom Git URL
-                    </button>
-                  </div>
-                </div>
-
-                {/* Source Input Area (Exact 58px height in both modes) */}
-                <div className="min-h-[58px]">
-                  {sourceMode === 'account' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      {/* Select GitHub Account / Org */}
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-foreground">
-                          GitHub Account / Organization
-                        </Label>
-                        <div>
-                          <SearchableSelect
-                            options={accountOptions}
-                            value={selectedAccountId || undefined}
-                            onValueChange={(val) => {
-                              if (!val || val === 'null' || val === 'undefined') return;
-                              const accountId = String(val);
-                              setSelectedAccountId(accountId);
-                              setSelectedRepoId('');
-                              setRepoError('');
-                              if (!isSlugTouched) {
-                                setName('');
-                                setSlug('');
-                              }
-                            }}
-                            placeholder="Select account or organization..."
-                            searchPlaceholder="Search account or organization..."
-                            className="w-full"
-                            renderTrigger={(opt) => {
-                              if (!opt) {
-                                return (
-                                  <span className="text-muted-foreground font-normal">
-                                    Select account or organization...
-                                  </span>
-                                );
-                              }
-                              if (opt.value === 'all') {
+                  {/* Source Input Area */}
+                  <div>
+                    {sourceMode === 'account' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        {/* Select GitHub Account / Org */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-foreground">
+                            GitHub Account / Organization
+                          </Label>
+                          <div>
+                            <SearchableSelect
+                              options={accountOptions}
+                              value={selectedAccountId || undefined}
+                              onValueChange={(val) => {
+                                if (!val || val === 'null' || val === 'undefined') return;
+                                const accountId = String(val);
+                                setSelectedAccountId(accountId);
+                                setSelectedRepoId('');
+                                setRepoError('');
+                                if (!isSlugTouched) {
+                                  setName('');
+                                  setSlug('');
+                                }
+                              }}
+                              placeholder="Select account or organization..."
+                              searchPlaceholder="Search account or organization..."
+                              className="w-full"
+                              renderTrigger={(opt) => {
+                                if (!opt) {
+                                  return (
+                                    <span className="text-muted-foreground font-normal">
+                                      Select account or organization...
+                                    </span>
+                                  );
+                                }
+                                if (opt.value === 'all') {
+                                  return (
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <Globe className="size-3.5 text-primary shrink-0" />
+                                      <span className="font-semibold text-xs text-foreground truncate">
+                                        All Organizations &amp; Accounts
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                                const acc = availableAccounts.find((a) => a.id === opt.value);
                                 return (
                                   <div className="flex items-center gap-2 min-w-0">
-                                    <Globe className="size-3.5 text-primary shrink-0" />
+                                    {acc?.avatarUrl ? (
+                                      <Avatar className="size-4 shrink-0">
+                                        <AvatarImage src={acc.avatarUrl} />
+                                        <AvatarFallback className="text-[9px]">
+                                          {acc.username.slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ) : acc?.type === 'Organization' ? (
+                                      <Building2 className="size-3.5 text-blue-500 shrink-0" />
+                                    ) : (
+                                      <User className="size-3.5 text-muted-foreground shrink-0" />
+                                    )}
                                     <span className="font-semibold text-xs text-foreground truncate">
-                                      All Organizations &amp; Accounts
+                                      {acc?.username || opt.label}
+                                    </span>
+                                    {acc?.type && (
+                                      <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal text-muted-foreground shrink-0">
+                                        {acc.type}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                );
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Select Repository */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-foreground">
+                            Repository <span className="text-status-danger">*</span>
+                          </Label>
+                          <div>
+                            <SearchableSelect
+                              options={repoOptions}
+                              value={selectedRepoId || undefined}
+                              onValueChange={(val) => {
+                                if (!val || val === 'null' || val === 'undefined') {
+                                  handleRepoChange('');
+                                } else {
+                                  handleRepoChange(String(val));
+                                }
+                              }}
+                              placeholder="Select repository..."
+                              searchPlaceholder="Search repository..."
+                              emptyText={
+                                accountRepos.length === 0
+                                  ? 'No repositories found for this account.'
+                                  : 'No matching repositories found.'
+                              }
+                              error={repoError}
+                              className="w-full"
+                              renderTrigger={(opt) => {
+                                if (!opt) {
+                                  return (
+                                    <span className="text-muted-foreground font-normal">
+                                      Select repository...
+                                    </span>
+                                  );
+                                }
+                                const repo = syncedRepos.find((r) => r.id === opt.value);
+                                return (
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <GitHubIcon className="size-3.5 text-muted-foreground shrink-0" />
+                                    <span className="font-mono text-xs font-medium text-foreground truncate">
+                                      {repo ? repo.fullName : opt.label}
                                     </span>
                                   </div>
                                 );
-                              }
-                              const acc = availableAccounts.find((a) => a.id === opt.value);
-                              return (
-                                <div className="flex items-center gap-2 min-w-0">
-                                  {acc?.avatarUrl ? (
-                                    <Avatar className="size-4 shrink-0">
-                                      <AvatarImage src={acc.avatarUrl} />
-                                      <AvatarFallback className="text-[9px]">
-                                        {acc.username.slice(0, 2).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                  ) : acc?.type === 'Organization' ? (
-                                    <Building2 className="size-3.5 text-blue-500 shrink-0" />
-                                  ) : (
-                                    <User className="size-3.5 text-muted-foreground shrink-0" />
-                                  )}
-                                  <span className="font-semibold text-xs text-foreground truncate">
-                                    {acc?.username || opt.label}
-                                  </span>
-                                  {acc?.type && (
-                                    <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal text-muted-foreground shrink-0">
-                                      {acc.type}
-                                    </Badge>
-                                  )}
-                                </div>
-                              );
-                            }}
-                          />
+                              }}
+                            />
+                          </div>
+                          <FieldError error={repoError} />
                         </div>
                       </div>
-
-                      {/* Select Repository */}
+                    ) : (
+                      /* Custom Git URL */
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-foreground">
-                          Repository <span className="text-status-danger">*</span>
+                        <Label htmlFor="custom-git-url" className="text-xs font-semibold text-foreground">
+                          Git Repository URL <span className="text-status-danger">*</span>
                         </Label>
-                        <div>
-                          <SearchableSelect
-                            options={repoOptions}
-                            value={selectedRepoId || undefined}
-                            onValueChange={(val) => {
-                              if (!val || val === 'null' || val === 'undefined') {
-                                handleRepoChange('');
-                              } else {
-                                handleRepoChange(String(val));
-                              }
-                            }}
-                            placeholder="Select repository..."
-                            searchPlaceholder="Search repository..."
-                            emptyText={
-                              accountRepos.length === 0
-                                ? 'No repositories found for this account.'
-                                : 'No matching repositories found.'
-                            }
-                            error={repoError}
-                            className="w-full"
-                            renderTrigger={(opt) => {
-                              if (!opt) {
-                                return (
-                                  <span className="text-muted-foreground font-normal">
-                                    Select repository...
-                                  </span>
-                                );
-                              }
-                              const repo = syncedRepos.find((r) => r.id === opt.value);
-                              return (
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <GitHubIcon className="size-3.5 text-muted-foreground shrink-0" />
-                                  <span className="font-mono text-xs font-medium text-foreground truncate">
-                                    {repo ? repo.fullName : opt.label}
-                                  </span>
-                                </div>
-                              );
-                            }}
+                        <div className="relative">
+                          <FolderGit2 className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+                          <Input
+                            id="custom-git-url"
+                            value={customGitUrl}
+                            onChange={(e) => handleCustomUrlChange(e.target.value)}
+                            placeholder="https://github.com/organization/my-service.git"
+                            error={!!urlError}
+                            className="pl-8 h-9 text-xs sm:text-sm font-mono"
                           />
                         </div>
-                        <FieldError error={repoError} />
+                        <FieldError error={urlError} />
                       </div>
-                    </div>
-                  ) : (
-                    /* Custom Git URL */
-                    <div className="space-y-1.5">
-                      <Label htmlFor="custom-git-url" className="text-xs font-semibold text-foreground">
-                        Git Repository URL <span className="text-status-danger">*</span>
-                      </Label>
-                      <div className="relative">
-                        <FolderGit2 className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          id="custom-git-url"
-                          value={customGitUrl}
-                          onChange={(e) => handleCustomUrlChange(e.target.value)}
-                          placeholder="https://github.com/organization/my-service.git"
-                          error={!!urlError}
-                          className="pl-8 h-9 text-xs sm:text-sm font-mono"
-                        />
-                      </div>
-                      <FieldError error={urlError} />
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                {/* Git Branch (Shared & perfectly stationary in both modes) */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="service-branch" className="text-xs font-semibold text-foreground">
-                    Git Branch
-                  </Label>
-                  <div className="relative">
-                    <GitBranch className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id="service-branch"
-                      value={branch}
-                      onChange={(e) => setBranch(e.target.value)}
-                      placeholder="e.g. main or master"
-                      className="pl-8 h-9 text-xs sm:text-sm font-mono"
-                    />
+                  {/* Git Branch (Shared & perfectly stationary in both modes) */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="service-branch" className="text-xs font-semibold text-foreground">
+                      Git Branch
+                    </Label>
+                    <div className="relative">
+                      <GitBranch className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        id="service-branch"
+                        value={branch}
+                        onChange={(e) => setBranch(e.target.value)}
+                        placeholder="e.g. main or master"
+                        className="pl-8 h-9 text-xs sm:text-sm font-mono"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
               {/* 3. Service Identity */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1258,7 +1237,14 @@ export function CreateServiceDialog({
                   ) : (
                     <>
                       <Plus className="size-4" />
-                      <span>Deploy {serviceType === 'compose' ? 'Compose Stack' : 'Application'}</span>
+                      <span>
+                        Deploy{' '}
+                        {serviceType === 'database'
+                          ? 'Database'
+                          : serviceType === 'compose'
+                          ? 'Compose Stack'
+                          : 'Application'}
+                      </span>
                     </>
                   )}
                 </Button>

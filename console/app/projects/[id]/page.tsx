@@ -19,6 +19,7 @@ import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog
 import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { useProject, useServices } from '@/lib/queries';
 import { useDebounce } from '@/hooks/use-debounce';
+import { ServiceType } from '@/lib/types';
 
 export default function ProjectDetailPage({
   params,
@@ -33,11 +34,20 @@ export default function ProjectDetailPage({
   const debouncedSearch = useDebounce(searchQuery, 200);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [createServiceOpen, setCreateServiceOpen] = useState(false);
+  const [createServiceType, setCreateServiceType] = useState<ServiceType>('app');
   const [editProjectOpen, setEditProjectOpen] = useState(false);
   const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
 
   useEffect(() => {
-    const handleOpen = () => setCreateServiceOpen(true);
+    const handleOpen = (e: Event) => {
+      const customEvent = e as CustomEvent<{ type?: ServiceType }>;
+      if (customEvent.detail?.type) {
+        setCreateServiceType(customEvent.detail.type);
+      } else {
+        setCreateServiceType('app');
+      }
+      setCreateServiceOpen(true);
+    };
     window.addEventListener('open-create-service-dialog', handleOpen);
     return () => window.removeEventListener('open-create-service-dialog', handleOpen);
   }, []);
@@ -101,7 +111,10 @@ export default function ProjectDetailPage({
         <ProjectDetailHeader
           project={project}
           services={services}
-          onNewService={() => setCreateServiceOpen(true)}
+          onNewService={(type) => {
+            setCreateServiceType(type || 'app');
+            setCreateServiceOpen(true);
+          }}
           onEditProject={() => setEditProjectOpen(true)}
           onDeleteProject={() => setDeleteProjectOpen(true)}
         />
@@ -150,7 +163,10 @@ export default function ProjectDetailPage({
               action={{
                 label: 'Deploy First Service',
                 icon: Plus,
-                onClick: () => setCreateServiceOpen(true),
+                onClick: () => {
+                  setCreateServiceType('app');
+                  setCreateServiceOpen(true);
+                },
               }}
             />
           )
@@ -187,6 +203,7 @@ export default function ProjectDetailPage({
         open={createServiceOpen}
         onOpenChange={setCreateServiceOpen}
         projectId={project?.id || projectId}
+        initialServiceType={createServiceType}
         onSuccess={(newService) => {
           router.push(`/projects/${project?.slug || projectId}/services/${newService.id}`);
         }}

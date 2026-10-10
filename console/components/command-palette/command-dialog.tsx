@@ -19,6 +19,9 @@ import {
   LayoutDashboard,
   Search,
   ExternalLink,
+  Layers,
+  Boxes,
+  Database,
 } from 'lucide-react';
 import {
   Command,
@@ -125,17 +128,57 @@ export function GlobalCommandPalette() {
             <CommandItem
               onSelect={() =>
                 runCommand(() => {
-                  window.dispatchEvent(new CustomEvent('open-create-service-dialog'));
+                  window.dispatchEvent(
+                    new CustomEvent('open-create-service-dialog', { detail: { type: 'app' } })
+                  );
                 })
               }
               className="gap-3 py-2.5 cursor-pointer"
             >
               <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-                <Plus className="size-4" />
+                <Layers className="size-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-medium text-foreground">Create new service...</span>
-                <span className="text-[11px] text-muted-foreground">Deploy Application or Compose workload from GitHub</span>
+                <span className="font-medium text-foreground">Create application...</span>
+                <span className="text-[11px] text-muted-foreground">Deploy web app or backend container</span>
+              </div>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() =>
+                runCommand(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('open-create-service-dialog', { detail: { type: 'compose' } })
+                  );
+                })
+              }
+              className="gap-3 py-2.5 cursor-pointer"
+            >
+              <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Boxes className="size-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-medium text-foreground">Deploy compose stack...</span>
+                <span className="text-[11px] text-muted-foreground">Multi-service stack via docker-compose</span>
+              </div>
+            </CommandItem>
+
+            <CommandItem
+              onSelect={() =>
+                runCommand(() => {
+                  window.dispatchEvent(
+                    new CustomEvent('open-create-service-dialog', { detail: { type: 'database' } })
+                  );
+                })
+              }
+              className="gap-3 py-2.5 cursor-pointer"
+            >
+              <div className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <Database className="size-4" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-medium text-foreground">Create database...</span>
+                <span className="text-[11px] text-muted-foreground">1-Click PostgreSQL, Redis, MySQL, MongoDB</span>
               </div>
             </CommandItem>
 

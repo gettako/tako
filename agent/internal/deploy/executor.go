@@ -170,25 +170,34 @@ func (e *Executor) ExecuteDeployWithCallback(
 		dynamicDir = "/etc/tako/traefik/dynamic"
 	}
 
-	// 1. Write preview dynamic config specifically for this commit
-	previewCfg := traefik.RouteConfig{
-		ServiceName:   serviceName,
-		ConfigName:    fmt.Sprintf("%s-%s", serviceName, commit8),
-		ContainerName: containerName,
-		Domains:       previewDomains,
-		TargetPort:    targetPort,
-		EnableTLS:     false,
-		Network:       "tako-network",
+	// 1. Write preview dynamic config specifically for this commit (if preview domains present)
+	var traefikLabels map[string]string
+	if len(previewDomains) > 0 {
+		previewCfg := traefik.RouteConfig{
+			ServiceName:   serviceName,
+			ConfigName:    fmt.Sprintf("%s-%s", serviceName, commit8),
+			ContainerName: containerName,
+			Domains:       previewDomains,
+			TargetPort:    targetPort,
+			EnableTLS:     false,
+			Network:       "tako-network",
+		}
+		_ = traefik.WriteDynamicConfig(dynamicDir, previewCfg)
+		traefikLabels = traefik.GenerateLabels(previewCfg)
+	} else {
+		traefikLabels = make(map[string]string)
 	}
-	_ = traefik.WriteDynamicConfig(dynamicDir, previewCfg)
 
-	traefikLabels := traefik.GenerateLabels(previewCfg)
 	traefikLabels["tako.service.id"] = req.GetServiceId()
 	traefikLabels["tako.service.name"] = serviceName
 	traefikLabels["tako.deployment.id"] = depID
 	traefikLabels["tako.commit.prefix"] = commit8
 
-	sendLog("Deploy", fmt.Sprintf("Prepared Traefik routing rules for %d domains (port %d)", len(req.GetDomains()), targetPort), false)
+	if len(req.GetDomains()) > 0 {
+		sendLog("Deploy", fmt.Sprintf("Prepared Traefik routing rules for %d domains (port %d)", len(req.GetDomains()), targetPort), false)
+	} else if req.GetPublishToHost() {
+		sendLog("Deploy", fmt.Sprintf("Direct TCP host port exposure (port %d, no HTTP routing)", targetPort), false)
+	}
 
 	// Step 3: Run Container
 	if e.dockerCli != nil {
