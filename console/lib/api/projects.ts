@@ -77,8 +77,9 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
   return res.json();
 }
 
-export async function deleteProject(id: string): Promise<void> {
-  const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+export async function deleteProject(id: string, options?: { cascade?: boolean }): Promise<void> {
+  const url = options?.cascade ? `/api/projects/${id}?cascade=true` : `/api/projects/${id}`;
+  const res = await fetch(url, { method: 'DELETE' });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || 'Failed to delete project');

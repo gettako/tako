@@ -93,8 +93,8 @@ export interface UseDeleteProjectOptions {
 export function useDeleteProject(options?: UseDeleteProjectOptions) {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, { id: string; name?: string; slug?: string }>({
-    mutationFn: ({ id }) => deleteProject(id),
+  return useMutation<void, Error, { id: string; name?: string; slug?: string; cascade?: boolean }>({
+    mutationFn: ({ id, cascade }) => deleteProject(id, { cascade }),
     onSuccess: (_, { id, name, slug }) => {
       queryClient.invalidateQueries({ queryKey: projectKeys.all });
       queryClient.removeQueries({ queryKey: projectKeys.detail(id) });

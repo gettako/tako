@@ -156,6 +156,64 @@ func TestDeleteProjectWithServices(t *testing.T) {
 	}
 }
 
+func TestDeleteProjectCascade(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := t.Context()
+
+	// 1. Create project
+	proj, err := orch.Queries().CreateProject(ctx, db.CreateProjectParams{
+		ID:          "prj-cascade",
+		Name:        "Cascade Project",
+		Slug:        "cascade-project",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+	if err != nil {
+		t.Fatalf("failed to create project: %v", err)
+	}
+
+	// 2. Register node and create service
+	_, _ = orch.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+		NodeId:      "node-cascade",
+		Name:        "Node Cascade",
+		EnrollToken: "test-enroll",
+	})
+
+	srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
+		ProjectID:  proj.ID,
+		NodeID:     "node-cascade",
+		Name:       "Cascade Worker",
+		Slug:       "cascade-worker",
+		Type:       "app",
+		Repository: "https://github.com/gettako/sample",
+	})
+	if err != nil {
+		t.Fatalf("failed to create service: %v", err)
+	}
+
+	// 3. DELETE with ?cascade=true -> should succeed with 200
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+proj.ID+"?cascade=true", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK on cascade delete, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// 4. Verify service is gone
+	_, err = orch.Queries().GetServiceByID(ctx, srv.ID)
+	if err == nil {
+		t.Fatalf("expected service to be deleted, but still found")
+	}
+
+	// 5. Verify project is gone
+	_, err = orch.Queries().GetProjectByID(ctx, proj.ID)
+	if err == nil {
+		t.Fatalf("expected project to be deleted, but still found")
+	}
+}
+
 func TestUpdateProject(t *testing.T) {
 	router, _ := setupTestRouter(t)
 

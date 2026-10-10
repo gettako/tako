@@ -45,12 +45,16 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const res = await fetchServer(`/api/v1/projects/${id}`, { method: 'DELETE' });
+    const cascade = req.nextUrl.searchParams.get('cascade');
+    const endpoint = cascade === 'true'
+      ? `/api/v1/projects/${id}?cascade=true`
+      : `/api/v1/projects/${id}`;
+    const res = await fetchServer(endpoint, { method: 'DELETE' });
     return NextResponse.json(res);
   } catch (err: unknown) {
     if (err instanceof APIError) {

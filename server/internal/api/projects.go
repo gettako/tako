@@ -272,15 +272,37 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			// Project can only be deleted if it has no services
+			// Project can only be deleted if it has no services, unless cascade=true
 			services, err := orch.Queries().ListServicesByProject(r.Context(), p.ID)
 			if err != nil {
 				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
+			cascade := r.URL.Query().Get("cascade") == "true"
 			if len(services) > 0 {
-				RespondError(w, http.StatusBadRequest, "cannot delete project: project contains services. Please delete all services first.")
-				return
+				if !cascade {
+					RespondError(w, http.StatusBadRequest, "cannot delete project: project contains services. Please delete all services first.")
+					return
+				}
+				// Cascade delete all child services
+				for _, srv := range services {
+					if srv.NodeID != "" && srv.Slug != "" {
+						containerName := "tako-app-" + srv.Slug
+						_ = orch.DispatchContainerAction(r.Context(), srv.NodeID, containerName, "remove")
+					}
+					_ = orch.Queries().DeleteServiceDomains(r.Context(), srv.ID)
+					_ = orch.Queries().DeleteServiceEnvVars(r.Context(), srv.ID)
+					if err := orch.Queries().DeleteService(r.Context(), srv.ID); err != nil {
+						RespondError(w, http.StatusInternalServerError, "failed to cascade delete service: "+err.Error())
+						return
+					}
+					_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+						Action:     "delete_service",
+						TargetType: "service",
+						TargetID:   srv.ID,
+						TargetName: srv.Name,
+					})
+				}
 			}
 
 			if err := orch.Queries().DeleteProject(r.Context(), p.ID); err != nil {

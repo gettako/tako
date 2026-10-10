@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Trash2, Loader2, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface ConfirmDestructiveDialogProps {
   open: boolean;
@@ -28,6 +29,7 @@ export interface ConfirmDestructiveDialogProps {
   onConfirm: () => void | Promise<void>;
   /** Optional warning callout rendered above input */
   warningCallout?: React.ReactNode;
+  contentClassName?: string;
 }
 
 export function ConfirmDestructiveDialog({
@@ -42,6 +44,7 @@ export function ConfirmDestructiveDialog({
   isPending = false,
   onConfirm,
   warningCallout,
+  contentClassName,
 }: ConfirmDestructiveDialogProps) {
   const effectiveButtonText = confirmButtonText || confirmText || 'Confirm Delete';
   const [inputValue, setInputValue] = useState('');
@@ -64,7 +67,7 @@ export function ConfirmDestructiveDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md border-status-danger/40">
+      <DialogContent className={cn("sm:max-w-lg border-status-danger/40", contentClassName)}>
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="size-8 rounded-lg bg-status-danger/10 border border-status-danger/20 flex items-center justify-center text-status-danger shrink-0">
@@ -105,7 +108,7 @@ export function ConfirmDestructiveDialog({
           </div>
         )}
 
-        <DialogFooter className="gap-2 sm:gap-0 pt-2">
+        <DialogFooter className="gap-2.5 sm:gap-3 pt-3 flex items-center justify-end">
           <Button
             type="button"
             variant="outline"
