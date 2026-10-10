@@ -8,8 +8,7 @@ import { EnvTableView } from './env-table-view';
 import { EnvRawView } from './env-raw-view';
 import { EnvVar, Service } from '@/lib/types';
 import { parseDotEnv, formatDotEnv } from '@/lib/utils/env-parser';
-import { updateServiceEnvVars } from '@/lib/api/services';
-import { toast } from 'sonner';
+import { useUpdateServiceEnvVars } from '@/lib/queries';
 
 export interface ServiceEnvTabProps {
   service: Service;
@@ -21,8 +20,16 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
   const [envVars, setEnvVars] = useState<EnvVar[]>(service.envVars || []);
   const [rawText, setRawText] = useState(() => formatDotEnv(service.envVars || []));
   const [isDirty, setIsDirty] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const saveMutation = useUpdateServiceEnvVars(service.id, {
+    onSuccess: () => {
+      setIsDirty(false);
+      setSavedSuccess(true);
+      onSaved?.(envVars);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    },
+  });
 
   useEffect(() => {
     if (!isDirty && service.envVars) {
@@ -52,21 +59,8 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
     setIsDirty(true);
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await updateServiceEnvVars(service.id, envVars);
-      setIsDirty(false);
-      setSavedSuccess(true);
-      toast.success('Environment variables saved successfully');
-      onSaved?.(envVars);
-      setTimeout(() => setSavedSuccess(false), 3000);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update environment variables';
-      toast.error(msg);
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSave = () => {
+    saveMutation.mutate(envVars);
   };
 
   return (
@@ -84,7 +78,7 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
                 onClick={() => setMode('table')}
                 className={`inline-flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-all ${
                   mode === 'table'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -96,7 +90,7 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
                 onClick={() => setMode('raw')}
                 className={`inline-flex h-7 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium transition-all ${
                   mode === 'raw'
-                    ? 'bg-background text-foreground shadow-xs'
+                    ? 'bg-background text-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -109,10 +103,10 @@ export function ServiceEnvTab({ service, onSaved }: ServiceEnvTabProps) {
             <Button
               size="sm"
               onClick={handleSave}
-              disabled={!isDirty || isSaving}
+              disabled={!isDirty || saveMutation.isPending}
               className="gap-1.5 text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
             >
-              {isSaving ? (
+              {saveMutation.isPending ? (
                 <>
                   <Loader2 className="size-3.5 animate-spin" />
                   <span>Saving...</span>

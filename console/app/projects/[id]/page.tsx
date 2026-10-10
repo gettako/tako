@@ -17,8 +17,7 @@ import { ServiceRow } from '@/components/projects/service-row';
 import { CreateServiceDialog } from '@/components/services/create-service-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
-import { getProjectById } from '@/lib/api/projects';
-import { getServices } from '@/lib/api/services';
+import { useProject, useServices } from '@/lib/queries';
 import { useDebounce } from '@/hooks/use-debounce';
 
 export default function ProjectDetailPage({
@@ -48,18 +47,13 @@ export default function ProjectDetailPage({
     isLoading: loadingProject,
     error: errorProject,
     refetch: refetchProject,
-  } = useQuery({
-    queryKey: ['project', projectId],
-    queryFn: () => getProjectById(projectId),
-  });
+  } = useProject(projectId);
 
   const {
     data: services = [],
     isLoading: loadingServices,
     error: errorServices,
-  } = useQuery({
-    queryKey: ['services', projectId],
-    queryFn: () => getServices(projectId),
+  } = useServices(projectId, {
     enabled: !!project,
   });
 

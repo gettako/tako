@@ -21,42 +21,22 @@ import {
   Sparkles,
   Database,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { getNodes } from '@/lib/api/nodes';
-import { getProjects } from '@/lib/api/projects';
-import { getServices } from '@/lib/api/services';
-import { getDomainSettings, getS3Buckets, getBackupSchedule } from '@/lib/api/settings';
+import {
+  useNodes,
+  useProjects,
+  useServices,
+  useDomainSettings,
+  useS3Buckets,
+  useBackupSchedule,
+} from '@/lib/queries';
 
 export function OverviewPanel() {
-  const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-  });
-
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: getProjects,
-  });
-
-  const { data: services = [] } = useQuery({
-    queryKey: ['services'],
-    queryFn: () => getServices(),
-  });
-
-  const { data: domainSettings } = useQuery({
-    queryKey: ['domain-settings'],
-    queryFn: getDomainSettings,
-  });
-
-  const { data: buckets = [] } = useQuery({
-    queryKey: ['s3-buckets'],
-    queryFn: getS3Buckets,
-  });
-
-  const { data: backupSchedule } = useQuery({
-    queryKey: ['backup-schedule'],
-    queryFn: getBackupSchedule,
-  });
+  const { data: nodes = [] } = useNodes();
+  const { data: projects = [] } = useProjects();
+  const { data: services = [] } = useServices();
+  const { data: domainSettings } = useDomainSettings();
+  const { data: buckets = [] } = useS3Buckets();
+  const { data: backupSchedule } = useBackupSchedule();
 
   // Real Computed Cluster Metrics
   const onlineNodes = nodes.filter((n) => n.status === 'online');

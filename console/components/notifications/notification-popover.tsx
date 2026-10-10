@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCheck, Inbox } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -12,35 +11,17 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { NotificationItem } from './notification-item';
 import {
-  getNotifications,
-  markNotificationAsRead,
-  markAllNotificationsAsRead,
-} from '@/lib/api/settings';
-import { toast } from 'sonner';
+  useNotifications,
+  useMarkNotificationAsRead,
+  useMarkAllNotificationsAsRead,
+} from '@/lib/queries';
 
 export function NotificationPopover() {
   const [open, setOpen] = useState(false);
-  const queryClient = useQueryClient();
 
-  const { data: notifications = [] } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: getNotifications,
-  });
-
-  const markSingleMutation = useMutation({
-    mutationFn: markNotificationAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
-
-  const markAllMutation = useMutation({
-    mutationFn: markAllNotificationsAsRead,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      toast.success('All notifications marked as read');
-    },
-  });
+  const { data: notifications = [] } = useNotifications();
+  const markSingleMutation = useMarkNotificationAsRead();
+  const markAllMutation = useMarkAllNotificationsAsRead();
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

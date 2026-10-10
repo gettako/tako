@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getUserInvites } from '@/lib/api/settings';
+import { useUserInvites } from '@/lib/queries';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { GlobalSettingsNav, GlobalSettingsSection } from '@/components/settings/settings-nav';
 import { OverviewPanel } from '@/components/settings/overview-panel';
@@ -16,10 +15,7 @@ import { NotificationsPanel } from '@/components/settings/notifications-panel';
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<GlobalSettingsSection>('overview');
 
-  const { data: invites = [] } = useQuery({
-    queryKey: ['user-invites'],
-    queryFn: getUserInvites,
-  });
+  const { data: invites = [] } = useUserInvites();
 
   return (
     <>

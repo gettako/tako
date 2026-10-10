@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getPasskeys, deletePasskey, registerPasskeyWithWebAuthn } from '@/lib/api/profile';
+import {
+  usePasskeys,
+  useDeletePasskey,
+  useRegisterPasskey,
+} from '@/lib/queries';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,40 +28,21 @@ import {
 } from '@/components/ui/table';
 import { Fingerprint, Plus, Trash2, Loader2, Sparkles, Key } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
-import { toast } from 'sonner';
 
 export function PasskeyManager() {
-  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [keyName, setKeyName] = useState('');
 
-  const { data: passkeys = [], isLoading } = useQuery({
-    queryKey: ['passkeys'],
-    queryFn: getPasskeys,
-  });
+  const { data: passkeys = [], isLoading } = usePasskeys();
 
-  const registerMutation = useMutation({
-    mutationFn: (name: string) => registerPasskeyWithWebAuthn(name),
-    onSuccess: (newKey) => {
-      queryClient.invalidateQueries({ queryKey: ['passkeys'] });
-      toast.success(`Passkey "${newKey.name}" registered successfully`);
+  const registerMutation = useRegisterPasskey({
+    onSuccess: () => {
       setDialogOpen(false);
       setKeyName('');
     },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to register passkey';
-      toast.error(msg);
-    },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deletePasskey(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['passkeys'] });
-      toast.success('Passkey removed from account');
-    },
-    onError: () => toast.error('Failed to remove passkey'),
-  });
+  const deleteMutation = useDeletePasskey();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();

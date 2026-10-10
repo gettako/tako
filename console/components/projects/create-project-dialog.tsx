@@ -2,8 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { useCreateProject } from '@/lib/queries';
+import { Project } from '@/lib/types';
+import {
+  ProjectFormFields,
+  ProjectFormData,
+  ProjectFormErrors,
+  validateSlug,
+} from './project-form-fields';
 import {
   Dialog,
   DialogContent,
@@ -13,15 +19,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { createProject } from '@/lib/api/projects';
-import { Project } from '@/lib/types';
-import { toast } from 'sonner';
-import {
-  ProjectFormFields,
-  ProjectFormData,
-  ProjectFormErrors,
-  validateSlug,
-} from './project-form-fields';
+import { Loader2 } from 'lucide-react';
 
 export interface CreateProjectDialogProps {
   open: boolean;
@@ -43,7 +41,6 @@ export function CreateProjectDialog({
   onSuccess,
 }: CreateProjectDialogProps) {
   const router = useRouter();
-  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState<ProjectFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
@@ -55,21 +52,11 @@ export function CreateProjectDialog({
     }
   }, [open]);
 
-  const createMutation = useMutation({
-    mutationFn: createProject,
+  const createMutation = useCreateProject({
     onSuccess: (newProject) => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      toast.success('Project created successfully', {
-        description: `Project "${newProject.name}" is ready for services deployment.`,
-      });
       onOpenChange(false);
       onSuccess?.(newProject);
       router.push(`/projects/${newProject.id}`);
-    },
-    onError: (err: Error) => {
-      toast.error('Failed to create project', {
-        description: err.message || 'Please check input parameters and try again.',
-      });
     },
   });
 

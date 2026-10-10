@@ -2,7 +2,6 @@ package api
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -82,8 +81,7 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		// POST /api/v1/nodes/enroll-token
 		r.Post("/enroll-token", func(w http.ResponseWriter, r *http.Request) {
 			token := orch.GenerateEnrollToken()
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{
+			RespondJSON(w, http.StatusOK, map[string]string{
 				"token": token,
 			})
 		})
@@ -101,8 +99,7 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				items = append(items, mapNodeToResponse(n))
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(items)
+			RespondJSON(w, http.StatusOK, items)
 		})
 
 		// GET /api/v1/nodes/{id}
@@ -118,8 +115,7 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapNodeToResponse(node))
+			RespondJSON(w, http.StatusOK, mapNodeToResponse(node))
 		})
 
 		// PATCH /api/v1/nodes/{id}
@@ -136,8 +132,7 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+			RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
 		})
 
 		// GET /api/v1/nodes/{id}/traefik
@@ -179,7 +174,7 @@ func handleUpdateNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		var req UpdateNodeRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := DecodeJSON(r, &req); err != nil {
 			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
@@ -220,8 +215,7 @@ func handleUpdateNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(mapNodeToResponse(updatedNode))
+		RespondJSON(w, http.StatusOK, mapNodeToResponse(updatedNode))
 	}
 }
 
@@ -266,17 +260,15 @@ func handleRebootNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			},
 		})
 
-		w.Header().Set("Content-Type", "application/json")
 		if dispatchErr != nil && orch.GetAgentSession(id) == nil {
-			w.WriteHeader(http.StatusAccepted)
-			_ = json.NewEncoder(w).Encode(map[string]any{
+			RespondJSON(w, http.StatusAccepted, map[string]any{
 				"success": true,
 				"message": fmt.Sprintf("Node %s marked for reboot (agent session offline)", node.Name),
 			})
 			return
 		}
 
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		RespondJSON(w, http.StatusOK, map[string]any{
 			"success": true,
 			"message": fmt.Sprintf("Node %s reboot signal issued successfully", node.Name),
 		})

@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/chart';
 import { Cpu, Activity, type LucideIcon } from 'lucide-react';
 import { Node } from '@/lib/types';
-import { MetricPoint } from '@/lib/api/metrics';
+import { MetricPoint } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export interface NodeSeriesData {

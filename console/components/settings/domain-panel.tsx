@@ -1,9 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getDomainSettings, updateDomainSettings, verifyDomainAndSSL } from '@/lib/api/settings';
-import { getNodes, reloadNodeTraefik } from '@/lib/api/nodes';
+import {
+  useDomainSettings,
+  useUpdateDomainSettings,
+  useVerifyDomainAndSSL,
+  useNodes,
+  useReloadNodeTraefik,
+} from '@/lib/queries';
 import { DomainVerificationResult } from '@/lib/types';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
@@ -12,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Globe,
   ShieldCheck,
@@ -20,8 +25,6 @@ import {
   CheckCircle2,
   ArrowRight,
   RefreshCw,
-  Copy,
-  Check,
   AlertCircle,
   ExternalLink,
   Info,
@@ -37,23 +40,16 @@ import {
 import { toast } from 'sonner';
 
 export function DomainPanel() {
-  const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isReloadingTraefik, setIsReloadingTraefik] = useState(false);
-  const [copiedIp, setCopiedIp] = useState(false);
-  const [copiedDomain, setCopiedDomain] = useState(false);
   const [showCustomIp, setShowCustomIp] = useState(false);
 
-  const { data: settings } = useQuery({
-    queryKey: ['domain-settings'],
-    queryFn: getDomainSettings,
-  });
-
-  const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-  });
+  const { data: settings } = useDomainSettings();
+  const { data: nodes = [] } = useNodes();
+  const updateDomainSettingsMutation = useUpdateDomainSettings();
+  const verifyDomainAndSSLMutation = useVerifyDomainAndSSL();
+  const reloadNodeTraefikMutation = useReloadNodeTraefik();
 
   const leaderNode = nodes.find((n) => n.role === 'leader') || nodes[0];
   const detectedLeaderIp = leaderNode?.publicIp || leaderNode?.ipAddress || '127.0.0.1';
@@ -112,7 +108,7 @@ export function DomainPanel() {
 
     try {
       setIsSaving(true);
-      const updated = await updateDomainSettings({
+      await updateDomainSettingsMutation.mutateAsync({
         domain: cleaned,
         sslAutoRenew,
         dnsProvider,
@@ -120,15 +116,13 @@ export function DomainPanel() {
         customDnsIp: customDnsIp.trim() || undefined,
       });
 
-      // Update local query cache immediately
-      queryClient.setQueryData(['domain-settings'], updated);
-
       // Automatically verify DNS connectivity & SSL
       try {
-        const verifyRes = await verifyDomainAndSSL(cleaned, effectiveLeaderIp);
+        const verifyRes = await verifyDomainAndSSLMutation.mutateAsync({
+          domain: cleaned,
+          expectedIp: effectiveLeaderIp,
+        });
         setVerificationResult(verifyRes);
-        const finalMerged = { ...updated, ...verifyRes };
-        queryClient.setQueryData(['domain-settings'], finalMerged);
 
         if (verifyRes.dnsVerified && verifyRes.sslActive) {
           toast.success(`Domain ${cleaned} saved and TLS verified!`);
@@ -141,7 +135,7 @@ export function DomainPanel() {
         toast.success(`Domain configuration updated and saved for ${cleaned}.`);
       }
     } catch {
-      toast.error('Failed to update domain settings');
+      // Error handled by mutation
     } finally {
       setIsSaving(false);
     }
@@ -154,14 +148,7 @@ export function DomainPanel() {
     }
     try {
       setIsReloadingTraefik(true);
-      const res = await reloadNodeTraefik(leaderNode.id);
-      if (res.success) {
-        toast.success(res.message || 'Traefik configuration rules successfully reloaded on cluster');
-      } else {
-        toast.error('Failed to reload Traefik configuration');
-      }
-    } catch {
-      toast.error('Failed to reload Traefik configuration');
+      await reloadNodeTraefikMutation.mutateAsync(leaderNode.id);
     } finally {
       setIsReloadingTraefik(false);
     }
@@ -177,39 +164,28 @@ export function DomainPanel() {
 
     try {
       setIsVerifying(true);
-      const res = await verifyDomainAndSSL(cleaned, effectiveLeaderIp);
+      const res = await verifyDomainAndSSLMutation.mutateAsync({
+        domain: cleaned,
+        expectedIp: effectiveLeaderIp,
+      });
       setVerificationResult(res);
-      queryClient.setQueryData(['domain-settings'], (prev: unknown) => ({
-        ...(prev && typeof prev === 'object' ? prev : {}),
-        ...res,
-      }));
 
       if (res.dnsVerified && res.sslActive) {
-        toast.success(`Domain ${cleaned} DNS verified and SSL TLS is active!`);
+        toast.success(`Domain & TLS certificate are active and verified!`);
       } else if (res.dnsVerified) {
-        toast.info(`DNS verified! Let's Encrypt TLS issuance in progress via Traefik.`);
-      } else {
-        toast.warning(res.message || 'DNS record not pointing to cluster leader IP yet.');
+        toast.warning(
+          `DNS points correctly to ${effectiveLeaderIp}, but SSL certificate is pending or invalid.`
+        );
+        const resolvedText = res.resolvedIps && res.resolvedIps.length > 0 ? res.resolvedIps.join(', ') : 'unknown';
+        toast.error(
+          `DNS check failed: ${cleaned} resolves to ${resolvedText}, expected ${effectiveLeaderIp}.`
+        );
       }
     } catch {
       toast.error('Failed to verify domain connectivity');
     } finally {
       setIsVerifying(false);
     }
-  };
-
-  const handleCopyIp = () => {
-    navigator.clipboard.writeText(effectiveLeaderIp);
-    setCopiedIp(true);
-    toast.success('Cluster IP copied to clipboard');
-    setTimeout(() => setCopiedIp(false), 2000);
-  };
-
-  const handleCopyDomain = () => {
-    navigator.clipboard.writeText(domain);
-    setCopiedDomain(true);
-    toast.success('Domain hostname copied');
-    setTimeout(() => setCopiedDomain(false), 2000);
   };
 
   const currentStatus =
@@ -409,16 +385,12 @@ export function DomainPanel() {
                   </span>
                 </div>
                 {cleanDomain && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleCopyDomain}
-                    className="size-6 text-muted-foreground hover:text-foreground shrink-0 active:not-aria-[haspopup]:translate-y-px"
+                  <CopyButton
+                    text={cleanDomain}
+                    size="sm"
+                    className="size-6 text-muted-foreground hover:text-foreground shrink-0"
                     title="Copy hostname"
-                  >
-                    {copiedDomain ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                  </Button>
+                  />
                 )}
               </div>
 
@@ -427,16 +399,12 @@ export function DomainPanel() {
                   <span className="text-muted-foreground text-[10px] block uppercase font-sans">Points to (Target IP)</span>
                   <span className="font-semibold text-foreground truncate select-all">{effectiveLeaderIp}</span>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopyIp}
-                  className="size-6 text-muted-foreground hover:text-foreground shrink-0 active:not-aria-[haspopup]:translate-y-px"
+                <CopyButton
+                  text={effectiveLeaderIp}
+                  size="sm"
+                  className="size-6 text-muted-foreground hover:text-foreground shrink-0"
                   title="Copy IP"
-                >
-                  {copiedIp ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-                </Button>
+                />
               </div>
             </div>
 

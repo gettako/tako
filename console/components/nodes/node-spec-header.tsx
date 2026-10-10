@@ -5,6 +5,7 @@ import { Node } from '@/lib/types';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Dialog,
   DialogContent,
@@ -14,8 +15,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Copy,
-  Check,
   Clock,
   RotateCw,
   Cpu,
@@ -27,8 +26,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { updateNode, rebootNode } from '@/lib/api/nodes';
+import { useUpdateNode, useRebootNode } from '@/lib/queries';
 
 interface NodeSpecHeaderProps {
   node: Node;
@@ -82,8 +80,6 @@ export function formatUptime(uptime: string | number | undefined | null): string
 }
 
 export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
-  const queryClient = useQueryClient();
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Edit Node Dialog state
@@ -102,45 +98,19 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
 
   const [rebootDialogOpen, setRebootDialogOpen] = useState(false);
 
-  const updateMutation = useMutation({
-    mutationFn: () =>
-      updateNode(node.id, {
-        name: editName,
-        ipAddress: editPrivateIp,
-        publicIp: editPublicIp,
-      }),
+  const updateMutation = useUpdateNode({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['nodes'] });
-      queryClient.invalidateQueries({ queryKey: ['node', node.id] });
-      toast.success('Node specifications updated');
       setEditDialogOpen(false);
       if (onRefresh) onRefresh();
     },
-    onError: (err: any) => {
-      toast.error(err?.message || 'Failed to update node specifications');
-    },
   });
 
-  const rebootMutation = useMutation({
-    mutationFn: () => rebootNode(node.id),
-    onSuccess: (data) => {
-      toast.success(data?.message || 'Node reboot signal issued');
+  const rebootMutation = useRebootNode({
+    onSuccess: () => {
       setRebootDialogOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['nodes'] });
-      queryClient.invalidateQueries({ queryKey: ['node', node.id] });
       if (onRefresh) onRefresh();
     },
-    onError: (err: any) => {
-      toast.error(err?.message || 'Failed to reboot node');
-    },
   });
-
-  const handleCopy = (field: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    toast.success(`${field} copied to clipboard`);
-    setTimeout(() => setCopiedField(null), 2000);
-  };
 
   const handleRefreshClick = () => {
     if (onRefresh) {
@@ -218,19 +188,11 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
             <span className="text-[11px] text-muted-foreground font-medium">Private IP</span>
             <div className="flex items-center gap-1.5 font-mono text-foreground font-medium text-xs">
               <span>{node.ipAddress}</span>
-              <button
-                type="button"
-                onClick={() => handleCopy('Private IP', node.ipAddress)}
-                className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors active:not-aria-[haspopup]:translate-y-px"
-                title="Copy Private IP"
-                aria-label="Copy Private IP"
-              >
-                {copiedField === 'Private IP' ? (
-                  <Check className="size-3 text-status-success" />
-                ) : (
-                  <Copy className="size-3" />
-                )}
-              </button>
+              <CopyButton
+                text={node.ipAddress}
+                tooltip="Copy Private IP"
+                className="size-5 text-muted-foreground hover:text-foreground"
+              />
             </div>
           </div>
 
@@ -240,19 +202,11 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
             <div className="flex items-center gap-1.5 font-mono text-foreground font-medium text-xs">
               <span>{node.publicIp || 'None'}</span>
               {node.publicIp && (
-                <button
-                  type="button"
-                  onClick={() => handleCopy('Public IP', node.publicIp!)}
-                  className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors active:not-aria-[haspopup]:translate-y-px"
-                  title="Copy Public IP"
-                  aria-label="Copy Public IP"
-                >
-                  {copiedField === 'Public IP' ? (
-                    <Check className="size-3 text-status-success" />
-                  ) : (
-                    <Copy className="size-3" />
-                  )}
-                </button>
+                <CopyButton
+                  text={node.publicIp}
+                  tooltip="Copy Public IP"
+                  className="size-5 text-muted-foreground hover:text-foreground"
+                />
               )}
             </div>
           </div>
@@ -316,7 +270,14 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              updateMutation.mutate();
+              updateMutation.mutate({
+                id: node.id,
+                input: {
+                  name: editName,
+                  ipAddress: editPrivateIp,
+                  publicIp: editPublicIp,
+                },
+              });
             }}
             className="space-y-4 py-1"
           >
@@ -427,7 +388,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               variant="destructive"
               size="sm"
               disabled={rebootMutation.isPending}
-              onClick={() => rebootMutation.mutate()}
+              onClick={() => rebootMutation.mutate(node.id)}
               className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
               {rebootMutation.isPending ? (

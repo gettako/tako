@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getDeploymentLogsStreamUrl } from '@/lib/api/deployments';
+import { getDeploymentLogsStreamUrl } from '@/lib/queries';
 
 export interface DeploymentLogEvent {
   deployment_id: string;

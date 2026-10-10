@@ -28,7 +28,7 @@ export interface ServiceMetricPoint {
 
 export async function getTimeSeriesMetrics(
   entityId: string,
-  timeRange: '1h' | '6h' | '24h' | '7d' = '1h'
+  timeRange: TimeRange = '1h'
 ): Promise<MetricPoint[]> {
   if (typeof window !== 'undefined') {
     try {

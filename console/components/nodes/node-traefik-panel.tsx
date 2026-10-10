@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getNodeTraefikConfig,
-  updateNodeTraefikConfig,
-  reloadNodeTraefik,
-} from '@/lib/api/nodes';
+  useNodeTraefikConfig,
+  useUpdateNodeTraefikConfig,
+  useReloadNodeTraefik,
+} from '@/lib/queries';
 import { Node, NodeTraefikConfig } from '@/lib/types';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,17 +36,13 @@ interface NodeTraefikPanelProps {
 }
 
 export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
-  const queryClient = useQueryClient();
   const [activeSubTab, setActiveSubTab] = useState<'settings' | 'files'>('settings');
 
   const {
     data: config,
     isLoading,
     refetch,
-  } = useQuery({
-    queryKey: ['node-traefik', node.id],
-    queryFn: () => getNodeTraefikConfig(node.id),
-  });
+  } = useNodeTraefikConfig(node.id);
 
   const [enabled, setEnabled] = useState(true);
   const [httpPort, setHttpPort] = useState(80);
@@ -78,27 +73,8 @@ export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
     }
   }, [config]);
 
-  const updateMutation = useMutation({
-    mutationFn: (newCfg: Partial<NodeTraefikConfig>) =>
-      updateNodeTraefikConfig(node.id, newCfg),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['node-traefik', node.id] });
-      toast.success('Node Traefik configuration saved successfully');
-    },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to update Traefik configuration';
-      toast.error(msg);
-    },
-  });
-
-  const reloadMutation = useMutation({
-    mutationFn: () => reloadNodeTraefik(node.id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['node-traefik', node.id] });
-      toast.success(data.message || 'Traefik configuration reloaded');
-    },
-    onError: () => toast.error('Failed to reload Traefik configuration'),
-  });
+  const updateMutation = useUpdateNodeTraefikConfig(node.id);
+  const reloadMutation = useReloadNodeTraefik(node.id);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();

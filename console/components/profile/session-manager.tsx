@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getSessions, revokeSession, revokeAllOtherSessions } from '@/lib/api/profile';
+import {
+  useSessions,
+  useRevokeSession,
+  useRevokeAllOtherSessions,
+} from '@/lib/queries';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SessionItem } from './session-item';
@@ -16,40 +19,20 @@ import {
 } from '@/components/ui/dialog';
 import { LogOut, Laptop } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
-import { toast } from 'sonner';
 
 export function SessionManager() {
-  const queryClient = useQueryClient();
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
 
-  const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ['sessions'],
-    queryFn: getSessions,
-  });
-
-  const revokeSingleMutation = useMutation({
-    mutationFn: revokeSession,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
-      toast.success('Session revoked successfully');
-    },
-    onError: () => toast.error('Failed to revoke session'),
-  });
+  const { data: sessions = [], isLoading } = useSessions();
+  const revokeSingleMutation = useRevokeSession();
 
   const currentSession = sessions.find((s) => s.current);
   const otherSessions = sessions.filter((s) => !s.current);
 
-  const revokeAllMutation = useMutation({
-    mutationFn: () => {
-      if (!currentSession) throw new Error('No current session');
-      return revokeAllOtherSessions(currentSession.id);
-    },
+  const revokeAllMutation = useRevokeAllOtherSessions({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sessions'] });
       setBulkDialogOpen(false);
-      toast.success('Logged out of all other devices');
     },
-    onError: () => toast.error('Failed to revoke sessions'),
   });
 
   return (

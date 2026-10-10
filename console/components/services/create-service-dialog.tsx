@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dialog,
   DialogContent,
@@ -34,11 +33,14 @@ import {
   Database,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { createService } from '@/lib/api/services';
-import { getProjects } from '@/lib/api/projects';
-import { getNodes } from '@/lib/api/nodes';
-import { getGitProviders, getSyncedRepos } from '@/lib/api/settings';
-import { getGitHubAppConfig } from '@/lib/api/github';
+import {
+  useProjects,
+  useNodes,
+  useGitProviders,
+  useSyncedRepos,
+  useGitHubAppConfig,
+  useCreateService,
+} from '@/lib/queries';
 import { Service, ServiceType, CreateServiceInput, Node } from '@/lib/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -107,41 +109,15 @@ export function CreateServiceDialog({
   projectId: initialProjectId,
   onSuccess,
 }: CreateServiceDialogProps) {
-  const queryClient = useQueryClient();
-
   // Wizard Step: 1 = Service & Source, 2 = Node & Resources
   const [step, setStep] = useState<1 | 2>(1);
 
   // Queries
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: getProjects,
-    enabled: open,
-  });
-
-  const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-    enabled: open,
-  });
-
-  const { data: githubApp } = useQuery({
-    queryKey: ['github-app'],
-    queryFn: getGitHubAppConfig,
-    enabled: open,
-  });
-
-  const { data: gitProviders = [] } = useQuery({
-    queryKey: ['git-providers'],
-    queryFn: getGitProviders,
-    enabled: open,
-  });
-
-  const { data: syncedRepos = [] } = useQuery({
-    queryKey: ['synced-repos'],
-    queryFn: getSyncedRepos,
-    enabled: open,
-  });
+  const { data: projects = [] } = useProjects({ enabled: open });
+  const { data: nodes = [] } = useNodes({ enabled: open });
+  const { data: githubApp } = useGitHubAppConfig({ enabled: open });
+  const { data: gitProviders = [] } = useGitProviders({ enabled: open });
+  const { data: syncedRepos = [] } = useSyncedRepos({ enabled: open });
 
   // Automatically determine project from props or fallback
   const resolvedProjectId = initialProjectId || projects[0]?.id || '';
@@ -489,12 +465,8 @@ export function CreateServiceDialog({
     }
   };
 
-  const createMutation = useMutation({
-    mutationFn: (input: CreateServiceInput) => createService(input),
+  const createMutation = useCreateService({
     onSuccess: (newService) => {
-      queryClient.invalidateQueries({ queryKey: ['services'] });
-      queryClient.invalidateQueries({ queryKey: ['project-services', newService.projectId] });
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast.success(
         `${serviceType === 'database' ? 'Database instance' : serviceType === 'compose' ? 'Compose stack' : 'Application'} "${newService.name}" deployed successfully!`
       );

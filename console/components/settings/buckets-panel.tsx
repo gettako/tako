@@ -1,15 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getS3Buckets,
-  addS3Bucket,
-  updateS3Bucket,
-  deleteS3Bucket,
-  setDefaultS3Bucket,
-  testS3BucketConnection,
-} from '@/lib/api/settings';
+  useS3Buckets,
+  useAddS3Bucket,
+  useUpdateS3Bucket,
+  useDeleteS3Bucket,
+  useSetDefaultS3Bucket,
+  useTestS3BucketConnection,
+} from '@/lib/queries';
 import { S3Bucket } from '@/lib/types';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
@@ -18,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Table,
   TableBody,
@@ -52,8 +52,6 @@ import {
   Pencil,
   Trash2,
   Star,
-  Copy,
-  Check,
   Activity,
   Cloud,
 } from 'lucide-react';
@@ -66,8 +64,6 @@ interface ConnectionStatus {
 }
 
 export function BucketsPanel() {
-  const queryClient = useQueryClient();
-
   // Dialog States
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -88,59 +84,33 @@ export function BucketsPanel() {
   const [isTesting, setIsTesting] = useState(false);
   const [rowTestingId, setRowTestingId] = useState<string | null>(null);
   const [rowStatusMap, setRowStatusMap] = useState<Record<string, ConnectionStatus>>({});
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const { data: buckets = [], isLoading } = useQuery({
-    queryKey: ['s3-buckets'],
-    queryFn: getS3Buckets,
-  });
+  const { data: buckets = [], isLoading } = useS3Buckets();
 
   // Mutations
-  const addMutation = useMutation({
-    mutationFn: addS3Bucket,
-    onSuccess: (newB) => {
-      queryClient.invalidateQueries({ queryKey: ['s3-buckets'] });
-      toast.success(`Storage bucket "${newB.name}" configured`);
+  const addMutation = useAddS3Bucket({
+    onSuccess: () => {
       setAddDialogOpen(false);
       resetForm();
     },
-    onError: () => toast.error('Failed to add S3 bucket'),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: Partial<Omit<S3Bucket, 'id' | 'createdAt'>> }) =>
-      updateS3Bucket(id, input),
-    onSuccess: (updated) => {
-      queryClient.invalidateQueries({ queryKey: ['s3-buckets'] });
-      toast.success(`Storage bucket "${updated.name}" updated`);
+  const updateMutation = useUpdateS3Bucket({
+    onSuccess: () => {
       setEditDialogOpen(false);
       resetForm();
     },
-    onError: () => toast.error('Failed to update S3 bucket'),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteS3Bucket,
-    onSuccess: (_, deletedId) => {
-      queryClient.setQueryData(['s3-buckets'], (prev: S3Bucket[] | undefined) =>
-        (prev || []).filter((b) => b.id !== deletedId)
-      );
-      queryClient.invalidateQueries({ queryKey: ['s3-buckets'] });
-      toast.success('Storage bucket deleted');
+  const deleteMutation = useDeleteS3Bucket({
+    onSuccess: () => {
       setDeleteDialogOpen(false);
       setSelectedBucket(null);
     },
-    onError: () => toast.error('Failed to delete S3 bucket'),
   });
 
-  const setDefaultMutation = useMutation({
-    mutationFn: setDefaultS3Bucket,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['s3-buckets'] });
-      toast.success('Default storage bucket updated');
-    },
-    onError: () => toast.error('Failed to update default bucket'),
-  });
+  const setDefaultMutation = useSetDefaultS3Bucket();
+  const testConnectionMutation = useTestS3BucketConnection();
 
   const resetForm = () => {
     setName('');
@@ -187,7 +157,7 @@ export function BucketsPanel() {
     try {
       setIsTesting(true);
       setTestResult(null);
-      const res = await testS3BucketConnection({
+      const res = await testConnectionMutation.mutateAsync({
         endpoint: ep.trim(),
         bucket: bkt.trim(),
         region: reg.trim(),
@@ -208,7 +178,7 @@ export function BucketsPanel() {
   const handleTestRow = async (b: S3Bucket) => {
     try {
       setRowTestingId(b.id);
-      const res = await testS3BucketConnection({
+      const res = await testConnectionMutation.mutateAsync({
         endpoint: b.endpoint,
         bucket: b.bucket,
         region: b.region,
@@ -257,13 +227,6 @@ export function BucketsPanel() {
         isDefault,
       },
     });
-  };
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    toast.success('Endpoint URL copied');
-    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
@@ -363,20 +326,12 @@ export function BucketsPanel() {
                             <span className="font-mono text-xs text-muted-foreground truncate">
                               {b.endpoint}
                             </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => copyToClipboard(b.endpoint, b.id)}
-                              className="size-6 text-muted-foreground hover:text-foreground shrink-0 active:not-aria-[haspopup]:translate-y-px"
+                            <CopyButton
+                              text={b.endpoint}
+                              size="sm"
+                              className="size-6 text-muted-foreground hover:text-foreground shrink-0"
                               title="Copy Endpoint"
-                            >
-                              {copiedId === b.id ? (
-                                <Check className="size-3 text-status-success" />
-                              ) : (
-                                <Copy className="size-3" />
-                              )}
-                            </Button>
+                            />
                           </div>
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">

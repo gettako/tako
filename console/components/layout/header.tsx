@@ -52,11 +52,14 @@ import { getUserAvatarUrl } from '@/lib/avatar';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { getCurrentUser } from '@/lib/api/settings';
-import { getProjects } from '@/lib/api/projects';
-import { getServices, getServiceById } from '@/lib/api/services';
-import { getNodes } from '@/lib/api/nodes';
-import { logout } from '@/lib/api/auth';
+import {
+  useCurrentUser,
+  useProjects,
+  useServices,
+  useService,
+  useNodes,
+  useLogout,
+} from '@/lib/queries';
 import { openCommandPalette } from '@/hooks/use-command-palette';
 import { NotificationPopover } from '@/components/notifications/notification-popover';
 
@@ -73,20 +76,10 @@ export function Header() {
 
   const activeTheme = mounted ? (theme === 'system' ? resolvedTheme : theme) : 'dark';
 
-  const { data: user } = useQuery({
-    queryKey: ['currentUser'],
-    queryFn: getCurrentUser,
-  });
-
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: getProjects,
-  });
-
-  const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-  });
+  const { data: user } = useCurrentUser();
+  const { data: projects = [] } = useProjects();
+  const { data: nodes = [] } = useNodes();
+  const logoutMutation = useLogout();
 
   // Breadcrumbs builder
   const rawSegments = pathname.split('/').filter(Boolean);
@@ -117,19 +110,13 @@ export function Header() {
     : null;
 
   // Fetch active service details if on a service page
-  const { data: activeService } = useQuery({
-    queryKey: ['service', urlServiceId],
-    queryFn: () => getServiceById(urlServiceId!),
-    enabled: !!urlServiceId,
-  });
+  const { data: activeService } = useService(urlServiceId);
 
   const effectiveProjectId = urlProjectId || activeService?.projectId || null;
   const effectiveServiceId = urlServiceId;
 
   // Fetch project services for the switcher
-  const { data: projectServices = [] } = useQuery({
-    queryKey: ['services', effectiveProjectId],
-    queryFn: () => getServices(effectiveProjectId!),
+  const { data: projectServices = [] } = useServices(effectiveProjectId || undefined, {
     enabled: !!effectiveProjectId,
   });
 
@@ -436,11 +423,7 @@ export function Header() {
             <DropdownMenuItem
               variant="destructive"
               className="flex items-center gap-2.5 cursor-pointer text-status-danger focus:text-status-danger"
-              onClick={async () => {
-                await logout();
-                router.push('/login');
-                router.refresh();
-              }}
+              onClick={() => logoutMutation.mutate()}
             >
               <LogOut className="size-4" />
               <span>Log out</span>

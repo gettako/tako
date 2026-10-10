@@ -16,7 +16,7 @@ import {
   ChartCardHeader,
   ChartCardContent,
 } from '@/components/ui/chart';
-import { MetricPoint } from '@/lib/api/metrics';
+import { MetricPoint } from '@/lib/queries';
 import { ArrowDownLeft, ArrowUpRight, HardDrive, Network } from 'lucide-react';
 
 interface NetworkDiskChartsProps {

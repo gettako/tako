@@ -2,16 +2,18 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getGitProviders, getSyncedRepos, syncGitRepos, connectGitProviderWithPAT } from '@/lib/api/settings';
 import {
-  getGitHubAppConfig,
-  getGitHubAppManifest,
+  useGitProviders,
+  useSyncedRepos,
+  useSyncGitRepos,
+  useConnectGitProviderWithPAT,
+  useGitHubAppConfig,
+  useDisconnectGitHubApp,
+  useConvertGitHubAppManifestCode,
+  useSyncGitHubInstallation,
+  useGetGitHubAppManifest,
   submitGitHubAppManifestForm,
-  convertGitHubAppManifestCode,
-  syncGitHubInstallation,
-  disconnectGitHubApp,
-} from '@/lib/api/github';
+} from '@/lib/queries';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -89,7 +91,6 @@ function GiteaIcon({ className }: { className?: string }) {
 /* ─── Component ──────────────────────────────────────────────────────────── */
 
 export function GitPanel() {
-  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
   const [connectOpen, setConnectOpen] = useState(false);
@@ -115,10 +116,17 @@ export function GitPanel() {
   useEffect(() => { setAppSlug(generateSlug()); }, []);
   useEffect(() => { if (!connectOpen) { setIsCreatingManifest(false); setShowPerms(false); } }, [connectOpen]);
 
-  /* Queries */
-  const { data: githubApp } = useQuery({ queryKey: ['github-app'], queryFn: getGitHubAppConfig });
-  const { data: providers = [] } = useQuery({ queryKey: ['git-providers'], queryFn: getGitProviders });
-  const { data: repos = [] } = useQuery({ queryKey: ['synced-repos'], queryFn: getSyncedRepos });
+  /* Queries & Mutations */
+  const { data: githubApp } = useGitHubAppConfig();
+  const { data: providers = [] } = useGitProviders();
+  const { data: repos = [] } = useSyncedRepos();
+
+  const syncGitReposMutation = useSyncGitRepos();
+  const disconnectGitHubAppMutation = useDisconnectGitHubApp();
+  const convertGitHubAppManifestCodeMutation = useConvertGitHubAppManifestCode();
+  const syncGitHubInstallationMutation = useSyncGitHubInstallation();
+  const getGitHubAppManifestMutation = useGetGitHubAppManifest();
+  const connectGitProviderWithPATMutation = useConnectGitProviderWithPAT();
 
   const primaryProvider = providers.find((p) => p.type === 'github') || providers[0];
   const isGitHubConnected = Boolean(githubApp?.appId) || Boolean(primaryProvider?.connected);
@@ -194,13 +202,8 @@ export function GitPanel() {
     (async () => {
       try {
         toast.loading('Finalizing GitHub App setup...', { id: 'mconv' });
-        const config = await convertGitHubAppManifestCode(code);
+        const config = await convertGitHubAppManifestCodeMutation.mutateAsync(code);
         toast.success(`GitHub App "${config.name}" is ready!`, { id: 'mconv' });
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['github-app'] }),
-          queryClient.invalidateQueries({ queryKey: ['git-providers'] }),
-          queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
-        ]);
         const url = new URL(window.location.href);
         url.searchParams.delete('code');
         url.searchParams.delete('setup');
@@ -215,7 +218,7 @@ export function GitPanel() {
         toast.error(err instanceof Error ? err.message : 'Failed to finalize GitHub App', { id: 'mconv' });
       }
     })();
-  }, [searchParams, queryClient]);
+  }, [searchParams]);
 
   /* Handle installation return ?installation_id= */
   useEffect(() => {
@@ -225,22 +228,17 @@ export function GitPanel() {
     (async () => {
       try {
         toast.loading('Syncing repositories...', { id: 'isync' });
-        await syncGitHubInstallation(installId ? parseInt(installId, 10) : undefined);
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ['github-app'] }),
-          queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
-          queryClient.invalidateQueries({ queryKey: ['git-providers'] }),
-        ]);
+        await syncGitHubInstallationMutation.mutateAsync(installId ? parseInt(installId, 10) : undefined);
         toast.success('Repositories synced!', { id: 'isync' });
         const url = new URL(window.location.href);
         url.searchParams.delete('installation_id');
         url.searchParams.delete('setup_action');
         window.history.replaceState({}, '', url.toString());
       } catch {
-        toast.error('Failed to sync repositories', { id: 'isync' });
+        // Error toast already displayed by mutation
       }
     })();
-  }, [searchParams, queryClient]);
+  }, [searchParams]);
 
   /* Actions */
   const handleLaunchManifest = async (e: React.FormEvent) => {
@@ -249,10 +247,9 @@ export function GitPanel() {
       setIsCreatingManifest(true);
       const slug = appSlug.trim() || generateSlug();
       const name = appName.trim() || 'Tako';
-      const manifest = await getGitHubAppManifest(name, slug);
+      const manifest = await getGitHubAppManifestMutation.mutateAsync({ customName: name, customSlug: slug });
       submitGitHubAppManifestForm(manifest, targetOrg.trim());
     } catch {
-      toast.error('Failed to initiate GitHub App creation');
       setIsCreatingManifest(false);
     }
   };
@@ -260,14 +257,7 @@ export function GitPanel() {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      await syncGitRepos();
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['github-app'] }),
-        queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
-      ]);
-      toast.success('Repositories synced');
-    } catch {
-      toast.error('Failed to sync');
+      await syncGitReposMutation.mutateAsync();
     } finally {
       setIsSyncing(false);
     }
@@ -276,16 +266,8 @@ export function GitPanel() {
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
     try {
-      await disconnectGitHubApp();
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['github-app'] }),
-        queryClient.invalidateQueries({ queryKey: ['git-providers'] }),
-        queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
-      ]);
-      toast.success('GitHub App disconnected');
+      await disconnectGitHubAppMutation.mutateAsync();
       setDisconnectOpen(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to disconnect');
     } finally {
       setIsDisconnecting(false);
     }
@@ -299,21 +281,14 @@ export function GitPanel() {
     }
     try {
       setIsConnectingPAT(true);
-      const res = await connectGitProviderWithPAT({
+      await connectGitProviderWithPATMutation.mutateAsync({
         provider: patProvider,
         username: patUsername.trim(),
         token: patToken.trim(),
       });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['git-providers'] }),
-        queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
-      ]);
-      toast.success(`Connected ${res.provider.name} account @${res.provider.username}!`);
       setConnectOpen(false);
       setPatUsername('');
       setPatToken('');
-    } catch {
-      toast.error('Failed to connect git provider with PAT');
     } finally {
       setIsConnectingPAT(false);
     }
@@ -411,7 +386,7 @@ export function GitPanel() {
                         : (githubApp?.installUrl || 'https://github.com/apps');
                       window.open(installUrl, '_blank');
                     }}
-                    className="h-8 text-xs gap-1.5 font-medium shadow-sm"
+                    className="h-8 text-xs gap-1.5 font-medium"
                   >
                     <Building2 className="size-3.5" />
                     + Install to another Org

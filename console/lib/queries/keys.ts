@@ -30,6 +30,7 @@ export const nodeKeys = {
   detail: (id: string) => [...nodeKeys.all, 'detail', id] as const,
   traefik: (nodeId: string) => [...nodeKeys.detail(nodeId), 'traefik'] as const,
   traefikFiles: (nodeId: string) => [...nodeKeys.detail(nodeId), 'traefik', 'files'] as const,
+  traefikFile: (nodeId: string, filename: string) => [...nodeKeys.detail(nodeId), 'traefik', 'file', filename] as const,
 };
 
 export const deploymentKeys = {
@@ -51,10 +52,49 @@ export const metricKeys = {
 export const settingsKeys = {
   all: ['settings'] as const,
   item: (key: string) => [...settingsKeys.all, key] as const,
+  domain: () => [...settingsKeys.all, 'domain'] as const,
   s3Buckets: () => [...settingsKeys.all, 's3_buckets'] as const,
   gitProviders: () => ['git-providers'] as const,
   syncedRepos: () => ['synced-repos'] as const,
   githubApp: () => ['github-app'] as const,
+};
+
+export const userKeys = {
+  all: ['users'] as const,
+  lists: () => [...userKeys.all, 'list'] as const,
+  current: () => ['current-user'] as const,
+  invites: () => [...userKeys.all, 'invites'] as const,
+};
+
+export const profileKeys = {
+  all: ['profile'] as const,
+  sessions: () => [...profileKeys.all, 'sessions'] as const,
+  passkeys: () => [...profileKeys.all, 'passkeys'] as const,
+  twoFactorSetup: () => [...profileKeys.all, '2fa'] as const,
+};
+
+export const cronKeys = {
+  all: ['crons'] as const,
+  lists: (serviceId: string) => [...cronKeys.all, 'list', serviceId] as const,
+  runs: (cronId: string) => [...cronKeys.all, 'runs', cronId] as const,
+};
+
+export const webhookKeys = {
+  all: ['webhooks'] as const,
+  byService: (serviceId: string) => [...webhookKeys.all, 'service', serviceId] as const,
+  deliveries: (serviceId: string) => [...webhookKeys.all, 'deliveries', serviceId] as const,
+};
+
+export const backupKeys = {
+  all: ['backups'] as const,
+  lists: (serviceId?: string) => [...backupKeys.all, 'list', serviceId || 'all'] as const,
+  schedule: () => [...backupKeys.all, 'schedule'] as const,
+};
+
+export const notificationKeys = {
+  all: ['notifications'] as const,
+  list: () => [...notificationKeys.all, 'list'] as const,
+  settings: () => [...notificationKeys.all, 'settings'] as const,
 };
 
 export const auditKeys = {

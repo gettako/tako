@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { KeyRound, Lock, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
-import { changePassword } from '@/lib/api/profile';
+import { useChangePassword } from '@/lib/queries';
 import { toast } from 'sonner';
 
 export function PasswordChangeForm() {
@@ -15,6 +15,14 @@ export function PasswordChangeForm() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  const changePasswordMutation = useChangePassword({
+    onSuccess: () => {
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,14 +41,12 @@ export function PasswordChangeForm() {
 
     try {
       setIsSaving(true);
-      await changePassword(currentPassword, newPassword);
-      toast.success('Password updated successfully');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update password';
-      toast.error(msg);
+      await changePasswordMutation.mutateAsync({
+        currentPassword,
+        newPassword,
+      });
+    } catch {
+      // Error handled by mutation toast
     } finally {
       setIsSaving(false);
     }

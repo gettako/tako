@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useQuery, useQueries } from '@tanstack/react-query';
-import { getNodes } from '@/lib/api/nodes';
-import { getTimeSeriesMetrics, MetricPoint } from '@/lib/api/metrics';
+import React, { useState, useMemo } from 'react';
+import {
+  useNodes,
+  useTimeSeriesMetrics,
+  useMultipleNodeMetrics,
+  MetricPoint,
+} from '@/lib/queries';
 import { MonitoringHeader, TimeRange } from '@/components/monitoring/monitoring-header';
 import { ClusterMetricChart, NodeSeriesData } from '@/components/monitoring/cluster-metric-chart';
 import { NetworkDiskCharts } from '@/components/monitoring/network-disk-charts';
@@ -27,31 +30,18 @@ export default function MonitoringPage() {
     isLoading: loadingNodes,
     refetch: refetchNodes,
     isRefetching: refetchingNodes,
-  } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-    refetchInterval: 10000,
-  });
+  } = useNodes({ refetchInterval: 10000 });
 
   const {
     data: clusterMetrics = [],
     isLoading: loadingMetrics,
     refetch: refetchMetrics,
     isRefetching: refetchingMetrics,
-  } = useQuery({
-    queryKey: ['cluster-metrics', timeRange],
-    queryFn: () => getTimeSeriesMetrics('cluster', timeRange),
-    refetchInterval: 15000,
-  });
+  } = useTimeSeriesMetrics('cluster', timeRange, { refetchInterval: 15000 });
 
   // Dynamically fetch metrics for each registered node
-  const nodeMetricsQueries = useQueries({
-    queries: nodes.map((node) => ({
-      queryKey: ['node-metrics', node.id, timeRange],
-      queryFn: () => getTimeSeriesMetrics(node.id, timeRange),
-      refetchInterval: 15000,
-    })),
-  });
+  const nodeIds = useMemo(() => nodes.map((n) => n.id), [nodes]);
+  const nodeMetricsQueries = useMultipleNodeMetrics(nodeIds, timeRange);
 
   const isRefreshing =
     refetchingNodes ||

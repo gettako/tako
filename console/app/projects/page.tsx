@@ -18,7 +18,7 @@ import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
 import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
-import { getProjects } from '@/lib/api/projects';
+import { useProjects } from '@/lib/queries';
 import { Project } from '@/lib/types';
 import { useDebounce } from '@/hooks/use-debounce';
 
@@ -37,11 +37,7 @@ export default function ProjectsPage() {
     isRefetching,
     error,
     refetch,
-  } = useQuery({
-    queryKey: ['projects'],
-    queryFn: getProjects,
-    refetchInterval: 10000,
-  });
+  } = useProjects({ refetchInterval: 10000 });
 
   // Calculate cluster-wide aggregate workload metrics
   const totalServices = useMemo(

@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { Service, UpdateServiceInput } from '@/lib/types';
-import { getCronJobs } from '@/lib/api/crons';
+import { useCronJobs } from '@/lib/queries';
 import { SettingsNav, SettingsSection } from './settings-nav';
 import { GeneralSettingsSection } from './general-settings-section';
 import { ResourceLimitsSection } from './resource-limits-section';
@@ -30,10 +29,7 @@ export function ServiceSettingsTab({
 }: ServiceSettingsTabProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
 
-  const { data: cronJobs = [] } = useQuery({
-    queryKey: ['cron-jobs', service.id],
-    queryFn: () => getCronJobs(service.id),
-  });
+  const { data: cronJobs = [] } = useCronJobs(service.id);
 
   return (
     <div className="flex flex-col md:flex-row gap-6 lg:gap-8 items-start">

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Archive, Plus, RotateCcw, CheckCircle2, Download, Trash2, Database } from 'lucide-react';
+import { Archive, Plus, RotateCcw, CheckCircle2, Trash2, Database, Loader2 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,14 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Service } from '@/lib/types';
+import { Service, BackupItem } from '@/lib/types';
 import {
-  getServiceBackups,
-  createServiceBackup,
-  deleteServiceBackup,
-  restoreServiceBackup,
-  type BackupItem,
-} from '@/lib/api/backups';
+  useServiceBackups,
+  useCreateServiceBackup,
+  useDeleteServiceBackup,
+  useRestoreServiceBackup,
+} from '@/lib/queries';
+import { ConfirmDestructiveDialog } from '@/components/ui/confirm-destructive-dialog';
 
 export type { BackupItem };
 
@@ -29,40 +28,13 @@ export interface BackupsTabProps {
 }
 
 export function BackupsTab({ service }: BackupsTabProps) {
-  const queryClient = useQueryClient();
-  const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [backupToDelete, setBackupToDelete] = useState<BackupItem | null>(null);
 
-  const { data: backups = [] } = useQuery({
-    queryKey: ['service-backups', service.id],
-    queryFn: () => getServiceBackups(service.id, service.slug),
-  });
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['service-backups', service.id] });
-  };
-
-  const createMutation = useMutation({
-    mutationFn: () => createServiceBackup(service.id, service.slug),
-    onSuccess: () => {
-      invalidate();
-      setActionNotice('Database backup created and saved to S3 target.');
-      setTimeout(() => setActionNotice(null), 3000);
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: (name: string) => restoreServiceBackup(service.id, name),
-    onSuccess: (_, name) => {
-      setActionNotice(`Restore initiated from ${name}...`);
-      setTimeout(() => setActionNotice(null), 4000);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteServiceBackup(service.id, id, service.slug),
-    onSuccess: () => {
-      invalidate();
-    },
+  const { data: backups = [] } = useServiceBackups(service.id, service.slug);
+  const createMutation = useCreateServiceBackup(service.id, service.slug);
+  const restoreMutation = useRestoreServiceBackup(service.id);
+  const deleteMutation = useDeleteServiceBackup(service.id, service.slug, {
+    onSuccess: () => setBackupToDelete(null),
   });
 
   const handleCreateBackup = () => {
@@ -70,27 +42,13 @@ export function BackupsTab({ service }: BackupsTabProps) {
   };
 
   const handleRestore = (name: string) => {
-    if (confirm(`Are you sure you want to restore database from ${name}? Current state will be overwritten.`)) {
-      restoreMutation.mutate(name);
-    }
-  };
-
-  const handleDelete = (id: string) => {
-    deleteMutation.mutate(id);
+    restoreMutation.mutate(name);
   };
 
   const isCreating = createMutation.isPending;
 
-
   return (
     <div className="space-y-6">
-      {actionNotice && (
-        <div className="flex items-center gap-2 rounded-md bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-          <CheckCircle2 className="size-4 shrink-0 text-emerald-500" />
-          <span>{actionNotice}</span>
-        </div>
-      )}
-
       <SectionHeader
         icon={Database}
         title="Database Snapshots & Backups"
@@ -102,7 +60,11 @@ export function BackupsTab({ service }: BackupsTabProps) {
             disabled={isCreating}
             className="gap-1.5 text-xs h-9"
           >
-            <Plus className="size-3.5" />
+            {isCreating ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Plus className="size-3.5" />
+            )}
             <span>{isCreating ? 'Creating Snapshot...' : 'Create Backup Now'}</span>
           </Button>
         }
@@ -151,6 +113,7 @@ export function BackupsTab({ service }: BackupsTabProps) {
                       variant="ghost"
                       size="sm"
                       onClick={() => handleRestore(item.name)}
+                      disabled={restoreMutation.isPending}
                       className="gap-1 text-xs h-7 text-muted-foreground hover:text-foreground active:not-aria-[haspopup]:translate-y-px"
                     >
                       <RotateCcw className="size-3" />
@@ -159,7 +122,7 @@ export function BackupsTab({ service }: BackupsTabProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDelete(item.id)}
+                      onClick={() => setBackupToDelete(item)}
                       className="size-7 text-muted-foreground hover:text-destructive active:not-aria-[haspopup]:translate-y-px"
                       title="Delete snapshot"
                     >
@@ -172,6 +135,17 @@ export function BackupsTab({ service }: BackupsTabProps) {
           </TableBody>
         </Table>
       </div>
+
+      {backupToDelete && (
+        <ConfirmDestructiveDialog
+          open={Boolean(backupToDelete)}
+          onOpenChange={(open) => !open && setBackupToDelete(null)}
+          title={`Delete Backup: ${backupToDelete.name}`}
+          description="Are you sure you want to permanently delete this database backup snapshot from storage?"
+          isPending={deleteMutation.isPending}
+          onConfirm={() => deleteMutation.mutate(backupToDelete.id)}
+        />
+      )}
     </div>
   );
 }

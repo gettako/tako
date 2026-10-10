@@ -182,7 +182,7 @@ export function SearchableSelect({
           side="bottom"
           sideOffset={4}
           className={cn(
-            'w-(--anchor-width) min-w-[240px] max-w-[420px] p-0 rounded-lg bg-popover text-popover-foreground border border-border shadow-lg outline-none',
+            'w-(--anchor-width) min-w-[240px] max-w-[420px] p-0 rounded-lg bg-popover text-popover-foreground border border-border outline-none',
             contentClassName
           )}
         >

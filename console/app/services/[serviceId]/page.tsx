@@ -2,8 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { getServiceById } from '@/lib/api/services';
+import { useService } from '@/lib/queries';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 
@@ -15,10 +14,7 @@ export default function ServiceRedirectPage({
   const resolvedParams = React.use(params);
   const router = useRouter();
 
-  const { data: service, isLoading, error } = useQuery({
-    queryKey: ['service', resolvedParams.serviceId],
-    queryFn: () => getServiceById(resolvedParams.serviceId),
-  });
+  const { data: service, isLoading, error } = useService(resolvedParams.serviceId);
 
   useEffect(() => {
     if (service) {

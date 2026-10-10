@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getNodes } from '@/lib/api/nodes';
+import { useNodes } from '@/lib/queries';
 import { NodesHeader } from '@/components/nodes/nodes-header';
 import { NodesStats } from '@/components/nodes/nodes-stats';
 import {
@@ -33,11 +32,7 @@ export default function NodesPage() {
     isLoading,
     refetch,
     isRefetching,
-  } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-    refetchInterval: 10000,
-  });
+  } = useNodes({ refetchInterval: 10000 });
 
   const statusCounts = useMemo(() => {
     return {

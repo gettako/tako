@@ -5,7 +5,7 @@ import type { Terminal as XtermType } from '@xterm/xterm';
 import type { FitAddon as FitAddonType } from '@xterm/addon-fit';
 import { useTheme } from 'next-themes';
 import { Service } from '@/lib/types';
-import { execServiceCommand } from '@/lib/api/services';
+import { useExecServiceCommand } from '@/lib/queries';
 
 export interface XtermTerminalRef {
   clear: () => void;
@@ -76,6 +76,9 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
     const termRef = useRef<XtermType | null>(null);
     const fitAddonRef = useRef<FitAddonType | null>(null);
     const { resolvedTheme } = useTheme();
+    const execMutation = useExecServiceCommand();
+    const execMutationRef = useRef(execMutation.mutateAsync);
+    execMutationRef.current = execMutation.mutateAsync;
 
     // Latest refs to prevent stale closure inside async terminal event listeners
     const containerNameRef = useRef<string>(containerName);
@@ -315,7 +318,11 @@ export const XtermTerminal = forwardRef<XtermTerminalRef, XtermTerminalProps>(
           isProcessingRef.current = true;
           try {
             const activeTarget = containerNameRef.current;
-            const res = await execServiceCommand(serviceRef.current.id, trimmed, activeTarget);
+            const res = await execMutationRef.current({
+              serviceId: serviceRef.current.id,
+              command: trimmed,
+              containerName: activeTarget,
+            });
             const out = (res.output || '').trimEnd();
             if (out) {
               const formatted = out.replace(/\r?\n/g, '\r\n');

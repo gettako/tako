@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import {
   AreaChart,
   Area,
@@ -41,10 +40,10 @@ import { StatCard } from '@/components/ui/stat-card';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Service } from '@/lib/types';
 import {
-  getServiceTimeSeriesMetrics,
+  useServiceMetrics,
   ServiceMetricPoint,
   TimeRange,
-} from '@/lib/api/metrics';
+} from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export interface ServiceMetricsTabProps {
@@ -84,23 +83,35 @@ export function ServiceMetricsTab({
 
   const isServiceStopped = service.status === 'stopped';
 
-  // Fetch real-time telemetry metrics for the service
+  const baseline = useMemo(
+    () => ({
+      cpuPercent: service.usage?.cpuPercent,
+      memoryUsedMb: service.usage?.memoryUsedMb,
+      memoryLimitMb: service.limits?.memoryMb || 1024,
+      replicas: service.replicas,
+    }),
+    [
+      service.usage?.cpuPercent,
+      service.usage?.memoryUsedMb,
+      service.limits?.memoryMb,
+      service.replicas,
+    ]
+  );
+
+  // Fetch real-time telemetry metrics for the service via domain hook
   const {
     data: rawMetrics = [],
     isLoading,
     isRefetching,
     refetch,
-  } = useQuery({
-    queryKey: ['service-metrics', service.id, timeRange],
-    queryFn: () =>
-      getServiceTimeSeriesMetrics(service.id, timeRange, {
-        cpuPercent: service.usage?.cpuPercent,
-        memoryUsedMb: service.usage?.memoryUsedMb,
-        memoryLimitMb: service.limits?.memoryMb || 1024,
-        replicas: service.replicas,
-      }),
-    refetchInterval: isServiceStopped ? false : refreshInterval > 0 ? refreshInterval : false,
-  });
+  } = useServiceMetrics(
+    service.id,
+    timeRange,
+    baseline,
+    {
+      refetchInterval: isServiceStopped ? false : refreshInterval > 0 ? refreshInterval : false,
+    }
+  );
 
   const memoryLimitMb = service.limits?.memoryMb || 1024;
   const cpuLimitCores = service.limits?.cpuCores || 1;
@@ -277,7 +288,7 @@ export function ServiceMetricsTab({
                   className={cn(
                     'px-2.5 py-1 text-xs font-mono font-medium rounded-md transition-colors active:not-aria-[haspopup]:translate-y-px',
                     active
-                      ? 'bg-background text-foreground border border-border/80 shadow-2xs font-semibold'
+                      ? 'bg-background text-foreground border border-border/80 font-semibold'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
                   )}
                 >

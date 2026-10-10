@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ResourceChart } from '@/components/dashboard/resource-chart';
-import { MetricPoint } from '@/lib/api/metrics';
+import { MetricPoint } from '@/lib/queries';
 import { Activity, Cpu, Network, HardDrive, Layers } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 

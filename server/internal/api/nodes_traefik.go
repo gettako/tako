@@ -73,8 +73,7 @@ func handleGetNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		if err == nil && setting.Value != "" {
 			var cfg NodeTraefikConfig
 			if err := json.Unmarshal([]byte(setting.Value), &cfg); err == nil {
-				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(cfg)
+				RespondJSON(w, http.StatusOK, cfg)
 				return
 			}
 		}
@@ -125,8 +124,7 @@ func handleGetNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		_ = node
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(defaultCfg)
+		RespondJSON(w, http.StatusOK, defaultCfg)
 	}
 }
 
@@ -136,30 +134,30 @@ func handleUpdateNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		node, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "node not found")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		var req NodeTraefikConfig
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		if err := DecodeJSON(r, &req); err != nil {
+			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
 		// Validate ports
 		if req.HTTPPort <= 0 || req.HTTPPort > 65535 {
-			http.Error(w, `{"error":"HTTP port must be between 1 and 65535"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "HTTP port must be between 1 and 65535")
 			return
 		}
 		if req.HTTPSPort <= 0 || req.HTTPSPort > 65535 {
-			http.Error(w, `{"error":"HTTPS port must be between 1 and 65535"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "HTTPS port must be between 1 and 65535")
 			return
 		}
 		if req.HTTPPort == req.HTTPSPort {
-			http.Error(w, `{"error":"HTTP and HTTPS ports cannot be identical"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "HTTP and HTTPS ports cannot be identical")
 			return
 		}
 		if req.DashboardPort <= 0 || req.DashboardPort > 65535 {
@@ -192,7 +190,7 @@ func handleUpdateNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		valBytes, err := json.Marshal(req)
 		if err != nil {
-			http.Error(w, `{"error":"failed to serialize traefik settings"}`, http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, "failed to serialize traefik settings")
 			return
 		}
 
@@ -202,7 +200,7 @@ func handleUpdateNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			Value: string(valBytes),
 		})
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -220,8 +218,7 @@ func handleUpdateNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			},
 		})
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(req)
+		RespondJSON(w, http.StatusOK, req)
 	}
 }
 
@@ -231,10 +228,10 @@ func handleReloadNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		node, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "node not found")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -263,8 +260,7 @@ func handleReloadNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			},
 		})
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		RespondJSON(w, http.StatusOK, map[string]any{
 			"success":    true,
 			"message":    fmt.Sprintf("Traefik routing rules successfully reloaded on %s", node.Name),
 			"reloadedAt": now,
@@ -586,8 +582,7 @@ func handleListNodeTraefikFiles(orch *orchestrator.Orchestrator) http.HandlerFun
 			return list[i].Name < list[j].Name
 		})
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(list)
+		RespondJSON(w, http.StatusOK, list)
 	}
 }
 
@@ -597,34 +592,33 @@ func handleGetNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc 
 		filename := chi.URLParam(r, "filename")
 
 		if !isValidTraefikFilename(filename) {
-			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "invalid filename")
 			return
 		}
 
 		_, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "node not found")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		filesMap, err := loadNodeTraefikFiles(r.Context(), orch, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		file, exists := filesMap[filename]
 		if !exists {
-			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+			RespondError(w, http.StatusNotFound, "file not found")
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(file)
+		RespondJSON(w, http.StatusOK, file)
 	}
 }
 
@@ -634,34 +628,34 @@ func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc
 		filename := chi.URLParam(r, "filename")
 
 		if !isValidTraefikFilename(filename) {
-			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "invalid filename")
 			return
 		}
 
 		node, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "node not found")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		var req SaveTraefikFileRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+		if err := DecodeJSON(r, &req); err != nil {
+			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
 
 		if len(req.Content) > 512*1024 {
-			http.Error(w, `{"error":"file size exceeds maximum allowed limit (512KB)"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "file size exceeds maximum allowed limit (512KB)")
 			return
 		}
 
 		filesMap, err := loadNodeTraefikFiles(r.Context(), orch, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -693,7 +687,7 @@ func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc
 
 		filesMap[filename] = fileItem
 		if err := saveNodeTraefikFiles(r.Context(), orch, id, filesMap); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -723,8 +717,7 @@ func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc
 			},
 		})
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(fileItem)
+		RespondJSON(w, http.StatusOK, fileItem)
 	}
 }
 
@@ -734,39 +727,39 @@ func handleDeleteNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFu
 		filename := chi.URLParam(r, "filename")
 
 		if !isValidTraefikFilename(filename) {
-			http.Error(w, `{"error":"invalid filename"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "invalid filename")
 			return
 		}
 
 		if filename == "traefik.yml" {
-			http.Error(w, `{"error":"primary static configuration file (traefik.yml) cannot be deleted"}`, http.StatusBadRequest)
+			RespondError(w, http.StatusBadRequest, "primary static configuration file (traefik.yml) cannot be deleted")
 			return
 		}
 
 		node, err := orch.Queries().GetNodeByID(r.Context(), id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, `{"error":"node not found"}`, http.StatusNotFound)
+				RespondError(w, http.StatusNotFound, "node not found")
 				return
 			}
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		filesMap, err := loadNodeTraefikFiles(r.Context(), orch, id)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		if _, exists := filesMap[filename]; !exists {
-			http.Error(w, `{"error":"file not found"}`, http.StatusNotFound)
+			RespondError(w, http.StatusNotFound, "file not found")
 			return
 		}
 
 		delete(filesMap, filename)
 		if err := saveNodeTraefikFiles(r.Context(), orch, id, filesMap); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 
@@ -786,8 +779,7 @@ func handleDeleteNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFu
 			},
 		})
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
+		RespondJSON(w, http.StatusOK, map[string]any{
 			"success": true,
 			"name":    filename,
 		})

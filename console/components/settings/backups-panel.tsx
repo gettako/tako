@@ -1,15 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getBackupSchedule,
-  updateBackupSchedule,
-  triggerManualBackup,
-  getBackupSnapshots,
-  restoreBackupSnapshot,
-  getS3Buckets,
-} from '@/lib/api/settings';
+  useBackupSchedule,
+  useUpdateBackupSchedule,
+  useTriggerManualBackup,
+  useBackupSnapshots,
+  useRestoreBackupSnapshot,
+  useS3Buckets,
+} from '@/lib/queries';
 import { ClusterBackupSnapshot } from '@/lib/types';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,7 +49,6 @@ import { SettingsSectionHeader } from '@/components/settings/settings-section-he
 import { toast } from 'sonner';
 
 export function BackupsPanel() {
-  const queryClient = useQueryClient();
   const [isTriggering, setIsTriggering] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
@@ -58,20 +56,13 @@ export function BackupsPanel() {
   const [confirmText, setConfirmText] = useState('');
   const [isRestoring, setIsRestoring] = useState(false);
 
-  const { data: schedule } = useQuery({
-    queryKey: ['backup-schedule'],
-    queryFn: getBackupSchedule,
-  });
+  const { data: schedule } = useBackupSchedule();
+  const { data: snapshots = [], isLoading: loadingSnapshots } = useBackupSnapshots();
+  const { data: buckets = [] } = useS3Buckets();
 
-  const { data: snapshots = [], isLoading: loadingSnapshots } = useQuery({
-    queryKey: ['backup-snapshots'],
-    queryFn: getBackupSnapshots,
-  });
-
-  const { data: buckets = [] } = useQuery({
-    queryKey: ['s3-buckets'],
-    queryFn: getS3Buckets,
-  });
+  const updateScheduleMutation = useUpdateBackupSchedule();
+  const triggerBackupMutation = useTriggerManualBackup();
+  const restoreSnapshotMutation = useRestoreBackupSnapshot();
 
   const [enabled, setEnabled] = useState(schedule?.enabled ?? true);
   const [frequency, setFrequency] = useState<'daily' | 'weekly'>(schedule?.frequency ?? 'daily');
@@ -83,17 +74,13 @@ export function BackupsPanel() {
     e.preventDefault();
     try {
       setIsSaving(true);
-      await updateBackupSchedule({
+      await updateScheduleMutation.mutateAsync({
         enabled,
         frequency,
         timeUtc,
         retentionDays,
         destinationBucketId: bucketId,
       });
-      queryClient.invalidateQueries({ queryKey: ['backup-schedule'] });
-      toast.success('Backup schedule configuration saved');
-    } catch {
-      toast.error('Failed to update backup schedule');
     } finally {
       setIsSaving(false);
     }
@@ -102,14 +89,7 @@ export function BackupsPanel() {
   const handleBackupNow = async () => {
     try {
       setIsTriggering(true);
-      const res = await triggerManualBackup();
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['backup-schedule'] }),
-        queryClient.invalidateQueries({ queryKey: ['backup-snapshots'] }),
-      ]);
-      toast.success(`Cluster snapshot generated (${res.snapshotSizeMb} MB, ${res.durationMs}ms)`);
-    } catch {
-      toast.error('Failed to create manual backup');
+      await triggerBackupMutation.mutateAsync();
     } finally {
       setIsTriggering(false);
     }
@@ -125,11 +105,8 @@ export function BackupsPanel() {
     if (!selectedSnapshot) return;
     try {
       setIsRestoring(true);
-      const res = await restoreBackupSnapshot(selectedSnapshot.id);
-      toast.success(res.message);
+      await restoreSnapshotMutation.mutateAsync(selectedSnapshot.id);
       setRestoreModalOpen(false);
-    } catch {
-      toast.error('Failed to restore snapshot');
     } finally {
       setIsRestoring(false);
     }

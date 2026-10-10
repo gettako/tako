@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,10 +11,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Terminal,
-  Copy,
-  Check,
   Shield,
   CheckCircle2,
   Server,
@@ -23,9 +21,8 @@ import {
   Network,
   Loader2,
 } from 'lucide-react';
-import { createNodeEnrollToken } from '@/lib/api/nodes';
+import { useCreateNodeEnrollToken } from '@/lib/queries';
 import { Node } from '@/lib/types';
-import { toast } from 'sonner';
 
 export interface CreateNodeDialogProps {
   open: boolean;
@@ -38,34 +35,23 @@ export function CreateNodeDialog({
   onOpenChange,
   onSuccess,
 }: CreateNodeDialogProps) {
-  const queryClient = useQueryClient();
-  const [copied, setCopied] = useState(false);
   const [token, setToken] = useState<string>('');
-  const [loadingToken, setLoadingToken] = useState(false);
 
-  React.useEffect(() => {
+  const enrollMutation = useCreateNodeEnrollToken({
+    onSuccess: (data) => {
+      if (data?.token) setToken(data.token);
+    },
+  });
+
+  useEffect(() => {
     if (open) {
-      setLoadingToken(true);
-      createNodeEnrollToken()
-        .then((data) => {
-          if (data?.token) setToken(data.token);
-        })
-        .catch(() => {})
-        .finally(() => setLoadingToken(false));
+      enrollMutation.mutate();
     }
   }, [open]);
 
   const installCommand = token
     ? `curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent --token ${token}`
     : 'curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent';
-
-  const handleCopyCommand = () => {
-    if (loadingToken) return;
-    navigator.clipboard.writeText(installCommand);
-    setCopied(true);
-    toast.success('Agent install command copied to clipboard');
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -99,33 +85,23 @@ export function CreateNodeDialog({
             </div>
 
             <div className="relative rounded-xl border border-border bg-[#0B0C14] p-3.5 sm:p-4 font-mono text-xs sm:text-sm text-slate-200">
-              {loadingToken ? (
+              {enrollMutation.isPending ? (
                 <div className="flex items-center gap-2 text-slate-400 py-1 font-sans text-xs">
                   <Loader2 className="size-4 animate-spin text-primary" />
                   <span>Generating secure cluster enroll token...</span>
                 </div>
               ) : (
                 <pre className="overflow-x-auto whitespace-pre-wrap break-all leading-relaxed pr-10">
-                  <code className="text-emerald-400 font-semibold">{installCommand}</code>
+                  <code className="text-status-success font-semibold">{installCommand}</code>
                 </pre>
               )}
 
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={handleCopyCommand}
-                disabled={loadingToken}
-                className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 size-7 text-slate-400 hover:text-white hover:bg-white/10 active:not-aria-[haspopup]:translate-y-px cursor-pointer disabled:opacity-40"
-                title="Copy Command"
-              >
-                {copied ? (
-                  <Check className="size-3.5 text-status-success" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-                <span className="sr-only">Copy</span>
-              </Button>
+              <CopyButton
+                text={installCommand}
+                tooltip="Copy Command"
+                disabled={enrollMutation.isPending}
+                className="absolute top-2.5 sm:top-3 right-2.5 sm:right-3 size-7 text-slate-400 hover:text-white hover:bg-white/10"
+              />
             </div>
             <p className="text-[11px] text-muted-foreground">
               Executing this script installs the Takō agent daemon, inspects host resources, and connects to the cluster automatically.
@@ -224,15 +200,14 @@ export function CreateNodeDialog({
           >
             Close
           </Button>
-          <Button
-            type="button"
-            onClick={handleCopyCommand}
-            disabled={loadingToken}
+          <CopyButton
+            text={installCommand}
+            title="Copy Script"
+            variant="default"
+            size="sm"
+            disabled={enrollMutation.isPending}
             className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5 disabled:opacity-50"
-          >
-            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-            <span>{copied ? 'Command Copied' : 'Copy Script'}</span>
-          </Button>
+          />
         </DialogFooter>
       </DialogContent>
     </Dialog>

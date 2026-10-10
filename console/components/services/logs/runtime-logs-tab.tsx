@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { RefreshCw, Play, Pause, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
 import { LogViewer, LogLine } from '@/components/ui/log-viewer';
 import { Service } from '@/lib/types';
-import { getServiceContainerLogs } from '@/lib/api/services';
+import { useServiceContainerLogs } from '@/lib/queries';
 
 export interface RuntimeLogsTabProps {
   service: Service;
@@ -14,99 +14,68 @@ export interface RuntimeLogsTabProps {
 
 export function RuntimeLogsTab({ service }: RuntimeLogsTabProps) {
   const [isPaused, setIsPaused] = useState(false);
-  const [logs, setLogs] = useState<LogLine[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const fetchLogs = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const rawText = (await getServiceContainerLogs(service.id)) || '';
+  const {
+    data: rawLogs,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useServiceContainerLogs(service.id, undefined, {
+    refetchInterval: isPaused ? false : 3500,
+  });
 
-      if (!rawText.trim()) {
-        const timeStr = new Date().toTimeString().split(' ')[0];
-        setLogs([
-          {
-            id: 1,
-            timestamp: timeStr,
-            level: 'info',
-            message: `[tako-runtime] Container tako-app-${service.slug} (${service.status}). Waiting for output...`,
-          },
-        ]);
-        return;
+  const logs = useMemo<LogLine[]>(() => {
+    const rawText = rawLogs || '';
+    if (!rawText.trim()) {
+      const timeStr = new Date().toTimeString().split(' ')[0];
+      return [
+        {
+          id: 1,
+          timestamp: timeStr,
+          level: 'info',
+          message: `[tako-runtime] Container tako-app-${service.slug} (${service.status}). Waiting for output...`,
+        },
+      ];
+    }
+
+    const lines = rawText.split('\n');
+    const parsedLogs: LogLine[] = [];
+
+    lines.forEach((line: string, idx: number) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      let level: LogLine['level'] = 'info';
+      const lower = trimmed.toLowerCase();
+      if (lower.includes('error') || lower.includes('fail') || lower.includes('fatal') || lower.includes('panic')) {
+        level = 'error';
+      } else if (lower.includes('warn')) {
+        level = 'warn';
       }
 
-      const lines = rawText.split('\n');
-      const parsedLogs: LogLine[] = [];
+      // Try extracting timestamp if present at beginning (e.g. 2026-10-07T14:00:00Z)
+      let timestamp = new Date().toTimeString().split(' ')[0];
+      let message = trimmed;
 
-      lines.forEach((line: string, idx: number) => {
-        const trimmed = line.trim();
-        if (!trimmed) return;
-
-        let level: LogLine['level'] = 'info';
-        const lower = trimmed.toLowerCase();
-        if (lower.includes('error') || lower.includes('fail') || lower.includes('fatal') || lower.includes('panic')) {
-          level = 'error';
-        } else if (lower.includes('warn')) {
-          level = 'warn';
+      const tsMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?)\s*(.*)$/);
+      if (tsMatch) {
+        const dt = new Date(tsMatch[1]);
+        if (!isNaN(dt.getTime())) {
+          timestamp = dt.toTimeString().split(' ')[0];
         }
+        message = tsMatch[3] || trimmed;
+      }
 
-        // Try extracting timestamp if present at beginning (e.g. 2026-10-07T14:00:00Z)
-        let timestamp = new Date().toTimeString().split(' ')[0];
-        let message = trimmed;
-
-        const tsMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?)\s*(.*)$/);
-        if (tsMatch) {
-          const dt = new Date(tsMatch[1]);
-          if (!isNaN(dt.getTime())) {
-            timestamp = dt.toTimeString().split(' ')[0];
-          }
-          message = tsMatch[3] || trimmed;
-        }
-
-        parsedLogs.push({
-          id: idx + 1,
-          timestamp,
-          level,
-          message,
-        });
+      parsedLogs.push({
+        id: idx + 1,
+        timestamp,
+        level,
+        message,
       });
+    });
 
-      setLogs(parsedLogs);
-    } catch {
-      // Fallback message
-      const timeStr = new Date().toTimeString().split(' ')[0];
-      setLogs((prev) =>
-        prev.length > 0
-          ? prev
-          : [
-              {
-                id: 1,
-                timestamp: timeStr,
-                level: 'warn',
-                message: `[tako-runtime] Unable to stream logs from container (status: ${service.status}).`,
-              },
-            ]
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [service.id, service.slug, service.status]);
-
-  // Initial load
-  useEffect(() => {
-    fetchLogs();
-  }, [fetchLogs]);
-
-  // Auto-polling when not paused
-  useEffect(() => {
-    if (isPaused) return;
-
-    const interval = setInterval(() => {
-      fetchLogs();
-    }, 3500);
-
-    return () => clearInterval(interval);
-  }, [isPaused, fetchLogs]);
+    return parsedLogs;
+  }, [rawLogs, service.slug, service.status]);
 
   return (
     <div className="space-y-4">
@@ -119,12 +88,12 @@ export function RuntimeLogsTab({ service }: RuntimeLogsTabProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchLogs}
-              disabled={isLoading}
+              onClick={() => refetch()}
+              disabled={isLoading || isFetching}
               className="gap-1.5 text-xs h-8"
               title="Refresh logs"
             >
-              <RefreshCw className={`size-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`size-3.5 ${isFetching ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </Button>
             <Button
@@ -133,7 +102,11 @@ export function RuntimeLogsTab({ service }: RuntimeLogsTabProps) {
               onClick={() => setIsPaused(!isPaused)}
               className="gap-1.5 text-xs h-8"
             >
-              {isPaused ? <Play className="size-3.5 text-emerald-500" /> : <Pause className="size-3.5 text-amber-500" />}
+              {isPaused ? (
+                <Play className="size-3.5 text-status-success" />
+              ) : (
+                <Pause className="size-3.5 text-status-warning" />
+              )}
               <span>{isPaused ? 'Resume Stream' : 'Pause Stream'}</span>
             </Button>
           </div>

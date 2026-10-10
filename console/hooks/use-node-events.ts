@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Node } from '@/lib/types';
-import { getNodeEventsStreamUrl } from '@/lib/api/nodes';
+import { getNodeEventsStreamUrl } from '@/lib/queries';
 
 export function useNodeEvents() {
   const queryClient = useQueryClient();

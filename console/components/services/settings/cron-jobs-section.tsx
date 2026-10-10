@@ -1,18 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Service, CronJob, CreateCronJobInput } from '@/lib/types';
 import {
-  getCronJobs,
-  createCronJob,
-  updateCronJob,
-  toggleCronJobStatus,
-  runCronJobNow,
-  deleteCronJob,
-} from '@/lib/api/crons';
+  useCronJobs,
+  useCreateCronJob,
+  useUpdateCronJob,
+  useToggleCronJob,
+  useRunCronJob,
+  useDeleteCronJob,
+} from '@/lib/queries';
 import { explainCronExpression } from '@/lib/utils/cron-explainer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -26,6 +25,8 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { SectionHeader } from '@/components/ui/section-header';
+import { CopyButton } from '@/components/ui/copy-button';
+import { ConfirmDestructiveDialog } from '@/components/ui/confirm-destructive-dialog';
 import { CronJobDialog } from './cron-job-dialog';
 import { CronJobHistoryDialog } from './cron-job-history-dialog';
 import {
@@ -35,8 +36,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Copy,
-  Check,
   CheckCircle2,
   XCircle,
   Loader2,
@@ -49,73 +48,29 @@ interface CronJobsSectionProps {
 }
 
 export function CronJobsSection({ service }: CronJobsSectionProps) {
-  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<CronJob | null>(null);
   const [historyJob, setHistoryJob] = useState<CronJob | null>(null);
+  const [deletingJob, setDeletingJob] = useState<CronJob | null>(null);
   const [runningJobId, setRunningJobId] = useState<string | null>(null);
-  const [copiedCommandId, setCopiedCommandId] = useState<string | null>(null);
 
-  const {
-    data: jobs = [],
-    isLoading,
-  } = useQuery({
-    queryKey: ['cron-jobs', service.id],
-    queryFn: () => getCronJobs(service.id),
-  });
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['cron-jobs', service.id] });
-  };
-
-  const createMutation = useMutation({
-    mutationFn: (input: CreateCronJobInput) =>
-      editingJob ? updateCronJob(editingJob.id, input) : createCronJob(input),
-    onSuccess: () => {
-      invalidate();
-      toast.success(editingJob ? 'Cron job updated' : 'Cron job created successfully');
-      setEditingJob(null);
-    },
-    onError: () => toast.error('Failed to save cron job'),
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: toggleCronJobStatus,
-    onSuccess: (updated) => {
-      invalidate();
-      toast.success(`Job is now ${updated.status}`);
-    },
-    onError: () => toast.error('Failed to update job status'),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteCronJob,
-    onSuccess: () => {
-      invalidate();
-      toast.success('Cron job deleted');
-    },
-    onError: () => toast.error('Failed to delete cron job'),
-  });
+  const { data: jobs = [], isLoading } = useCronJobs(service.id);
+  const createMutation = useCreateCronJob(service.id);
+  const updateMutation = useUpdateCronJob(service.id);
+  const toggleMutation = useToggleCronJob(service.id);
+  const runMutation = useRunCronJob(service.id);
+  const deleteMutation = useDeleteCronJob(service.id);
 
   const handleRunNow = async (job: CronJob) => {
     try {
       setRunningJobId(job.id);
-      const run = await runCronJobNow(job.id);
-      invalidate();
-      queryClient.invalidateQueries({ queryKey: ['cron-runs', job.id] });
+      const run = await runMutation.mutateAsync(job.id);
       toast.success(`Job "${job.name}" triggered (${run.durationMs}ms, exit code ${run.exitCode})`);
     } catch {
       toast.error('Failed to trigger cron job');
     } finally {
       setRunningJobId(null);
     }
-  };
-
-  const handleCopyCommand = (jobId: string, command: string) => {
-    navigator.clipboard.writeText(command);
-    setCopiedCommandId(jobId);
-    toast.success('Command copied to clipboard');
-    setTimeout(() => setCopiedCommandId(null), 2000);
   };
 
   const formatRelativeTime = (iso?: string) => {
@@ -206,20 +161,11 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                           <div className="flex items-center gap-1.5 max-w-xs truncate bg-muted/40 px-2 py-0.5 rounded border border-border">
                             <Terminal className="size-3 text-muted-foreground shrink-0" />
                             <span className="truncate text-xs">{job.command}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-xs"
-                              onClick={() => handleCopyCommand(job.id, job.command)}
-                              className="text-muted-foreground hover:text-foreground shrink-0 ml-auto active:not-aria-[haspopup]:translate-y-px"
-                              title="Copy command"
-                            >
-                              {copiedCommandId === job.id ? (
-                                <Check className="size-3 text-status-success" />
-                              ) : (
-                                <Copy className="size-3" />
-                              )}
-                            </Button>
+                            <CopyButton
+                              text={job.command}
+                              tooltip="Copy command"
+                              className="size-6 text-muted-foreground hover:text-foreground shrink-0 ml-auto"
+                            />
                           </div>
                         </TableCell>
 
@@ -313,11 +259,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                if (confirm(`Delete cron job "${job.name}"?`)) {
-                                  deleteMutation.mutate(job.id);
-                                }
-                              }}
+                              onClick={() => setDeletingJob(job)}
                               className="size-8 p-0 text-muted-foreground hover:text-status-danger active:not-aria-[haspopup]:translate-y-px"
                               title="Delete job"
                             >
@@ -345,7 +287,11 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
         serviceId={service.id}
         initialJob={editingJob}
         onSave={async (input) => {
-          await createMutation.mutateAsync(input);
+          if (editingJob) {
+            await updateMutation.mutateAsync({ jobId: editingJob.id, input });
+          } else {
+            await createMutation.mutateAsync(input);
+          }
         }}
       />
 
@@ -356,6 +302,21 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
           if (!open) setHistoryJob(null);
         }}
         job={historyJob}
+      />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDestructiveDialog
+        open={!!deletingJob}
+        onOpenChange={(open) => !open && setDeletingJob(null)}
+        title="Delete Cron Job"
+        description={`Are you sure you want to delete cron job "${deletingJob?.name}"? This action cannot be undone.`}
+        onConfirm={async () => {
+          if (deletingJob) {
+            await deleteMutation.mutateAsync(deletingJob.id);
+            setDeletingJob(null);
+          }
+        }}
+        isPending={deleteMutation.isPending}
       />
     </div>
   );

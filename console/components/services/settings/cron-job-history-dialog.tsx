@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { CronJob } from '@/lib/types';
-import { getCronJobRuns } from '@/lib/api/crons';
+import { useCronJobRuns } from '@/lib/queries';
 import {
   Dialog,
   DialogContent,
@@ -15,8 +14,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
-import { Clock, CheckCircle2, XCircle, Terminal, Copy, Check } from 'lucide-react';
-import { toast } from 'sonner';
+import { EmptyState } from '@/components/ui/empty-state';
+import { CopyButton } from '@/components/ui/copy-button';
+import { Clock, CheckCircle2, XCircle, Terminal } from 'lucide-react';
 
 interface CronJobHistoryDialogProps {
   open: boolean;
@@ -29,23 +29,7 @@ export function CronJobHistoryDialog({
   onOpenChange,
   job,
 }: CronJobHistoryDialogProps) {
-  const [copiedId, setCopiedId] = React.useState<string | null>(null);
-
-  const {
-    data: runs = [],
-    isLoading,
-  } = useQuery({
-    queryKey: ['cron-runs', job?.id],
-    queryFn: () => (job ? getCronJobRuns(job.id) : Promise.resolve([])),
-    enabled: !!job && open,
-  });
-
-  const handleCopyOutput = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    toast.success('Execution log copied to clipboard');
-    setTimeout(() => setCopiedId(null), 2000);
-  };
+  const { data: runs = [], isLoading } = useCronJobRuns(open && job ? job.id : null);
 
   const formatDuration = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
@@ -59,8 +43,8 @@ export function CronJobHistoryDialog({
           <DialogTitle className="text-lg font-semibold">
             Execution History: {job?.name}
           </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground font-mono mt-1">
-            Command: {job?.command} • Schedule: {job?.schedule}
+          <DialogDescription className="text-xs text-muted-foreground font-mono">
+            {job?.schedule} • Command: <span className="text-foreground">{job?.command}</span>
           </DialogDescription>
         </DialogHeader>
 
@@ -68,10 +52,11 @@ export function CronJobHistoryDialog({
           {isLoading ? (
             <LoadingSkeleton variant="cards" />
           ) : runs.length === 0 ? (
-            <div className="text-center py-10 border border-dashed border-border rounded-lg">
-              <Clock className="size-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">No recorded executions for this job yet.</p>
-            </div>
+            <EmptyState
+              title="No recorded executions"
+              description="No automated or manual run logs exist for this cron job yet."
+              icon={Clock}
+            />
           ) : (
             runs.map((run) => {
               const isSuccess = run.status === 'success';
@@ -103,30 +88,25 @@ export function CronJobHistoryDialog({
 
                     <div className="flex items-center gap-2">
                       <Badge
-                        variant="outline"
-                        className={isSuccess ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs' : 'bg-status-danger/10 text-status-danger border-status-danger/30 font-mono text-xs'}
+                        variant={isSuccess ? 'secondary' : 'destructive'}
+                        className="text-xs font-mono"
                       >
                         Exit code: {run.exitCode}
                       </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleCopyOutput(run.id, run.output)}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                        title="Copy logs"
-                      >
-                        {copiedId === run.id ? (
-                          <Check className="size-3.5 text-status-success" />
-                        ) : (
-                          <Copy className="size-3.5" />
-                        )}
-                      </Button>
+                      <CopyButton
+                        value={run.output}
+                        label="execution log"
+                        className="size-7"
+                      />
                     </div>
                   </div>
 
-                  {/* Terminal Log Output */}
-                  <div className="p-3 bg-[#0B0C14] font-mono text-sm text-[#939DB8] overflow-x-auto whitespace-pre leading-relaxed border-t border-border">
-                    {run.output}
+                  <div className="p-3 bg-muted/15 font-mono text-xs overflow-x-auto max-h-48 whitespace-pre text-foreground">
+                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1 select-none text-[11px]">
+                      <Terminal className="size-3" />
+                      <span>Console Stdout / Stderr</span>
+                    </div>
+                    {run.output || '(No stdout produced)'}
                   </div>
                 </div>
               );
@@ -134,13 +114,13 @@ export function CronJobHistoryDialog({
           )}
         </div>
 
-        <DialogFooter className="pt-2 border-t border-border">
+        <DialogFooter className="shrink-0 border-t border-border pt-3">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            className="text-xs h-8"
           >
             Close
           </Button>

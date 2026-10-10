@@ -5,7 +5,7 @@ import { Search, Copy, Check, ArrowDown, Radio } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BuildLogSection } from './build-log-section';
 import { Deployment, DeploymentStepName, StepStatus } from '@/lib/types';
-import { getDeploymentLogsStreamUrl, subscribeDeploymentLogs } from '@/lib/api/deployments';
+import { getDeploymentLogsStreamUrl, subscribeDeploymentLogs } from '@/lib/queries';
 import { getMockBuildLogs } from '@/lib/mock/log-streamer';
 import { LogLine } from '@/components/ui/log-viewer';
 

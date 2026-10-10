@@ -1,16 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getUsers,
-  updateUserRole,
-  deactivateUser,
-  getUserInvites,
-  createUserInvite,
-  revokeUserInvite,
-  getCurrentUser,
-} from '@/lib/api/settings';
+  useCurrentUser,
+  useUsers,
+  useUpdateUserRole,
+  useDeactivateUser,
+  useUserInvites,
+  useCreateUserInvite,
+  useRevokeUserInvite,
+} from '@/lib/queries';
 import { User, UserRole, UserInvite } from '@/lib/types';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CopyButton } from '@/components/ui/copy-button';
+import { ConfirmDestructiveDialog } from '@/components/ui/confirm-destructive-dialog';
 import {
   Table,
   TableBody,
@@ -35,86 +36,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, UserPlus, Mail, Copy, Check, Trash2, Shield, Clock, Plus, AlertTriangle } from 'lucide-react';
+import { Users, UserPlus, Mail, Trash2, Shield, Clock, Plus } from 'lucide-react';
 import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { getUserAvatarUrl } from '@/lib/avatar';
-import { toast } from 'sonner';
 
 export function UsersPanel() {
-  const queryClient = useQueryClient();
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('member');
   const [inviteExpiry, setInviteExpiry] = useState<number>(7);
   const [generatedInvite, setGeneratedInvite] = useState<UserInvite | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  const { data: currentUser } = useQuery({
-    queryKey: ['current-user'],
-    queryFn: getCurrentUser,
-  });
+  const { data: currentUser } = useCurrentUser();
+  const { data: users = [], isLoading: loadingUsers } = useUsers();
+  const { data: invites = [] } = useUserInvites();
 
-  const { data: users = [], isLoading: loadingUsers } = useQuery({
-    queryKey: ['users'],
-    queryFn: getUsers,
-  });
-
-  const { data: invites = [] } = useQuery({
-    queryKey: ['user-invites'],
-    queryFn: getUserInvites,
-  });
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['users'] });
-    queryClient.invalidateQueries({ queryKey: ['user-invites'] });
-  };
-
-  const updateRoleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: UserRole }) =>
-      updateUserRole(userId, role),
-    onSuccess: () => {
-      invalidate();
-      toast.success('User role updated');
-    },
-    onError: () => toast.error('Failed to update role'),
-  });
-
-  const deactivateMutation = useMutation({
-    mutationFn: deactivateUser,
-    onSuccess: () => {
-      invalidate();
-      toast.success('User deactivated and removed from cluster');
-    },
-    onError: () => toast.error('Failed to deactivate user'),
-  });
-
-  const createInviteMutation = useMutation({
-    mutationFn: () => createUserInvite(inviteEmail, inviteRole, inviteExpiry),
+  const updateRoleMutation = useUpdateUserRole();
+  const deactivateMutation = useDeactivateUser();
+  const createInviteMutation = useCreateUserInvite({
     onSuccess: (newInv) => {
-      invalidate();
       setGeneratedInvite(newInv);
-      toast.success('Invite link created');
     },
-    onError: () => toast.error('Failed to create invite'),
   });
-
-  const revokeInviteMutation = useMutation({
-    mutationFn: revokeUserInvite,
-    onSuccess: () => {
-      invalidate();
-      toast.success('Invitation revoked');
-    },
-    onError: () => toast.error('Failed to revoke invite'),
-  });
-
-  const handleCopyInvite = (token: string) => {
-    const url = `https://console.gettako.dev/invite?token=${token}`;
-    navigator.clipboard.writeText(url);
-    setCopiedLink(true);
-    toast.success('Invite URL copied to clipboard');
-    setTimeout(() => setCopiedLink(false), 2000);
-  };
+  const revokeInviteMutation = useRevokeUserInvite();
 
   const getInitials = (n: string) => {
     return n
@@ -299,15 +244,10 @@ export function UsersPanel() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleCopyInvite(inv.token)}
-                            className="h-8 text-xs gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-                          >
-                            <Copy className="size-3.5" />
-                            Copy Link
-                          </Button>
+                          <CopyButton
+                            value={`https://console.gettako.dev/invite?token=${inv.token}`}
+                            label="invite link"
+                          />
                           <Button
                             variant="ghost"
                             size="sm"
@@ -354,18 +294,11 @@ export function UsersPanel() {
                     value={`https://console.gettako.dev/invite?token=${generatedInvite.token}`}
                     className="font-mono text-sm bg-muted/40"
                   />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => handleCopyInvite(generatedInvite.token)}
+                  <CopyButton
+                    text={`https://console.gettako.dev/invite?token=${generatedInvite.token}`}
+                    tooltip="Copy invite URL"
                     className="h-9 px-3 text-sm shrink-0"
-                  >
-                    {copiedLink ? (
-                      <Check className="size-3.5 text-status-success" />
-                    ) : (
-                      <Copy className="size-3.5" />
-                    )}
-                  </Button>
+                  />
                 </div>
               </div>
 
@@ -384,7 +317,11 @@ export function UsersPanel() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                createInviteMutation.mutate();
+                createInviteMutation.mutate({
+                  email: inviteEmail,
+                  role: inviteRole,
+                  expiryDays: inviteExpiry,
+                });
               }}
               className="space-y-4 py-3 text-sm"
             >
@@ -453,46 +390,21 @@ export function UsersPanel() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirm Deactivate Dialog (shadcn confirmation instead of native js confirm) */}
-      <Dialog open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold text-foreground flex items-center gap-2">
-              <AlertTriangle className="size-5 text-status-danger shrink-0" />
-              <span>Deactivate Team Member</span>
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground pt-1.5 leading-relaxed">
-              Are you sure you want to remove <span className="font-semibold text-foreground">{userToDelete?.name}</span> ({userToDelete?.email}) from the cluster? They will immediately lose access to cluster resources and deployment actions.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setUserToDelete(null)}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={deactivateMutation.isPending}
-              onClick={() => {
-                if (userToDelete) {
-                  deactivateMutation.mutate(userToDelete.id);
-                  setUserToDelete(null);
-                }
-              }}
-              className="text-xs h-9 bg-status-danger hover:bg-status-danger/90 text-white font-medium active:not-aria-[haspopup]:translate-y-px"
-            >
-              {deactivateMutation.isPending ? 'Removing...' : 'Deactivate Member'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Confirm Deactivate Dialog */}
+      <ConfirmDestructiveDialog
+        open={!!userToDelete}
+        onOpenChange={(open) => !open && setUserToDelete(null)}
+        title="Deactivate Team Member"
+        description={`Are you sure you want to remove ${userToDelete?.name} (${userToDelete?.email}) from the cluster? They will immediately lose access to cluster resources and deployment actions.`}
+        confirmText="Deactivate Member"
+        onConfirm={async () => {
+          if (userToDelete) {
+            await deactivateMutation.mutateAsync(userToDelete.id);
+            setUserToDelete(null);
+          }
+        }}
+        isPending={deactivateMutation.isPending}
+      />
     </div>
   );
 }

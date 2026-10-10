@@ -97,13 +97,12 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			for _, p := range projects {
 				items = append(items, mapProjectToResponse(p, servicesCountMap[p.ID], healthyCountMap[p.ID]))
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(items)
+			RespondJSON(w, http.StatusOK, items)
 		})
 
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 			var req CreateProjectRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if err := DecodeJSON(r, &req); err != nil {
 				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
@@ -144,9 +143,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				},
 			})
 
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p, 0, 0))
+			RespondJSON(w, http.StatusCreated, mapProjectToResponse(p, 0, 0))
 		})
 
 		r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -172,8 +169,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapProjectToResponse(p, len(services), healthyCount))
+			RespondJSON(w, http.StatusOK, mapProjectToResponse(p, len(services), healthyCount))
 		})
 
 		updateHandler := func(w http.ResponseWriter, r *http.Request) {
@@ -192,7 +188,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			var req UpdateProjectRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if err := DecodeJSON(r, &req); err != nil {
 				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
@@ -232,9 +228,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Tags:        tagsStr,
 			})
 			if err != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				RespondError(w, http.StatusBadRequest, err.Error())
 				return
 			}
 
@@ -257,8 +251,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapProjectToResponse(updated, len(services), healthyCount))
+			RespondJSON(w, http.StatusOK, mapProjectToResponse(updated, len(services), healthyCount))
 		}
 
 		r.Patch("/{id}", updateHandler)
@@ -302,8 +295,7 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				TargetName: p.Name,
 			})
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+			RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
 		})
 	})
 }

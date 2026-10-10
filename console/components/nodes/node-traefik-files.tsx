@@ -1,24 +1,24 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-yaml';
 import 'prismjs/components/prism-toml';
 import 'prismjs/components/prism-json';
 import {
-  getNodeTraefikFiles,
-  getNodeTraefikFileContent,
-  saveNodeTraefikFile,
-  deleteNodeTraefikFile,
-  reloadNodeTraefik,
-} from '@/lib/api/nodes';
+  useNodeTraefikFiles,
+  useNodeTraefikFileContent,
+  useSaveNodeTraefikFile,
+  useDeleteNodeTraefikFile,
+  useReloadNodeTraefik,
+} from '@/lib/queries';
 import { Node, TraefikConfigFile } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Dialog,
   DialogContent,
@@ -153,8 +153,6 @@ http:
 };
 
 export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
-  const queryClient = useQueryClient();
-
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -162,7 +160,6 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
   // File content buffer & unsaved tracker
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [savedContents, setSavedContents] = useState<Record<string, string>>({});
-  const [copied, setCopied] = useState(false);
 
   // Dialog state: Create new file
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -181,10 +178,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
     data: files = [],
     isLoading: isFilesLoading,
     refetch: refetchFiles,
-  } = useQuery({
-    queryKey: ['node-traefik-files', node.id],
-    queryFn: () => getNodeTraefikFiles(node.id),
-  });
+  } = useNodeTraefikFiles(node.id);
 
   // Select first file by default if none selected
   useEffect(() => {
@@ -198,23 +192,23 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
     return files.find((f) => f.name === selectedFileName) || null;
   }, [files, selectedFileName]);
 
-  const { isLoading: isContentLoading } = useQuery({
-    queryKey: ['node-traefik-file-content', node.id, selectedFileName],
-    queryFn: async () => {
-      if (!selectedFileName) return null;
-      const data = await getNodeTraefikFileContent(node.id, selectedFileName);
+  const { data: fileData, isLoading: isContentLoading } = useNodeTraefikFileContent(
+    node.id,
+    selectedFileName
+  );
+
+  useEffect(() => {
+    if (selectedFileName && fileData?.content !== undefined) {
       setFileContents((prev) => ({
         ...prev,
-        [selectedFileName]: prev[selectedFileName] !== undefined ? prev[selectedFileName] : data.content,
+        [selectedFileName]: prev[selectedFileName] !== undefined ? prev[selectedFileName] : fileData.content,
       }));
       setSavedContents((prev) => ({
         ...prev,
-        [selectedFileName]: data.content,
+        [selectedFileName]: fileData.content,
       }));
-      return data;
-    },
-    enabled: !!selectedFileName,
-  });
+    }
+  }, [selectedFileName, fileData]);
 
   // Current editor content
   const currentContent = useMemo(() => {
@@ -282,76 +276,41 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
   );
 
   // Save mutation
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedFileName) return;
-      return await saveNodeTraefikFile(node.id, selectedFileName, currentContent);
-    },
-    onSuccess: (data) => {
-      if (selectedFileName && data) {
+  const saveMutation = useSaveNodeTraefikFile(node.id, {
+    onSuccess: () => {
+      if (selectedFileName) {
         setSavedContents((prev) => ({
           ...prev,
           [selectedFileName]: currentContent,
         }));
-        queryClient.invalidateQueries({ queryKey: ['node-traefik-files', node.id] });
-        if (selectedFileName === 'traefik.yml') {
-          toast.success('File traefik.yml saved successfully. Reload Traefik to apply static changes.');
-        } else {
-          toast.success(`File ${selectedFileName} saved successfully`);
-        }
       }
-    },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to save configuration file';
-      toast.error(msg);
     },
   });
 
   // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (filename: string) => {
-      if (filename === 'traefik.yml') {
-        throw new Error('Static configuration file traefik.yml cannot be deleted');
+  const deleteMutation = useDeleteNodeTraefikFile(node.id, {
+    onSuccess: () => {
+      if (deleteTarget) {
+        const deletedName = deleteTarget;
+        setFileContents((prev) => {
+          const copy = { ...prev };
+          delete copy[deletedName];
+          return copy;
+        });
+        setSavedContents((prev) => {
+          const copy = { ...prev };
+          delete copy[deletedName];
+          return copy;
+        });
+        const remaining = files.filter((f) => f.name !== deletedName);
+        setSelectedFileName(remaining.length > 0 ? remaining[0].name : null);
+        setDeleteTarget(null);
       }
-      return await deleteNodeTraefikFile(node.id, filename);
-    },
-    onSuccess: (_, deletedName) => {
-      toast.success(`File ${deletedName} deleted`);
-      setDeleteTarget(null);
-      setFileContents((prev) => {
-        const copy = { ...prev };
-        delete copy[deletedName];
-        return copy;
-      });
-      setSavedContents((prev) => {
-        const copy = { ...prev };
-        delete copy[deletedName];
-        return copy;
-      });
-      queryClient.invalidateQueries({ queryKey: ['node-traefik-files', node.id] });
-      // Pick another file
-      const remaining = files.filter((f) => f.name !== deletedName);
-      if (remaining.length > 0) {
-        setSelectedFileName(remaining[0].name);
-      } else {
-        setSelectedFileName(null);
-      }
-    },
-    onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Failed to delete file';
-      toast.error(msg);
     },
   });
 
   // Reload mutation
-  const reloadMutation = useMutation({
-    mutationFn: () => reloadNodeTraefik(node.id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['node-traefik', node.id] });
-      toast.success(data.message || 'Traefik dynamic rules reloaded on node');
-    },
-    onError: () => toast.error('Failed to reload Traefik configuration'),
-  });
+  const reloadMutation = useReloadNodeTraefik(node.id);
 
   // Keyboard shortcut for Cmd+S / Ctrl+S
   useEffect(() => {
@@ -359,24 +318,13 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         if (selectedFileName && !saveMutation.isPending) {
-          saveMutation.mutate();
+          saveMutation.mutate({ filename: selectedFileName, content: currentContent });
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedFileName, currentContent, saveMutation]);
-
-  // Copy code handler
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(currentContent);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Failed to copy to clipboard');
-    }
-  };
 
   // Clean trailing whitespace
   const handleFormatClean = () => {
@@ -394,7 +342,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
   };
 
   // Create new file submit
-  const handleCreateFile = () => {
+  const handleCreateFile = async () => {
     setCreateError(null);
     let name = newFileName.trim();
     if (!name) {
@@ -426,25 +374,22 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
 
     const initialContent = TEMPLATES[selectedTemplateKey]?.content || TEMPLATES.blank.content;
 
-    saveNodeTraefikFile(node.id, name, initialContent)
-      .then((created) => {
-        queryClient.invalidateQueries({ queryKey: ['node-traefik-files', node.id] });
-        setSelectedFileName(created.name);
-        setFileContents((prev) => ({ ...prev, [created.name]: initialContent }));
-        setSavedContents((prev) => ({ ...prev, [created.name]: initialContent }));
-        setCreateDialogOpen(false);
-        setNewFileName('');
-        toast.success(`Created file ${created.name}`);
-      })
-      .catch((err) => {
-        setCreateError(err instanceof Error ? err.message : 'Failed to create file');
-      });
+    try {
+      const created = await saveMutation.mutateAsync({ filename: name, content: initialContent });
+      setSelectedFileName(created.name);
+      setFileContents((prev) => ({ ...prev, [created.name]: initialContent }));
+      setSavedContents((prev) => ({ ...prev, [created.name]: initialContent }));
+      setCreateDialogOpen(false);
+      setNewFileName('');
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create file');
+    }
   };
 
   const getFileIcon = (filename: string) => {
-    if (filename.endsWith('.json')) return <FileJson className="size-4 text-amber-500" />;
-    if (filename.endsWith('.toml')) return <FileText className="size-4 text-emerald-500" />;
-    return <FileCode2 className="size-4 text-blue-500" />;
+    if (filename.endsWith('.json')) return <FileJson className="size-4 text-status-warning" />;
+    if (filename.endsWith('.toml')) return <FileText className="size-4 text-status-success" />;
+    return <FileCode2 className="size-4 text-primary" />;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -832,33 +777,22 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                     <span className="hidden sm:inline">Clean</span>
                   </Button>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleCopy}
+                  <CopyButton
+                    text={currentContent}
+                    label="Copy"
+                    tooltip="Copy file content"
                     className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground px-2"
-                    title="Copy file content"
-                  >
-                    {copied ? (
-                      <>
-                        <Check className="size-3.5 text-status-success" />
-                        <span className="hidden sm:inline">Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="size-3.5" />
-                        <span className="hidden sm:inline">Copy</span>
-                      </>
-                    )}
-                  </Button>
+                  />
 
                   <div className="h-4 w-px bg-border mx-0.5" />
 
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => saveMutation.mutate()}
+                    onClick={() =>
+                      selectedFileName &&
+                      saveMutation.mutate({ filename: selectedFileName, content: currentContent })
+                    }
                     disabled={saveMutation.isPending || !isDirty}
                     className="h-7 text-xs gap-1.5 px-3 active:not-aria-[haspopup]:translate-y-px"
                   >

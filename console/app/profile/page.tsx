@@ -1,8 +1,13 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCurrentUser, updateCurrentUser, disable2FA, getPasskeys, getSessions } from '@/lib/api/profile';
+import {
+  useProfileUser,
+  useUpdateProfileUser,
+  useDisable2FA,
+  usePasskeys,
+  useSessions,
+} from '@/lib/queries';
 import { EditProfileDialog } from '@/components/profile/edit-profile-dialog';
 import { PasswordChangeForm } from '@/components/profile/password-change-form';
 import { PasskeyManager } from '@/components/profile/passkey-manager';
@@ -29,6 +34,7 @@ import {
 import { SectionHeader } from '@/components/ui/section-header';
 import { getUserAvatarUrl } from '@/lib/avatar';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
@@ -37,31 +43,13 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('security');
   const [isDisabling2FA, setIsDisabling2FA] = useState(false);
 
-  const { data: user, isLoading } = useQuery({
-    queryKey: ['current-user'],
-    queryFn: getCurrentUser,
-  });
+  const { data: user, isLoading } = useProfileUser();
+  const { data: passkeys = [] } = usePasskeys();
+  const { data: sessions = [] } = useSessions();
+  const updateMutation = useUpdateProfileUser();
+  const disable2FAMutation = useDisable2FA();
 
-  const { data: passkeys = [] } = useQuery({
-    queryKey: ['passkeys'],
-    queryFn: getPasskeys,
-  });
-
-  const { data: sessions = [] } = useQuery({
-    queryKey: ['sessions'],
-    queryFn: getSessions,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: updateCurrentUser,
-    onSuccess: (updated) => {
-      queryClient.setQueryData(['current-user'], updated);
-      queryClient.invalidateQueries({ queryKey: ['current-user'] });
-      queryClient.invalidateQueries({ queryKey: ['currentUser'] });
-    },
-  });
-
-  const handleUpdate = async (data: Parameters<typeof updateCurrentUser>[0]) => {
+  const handleUpdate = async (data: Parameters<typeof updateMutation.mutateAsync>[0]) => {
     await updateMutation.mutateAsync(data);
   };
 
@@ -69,12 +57,7 @@ export default function ProfilePage() {
     if (confirm('Are you sure you want to disable two-factor authentication? This reduces your account security level.')) {
       try {
         setIsDisabling2FA(true);
-        await disable2FA();
-        await queryClient.invalidateQueries({ queryKey: ['current-user'] });
-        toast.success('Two-factor authentication disabled');
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to disable 2FA';
-        toast.error(msg);
+        await disable2FAMutation.mutateAsync();
       } finally {
         setIsDisabling2FA(false);
       }

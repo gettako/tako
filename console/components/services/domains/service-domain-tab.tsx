@@ -1,19 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Plus, Globe, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
 import { EmptyState } from '@/components/ui/empty-state';
 import { DomainList } from './domain-list';
 import { AddDomainDialog, AddDomainInput } from './add-domain-dialog';
-import { Service, ServiceDomain } from '@/lib/types';
+import { Service } from '@/lib/types';
 import {
-  addServiceDomain,
-  deleteServiceDomain,
-  setPrimaryServiceDomain,
-} from '@/lib/api/services';
-import { toast } from 'sonner';
+  useServiceDomains,
+  useAddServiceDomain,
+  useDeleteServiceDomain,
+  useSetPrimaryServiceDomain,
+} from '@/lib/queries';
 
 export interface ServiceDomainTabProps {
   service: Service;
@@ -22,76 +22,32 @@ export interface ServiceDomainTabProps {
 }
 
 export function ServiceDomainTab({ service, nodeIp, onDomainsUpdated }: ServiceDomainTabProps) {
-  const [domains, setDomains] = useState<ServiceDomain[]>(service.domains || []);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
 
-  useEffect(() => {
-    if (service.domains) {
-      setDomains(service.domains);
-    }
-  }, [service.domains]);
+  const { data: domains = service.domains || [] } = useServiceDomains(service.id);
+  const addMutation = useAddServiceDomain(service.id, { onSuccess: onDomainsUpdated });
+  const deleteMutation = useDeleteServiceDomain(service.id, { onSuccess: onDomainsUpdated });
+  const setPrimaryMutation = useSetPrimaryServiceDomain(service.id, { onSuccess: onDomainsUpdated });
+
+  const isMutating = addMutation.isPending || deleteMutation.isPending || setPrimaryMutation.isPending;
 
   const handleAddDomain = async (data: AddDomainInput) => {
-    try {
-      setIsMutating(true);
-      const created = await addServiceDomain(service.id, {
-        domain: data.domain,
-        port: data.port,
-        path: data.path,
-        internalPath: data.internalPath,
-        ssl: data.ssl,
-        primary: domains.length === 0,
-      });
-
-      const updatedList = domains.length === 0
-        ? [created]
-        : [...domains, created];
-
-      setDomains(updatedList);
-      toast.success(`Domain ${data.domain} attached successfully`);
-      onDomainsUpdated?.();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to add domain';
-      toast.error(msg);
-    } finally {
-      setIsMutating(false);
-    }
+    addMutation.mutate({
+      domain: data.domain,
+      port: data.port,
+      path: data.path,
+      internalPath: data.internalPath,
+      ssl: data.ssl,
+      primary: domains.length === 0,
+    });
   };
 
   const handleRemoveDomain = async (id: string) => {
-    try {
-      setIsMutating(true);
-      await deleteServiceDomain(service.id, id);
-      setDomains((prev) => prev.filter((d) => d.id !== id));
-      toast.success('Domain removed successfully');
-      onDomainsUpdated?.();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to remove domain';
-      toast.error(msg);
-    } finally {
-      setIsMutating(false);
-    }
+    deleteMutation.mutate(id);
   };
 
   const handleSetPrimary = async (id: string) => {
-    try {
-      setIsMutating(true);
-      await setPrimaryServiceDomain(service.id, id);
-      setDomains((prev) =>
-        prev.map((d) => ({
-          ...d,
-          primary: d.id === id,
-        }))
-      );
-      toast.success('Primary domain updated');
-      onDomainsUpdated?.();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to set primary domain';
-      toast.error(msg);
-    } finally {
-      setIsMutating(false);
-    }
+    setPrimaryMutation.mutate(id);
   };
 
   return (

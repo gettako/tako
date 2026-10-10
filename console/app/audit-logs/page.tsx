@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getAuditLogs } from '@/lib/api/audit';
+import { useAuditLogs } from '@/lib/queries';
 import { AuditFilters, AuditCategory } from '@/components/audit/audit-filters';
 import { AuditTable } from '@/components/audit/audit-table';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -18,10 +17,7 @@ export default function AuditLogsPage() {
   const debouncedSearch = useDebounce(search, 200);
   const [selectedActor, setSelectedActor] = useState('all');
 
-  const { data: logs = [], isLoading } = useQuery({
-    queryKey: ['audit-logs'],
-    queryFn: getAuditLogs,
-  });
+  const { data: logs = [], isLoading } = useAuditLogs();
 
   // Extract unique actors for filter dropdown (memoized)
   const uniqueActors = useMemo(() => {

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -32,8 +31,7 @@ func handleListServiceDomains(orch *orchestrator.Orchestrator) http.HandlerFunc 
 				CreatedAt:       d.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			})
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(res)
+		RespondJSON(w, http.StatusOK, res)
 	}
 }
 
@@ -55,7 +53,7 @@ func handleCreateServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 			Primary         bool   `json:"primary"`
 			CertificateType string `json:"certificateType"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := DecodeJSON(r, &req); err != nil {
 			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
@@ -121,9 +119,7 @@ func handleCreateServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 			_, _ = orch.TriggerDeploy(r.Context(), id)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		_ = json.NewEncoder(w).Encode(ServiceDomainResponse{
+		RespondJSON(w, http.StatusCreated, ServiceDomainResponse{
 			ID:              created.ID,
 			Domain:          created.Domain,
 			SSL:             created.Ssl != 0,
@@ -174,8 +170,7 @@ func handleDeleteServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 			_, _ = orch.TriggerDeploy(r.Context(), id)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+		RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
 	}
 }
 
@@ -186,7 +181,6 @@ func handleSetServiceDomainPrimary(orch *orchestrator.Orchestrator) http.Handler
 
 		_, _ = orch.DB().ExecContext(r.Context(), "UPDATE service_domains SET is_primary = CASE WHEN id = ? THEN 1 ELSE 0 END WHERE service_id = ?", domID, id)
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+		RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
 	}
 }

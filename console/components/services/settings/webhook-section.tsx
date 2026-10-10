@@ -1,17 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Service } from '@/lib/types';
 import {
-  getWebhookByService,
-  getWebhookDeliveries,
-  updateWebhookEvents,
-  regenerateWebhookSecret,
-  testWebhookDelivery,
-} from '@/lib/api/webhooks';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+  useWebhookByService,
+  useWebhookDeliveries,
+  useUpdateWebhookEvents,
+  useRegenerateWebhookSecret,
+  useTestWebhookDelivery,
+} from '@/lib/queries';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -23,6 +21,7 @@ import {
 } from '@/components/ui/input-group';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { WebhookDeliveriesTable } from './webhook-deliveries-table';
+import { CopyButton } from '@/components/ui/copy-button';
 import {
   Dialog,
   DialogContent,
@@ -33,14 +32,11 @@ import {
 } from '@/components/ui/dialog';
 import {
   Webhook as WebhookIcon,
-  Copy,
-  Check,
   RotateCw,
   Eye,
   EyeOff,
   Send,
   Loader2,
-  AlertTriangle,
   History,
 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -51,69 +47,15 @@ interface WebhookSectionProps {
 }
 
 export function WebhookSection({ service }: WebhookSectionProps) {
-  const queryClient = useQueryClient();
   const [showSecret, setShowSecret] = useState(false);
-  const [copiedUrl, setCopiedUrl] = useState(false);
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
 
-  const {
-    data: webhook,
-    isLoading: loadingWebhook,
-  } = useQuery({
-    queryKey: ['webhook', service.id],
-    queryFn: () => getWebhookByService(service.id),
-  });
+  const { data: webhook, isLoading: loadingWebhook } = useWebhookByService(service.id);
+  const { data: deliveries = [], isLoading: loadingDeliveries } = useWebhookDeliveries(webhook?.id);
 
-  const {
-    data: deliveries = [],
-    isLoading: loadingDeliveries,
-  } = useQuery({
-    queryKey: ['webhook-deliveries', webhook?.id],
-    queryFn: () => (webhook ? getWebhookDeliveries(webhook.id) : Promise.resolve([])),
-    enabled: !!webhook,
-  });
-
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ['webhook', service.id] });
-    if (webhook) {
-      queryClient.invalidateQueries({ queryKey: ['webhook-deliveries', webhook.id] });
-    }
-  };
-
-  const updateEventsMutation = useMutation({
-    mutationFn: (newEvents: string[]) => {
-      if (!webhook) throw new Error('No webhook');
-      return updateWebhookEvents(webhook.id, newEvents);
-    },
-    onSuccess: () => {
-      invalidate();
-      toast.success('Trigger events updated');
-    },
-    onError: () => toast.error('Failed to update trigger events'),
-  });
-
-  const regenerateMutation = useMutation({
-    mutationFn: () => {
-      if (!webhook) throw new Error('No webhook');
-      return regenerateWebhookSecret(webhook.id);
-    },
-    onSuccess: () => {
-      invalidate();
-      setRegenerateDialogOpen(false);
-      toast.success('Webhook secret token regenerated');
-    },
-    onError: () => toast.error('Failed to regenerate secret'),
-  });
-
-  const handleCopyUrl = () => {
-    if (!webhook) return;
-    const fullUrl = `${webhook.url}?token=${webhook.secret}`;
-    navigator.clipboard.writeText(fullUrl);
-    setCopiedUrl(true);
-    toast.success('Webhook deployment URL copied to clipboard');
-    setTimeout(() => setCopiedUrl(false), 2000);
-  };
+  const updateEventsMutation = useUpdateWebhookEvents(service.id, webhook?.id);
+  const regenerateMutation = useRegenerateWebhookSecret(service.id, webhook?.id);
+  const testMutation = useTestWebhookDelivery(service.id, webhook?.id);
 
   const handleToggleEvent = (eventName: string) => {
     if (!webhook) return;
@@ -130,14 +72,10 @@ export function WebhookSection({ service }: WebhookSectionProps) {
   const handleTestPing = async () => {
     if (!webhook) return;
     try {
-      setIsTesting(true);
-      const delivery = await testWebhookDelivery(webhook.id, 'manual');
-      invalidate();
+      const delivery = await testMutation.mutateAsync('manual');
       toast.success(`Test ping delivered successfully (${delivery.durationMs}ms, status 200)`);
     } catch {
       toast.error('Failed to dispatch test ping');
-    } finally {
-      setIsTesting(false);
     }
   };
 
@@ -190,20 +128,12 @@ export function WebhookSection({ service }: WebhookSectionProps) {
               </InputGroup>
 
               <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyUrl}
+                <CopyButton
+                  text={webhook ? `${webhook.url}?token=${webhook.secret}` : ''}
+                  label="Copy URL"
+                  tooltip="Copy webhook URL"
                   className="text-sm h-9 gap-1.5"
-                >
-                  {copiedUrl ? (
-                    <Check className="size-3.5 text-status-success" />
-                  ) : (
-                    <Copy className="size-3.5" />
-                  )}
-                  Copy URL
-                </Button>
+                />
 
                 <Button
                   type="button"
@@ -291,10 +221,10 @@ export function WebhookSection({ service }: WebhookSectionProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleTestPing}
-                disabled={isTesting}
+                disabled={testMutation.isPending}
                 className="text-sm h-9 gap-1.5 shrink-0"
               >
-                {isTesting ? (
+                {testMutation.isPending ? (
                   <Loader2 className="size-3.5 animate-spin" />
                 ) : (
                   <Send className="size-3.5 text-primary" />

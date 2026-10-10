@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ResourceChart } from './resource-chart';
-import { MetricPoint } from '@/lib/api/metrics';
+import { MetricPoint } from '@/lib/queries';
 import { Cpu, Activity, Network, HardDrive } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

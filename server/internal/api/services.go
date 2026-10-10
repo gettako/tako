@@ -180,7 +180,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		// POST /api/v1/services
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
 			var req CreateServiceRequest
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if err := DecodeJSON(r, &req); err != nil {
 				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
@@ -218,9 +218,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				})
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(mapServiceToResponse(*srv, req.Domains, envVars))
+			RespondJSON(w, http.StatusCreated, mapServiceToResponse(*srv, req.Domains, envVars))
 		})
 
 		// GET /api/v1/services
@@ -297,8 +295,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				res = append(res, mapServiceToResponse(s, domains, envVars, swapMb, asResp, autoRollbackEnabled == 1))
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(res)
+			RespondJSON(w, http.StatusOK, res)
 		})
 
 		// GET /api/v1/services/{id}
@@ -406,8 +403,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domains, envVars, domainDetails, swapMb, usage, autoScaling, autoRollbackEnabled == 1))
+			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domains, envVars, domainDetails, swapMb, usage, autoScaling, autoRollbackEnabled == 1))
 		})
 
 		// DELETE /api/v1/services/{id}
@@ -437,8 +433,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				TargetName: targetName,
 			})
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+			RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
 		})
 
 		// PATCH /api/v1/services/{id}
@@ -479,7 +474,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					CooldownSeconds     *int64   `json:"cooldownSeconds"`
 				} `json:"autoScaling"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			if err := DecodeJSON(r, &req); err != nil {
 				RespondError(w, http.StatusBadRequest, "invalid request body")
 				return
 			}
@@ -669,8 +664,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				autoScaling.TargetCPUPercent = 80.0
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domainStrings, envResponses, domainDetails, finalSwapMb, autoScaling, autoRollbackEnabled == 1))
+			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domainStrings, envResponses, domainDetails, finalSwapMb, autoScaling, autoRollbackEnabled == 1))
 		})
 
 		// Domains
@@ -686,7 +680,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Branch     string `json:"branch"`
 				CommitHash string `json:"commitHash"`
 			}
-			_ = json.NewDecoder(r.Body).Decode(&req)
+			_ = DecodeJSON(r, &req)
 
 			dep, err := orch.TriggerDeployWithParams(r.Context(), id, req.Branch, req.CommitHash)
 			if err != nil {
@@ -694,9 +688,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusAccepted)
-			_ = json.NewEncoder(w).Encode(map[string]any{
+			RespondJSON(w, http.StatusAccepted, map[string]any{
 				"deploymentId": dep.ID,
 				"status":       dep.Status,
 				"deployment":   dep,
@@ -815,7 +807,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Command       string `json:"command"`
 				ContainerName string `json:"containerName"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Command == "" {
+			if err := DecodeJSON(r, &req); err != nil || req.Command == "" {
 				RespondError(w, http.StatusBadRequest, "command required")
 				return
 			}
@@ -846,8 +838,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(res)
+			RespondJSON(w, http.StatusOK, res)
 		})
 
 		// GET /api/v1/services/{id}/container-logs (Runtime Logs)
@@ -868,8 +859,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				logs = fmt.Sprintf("[%s] Notice: container not active or offline (%v)\n", time.Now().Format("15:04:05"), err)
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{
+			RespondJSON(w, http.StatusOK, map[string]string{
 				"logs": logs,
 			})
 		})
@@ -886,8 +876,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(deps)
+			RespondJSON(w, http.StatusOK, deps)
 		})
 
 		// GET /api/v1/services/{id}/metrics
@@ -1048,8 +1037,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(points)
+			RespondJSON(w, http.StatusOK, points)
 		})
 	})
 }

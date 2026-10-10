@@ -2,15 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
-import { getNodes } from '@/lib/api/nodes';
+import { useNodes } from '@/lib/queries';
 
 export function OfflineNodeBanner() {
-  const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-  });
+  const { data: nodes = [] } = useNodes();
 
   const offlineNodes = nodes.filter((n) => n.status === 'offline');
 

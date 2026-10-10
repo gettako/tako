@@ -32,9 +32,7 @@ import {
   CommandShortcut,
 } from '@/components/ui/command';
 import { useCommandPalette } from '@/hooks/use-command-palette';
-import { getProjects } from '@/lib/api/projects';
-import { getServices } from '@/lib/api/services';
-import { getNodes } from '@/lib/api/nodes';
+import { useProjects, useServices, useNodes } from '@/lib/queries';
 import { cn } from '@/lib/utils';
 
 export function GlobalCommandPalette() {
@@ -43,23 +41,9 @@ export function GlobalCommandPalette() {
   const { open, setOpen } = useCommandPalette();
 
   // Queries for live index
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => getProjects(),
-    enabled: open,
-  });
-
-  const { data: services = [] } = useQuery({
-    queryKey: ['services'],
-    queryFn: () => getServices(),
-    enabled: open,
-  });
-
-  const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: () => getNodes(),
-    enabled: open,
-  });
+  const { data: projects = [] } = useProjects({ enabled: open });
+  const { data: services = [] } = useServices(undefined, { enabled: open });
+  const { data: nodes = [] } = useNodes({ enabled: open });
 
   const runCommand = (command: () => void) => {
     setOpen(false);

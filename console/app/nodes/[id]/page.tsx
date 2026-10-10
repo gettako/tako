@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { getNodeById } from '@/lib/api/nodes';
-import { getServices } from '@/lib/api/services';
-import { getProjects } from '@/lib/api/projects';
-import { getTimeSeriesMetrics } from '@/lib/api/metrics';
+import {
+  useNode,
+  useServices,
+  useProjects,
+  useTimeSeriesMetrics,
+} from '@/lib/queries';
 import { NodeSpecHeader } from '@/components/nodes/node-spec-header';
 import { NodeMetricsCharts, NodeTimeRange } from '@/components/nodes/node-metrics-charts';
 import { NodeServicesTable } from '@/components/nodes/node-services-table';
@@ -34,31 +35,21 @@ export default function NodeDetailPage({
     isLoading: loadingNode,
     error: errorNode,
     refetch: refetchNode,
-  } = useQuery({
-    queryKey: ['node', id],
-    queryFn: () => getNodeById(id),
-    refetchInterval: 10000,
-  });
+  } = useNode(id);
 
   const {
     data: metrics = [],
     refetch: refetchMetrics,
-  } = useQuery({
-    queryKey: ['node-metrics', id, timeRange],
-    queryFn: () => getTimeSeriesMetrics(id, timeRange),
+  } = useTimeSeriesMetrics(id, timeRange, {
     enabled: !!node,
     refetchInterval: 15000,
   });
 
-  const { data: allServices = [] } = useQuery({
-    queryKey: ['services'],
-    queryFn: () => getServices(),
+  const { data: allServices = [] } = useServices(undefined, {
     enabled: !!node,
   });
 
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: getProjects,
+  const { data: projects = [] } = useProjects({
     enabled: !!node,
   });
 

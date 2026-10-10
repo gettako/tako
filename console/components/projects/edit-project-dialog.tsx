@@ -1,8 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { useUpdateProject } from '@/lib/queries';
+import { Project } from '@/lib/types';
+import {
+  ProjectFormFields,
+  ProjectFormData,
+  ProjectFormErrors,
+  validateSlug,
+} from './project-form-fields';
 import {
   Dialog,
   DialogContent,
@@ -12,15 +18,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { updateProject } from '@/lib/api/projects';
-import { Project } from '@/lib/types';
-import { toast } from 'sonner';
-import {
-  ProjectFormFields,
-  ProjectFormData,
-  ProjectFormErrors,
-  validateSlug,
-} from './project-form-fields';
+import { Loader2 } from 'lucide-react';
 
 export interface EditProjectDialogProps {
   project: Project;
@@ -35,8 +33,6 @@ export function EditProjectDialog({
   onOpenChange,
   onSuccess,
 }: EditProjectDialogProps) {
-  const queryClient = useQueryClient();
-
   const [formData, setFormData] = useState<ProjectFormData>({
     name: project.name,
     slug: project.slug,
@@ -59,22 +55,10 @@ export function EditProjectDialog({
     }
   }, [open, project]);
 
-  const updateMutation = useMutation({
-    mutationFn: (input: Parameters<typeof updateProject>[1]) =>
-      updateProject(project.id, input),
+  const updateMutation = useUpdateProject({
     onSuccess: (updated) => {
-      queryClient.invalidateQueries({ queryKey: ['projects'] });
-      queryClient.invalidateQueries({ queryKey: ['projects', project.id] });
-      toast.success('Project updated successfully', {
-        description: `Project "${updated.name}" settings have been saved.`,
-      });
       onOpenChange(false);
       onSuccess?.(updated);
-    },
-    onError: (err: Error) => {
-      toast.error('Failed to update project', {
-        description: err.message || 'Please check input parameters and try again.',
-      });
     },
   });
 
@@ -103,11 +87,14 @@ export function EditProjectDialog({
     }
 
     updateMutation.mutate({
-      name: formData.name.trim(),
-      slug: formData.slug.trim(),
-      description: formData.description.trim() || undefined,
-      environment: formData.environment,
-      tags: formData.tags.length > 0 ? formData.tags : undefined,
+      id: project.id,
+      input: {
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        description: formData.description.trim() || undefined,
+        environment: formData.environment,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
+      },
     });
   };
 

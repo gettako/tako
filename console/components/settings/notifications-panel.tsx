@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  getNotificationSettings,
-  updateNotificationSettings,
-  sendTestNotification,
-} from '@/lib/api/settings';
+  useNotificationSettings,
+  useUpdateNotificationSettings,
+  useSendTestNotification,
+} from '@/lib/queries';
 import { NotificationSettings } from '@/lib/types';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,14 +25,12 @@ import { SettingsSectionHeader } from '@/components/settings/settings-section-he
 import { toast } from 'sonner';
 
 export function NotificationsPanel() {
-  const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [testingChannel, setTestingChannel] = useState<string | null>(null);
 
-  const { data: initialSettings } = useQuery({
-    queryKey: ['notification-settings'],
-    queryFn: getNotificationSettings,
-  });
+  const { data: initialSettings } = useNotificationSettings();
+  const updateSettingsMutation = useUpdateNotificationSettings();
+  const sendTestMutation = useSendTestNotification();
 
   const [settings, setSettings] = useState<NotificationSettings>(
     initialSettings || {
@@ -79,11 +76,7 @@ export function NotificationsPanel() {
     e.preventDefault();
     try {
       setIsSaving(true);
-      await updateNotificationSettings(settings);
-      queryClient.invalidateQueries({ queryKey: ['notification-settings'] });
-      toast.success('Notification channels updated');
-    } catch {
-      toast.error('Failed to save notification settings');
+      await updateSettingsMutation.mutateAsync(settings);
     } finally {
       setIsSaving(false);
     }
@@ -92,14 +85,7 @@ export function NotificationsPanel() {
   const handleTestChannel = async (channel: 'email' | 'slack' | 'discord' | 'telegram') => {
     try {
       setTestingChannel(channel);
-      const res = await sendTestNotification(channel);
-      if (res.success) {
-        toast.success(res.message);
-      } else {
-        toast.error('Test notification failed');
-      }
-    } catch {
-      toast.error(`Failed to send test notification to ${channel}`);
+      await sendTestMutation.mutateAsync(channel);
     } finally {
       setTestingChannel(null);
     }

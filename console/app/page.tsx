@@ -11,11 +11,13 @@ import { DashboardStats } from '@/components/dashboard/dashboard-stats';
 import { DashboardChartsGrid } from '@/components/dashboard/dashboard-charts-grid';
 import { NodeSummaryWidget } from '@/components/dashboard/node-summary-widget';
 import { RecentDeploymentsWidget } from '@/components/dashboard/recent-deployments-widget';
-import { getProjects } from '@/lib/api/projects';
-import { getServices } from '@/lib/api/services';
-import { getNodes } from '@/lib/api/nodes';
-import { getDeployments } from '@/lib/api/deployments';
-import { getTimeSeriesMetrics } from '@/lib/api/metrics';
+import {
+  useProjects,
+  useServices,
+  useNodes,
+  useDeployments,
+  useTimeSeriesMetrics,
+} from '@/lib/queries';
 import { cn } from '@/lib/utils';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { CreateProjectDialog } from '@/components/projects/create-project-dialog';
@@ -40,55 +42,35 @@ export default function DashboardPage() {
     isLoading: loadingProjects,
     error: errorProjects,
     refetch: refetchProjects,
-  } = useQuery({
-    queryKey: ['projects'],
-    queryFn: getProjects,
-    refetchInterval: 30000,
-  });
+  } = useProjects({ refetchInterval: 30000 });
 
   const {
     data: services,
     isLoading: loadingServices,
     error: errorServices,
     refetch: refetchServices,
-  } = useQuery({
-    queryKey: ['services'],
-    queryFn: () => getServices(),
-    refetchInterval: 15000,
-  });
+  } = useServices(undefined, { refetchInterval: 15000 });
 
   const {
     data: nodes,
     isLoading: loadingNodes,
     error: errorNodes,
     refetch: refetchNodes,
-  } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-    refetchInterval: 10000,
-  });
+  } = useNodes({ refetchInterval: 10000 });
 
   const {
     data: deployments,
     isLoading: loadingDeployments,
     error: errorDeployments,
     refetch: refetchDeployments,
-  } = useQuery({
-    queryKey: ['deployments'],
-    queryFn: () => getDeployments(),
-    refetchInterval: 15000,
-  });
+  } = useDeployments(undefined, { refetchInterval: 15000 });
 
   const {
     data: metrics,
     isLoading: loadingMetrics,
     error: errorMetrics,
     refetch: refetchMetrics,
-  } = useQuery({
-    queryKey: ['metrics', 'cluster', timeRange],
-    queryFn: () => getTimeSeriesMetrics('cluster', timeRange),
-    refetchInterval: 15000,
-  });
+  } = useTimeSeriesMetrics('cluster', timeRange, { refetchInterval: 15000 });
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

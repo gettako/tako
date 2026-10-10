@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -28,8 +27,7 @@ func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 			})
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(res)
+		RespondJSON(w, http.StatusOK, res)
 	}
 }
 
@@ -47,7 +45,7 @@ func handleUpdateServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFun
 			Value    string `json:"value"`
 			IsSecret bool   `json:"isSecret"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&reqVars); err != nil {
+		if err := DecodeJSON(r, &reqVars); err != nil {
 			RespondError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
@@ -96,7 +94,6 @@ func handleUpdateServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFun
 			_, _ = orch.TriggerDeploy(r.Context(), id)
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(res)
+		RespondJSON(w, http.StatusOK, res)
 	}
 }

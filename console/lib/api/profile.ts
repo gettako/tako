@@ -150,7 +150,7 @@ export async function revokeSession(sessionId: string): Promise<void> {
   sessions = sessions.filter((s) => s.id !== sessionId);
 }
 
-export async function revokeAllOtherSessions(currentSessionId: string): Promise<void> {
+export async function revokeAllOtherSessions(currentSessionId?: string): Promise<void> {
   if (typeof window !== 'undefined') {
     const res = await fetch('/api/auth/sessions', {
       method: 'POST',

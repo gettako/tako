@@ -33,7 +33,7 @@ export function SectionHeader({
       <div className="flex items-center gap-3.5 min-w-0">
         {Icon && (
           <div
-            className={cn( 'flex size-10 items-center justify-center rounded-xl border border-border bg-muted/40 text-foreground shrink-0 shadow-2xs', iconContainerClassName )}
+            className={cn( 'flex size-10 items-center justify-center rounded-xl border border-border bg-muted/40 text-foreground shrink-0', iconContainerClassName )}
           >
             <Icon className={cn('size-5 text-foreground', iconClassName)} />
           </div>

@@ -11,8 +11,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Copy, Check, ArrowRight, Download, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
-import { get2FASetup, verifyAndEnable2FA } from '@/lib/api/profile';
+import { CopyButton } from '@/components/ui/copy-button';
+import { ArrowRight, Download, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
+import { use2FASetup, useVerifyAndEnable2FA } from '@/lib/queries';
 import { toast } from 'sonner';
 
 interface TotpSetupDialogProps {
@@ -28,49 +29,17 @@ export function TotpSetupDialog({
 }: TotpSetupDialogProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [code, setCode] = useState('');
-  const [setupData, setSetupData] = useState<{
-    secret: string;
-    otpauthUrl: string;
-    recoveryCodes: string[];
-  } | null>(null);
-  const [isLoadingSetup, setIsLoadingSetup] = useState(false);
-  const [copiedSecret, setCopiedSecret] = useState(false);
-  const [copiedCodes, setCopiedCodes] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const { data: setupData, isLoading: isLoadingSetup } = use2FASetup(open);
+  const verifyMutation = useVerifyAndEnable2FA();
 
   useEffect(() => {
     if (open) {
       setStep(1);
       setCode('');
-      setIsLoadingSetup(true);
-      get2FASetup()
-        .then((data) => {
-          setSetupData(data);
-        })
-        .catch(() => {
-          toast.error('Failed to load 2FA setup configuration');
-        })
-        .finally(() => {
-          setIsLoadingSetup(false);
-        });
     }
   }, [open]);
-
-  const handleCopySecret = () => {
-    if (!setupData) return;
-    navigator.clipboard.writeText(setupData.secret);
-    setCopiedSecret(true);
-    toast.success('Secret key copied to clipboard');
-    setTimeout(() => setCopiedSecret(false), 2000);
-  };
-
-  const handleCopyRecoveryCodes = () => {
-    if (!setupData) return;
-    navigator.clipboard.writeText(setupData.recoveryCodes.join('\n'));
-    setCopiedCodes(true);
-    toast.success('Emergency recovery codes copied');
-    setTimeout(() => setCopiedCodes(false), 2000);
-  };
 
   const handleDownloadRecoveryCodes = () => {
     if (!setupData) return;
@@ -98,11 +67,14 @@ export function TotpSetupDialog({
 
     try {
       setIsVerifying(true);
-      await verifyAndEnable2FA(code, setupData.secret, setupData.recoveryCodes);
+      await verifyMutation.mutateAsync({
+        code,
+        secret: setupData.secret,
+        recoveryCodes: setupData.recoveryCodes,
+      });
       setStep(3); // Proceed to recovery codes confirmation
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Invalid code';
-      toast.error(msg);
+    } catch {
+      // Error handled by mutation toast
     } finally {
       setIsVerifying(false);
     }
@@ -172,19 +144,12 @@ export function TotpSetupDialog({
                       value={setupData.secret}
                       className="font-mono text-xs text-center font-bold tracking-widest bg-muted/40 h-9"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
+                    <CopyButton
+                      text={setupData.secret}
                       size="sm"
-                      onClick={handleCopySecret}
-                      className="h-9 px-3 text-xs shrink-0 active:not-aria-[haspopup]:translate-y-px"
-                    >
-                      {copiedSecret ? (
-                        <Check className="size-3.5 text-status-success" />
-                      ) : (
-                        <Copy className="size-3.5" />
-                      )}
-                    </Button>
+                      className="h-9 px-3 text-xs shrink-0"
+                      title="Copy Secret"
+                    />
                   </div>
                 </div>
 
@@ -273,20 +238,13 @@ export function TotpSetupDialog({
                 </div>
 
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
+                  <CopyButton
+                    text={setupData.recoveryCodes.join('\n')}
                     variant="outline"
                     size="sm"
-                    onClick={handleCopyRecoveryCodes}
-                    className="flex-1 text-xs gap-1.5 h-8 active:not-aria-[haspopup]:translate-y-px"
-                  >
-                    {copiedCodes ? (
-                      <Check className="size-3.5 text-status-success" />
-                    ) : (
-                      <Copy className="size-3.5" />
-                    )}
-                    Copy Codes
-                  </Button>
+                    className="flex-1 text-xs gap-1.5 h-8"
+                    title="Copy Codes"
+                  />
 
                   <Button
                     type="button"

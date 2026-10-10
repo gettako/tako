@@ -16,10 +16,15 @@ import { ServiceMetricsTab } from '@/components/services/metrics/service-metrics
 import { ServiceSettingsTab } from '@/components/services/settings/service-settings-tab';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { getServiceById, updateServiceStatus, updateService } from '@/lib/api/services';
-import { getProjectById } from '@/lib/api/projects';
-import { getDeployments, triggerDeployment } from '@/lib/api/deployments';
-import { getNodes } from '@/lib/api/nodes';
+import {
+  useProject,
+  useService,
+  useDeployments,
+  useNodes,
+  useUpdateServiceStatus,
+  useUpdateService,
+  useTriggerDeployment,
+} from '@/lib/queries';
 import { UpdateServiceInput } from '@/lib/types';
 
 export default function ServiceDetailPage({
@@ -32,55 +37,29 @@ export default function ServiceDetailPage({
 
   const [activeTab, setActiveTab] = useState('overview');
 
-  const {
-    data: project,
-    isLoading: loadingProject,
-  } = useQuery({
-    queryKey: ['project', projectId],
-    queryFn: () => getProjectById(projectId),
-  });
-
+  const { data: project, isLoading: loadingProject } = useProject(projectId);
   const {
     data: service,
     isLoading: loadingService,
     error: errorService,
     refetch: refetchService,
-  } = useQuery({
-    queryKey: ['service', serviceId],
-    queryFn: () => getServiceById(serviceId),
-    refetchInterval: (query) => {
-      const s = query.state.data;
-      return s?.status === 'deploying' ? 2000 : false;
-    },
-  });
+  } = useService(serviceId);
 
   const {
     data: deployments = [],
     isLoading: loadingDeployments,
     refetch: refetchDeployments,
-  } = useQuery({
-    queryKey: ['deployments', serviceId],
-    queryFn: () => getDeployments(serviceId),
+  } = useDeployments(serviceId, {
     enabled: !!service,
-    refetchInterval: (query) => {
-      const list = query.state.data;
-      const isPending = list?.some(
-        (d) =>
-          d.status === 'building' ||
-          d.status === 'queued' ||
-          d.status === 'running' ||
-          d.status === 'deploying'
-      );
-      return isPending || service?.status === 'deploying' ? 2000 : false;
-    },
   });
+
+  const { data: nodes = [] } = useNodes();
+
+  const updateStatusMutation = useUpdateServiceStatus();
+  const updateServiceMutation = useUpdateService();
+  const triggerDeploymentMutation = useTriggerDeployment();
 
   const latestDeployment = deployments[0] || null;
-
-  const { data: nodes = [] } = useQuery({
-    queryKey: ['nodes'],
-    queryFn: getNodes,
-  });
 
   const targetNode = nodes.find(
     (n) => n.id === service?.nodeId || n.name === service?.nodeName
@@ -89,42 +68,63 @@ export default function ServiceDetailPage({
 
   const handleDeploy = async () => {
     if (!service) return;
-    await triggerDeployment(service.id, service.branch || 'main', service.commitHash);
-    await updateServiceStatus(service.id, 'deploying');
-    refetchService();
-    refetchDeployments();
+    await triggerDeploymentMutation.mutateAsync({
+      serviceId: service.id,
+      branch: service.branch || 'main',
+      commitHash: service.commitHash,
+    });
+    await updateStatusMutation.mutateAsync({
+      serviceId: service.id,
+      status: 'deploying',
+    });
   };
 
   const handleStart = async () => {
     if (!service) return;
-    await updateServiceStatus(service.id, 'healthy', 'start');
-    refetchService();
+    await updateStatusMutation.mutateAsync({
+      serviceId: service.id,
+      status: 'healthy',
+      action: 'start',
+    });
   };
 
   const handleRestart = async () => {
     if (!service) return;
-    await updateServiceStatus(service.id, 'healthy', 'restart');
-    refetchService();
+    await updateStatusMutation.mutateAsync({
+      serviceId: service.id,
+      status: 'healthy',
+      action: 'restart',
+    });
   };
 
   const handleStop = async () => {
     if (!service) return;
-    await updateServiceStatus(service.id, 'stopped', 'stop');
-    refetchService();
+    await updateStatusMutation.mutateAsync({
+      serviceId: service.id,
+      status: 'stopped',
+      action: 'stop',
+    });
   };
 
   const handleUpdateService = async (input: UpdateServiceInput) => {
     if (!service) return;
-    await updateService(service.id, input);
-    refetchService();
+    await updateServiceMutation.mutateAsync({
+      id: service.id,
+      input,
+    });
   };
 
   const handleRebuild = async () => {
     if (!service) return;
-    await triggerDeployment(service.id, service.branch || 'main', service.commitHash);
-    await updateServiceStatus(service.id, 'deploying');
-    refetchService();
-    refetchDeployments();
+    await triggerDeploymentMutation.mutateAsync({
+      serviceId: service.id,
+      branch: service.branch || 'main',
+      commitHash: service.commitHash,
+    });
+    await updateStatusMutation.mutateAsync({
+      serviceId: service.id,
+      status: 'deploying',
+    });
   };
 
   const titleText = service ? `${service.name} — Takō Cloud` : 'Service Details — Takō Cloud';

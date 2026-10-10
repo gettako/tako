@@ -10,7 +10,7 @@ import { StepBadgeBar } from './step-badge-bar';
 import { DeploymentLogViewer } from './deployment-log-viewer';
 import { RollbackDialog } from './rollback-dialog';
 import { Deployment, DeploymentStepName, Service } from '@/lib/types';
-import { rollbackDeployment, triggerDeployment } from '@/lib/api/deployments';
+import { useTriggerDeployment, useRollbackDeployment } from '@/lib/queries';
 
 export interface ServiceDeploymentTabProps {
   service: Service;
@@ -28,9 +28,10 @@ export function ServiceDeploymentTab({
   );
   const [activeStep, setActiveStep] = useState<DeploymentStepName | undefined>();
   const [rollbackTarget, setRollbackTarget] = useState<Deployment | null>(null);
-  const [isRollingBack, setIsRollingBack] = useState(false);
-  const [isTriggering, setIsTriggering] = useState(false);
   const [showLogsManual, setShowLogsManual] = useState(false);
+
+  const triggerMutation = useTriggerDeployment();
+  const rollbackMutation = useRollbackDeployment();
 
   React.useEffect(() => {
     if (deployments.length > 0) {
@@ -47,29 +48,30 @@ export function ServiceDeploymentTab({
     selectedDeployment?.status === 'queued' ||
     selectedDeployment?.status === 'building' ||
     selectedDeployment?.status === 'deploying' ||
-    isTriggering ||
+    triggerMutation.isPending ||
     service.status === 'deploying';
 
   const handleRollbackConfirm = async (deploymentId: string) => {
-    setIsRollingBack(true);
     try {
-      const newDep = await rollbackDeployment(deploymentId);
+      const newDep = await rollbackMutation.mutateAsync(deploymentId);
       setSelectedDeployment(newDep);
       setRollbackTarget(null);
       onDeploymentsUpdated?.();
-    } finally {
-      setIsRollingBack(false);
+    } catch {
+      // Handled by toast in mutation or consumer
     }
   };
 
   const handleManualDeploy = async () => {
-    setIsTriggering(true);
     try {
-      const newDep = await triggerDeployment(service.id, service.branch || 'main');
+      const newDep = await triggerMutation.mutateAsync({
+        serviceId: service.id,
+        branch: service.branch || 'main',
+      });
       setSelectedDeployment(newDep);
       onDeploymentsUpdated?.();
-    } finally {
-      setIsTriggering(false);
+    } catch {
+      // Handled by toast in mutation or consumer
     }
   };
 
@@ -88,7 +90,7 @@ export function ServiceDeploymentTab({
         description="This service has not been deployed yet. Trigger the first build pipeline to launch."
         icon={Rocket}
         action={{
-          label: isTriggering ? 'Triggering...' : 'Trigger Initial Deploy',
+          label: triggerMutation.isPending ? 'Triggering...' : 'Trigger Initial Deploy',
           icon: Plus,
           onClick: handleManualDeploy,
         }}
@@ -107,11 +109,11 @@ export function ServiceDeploymentTab({
           <Button
             size="sm"
             onClick={handleManualDeploy}
-            disabled={isTriggering}
+            disabled={triggerMutation.isPending}
             className="gap-1.5 text-xs h-9 bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Rocket className="size-3.5" />
-            <span>{isTriggering ? 'Deploying...' : 'Deploy Now'}</span>
+            <span>{triggerMutation.isPending ? 'Deploying...' : 'Deploy Now'}</span>
           </Button>
         }
       />
@@ -266,7 +268,7 @@ export function ServiceDeploymentTab({
         deployment={rollbackTarget}
         onOpenChange={(open) => !open && setRollbackTarget(null)}
         onConfirm={handleRollbackConfirm}
-        isRollingBack={isRollingBack}
+        isRollingBack={rollbackMutation.isPending}
       />
     </div>
   );

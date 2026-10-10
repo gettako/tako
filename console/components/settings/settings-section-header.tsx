@@ -11,7 +11,7 @@ export interface SettingsSectionHeaderProps extends SectionHeaderProps {
  * SettingsSectionHeader
  * Reusable standardized section header component for all settings cards and panels.
  * Consistent typography: font-semibold text-base, tracking-tight, leading-snug.
- * Consistent icon wrapper: size-10 rounded-xl border border-border bg-muted/40 shadow-2xs.
+ * Consistent icon wrapper: size-10 rounded-xl border border-border bg-muted/40.
  */
 export function SettingsSectionHeader({
   action,
