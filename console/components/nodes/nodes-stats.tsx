@@ -40,7 +40,7 @@ export function NodesStats({ nodes }: NodesStatsProps) {
             : `${onlineNodes} online and healthy`
         }
         icon={Server}
-        statusAccent={offlineNodes > 0 ? 'danger' : degradedNodes > 0 ? 'warning' : 'healthy'}
+        statusAccent={offlineNodes > 0 ? 'danger' : degradedNodes > 0 ? 'warning' : undefined}
       />
       <StatCard
         title="Compute Capacity"

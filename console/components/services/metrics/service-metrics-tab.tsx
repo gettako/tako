@@ -451,7 +451,7 @@ export function ServiceMetricsTab({
               ? 'unhealthy'
               : summaryStats.currentCpu >= 65
               ? 'warning'
-              : 'healthy'
+              : undefined
           }
           change={{
             value: `Peak ${summaryStats.peakCpu}%`,
@@ -470,7 +470,7 @@ export function ServiceMetricsTab({
               ? 'unhealthy'
               : currentMemPercent >= 65
               ? 'warning'
-              : 'healthy'
+              : undefined
           }
           change={{
             value: `${currentMemPercent}% of limit`,

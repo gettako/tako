@@ -103,7 +103,7 @@ export function ProjectDetailHeader({
           value={services.length > 0 ? `${healthPercent}%` : '100%'}
           subtext="Service availability status"
           icon={Activity}
-          statusAccent={healthyCount === services.length ? 'healthy' : 'warning'}
+          statusAccent={healthyCount === services.length ? undefined : 'warning'}
           change={{
             value: healthyCount === services.length ? 'Optimal' : `${services.length - healthyCount} alerts`,
             trend: healthyCount === services.length ? 'up' : 'down',

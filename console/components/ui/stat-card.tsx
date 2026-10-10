@@ -37,17 +37,21 @@ export function StatCard({
       )}
       {...props}
     >
-      {statusAccent && statusAccent !== 'neutral' && (
-        <div
-          className={cn(
-            'absolute inset-x-0 top-0 h-0.5',
-            statusAccent === 'healthy' && 'bg-status-success/70',
-            statusAccent === 'warning' && 'bg-status-warning/70',
-            statusAccent === 'unhealthy' && 'bg-status-danger/70',
-            statusAccent === 'degraded' && 'bg-status-warning/70'
-          )}
-        />
-      )}
+      {statusAccent &&
+        (statusAccent === 'warning' ||
+          statusAccent === 'degraded' ||
+          statusAccent === 'unhealthy' ||
+          statusAccent === 'danger' ||
+          statusAccent === 'error') && (
+          <div
+            className={cn(
+              'absolute inset-x-0 top-0 h-0.5',
+              (statusAccent === 'warning' || statusAccent === 'degraded') && 'bg-status-warning/70',
+              (statusAccent === 'unhealthy' || statusAccent === 'danger' || statusAccent === 'error') &&
+                'bg-status-danger/70'
+            )}
+          />
+        )}
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-muted-foreground">{title}</span>
         {Icon && (

@@ -47,7 +47,7 @@ export function ProjectsStats({
         value={`${healthyProjects}/${totalProjects}`}
         subtext="Workload group availability"
         icon={CheckCircle2}
-        statusAccent="healthy"
+        statusAccent={healthyProjects < totalProjects ? 'warning' : undefined}
         change={{
           value: `${healthPercentage}%`,
           trend: healthyProjects === totalProjects ? 'up' : 'neutral',
@@ -62,7 +62,7 @@ export function ProjectsStats({
             : 'Zero active incidents'
         }
         icon={AlertTriangle}
-        statusAccent={issuesCount > 0 ? 'warning' : 'neutral'}
+        statusAccent={issuesCount > 0 ? 'warning' : undefined}
         change={
           issuesCount > 0
             ? {

@@ -43,7 +43,7 @@ export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsC
               ? 'unhealthy'
               : cpuPercent >= 65
               ? 'warning'
-              : 'healthy'
+              : undefined
           }
           change={{
             value:
@@ -71,7 +71,7 @@ export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsC
               ? 'unhealthy'
               : memoryPercent >= 65
               ? 'warning'
-              : 'healthy'
+              : undefined
           }
           change={
             hasMemoryLimit
@@ -102,10 +102,8 @@ export function ResourceMetricsCard({ service, onNavigateTab }: ResourceMetricsC
           subtext={`Host: ${service.nodeName}`}
           icon={Server}
           statusAccent={
-            service.status === 'healthy'
-              ? 'healthy'
-              : service.status === 'stopped'
-              ? 'neutral'
+            service.status === 'healthy' || service.status === 'stopped'
+              ? undefined
               : 'warning'
           }
           change={{

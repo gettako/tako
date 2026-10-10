@@ -35,7 +35,7 @@ export function DashboardStats({ projects, services, nodes }: DashboardStatsProp
         value={totalServices}
         subtext={totalServices === 0 ? 'No workloads provisioned' : `${healthyServices} running healthy`}
         icon={Layers}
-        statusAccent={totalServices === 0 ? undefined : healthyServices === totalServices ? 'healthy' : 'warning'}
+        statusAccent={totalServices === 0 || healthyServices === totalServices ? undefined : 'warning'}
         change={{
           value: totalServices === 0 ? '0 Workloads' : `${Math.round((healthyServices / totalServices) * 100)}% Healthy`,
           trend: totalServices === 0 ? 'neutral' : healthyServices === totalServices ? 'up' : 'down',
@@ -52,7 +52,7 @@ export function DashboardStats({ projects, services, nodes }: DashboardStatsProp
             : 'All nodes online'
         }
         icon={Server}
-        statusAccent={totalNodes === 0 ? undefined : totalNodes - onlineNodes > 0 ? 'warning' : 'healthy'}
+        statusAccent={totalNodes === 0 || totalNodes - onlineNodes === 0 ? undefined : 'warning'}
         change={{
           value:
             totalNodes === 0
@@ -74,7 +74,7 @@ export function DashboardStats({ projects, services, nodes }: DashboardStatsProp
             : `${degradedOrUnhealthy} ${degradedOrUnhealthy === 1 ? 'workload' : 'workloads'} impaired`
         }
         icon={AlertCircle}
-        statusAccent={degradedOrUnhealthy === 0 ? 'healthy' : 'unhealthy'}
+        statusAccent={degradedOrUnhealthy === 0 ? undefined : 'unhealthy'}
         change={{
           value: degradedOrUnhealthy === 0 ? 'Healthy' : 'Investigate',
           trend: degradedOrUnhealthy === 0 ? 'up' : 'down',
