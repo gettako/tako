@@ -103,7 +103,7 @@ export function CronJobsSection({ service }: CronJobsSectionProps) {
       const run = await runCronJobNow(job.id);
       invalidate();
       queryClient.invalidateQueries({ queryKey: ['cron-runs', job.id] });
-      toast.success(`Job "${job.name}" triggered (${run.durationMs}ms, exit code 0)`);
+      toast.success(`Job "${job.name}" triggered (${run.durationMs}ms, exit code ${run.exitCode})`);
     } catch {
       toast.error('Failed to trigger cron job');
     } finally {

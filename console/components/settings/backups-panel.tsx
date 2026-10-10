@@ -6,8 +6,11 @@ import {
   getBackupSchedule,
   updateBackupSchedule,
   triggerManualBackup,
+  getBackupSnapshots,
+  restoreBackupSnapshot,
   getS3Buckets,
 } from '@/lib/api/settings';
+import { ClusterBackupSnapshot } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +18,34 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
-import { Database, CheckCircle2, Play, Save, Loader2, Clock } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Database,
+  CheckCircle2,
+  Play,
+  Save,
+  Loader2,
+  Clock,
+  RotateCcw,
+  Archive,
+  AlertTriangle,
+  FileText,
+} from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
 
@@ -23,10 +53,19 @@ export function BackupsPanel() {
   const queryClient = useQueryClient();
   const [isTriggering, setIsTriggering] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
+  const [selectedSnapshot, setSelectedSnapshot] = useState<ClusterBackupSnapshot | null>(null);
+  const [confirmText, setConfirmText] = useState('');
+  const [isRestoring, setIsRestoring] = useState(false);
 
-  const { data: schedule, isLoading: loadingSchedule } = useQuery({
+  const { data: schedule } = useQuery({
     queryKey: ['backup-schedule'],
     queryFn: getBackupSchedule,
+  });
+
+  const { data: snapshots = [], isLoading: loadingSnapshots } = useQuery({
+    queryKey: ['backup-snapshots'],
+    queryFn: getBackupSnapshots,
   });
 
   const { data: buckets = [] } = useQuery({
@@ -64,7 +103,10 @@ export function BackupsPanel() {
     try {
       setIsTriggering(true);
       const res = await triggerManualBackup();
-      queryClient.invalidateQueries({ queryKey: ['backup-schedule'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['backup-schedule'] }),
+        queryClient.invalidateQueries({ queryKey: ['backup-snapshots'] }),
+      ]);
       toast.success(`Cluster snapshot generated (${res.snapshotSizeMb} MB, ${res.durationMs}ms)`);
     } catch {
       toast.error('Failed to create manual backup');
@@ -73,8 +115,29 @@ export function BackupsPanel() {
     }
   };
 
+  const handleOpenRestore = (snapshot: ClusterBackupSnapshot) => {
+    setSelectedSnapshot(snapshot);
+    setConfirmText('');
+    setRestoreModalOpen(true);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!selectedSnapshot) return;
+    try {
+      setIsRestoring(true);
+      const res = await restoreBackupSnapshot(selectedSnapshot.id);
+      toast.success(res.message);
+      setRestoreModalOpen(false);
+    } catch {
+      toast.error('Failed to restore snapshot');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* 1. Automated Schedule & Snapshot Generator */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
@@ -221,6 +284,143 @@ export function BackupsPanel() {
           </CardFooter>
         </form>
       </Card>
+
+      {/* 2. Cluster Snapshot Files Listing & Restore */}
+      <Card className="border-border bg-card p-6">
+        <CardHeader className="px-0 pt-0 pb-4">
+          <SectionHeader
+            icon={Archive}
+            title="Cluster Snapshots History"
+            description="Available snapshot archives in storage. You can inspect checksums or validate and restore state."
+          />
+        </CardHeader>
+
+        <CardContent className="px-0 pt-2 pb-0">
+          <div className="rounded-lg border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[340px]">Snapshot Archive</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Checksum</TableHead>
+                  <TableHead>Created At</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {snapshots.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
+                      No backup snapshots found. Click &quot;Backup Now&quot; above to create your first snapshot.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  snapshots.map((snap) => (
+                    <TableRow key={snap.id} className="hover:bg-muted/40">
+                      <TableCell className="font-mono text-xs font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <FileText className="size-4 text-primary shrink-0" />
+                          <span className="truncate">{snap.filename}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {snap.sizeMb.toFixed(1)} MB
+                      </TableCell>
+                      <TableCell className="font-mono text-[11px] text-muted-foreground/80 max-w-[140px] truncate">
+                        {snap.checksum}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {new Date(snap.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className="bg-status-success/10 text-status-success border-status-success/30 font-mono text-[11px]"
+                        >
+                          {snap.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenRestore(snap)}
+                          className="h-7 text-xs font-medium gap-1 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                        >
+                          <RotateCcw className="size-3" />
+                          <span>Restore</span>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Restore Snapshot Confirmation Modal */}
+      <Dialog open={restoreModalOpen} onOpenChange={setRestoreModalOpen}>
+        <DialogContent className="sm:max-w-md border-amber-500/40">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="size-5 shrink-0" />
+              <DialogTitle className="text-base font-semibold">
+                Confirm Cluster Snapshot Restore
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs leading-relaxed pt-2 space-y-2">
+              <p>
+                You are about to restore the cluster state from snapshot:
+              </p>
+              <div className="p-2.5 rounded-lg bg-muted border border-border font-mono text-xs text-foreground select-all">
+                {selectedSnapshot?.filename}
+              </div>
+              <p className="text-destructive font-medium">
+                Warning: Restoring will overwrite control plane database metadata and re-synchronize active services to this snapshot state.
+              </p>
+              <div className="pt-2">
+                <Label className="text-xs text-muted-foreground">
+                  Type <strong className="text-foreground font-mono">RESTORE</strong> to confirm:
+                </Label>
+                <Input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="RESTORE"
+                  className="font-mono text-xs mt-1 h-8"
+                />
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2.5 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRestoreModalOpen(false)}
+              className="text-xs h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={confirmText !== 'RESTORE' || isRestoring}
+              onClick={handleConfirmRestore}
+              className="text-xs h-9 bg-amber-600 hover:bg-amber-700 text-white font-medium gap-1.5"
+            >
+              {isRestoring ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="size-3.5" />
+              )}
+              Confirm Restore
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

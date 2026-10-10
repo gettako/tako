@@ -233,6 +233,42 @@ func (c *Client) ContainerAction(ctx context.Context, containerName string, acti
 		return fmt.Errorf("docker client not available")
 	}
 
+	if strings.HasPrefix(action, "update-limits:") {
+		parts := strings.Split(action, ":")
+		if len(parts) >= 4 {
+			var cpuCores float64
+			var memoryMb, swapMb int64
+			_, _ = fmt.Sscanf(parts[1], "%f", &cpuCores)
+			_, _ = fmt.Sscanf(parts[2], "%d", &memoryMb)
+			_, _ = fmt.Sscanf(parts[3], "%d", &swapMb)
+
+			targets := c.ResolveAllContainers(ctx, containerName)
+			if len(targets) == 0 {
+				return fmt.Errorf("no running container found for %s", containerName)
+			}
+			var lastErr error
+			for _, t := range targets {
+				var resources container.Resources
+				if cpuCores > 0 {
+					resources.NanoCPUs = int64(cpuCores * 1e9)
+				}
+				if memoryMb > 0 {
+					memBytes := memoryMb * 1024 * 1024
+					swapBytes := (memoryMb + swapMb) * 1024 * 1024
+					resources.Memory = memBytes
+					resources.MemorySwap = swapBytes
+				}
+				_, err := c.cli.ContainerUpdate(ctx, t, container.UpdateConfig{
+					Resources: resources,
+				})
+				if err != nil {
+					lastErr = err
+				}
+			}
+			return lastErr
+		}
+	}
+
 	switch action {
 	case "start":
 		target := c.ResolveContainer(ctx, containerName)

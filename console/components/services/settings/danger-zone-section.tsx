@@ -13,6 +13,7 @@ interface DangerZoneSectionProps {
   service: Service;
   onRestart?: () => Promise<void>;
   onStart?: () => Promise<void>;
+  onStop?: () => Promise<void>;
   onRebuild?: () => Promise<void>;
 }
 
@@ -20,11 +21,13 @@ export function DangerZoneSection({
   service,
   onRestart,
   onStart,
+  onStop,
   onRebuild,
 }: DangerZoneSectionProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [isRebuilding, setIsRebuilding] = useState(false);
 
   const isStopped = service.status === 'stopped';
@@ -40,6 +43,20 @@ export function DangerZoneSection({
       toast.error('Failed to start service');
     } finally {
       setIsStarting(false);
+    }
+  };
+
+  const handleStop = async () => {
+    try {
+      setIsStopping(true);
+      if (onStop) {
+        await onStop();
+      }
+      toast.success('Service containers successfully stopped');
+    } catch {
+      toast.error('Failed to stop service');
+    } finally {
+      setIsStopping(false);
     }
   };
 
@@ -86,16 +103,43 @@ export function DangerZoneSection({
         </CardHeader>
 
         <CardContent className="px-0 divide-y divide-border/60">
-          {/* Action 1: Start or Force Restart Service */}
+          {/* Action 1: Force Restart Service */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 py-6 first:pt-6">
             <div className="space-y-1.5 sm:max-w-xl">
               <div className="text-sm font-semibold text-foreground">
-                {isStopped ? 'Start Service Containers' : 'Force Restart Containers'}
+                Force Restart Containers
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Tears down all active container replicas for this service and spins up fresh instances.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleForceRestart}
+              disabled={isRestarting || isStopped}
+              className="text-sm h-9 px-4 border-border hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
+            >
+              {isRestarting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RotateCw className="size-3.5" />
+              )}
+              <span>Force Restart</span>
+            </Button>
+          </div>
+
+          {/* Action 2: Stop / Start Service */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 py-6">
+            <div className="space-y-1.5 sm:max-w-xl">
+              <div className="text-sm font-semibold text-foreground">
+                {isStopped ? 'Start Service' : 'Stop Service'}
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {isStopped
                   ? 'Spins up container instances for this stopped service and binds routing.'
-                  : 'Tears down all active container replicas for this service and spins up fresh instances.'}
+                  : 'Stops running containers and detaches ingress traffic routing.'}
               </p>
             </div>
             {isStopped ? (
@@ -118,16 +162,16 @@ export function DangerZoneSection({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleForceRestart}
-                disabled={isRestarting}
-                className="text-sm h-9 px-4 border-border hover:bg-muted text-foreground gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
+                onClick={handleStop}
+                disabled={isStopping}
+                className="text-sm h-9 px-4 border-amber-500/50 hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 gap-1.5 shrink-0"
               >
-                {isRestarting ? (
+                {isStopping ? (
                   <Loader2 className="size-3.5 animate-spin" />
                 ) : (
-                  <RotateCw className="size-3.5" />
+                  <AlertTriangle className="size-3.5" />
                 )}
-                <span>Force Restart</span>
+                <span>Stop Service</span>
               </Button>
             )}
           </div>

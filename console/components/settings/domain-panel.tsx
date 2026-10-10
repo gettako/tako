@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getDomainSettings, updateDomainSettings, verifyDomainAndSSL } from '@/lib/api/settings';
-import { getNodes } from '@/lib/api/nodes';
+import { getNodes, reloadNodeTraefik } from '@/lib/api/nodes';
 import { DomainVerificationResult } from '@/lib/types';
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import {
   ExternalLink,
   Info,
   Lock,
+  RotateCw,
 } from 'lucide-react';
 import {
   sanitizeDomain,
@@ -38,6 +39,7 @@ export function DomainPanel() {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isReloadingTraefik, setIsReloadingTraefik] = useState(false);
   const [copiedIp, setCopiedIp] = useState(false);
   const [copiedDomain, setCopiedDomain] = useState(false);
   const [showCustomIp, setShowCustomIp] = useState(false);
@@ -57,6 +59,8 @@ export function DomainPanel() {
 
   const [domain, setDomain] = useState('');
   const [sslAutoRenew, setSslAutoRenew] = useState(true);
+  const [dnsProvider, setDnsProvider] = useState<'http01' | 'cloudflare'>('http01');
+  const [cloudflareApiToken, setCloudflareApiToken] = useState('');
   const [customDnsIp, setCustomDnsIp] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [verificationResult, setVerificationResult] = useState<DomainVerificationResult | null>(null);
@@ -65,6 +69,8 @@ export function DomainPanel() {
     if (settings) {
       if (typeof settings.domain === 'string') setDomain(settings.domain);
       if (typeof settings.sslAutoRenew === 'boolean') setSslAutoRenew(settings.sslAutoRenew);
+      if (settings.dnsProvider) setDnsProvider(settings.dnsProvider);
+      if (settings.cloudflareApiToken) setCloudflareApiToken(settings.cloudflareApiToken);
       if (settings.customDnsIp) {
         setCustomDnsIp(settings.customDnsIp);
         setShowCustomIp(true);
@@ -108,6 +114,8 @@ export function DomainPanel() {
       const updated = await updateDomainSettings({
         domain: cleaned,
         sslAutoRenew,
+        dnsProvider,
+        cloudflareApiToken: dnsProvider === 'cloudflare' ? cloudflareApiToken.trim() : undefined,
         customDnsIp: customDnsIp.trim() || undefined,
       });
 
@@ -135,6 +143,26 @@ export function DomainPanel() {
       toast.error('Failed to update domain settings');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleReloadTraefik = async () => {
+    if (!leaderNode?.id) {
+      toast.error('No cluster node found');
+      return;
+    }
+    try {
+      setIsReloadingTraefik(true);
+      const res = await reloadNodeTraefik(leaderNode.id);
+      if (res.success) {
+        toast.success(res.message || 'Traefik configuration rules successfully reloaded on cluster');
+      } else {
+        toast.error('Failed to reload Traefik configuration');
+      }
+    } catch {
+      toast.error('Failed to reload Traefik configuration');
+    } finally {
+      setIsReloadingTraefik(false);
     }
   };
 
@@ -203,28 +231,46 @@ export function DomainPanel() {
             <div className="space-y-0.5 min-w-0">
               <CardTitle>Cluster Hostname & SSL Configuration</CardTitle>
               <CardDescription>
-                Configure the primary web console domain and automatic Let&apos;s Encrypt TLS termination.
+                Configure the primary web console domain, wildcard routes, and Let&apos;s Encrypt TLS termination.
               </CardDescription>
             </div>
           </div>
           <CardAction>
-            <Badge
-              variant="outline"
-              className={
-                badgeConfig.variant === 'success'
-                  ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
-                  : badgeConfig.variant === 'warning'
-                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
-                    : 'bg-primary/10 text-primary border-primary/30 font-mono text-xs gap-1'
-              }
-            >
-              {badgeConfig.variant === 'success' ? (
-                <ShieldCheck className="size-3.5" />
-              ) : (
-                <Lock className="size-3.5" />
-              )}
-              {badgeConfig.label}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleReloadTraefik}
+                disabled={isReloadingTraefik}
+                className="h-7 text-xs font-medium gap-1.5 border-border"
+                title="Reload Traefik dynamic routing and ACME certificate resolver"
+              >
+                {isReloadingTraefik ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <RotateCw className="size-3" />
+                )}
+                <span>Reload Traefik</span>
+              </Button>
+              <Badge
+                variant="outline"
+                className={
+                  badgeConfig.variant === 'success'
+                    ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
+                    : badgeConfig.variant === 'warning'
+                      ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
+                      : 'bg-primary/10 text-primary border-primary/30 font-mono text-xs gap-1'
+                }
+              >
+                {badgeConfig.variant === 'success' ? (
+                  <ShieldCheck className="size-3.5" />
+                ) : (
+                  <Lock className="size-3.5" />
+                )}
+                {badgeConfig.label}
+              </Badge>
+            </div>
           </CardAction>
         </CardHeader>
 
@@ -458,7 +504,7 @@ export function DomainPanel() {
                   </Label>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Automatically provisions and renews SSL/TLS certificates via Traefik ACME HTTP-01 challenge before expiration.
+                  Automatically provisions and renews SSL/TLS certificates via Traefik ACME before expiration.
                 </p>
               </div>
               <Switch
@@ -468,8 +514,64 @@ export function DomainPanel() {
               />
             </div>
 
+            {/* ACME Challenge Provider Selector */}
+            <div className="space-y-3 pt-2">
+              <Label className="text-xs font-medium text-foreground">ACME DNS Challenge Provider</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div
+                  onClick={() => setDnsProvider('http01')}
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    dnsProvider === 'http01'
+                      ? 'border-primary bg-primary/5 text-foreground'
+                      : 'border-border bg-card hover:bg-muted/30 text-muted-foreground'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">HTTP-01 Challenge</span>
+                    {dnsProvider === 'http01' && <CheckCircle2 className="size-4 text-primary" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Standard challenge. Perfect for apex domains and direct subdomains (requires open port 80).
+                  </p>
+                </div>
+
+                <div
+                  onClick={() => setDnsProvider('cloudflare')}
+                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    dnsProvider === 'cloudflare'
+                      ? 'border-primary bg-primary/5 text-foreground'
+                      : 'border-border bg-card hover:bg-muted/30 text-muted-foreground'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">Cloudflare DNS-01 Challenge</span>
+                    {dnsProvider === 'cloudflare' && <CheckCircle2 className="size-4 text-primary" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Required for Wildcard Certificates (<code>*.gettako.dev</code>). Automated via Cloudflare API.
+                  </p>
+                </div>
+              </div>
+
+              {dnsProvider === 'cloudflare' && (
+                <div className="space-y-1.5 pt-2 max-w-md">
+                  <Label className="text-xs font-medium text-foreground">Cloudflare API Token</Label>
+                  <Input
+                    type="password"
+                    value={cloudflareApiToken}
+                    onChange={(e) => setCloudflareApiToken(e.target.value)}
+                    placeholder="Enter Cloudflare Zone:DNS API Token"
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Token with permissions: <code>Zone:DNS:Edit</code> and <code>Zone:Zone:Read</code>.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Certificate telemetry summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
               <div className="p-3 rounded-lg border border-border bg-card space-y-1">
                 <span className="text-muted-foreground text-[11px]">Cert Resolver</span>
                 <div className="font-semibold text-foreground font-mono">Traefik Let&apos;s Encrypt</div>
@@ -483,9 +585,13 @@ export function DomainPanel() {
               </div>
 
               <div className="p-3 rounded-lg border border-border bg-card space-y-1">
-                <span className="text-muted-foreground text-[11px]">ACME Challenge</span>
-                <div className="font-semibold text-foreground font-mono">HTTP-01 Challenge</div>
-                <div className="text-[10px] text-muted-foreground">Requires open port 80</div>
+                <span className="text-muted-foreground text-[11px]">Active Challenge</span>
+                <div className="font-semibold text-foreground font-mono">
+                  {dnsProvider === 'cloudflare' ? 'Cloudflare DNS-01' : 'HTTP-01 Challenge'}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {dnsProvider === 'cloudflare' ? 'Supports *.wildcard TLS' : 'Requires open port 80'}
+                </div>
               </div>
             </div>
           </div>

@@ -112,10 +112,39 @@ export async function regenerateWebhookSecret(webhookId: string): Promise<Webhoo
 }
 
 export async function testWebhookDelivery(webhookId: string, event: string = 'manual'): Promise<WebhookDelivery> {
-  await simulateDelay();
   const index = webhooks.findIndex((w) => w.id === webhookId);
   if (index === -1) throw new Error(`Webhook ${webhookId} not found`);
+  const wh = webhooks[index];
 
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/webhooks/deploy/${wh.serviceId}?token=${encodeURIComponent(wh.secret)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Secret': wh.secret,
+        },
+        body: JSON.stringify({
+          event: 'ping_test',
+          ref: event === 'tag' ? 'refs/tags/v1.0.0-test' : 'refs/heads/main',
+          sender: 'console-manual-test',
+        }),
+      });
+      if (res.ok || res.status === 202) {
+        const data = await res.json();
+        if (data.delivery) {
+          const del = data.delivery as WebhookDelivery;
+          deliveries.unshift(del);
+          webhooks[index].lastTriggeredAt = del.timestamp;
+          return del;
+        }
+      }
+    } catch {
+      // fallback to mock delivery
+    }
+  }
+
+  await simulateDelay();
   const delivery: WebhookDelivery = {
     id: `whd-${Date.now()}`,
     webhookId,

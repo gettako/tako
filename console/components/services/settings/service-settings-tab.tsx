@@ -16,6 +16,7 @@ interface ServiceSettingsTabProps {
   onUpdateService: (input: UpdateServiceInput) => Promise<void>;
   onRestartService?: () => Promise<void>;
   onStartService?: () => Promise<void>;
+  onStopService?: () => Promise<void>;
   onRebuildService?: () => Promise<void>;
 }
 
@@ -24,6 +25,7 @@ export function ServiceSettingsTab({
   onUpdateService,
   onRestartService,
   onStartService,
+  onStopService,
   onRebuildService,
 }: ServiceSettingsTabProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
@@ -72,6 +74,7 @@ export function ServiceSettingsTab({
             service={service}
             onRestart={onRestartService}
             onStart={onStartService}
+            onStop={onStopService}
             onRebuild={onRebuildService}
           />
         )}

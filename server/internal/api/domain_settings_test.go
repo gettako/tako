@@ -198,5 +198,25 @@ func TestDomainSanitizationAndEdgeCases(t *testing.T) {
 	if wPut.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK for PUT domain_settings, got %d: %s", wPut.Code, wPut.Body.String())
 	}
+
+	// 4. Wildcard domain (*.gettako.dev) should be accepted and verified
+	wildcardPayload, _ := json.Marshal(map[string]any{
+		"domain":     "*.127-0-0-1.sslip.io",
+		"expectedIp": "127.0.0.1",
+	})
+	reqWildcard := httptest.NewRequest(http.MethodPost, "/api/v1/settings/domain/verify", bytes.NewReader(wildcardPayload))
+	reqWildcard.Header.Set("Content-Type", "application/json")
+	wWildcard := httptest.NewRecorder()
+	router.ServeHTTP(wWildcard, reqWildcard)
+	if wWildcard.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for wildcard domain, got %d: %s", wWildcard.Code, wWildcard.Body.String())
+	}
+	var wildResp VerifyDomainResponse
+	if err := json.Unmarshal(wWildcard.Body.Bytes(), &wildResp); err != nil {
+		t.Fatalf("failed to decode wildcard response: %v", err)
+	}
+	if !wildResp.Valid || !wildResp.DnsVerified {
+		t.Fatalf("expected valid and dnsVerified for wildcard domain, got %+v", wildResp)
+	}
 }
 

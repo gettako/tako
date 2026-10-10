@@ -2,20 +2,33 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getNotificationSettings, updateNotificationSettings } from '@/lib/api/settings';
+import {
+  getNotificationSettings,
+  updateNotificationSettings,
+  sendTestNotification,
+} from '@/lib/api/settings';
 import { NotificationSettings } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Bell, Mail, MessageSquare, Send, Save, Loader2 } from 'lucide-react';
+import {
+  Mail,
+  MessageSquare,
+  Send,
+  Save,
+  Loader2,
+  BellRing,
+  CheckCircle2,
+} from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
 
 export function NotificationsPanel() {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
+  const [testingChannel, setTestingChannel] = useState<string | null>(null);
 
   const { data: initialSettings } = useQuery({
     queryKey: ['notification-settings'],
@@ -35,6 +48,11 @@ export function NotificationsPanel() {
         webhookUrl: 'https://hooks.slack.com/services/T00/B00/X00',
         channelName: '#infrastructure-alerts',
       },
+      discord: {
+        enabled: false,
+        webhookUrl: '',
+        channelName: '#tako-alerts',
+      },
       telegram: {
         enabled: false,
         botToken: '',
@@ -42,6 +60,20 @@ export function NotificationsPanel() {
       },
     }
   );
+
+  React.useEffect(() => {
+    if (initialSettings) {
+      setSettings((prev) => ({
+        ...prev,
+        ...initialSettings,
+        discord: initialSettings.discord || prev.discord || {
+          enabled: false,
+          webhookUrl: '',
+          channelName: '#tako-alerts',
+        },
+      }));
+    }
+  }, [initialSettings]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +89,22 @@ export function NotificationsPanel() {
     }
   };
 
+  const handleTestChannel = async (channel: 'email' | 'slack' | 'discord' | 'telegram') => {
+    try {
+      setTestingChannel(channel);
+      const res = await sendTestNotification(channel);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        toast.error('Test notification failed');
+      }
+    } catch {
+      toast.error(`Failed to send test notification to ${channel}`);
+    } finally {
+      setTestingChannel(null);
+    }
+  };
+
   return (
     <form onSubmit={handleSave} className="space-y-6">
       {/* 1. Email (SMTP) Channel */}
@@ -67,15 +115,34 @@ export function NotificationsPanel() {
             title="Email Alerts (SMTP)"
             description="Send critical alerts for node outages, failed deployments, and security incidents."
             action={
-              <Switch
-                checked={settings.email.enabled}
-                onCheckedChange={(val) =>
-                  setSettings({
-                    ...settings,
-                    email: { ...settings.email, enabled: val },
-                  })
-                }
-              />
+              <div className="flex items-center gap-2">
+                {settings.email.enabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestChannel('email')}
+                    disabled={testingChannel === 'email'}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    {testingChannel === 'email' ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <BellRing className="size-3.5" />
+                    )}
+                    Send Test
+                  </Button>
+                )}
+                <Switch
+                  checked={settings.email.enabled}
+                  onCheckedChange={(val) =>
+                    setSettings({
+                      ...settings,
+                      email: { ...settings.email, enabled: val },
+                    })
+                  }
+                />
+              </div>
             }
           />
         </CardHeader>
@@ -140,15 +207,34 @@ export function NotificationsPanel() {
             title="Slack Webhook"
             description="Stream deployments and health status notifications into a Slack channel."
             action={
-              <Switch
-                checked={settings.slack.enabled}
-                onCheckedChange={(val) =>
-                  setSettings({
-                    ...settings,
-                    slack: { ...settings.slack, enabled: val },
-                  })
-                }
-              />
+              <div className="flex items-center gap-2">
+                {settings.slack.enabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestChannel('slack')}
+                    disabled={testingChannel === 'slack'}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    {testingChannel === 'slack' ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <BellRing className="size-3.5" />
+                    )}
+                    Send Test
+                  </Button>
+                )}
+                <Switch
+                  checked={settings.slack.enabled}
+                  onCheckedChange={(val) =>
+                    setSettings({
+                      ...settings,
+                      slack: { ...settings.slack, enabled: val },
+                    })
+                  }
+                />
+              </div>
             }
           />
         </CardHeader>
@@ -188,7 +274,94 @@ export function NotificationsPanel() {
         )}
       </Card>
 
-      {/* 3. Telegram Bot Channel */}
+      {/* 3. Discord Webhook Channel */}
+      <Card className="border-border bg-card p-6">
+        <CardHeader className="px-0 pt-0 pb-4">
+          <SectionHeader
+            icon={MessageSquare}
+            title="Discord Webhook"
+            description="Post cluster events, failed health checks, and build notifications to a Discord channel."
+            action={
+              <div className="flex items-center gap-2">
+                {settings.discord?.enabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestChannel('discord')}
+                    disabled={testingChannel === 'discord'}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    {testingChannel === 'discord' ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <BellRing className="size-3.5" />
+                    )}
+                    Send Test
+                  </Button>
+                )}
+                <Switch
+                  checked={settings.discord?.enabled ?? false}
+                  onCheckedChange={(val) =>
+                    setSettings({
+                      ...settings,
+                      discord: {
+                        enabled: val,
+                        webhookUrl: settings.discord?.webhookUrl || '',
+                        channelName: settings.discord?.channelName || '#tako-alerts',
+                      },
+                    })
+                  }
+                />
+              </div>
+            }
+          />
+        </CardHeader>
+
+        {settings.discord?.enabled && (
+          <CardContent className="px-0 pt-4 space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Discord Webhook URL</Label>
+              <Input
+                value={settings.discord?.webhookUrl || ''}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    discord: {
+                      enabled: true,
+                      webhookUrl: e.target.value,
+                      channelName: settings.discord?.channelName || '#tako-alerts',
+                    },
+                  })
+                }
+                placeholder="https://discord.com/api/webhooks/..."
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-foreground">Channel / Identifier</Label>
+              <Input
+                value={settings.discord?.channelName || '#tako-alerts'}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    discord: {
+                      enabled: true,
+                      webhookUrl: settings.discord?.webhookUrl || '',
+                      channelName: e.target.value,
+                    },
+                  })
+                }
+                placeholder="#tako-alerts"
+                className="max-w-xs font-mono text-sm"
+              />
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* 4. Telegram Bot Channel */}
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SectionHeader
@@ -196,15 +369,34 @@ export function NotificationsPanel() {
             title="Telegram Bot"
             description="Receive instant cluster heartbeat alerts via Telegram bot messages."
             action={
-              <Switch
-                checked={settings.telegram.enabled}
-                onCheckedChange={(val) =>
-                  setSettings({
-                    ...settings,
-                    telegram: { ...settings.telegram, enabled: val },
-                  })
-                }
-              />
+              <div className="flex items-center gap-2">
+                {settings.telegram.enabled && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTestChannel('telegram')}
+                    disabled={testingChannel === 'telegram'}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    {testingChannel === 'telegram' ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <BellRing className="size-3.5" />
+                    )}
+                    Send Test
+                  </Button>
+                )}
+                <Switch
+                  checked={settings.telegram.enabled}
+                  onCheckedChange={(val) =>
+                    setSettings({
+                      ...settings,
+                      telegram: { ...settings.telegram, enabled: val },
+                    })
+                  }
+                />
+              </div>
             }
           />
         </CardHeader>

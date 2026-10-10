@@ -53,6 +53,7 @@ type UpdateServiceParams struct {
 	PublishToHost *bool
 	CPULimit      *float64
 	MemoryLimitMB *int64
+	SwapLimitMB   *int64
 }
 
 func fallbackVal[T comparable](ptr *T, fallback T) T {
@@ -79,6 +80,17 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 		}
 	}
 
+	// Ensure swap_limit_mb column exists
+	_, _ = o.db.ExecContext(ctx, "ALTER TABLE services ADD COLUMN swap_limit_mb INTEGER NOT NULL DEFAULT 0;")
+
+	var existingSwap int64
+	_ = o.db.QueryRowContext(ctx, "SELECT swap_limit_mb FROM services WHERE id = ?", id).Scan(&existingSwap)
+
+	swapLimit := existingSwap
+	if p.SwapLimitMB != nil {
+		swapLimit = *p.SwapLimitMB
+	}
+
 	_, err = o.db.ExecContext(ctx, `
 		UPDATE services SET
 			name = ?,
@@ -92,6 +104,7 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 			publish_to_host = ?,
 			cpu_limit = ?,
 			memory_limit_mb = ?,
+			swap_limit_mb = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?`,
 		fallbackVal(p.Name, srv.Name),
@@ -105,6 +118,7 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 		publishToHost,
 		fallbackVal(p.CPULimit, srv.CpuLimit),
 		fallbackVal(p.MemoryLimitMB, srv.MemoryLimitMb),
+		swapLimit,
 		id,
 	)
 	if err != nil {

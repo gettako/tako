@@ -233,6 +233,7 @@ export async function updateService(id: string, input: UpdateServiceInput): Prom
     buildCommand: input.buildCommand !== undefined ? input.buildCommand : current.buildCommand,
     composeFile: input.composeFile !== undefined ? input.composeFile : current.composeFile,
     image: input.image !== undefined ? input.image : current.image,
+    publishToHost: input.publishToHost !== undefined ? input.publishToHost : current.publishToHost,
     replicas: input.replicas !== undefined ? input.replicas : current.replicas,
     limits: input.limits
       ? {

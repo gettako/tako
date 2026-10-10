@@ -23,6 +23,7 @@ import {
   GitProvider,
   SyncedRepo,
   ClusterBackupSchedule,
+  ClusterBackupSnapshot,
   ClusterDomainSettings,
   DomainVerificationResult,
   NotificationSettings,
@@ -390,7 +391,72 @@ export async function syncGitRepos(): Promise<SyncedRepo[]> {
   return [...syncedRepos];
 }
 
+export async function connectGitProviderWithPAT(input: {
+  provider: 'github' | 'gitlab' | 'gitea';
+  username: string;
+  token: string;
+}): Promise<{ provider: GitProvider; repos: SyncedRepo[] }> {
+  await simulateDelay(300, 600);
+  const newProvider: GitProvider = {
+    id: `git-${input.provider}-${input.username}`,
+    type: input.provider === 'gitea' ? 'github' : input.provider,
+    name:
+      input.provider === 'github'
+        ? 'GitHub (PAT)'
+        : input.provider === 'gitlab'
+          ? 'GitLab (PAT)'
+          : 'Gitea (PAT)',
+    username: input.username,
+    connected: true,
+    avatarUrl: `https://github.com/${input.username}.png`,
+    connectedAt: new Date().toISOString(),
+  };
+
+  const dummyRepos: SyncedRepo[] = [
+    {
+      id: `repo-${input.username}-app`,
+      providerId: newProvider.id,
+      name: `${input.username}-app`,
+      fullName: `${input.username}/${input.username}-app`,
+      defaultBranch: 'main',
+      private: true,
+      htmlUrl: `https://${input.provider}.com/${input.username}/${input.username}-app`,
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: `repo-${input.username}-api`,
+      providerId: newProvider.id,
+      name: `${input.username}-api`,
+      fullName: `${input.username}/${input.username}-api`,
+      defaultBranch: 'main',
+      private: false,
+      htmlUrl: `https://${input.provider}.com/${input.username}/${input.username}-api`,
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+
+  providers = [newProvider, ...providers.filter((p) => p.id !== newProvider.id)];
+  syncedRepos = [...dummyRepos, ...syncedRepos.filter((r) => r.providerId !== newProvider.id)];
+
+  await saveSettingToBFF('git_providers', providers);
+  await saveSettingToBFF('synced_repos', syncedRepos);
+
+  return { provider: newProvider, repos: dummyRepos };
+}
+
 /* --- Backups --- */
+let backupSnapshots: ClusterBackupSnapshot[] = [
+  {
+    id: 'snap-1',
+    filename: 'tako-cluster-snapshot-2026-10-09-000000.tar.gz',
+    sizeBytes: 148897792,
+    sizeMb: 142.0,
+    checksum: 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    status: 'completed',
+    createdAt: new Date(Date.now() - 86400000).toISOString(),
+  },
+];
+
 export async function getBackupSchedule(): Promise<ClusterBackupSchedule> {
   const remote = await fetchSettingFromBFF<ClusterBackupSchedule>('backup_schedule', backupSchedule);
   if (remote && remote.frequency) {
@@ -407,15 +473,55 @@ export async function updateBackupSchedule(input: Partial<ClusterBackupSchedule>
   return { ...backupSchedule };
 }
 
-export async function triggerManualBackup(): Promise<{ ok: boolean; snapshotSizeMb: number; durationMs: number }> {
-  await simulateDelay(500, 900);
-  backupSchedule.lastBackupAt = new Date().toISOString();
+export async function getBackupSnapshots(): Promise<ClusterBackupSnapshot[]> {
+  const remote = await fetchSettingFromBFF<ClusterBackupSnapshot[]>('cluster_backup_snapshots', backupSnapshots);
+  if (Array.isArray(remote) && remote.length > 0) {
+    backupSnapshots = remote;
+  }
+  await simulateDelay(100, 200);
+  return [...backupSnapshots];
+}
+
+export async function triggerManualBackup(): Promise<{
+  ok: boolean;
+  snapshotSizeMb: number;
+  durationMs: number;
+  snapshot: ClusterBackupSnapshot;
+}> {
+  await simulateDelay(500, 800);
+  const now = new Date();
+  const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const snapshot: ClusterBackupSnapshot = {
+    id: `snap-${Date.now()}`,
+    filename: `tako-cluster-snapshot-${dateStr}.tar.gz`,
+    sizeBytes: 151519232,
+    sizeMb: 144.5,
+    checksum: `sha256:${Math.random().toString(36).substring(2, 10)}${Math.random().toString(36).substring(2, 10)}`,
+    status: 'completed',
+    createdAt: now.toISOString(),
+  };
+
+  backupSnapshots.unshift(snapshot);
+  backupSchedule.lastBackupAt = snapshot.createdAt;
   backupSchedule.lastBackupStatus = 'success';
   await saveSettingToBFF('backup_schedule', backupSchedule);
+  await saveSettingToBFF('cluster_backup_snapshots', backupSnapshots);
+
   return {
     ok: true,
-    snapshotSizeMb: 142.5,
+    snapshotSizeMb: snapshot.sizeMb,
     durationMs: 780,
+    snapshot,
+  };
+}
+
+export async function restoreBackupSnapshot(snapshotId: string): Promise<{ ok: boolean; message: string }> {
+  await simulateDelay(400, 800);
+  const snap = backupSnapshots.find((s) => s.id === snapshotId);
+  if (!snap) throw new Error('Backup snapshot not found');
+  return {
+    ok: true,
+    message: `Cluster snapshot "${snap.filename}" successfully verified and applied to Takō control plane.`,
   };
 }
 
@@ -518,6 +624,30 @@ export async function updateNotificationSettings(input: NotificationSettings): P
   notificationSettings = { ...input };
   await saveSettingToBFF('notification_settings', notificationSettings);
   return { ...notificationSettings };
+}
+
+export async function sendTestNotification(
+  channel: 'email' | 'slack' | 'discord' | 'telegram'
+): Promise<{ success: boolean; message: string }> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/settings/notifications/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel, settings: notificationSettings }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fallback
+    }
+  }
+  await simulateDelay(300, 500);
+  return {
+    success: true,
+    message: `Test notification sent successfully to ${channel.toUpperCase()}!`,
+  };
 }
 
 export function setNotificationsMockData(newNotifs: Notification[]): void {

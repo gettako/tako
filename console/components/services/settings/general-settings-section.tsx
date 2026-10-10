@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings } from 'lucide-react';
+import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings, Network } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
 
@@ -22,6 +23,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
   const [dockerfile, setDockerfile] = useState(service.dockerfile || 'Dockerfile');
   const [buildCommand, setBuildCommand] = useState(service.buildCommand || '');
   const [repository, setRepository] = useState(service.repository || '');
+  const [publishToHost, setPublishToHost] = useState(service.publishToHost !== undefined ? service.publishToHost : true);
   const [isSaving, setIsSaving] = useState(false);
 
   const isDirty =
@@ -30,7 +32,8 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     commitHash !== (service.commitHash || '') ||
     dockerfile !== (service.dockerfile || 'Dockerfile') ||
     buildCommand !== (service.buildCommand || '') ||
-    repository !== (service.repository || '');
+    repository !== (service.repository || '') ||
+    publishToHost !== (service.publishToHost !== undefined ? service.publishToHost : true);
 
   useEffect(() => {
     if (!isDirty) {
@@ -40,6 +43,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
       setDockerfile(service.dockerfile || 'Dockerfile');
       setBuildCommand(service.buildCommand || '');
       setRepository(service.repository || '');
+      setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
     }
   }, [service, isDirty]);
 
@@ -50,6 +54,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     setDockerfile(service.dockerfile || 'Dockerfile');
     setBuildCommand(service.buildCommand || '');
     setRepository(service.repository || '');
+    setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -68,6 +73,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
         dockerfile: dockerfile.trim(),
         buildCommand: buildCommand.trim(),
         repository: repository.trim() || undefined,
+        publishToHost,
       });
       toast.success('General settings saved successfully');
     } catch (err: unknown) {
@@ -130,6 +136,25 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
                 {service.nodeName}
               </div>
             </div>
+          </div>
+
+          {/* Publish to Host Port Toggle */}
+          <div className="flex items-center justify-between pt-4 border-t border-border">
+            <div className="space-y-0.5">
+              <Label htmlFor="publish-to-host" className="text-xs font-medium text-foreground cursor-pointer flex items-center gap-1.5">
+                <Network className="size-3.5 text-muted-foreground" />
+                Publish to Host Port
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Expose service port directly on node host IP (0.0.0.0:{service.ports?.[0] || 80}) in addition to Traefik domain ingress.
+              </p>
+            </div>
+            <Switch
+              id="publish-to-host"
+              checked={publishToHost}
+              onCheckedChange={setPublishToHost}
+              disabled={isSaving}
+            />
           </div>
         </CardContent>
       </Card>

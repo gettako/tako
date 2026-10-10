@@ -116,23 +116,64 @@ export async function toggleCronJobStatus(id: string): Promise<CronJob> {
 }
 
 export async function runCronJobNow(id: string): Promise<CronJobRun> {
-  await simulateDelay();
   const index = cronJobs.findIndex((j) => j.id === id);
   if (index === -1) throw new Error(`Cron job ${id} not found`);
 
   const job = cronJobs[index];
-  const now = new Date();
-  const finished = new Date(now.getTime() + 1200);
+  const startTime = Date.now();
+  const startDate = new Date();
+  let output = '';
+  let exitCode = 0;
+  let status: 'success' | 'failed' = 'success';
+
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch(`/api/services/${job.serviceId}/exec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: job.command }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const stdOut = data.stdout || data.output || '';
+        const stdErr = data.stderr || '';
+        output = stdOut;
+        if (stdErr) {
+          output = output ? `${output}\n${stdErr}` : stdErr;
+        }
+        if (!output) {
+          output = `> ${job.command}\nProcess exited with status 0 (Success)`;
+        }
+        exitCode = data.exitCode !== undefined ? data.exitCode : 0;
+        status = exitCode === 0 ? 'success' : 'failed';
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        output = errJson.error || `HTTP ${res.status}: Failed to execute in container`;
+        exitCode = 1;
+        status = 'failed';
+      }
+    } catch (err: unknown) {
+      output = err instanceof Error ? err.message : 'Execution error';
+      exitCode = 1;
+      status = 'failed';
+    }
+  } else {
+    await simulateDelay(200, 400);
+    output = `> ${job.command}\nCommand executed successfully.`;
+  }
+
+  const durationMs = Math.max(12, Date.now() - startTime);
+  const finishDate = new Date();
 
   const newRun: CronJobRun = {
     id: `run-${Date.now()}`,
     cronJobId: id,
-    startedAt: now.toISOString(),
-    finishedAt: finished.toISOString(),
-    durationMs: 1200,
-    status: 'success',
-    exitCode: 0,
-    output: `> ${job.command}\n[manual-trigger] Executed via Takō console dashboard.\nProcess exited with status 0 (Success).`,
+    startedAt: startDate.toISOString(),
+    finishedAt: finishDate.toISOString(),
+    durationMs,
+    status,
+    exitCode,
+    output,
   };
 
   cronJobRuns.unshift(newRun);
@@ -140,8 +181,8 @@ export async function runCronJobNow(id: string): Promise<CronJobRun> {
   // Update job lastRun
   cronJobs[index] = {
     ...job,
-    lastRunAt: now.toISOString(),
-    lastStatus: 'success',
+    lastRunAt: startDate.toISOString(),
+    lastStatus: status,
   };
 
   const serviceJobs = cronJobs.filter((j) => j.serviceId === job.serviceId);

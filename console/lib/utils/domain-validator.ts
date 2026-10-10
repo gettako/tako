@@ -32,26 +32,31 @@ export function validateDomain(input: string): { valid: boolean; error?: string 
     return { valid: true };
   }
 
-  if (domain.length < 3) {
+  let domainToValidate = domain;
+  if (domain.startsWith('*.')) {
+    domainToValidate = domain.slice(2);
+  }
+
+  if (domainToValidate.length < 3) {
     return { valid: false, error: 'Domain name is too short' };
   }
 
-  if (domain.length > 253) {
+  if (domainToValidate.length > 253) {
     return { valid: false, error: 'Domain name cannot exceed 253 characters' };
   }
 
-  if (domain.includes('..')) {
+  if (domainToValidate.includes('..')) {
     return { valid: false, error: 'Domain cannot contain consecutive dots' };
   }
 
-  if (!DOMAIN_REGEX.test(domain)) {
+  if (!DOMAIN_REGEX.test(domainToValidate)) {
     return {
       valid: false,
-      error: 'Invalid domain format. Please enter a valid FQDN (e.g. console.yourdomain.com)',
+      error: 'Invalid domain format. Please enter a valid FQDN (e.g. console.yourdomain.com or *.yourdomain.com)',
     };
   }
 
-  const parts = domain.split('.');
+  const parts = domainToValidate.split('.');
   for (const part of parts) {
     if (part.startsWith('-') || part.endsWith('-')) {
       return { valid: false, error: 'Domain labels cannot start or end with a hyphen' };
@@ -83,9 +88,11 @@ export function formatDnsInstructions(domain: string, targetIp: string): DnsPoin
       ttl: 300,
     };
   }
-  const parts = sanitized.split('.');
-  let host = '@';
-  if (parts.length > 2) {
+  const isWildcard = sanitized.startsWith('*.');
+  const cleanDomain = isWildcard ? sanitized.slice(2) : sanitized;
+  const parts = cleanDomain.split('.');
+  let host = isWildcard ? '*' : '@';
+  if (!isWildcard && parts.length > 2) {
     host = parts[0];
   }
 

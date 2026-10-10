@@ -35,6 +35,7 @@ type CreateServiceRequest struct {
 type ServiceLimitsResponse struct {
 	CPUCores float64 `json:"cpuCores"`
 	MemoryMB int64   `json:"memoryMb"`
+	SwapMB   int64   `json:"swapMb"`
 }
 
 type ServiceDomainResponse struct {
@@ -86,7 +87,7 @@ type ServiceResponse struct {
 	UpdatedAt        string                  `json:"updatedAt"`
 }
 
-func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVarResponse, domainDetails ...[]ServiceDomainResponse) ServiceResponse {
+func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVarResponse, extra ...any) ServiceResponse {
 	var ports []int32
 	_ = json.Unmarshal([]byte(s.Ports), &ports)
 	if ports == nil {
@@ -94,8 +95,13 @@ func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVa
 	}
 
 	var details []ServiceDomainResponse
-	if len(domainDetails) > 0 {
-		details = domainDetails[0]
+	var swapMb int64
+	for _, arg := range extra {
+		if d, ok := arg.([]ServiceDomainResponse); ok {
+			details = d
+		} else if sw, ok := arg.(int64); ok {
+			swapMb = sw
+		}
 	}
 
 	return ServiceResponse{
@@ -124,6 +130,7 @@ func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVa
 		Limits: ServiceLimitsResponse{
 			CPUCores: s.CpuLimit,
 			MemoryMB: s.MemoryLimitMb,
+			SwapMB:   swapMb,
 		},
 		EnvVars:   envVars,
 		CreatedAt: s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
@@ -249,8 +256,11 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				})
 			}
 
+			var swapMb int64
+			_ = orch.DB().QueryRowContext(r.Context(), "SELECT swap_limit_mb FROM services WHERE id = ?", srv.ID).Scan(&swapMb)
+
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domains, envVars, domainDetails))
+			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domains, envVars, domainDetails, swapMb))
 		})
 
 		// DELETE /api/v1/services/{id}
@@ -308,6 +318,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				Limits        *struct {
 					CPUCores *float64 `json:"cpuCores"`
 					MemoryMB *int64   `json:"memoryMb"`
+					SwapMB   *int64   `json:"swapMb"`
 				} `json:"limits"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -317,14 +328,16 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			var cpuPtr *float64
 			var memPtr *int64
+			var swapPtr *int64
 			if req.Limits != nil {
 				cpuPtr = req.Limits.CPUCores
 				memPtr = req.Limits.MemoryMB
+				swapPtr = req.Limits.SwapMB
 			}
 
 			hasConfigUpdate := req.Name != nil || req.Repository != nil || req.Branch != nil ||
 				req.CommitHash != nil || req.Dockerfile != nil || req.BuildCommand != nil ||
-				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil || cpuPtr != nil || memPtr != nil
+				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil || cpuPtr != nil || memPtr != nil || swapPtr != nil
 
 			if hasConfigUpdate {
 				updated, updateErr := orch.UpdateService(r.Context(), id, orchestrator.UpdateServiceParams{
@@ -339,12 +352,34 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					PublishToHost: req.PublishToHost,
 					CPULimit:      cpuPtr,
 					MemoryLimitMB: memPtr,
+					SwapLimitMB:   swapPtr,
 				})
 				if updateErr != nil {
 					http.Error(w, updateErr.Error(), http.StatusInternalServerError)
 					return
 				}
 				srv = *updated
+
+				// Dispatch live limit update to active container
+				if cpuPtr != nil || memPtr != nil || swapPtr != nil {
+					cpuVal := srv.CpuLimit
+					if cpuPtr != nil {
+						cpuVal = *cpuPtr
+					}
+					memVal := srv.MemoryLimitMb
+					if memPtr != nil {
+						memVal = *memPtr
+					}
+					swapVal := int64(0)
+					if swapPtr != nil {
+						swapVal = *swapPtr
+					} else {
+						_ = orch.DB().QueryRowContext(r.Context(), "SELECT swap_limit_mb FROM services WHERE id = ?", id).Scan(&swapVal)
+					}
+					containerName := "tako-app-" + srv.Slug
+					action := fmt.Sprintf("update-limits:%f:%d:%d", cpuVal, memVal, swapVal)
+					_ = orch.DispatchContainerAction(r.Context(), srv.NodeID, containerName, action)
+				}
 			}
 
 			targetStatus := req.Status
@@ -403,8 +438,11 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
+			var finalSwapMb int64
+			_ = orch.DB().QueryRowContext(r.Context(), "SELECT swap_limit_mb FROM services WHERE id = ?", srv.ID).Scan(&finalSwapMb)
+
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domainStrings, envResponses, domainDetails))
+			_ = json.NewEncoder(w).Encode(mapServiceToResponse(srv, domainStrings, envResponses, domainDetails, finalSwapMb))
 		})
 
 		// GET /api/v1/services/{id}/domains

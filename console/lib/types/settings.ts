@@ -84,10 +84,22 @@ export interface ClusterBackupSchedule {
   lastBackupStatus?: 'success' | 'failed';
 }
 
+export interface ClusterBackupSnapshot {
+  id: string;
+  filename: string;
+  sizeBytes: number;
+  sizeMb: number;
+  checksum: string;
+  status: 'completed' | 'failed' | 'in_progress';
+  createdAt: string;
+}
+
 export interface ClusterDomainSettings {
   domain: string;
   sslActive: boolean;
   sslAutoRenew: boolean;
+  dnsProvider?: 'http01' | 'cloudflare';
+  cloudflareApiToken?: string;
   customDnsIp?: string;
   sslStatus?: 'active' | 'pending_dns' | 'pending_acme' | 'error';
   sslIssuer?: string;
@@ -121,6 +133,11 @@ export interface NotificationSettings {
     enabled: boolean;
     webhookUrl: string;
     channelName: string;
+  };
+  discord?: {
+    enabled: boolean;
+    webhookUrl: string;
+    channelName?: string;
   };
   telegram: {
     enabled: boolean;

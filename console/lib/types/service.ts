@@ -80,6 +80,7 @@ export interface UpdateServiceInput {
   buildCommand?: string;
   composeFile?: string;
   image?: string;
+  publishToHost?: boolean;
   limits?: Partial<ResourceLimit>;
   replicas?: number;
 }

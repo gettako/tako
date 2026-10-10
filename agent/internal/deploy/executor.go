@@ -234,6 +234,16 @@ func (e *Executor) ExecuteDeployWithCallback(
 			sendLog("Deploy", fmt.Sprintf("Publishing host port 0.0.0.0:%d -> %d/tcp", targetPort, targetPort), false)
 		}
 
+		var containerResources container.Resources
+		if req.GetCpuLimit() > 0 {
+			containerResources.NanoCPUs = int64(req.GetCpuLimit() * 1e9)
+		}
+		if req.GetMemoryLimitMb() > 0 {
+			memBytes := req.GetMemoryLimitMb() * 1024 * 1024
+			containerResources.Memory = memBytes
+			containerResources.MemorySwap = memBytes
+		}
+
 		resp, err := e.dockerCli.RawClient().ContainerCreate(
 			ctx,
 			&container.Config{
@@ -245,6 +255,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 			&container.HostConfig{
 				RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 				PortBindings:  portBindings,
+				Resources:     containerResources,
 			},
 			&network.NetworkingConfig{
 				EndpointsConfig: map[string]*network.EndpointSettings{
@@ -271,6 +282,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 					&container.HostConfig{
 						RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
 						PortBindings:  nil,
+						Resources:     containerResources,
 					},
 					&network.NetworkingConfig{
 						EndpointsConfig: map[string]*network.EndpointSettings{

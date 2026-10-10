@@ -245,6 +245,7 @@ export default function ServiceDetailPage({
             onUpdateService={handleUpdateService}
             onRestartService={handleRestart}
             onStartService={handleStart}
+            onStopService={handleStop}
             onRebuildService={handleRebuild}
           />
         )}

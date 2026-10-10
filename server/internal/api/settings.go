@@ -36,11 +36,15 @@ func isValidDomain(domain string) bool {
 	if domain == "localhost" {
 		return true
 	}
-	if len(domain) > 253 || len(domain) < 3 {
+	check := domain
+	if strings.HasPrefix(check, "*.") {
+		check = check[2:]
+	}
+	if len(check) > 253 || len(check) < 3 {
 		return false
 	}
 	// Support sslip.io, nip.io, or standard domains
-	return domainRegex.MatchString(domain)
+	return domainRegex.MatchString(check)
 }
 
 type UpdateSettingRequest struct {
@@ -240,20 +244,25 @@ func handleVerifyDomain(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			expectedIP = "127.0.0.1"
 		}
 
+		lookupDomain := domain
+		if strings.HasPrefix(lookupDomain, "*.") {
+			lookupDomain = lookupDomain[2:]
+		}
+
 		// DNS resolution check
 		var resolvedIPs []string
 		dnsVerified := false
 
-		if domain == "localhost" || domain == "127.0.0.1" || strings.HasSuffix(domain, ".local") {
+		if lookupDomain == "localhost" || lookupDomain == "127.0.0.1" || strings.HasSuffix(lookupDomain, ".local") {
 			resolvedIPs = []string{"127.0.0.1"}
 			dnsVerified = (expectedIP == "127.0.0.1" || expectedIP == "")
-		} else if strings.HasSuffix(domain, ".sslip.io") || strings.HasSuffix(domain, ".nip.io") {
+		} else if strings.HasSuffix(lookupDomain, ".sslip.io") || strings.HasSuffix(lookupDomain, ".nip.io") {
 			resolvedIPs = []string{expectedIP}
 			dnsVerified = true
 		} else {
 			lookupCtx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 			defer cancel()
-			ips, err := net.DefaultResolver.LookupIP(lookupCtx, "ip", domain)
+			ips, err := net.DefaultResolver.LookupIP(lookupCtx, "ip", lookupDomain)
 			if err == nil {
 				for _, ip := range ips {
 					ipStr := ip.String()
@@ -274,9 +283,9 @@ func handleVerifyDomain(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		if dnsVerified {
 			sslStatus = "pending_acme"
 			dialer := &net.Dialer{Timeout: 2 * time.Second}
-			conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(domain, "443"), &tls.Config{
+			conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(lookupDomain, "443"), &tls.Config{
 				InsecureSkipVerify: true,
-				ServerName:         domain,
+				ServerName:         lookupDomain,
 			})
 			if err == nil {
 				defer conn.Close()

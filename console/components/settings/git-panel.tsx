@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { getGitProviders, getSyncedRepos, syncGitRepos } from '@/lib/api/settings';
+import { getGitProviders, getSyncedRepos, syncGitRepos, connectGitProviderWithPAT } from '@/lib/api/settings';
 import {
   getGitHubAppConfig,
   getGitHubAppManifest,
@@ -55,6 +55,7 @@ import {
   Building2,
   User,
   Settings,
+  Key,
 } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
@@ -102,6 +103,12 @@ export function GitPanel() {
   const [showPerms, setShowPerms] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   const [selectedOrg, setSelectedOrg] = useState<string>('all');
+
+  // PAT State
+  const [patProvider, setPatProvider] = useState<'github' | 'gitlab' | 'gitea'>('github');
+  const [patUsername, setPatUsername] = useState('');
+  const [patToken, setPatToken] = useState('');
+  const [isConnectingPAT, setIsConnectingPAT] = useState(false);
 
   const generateSlug = () => `tako-${Math.floor(10000 + Math.random() * 90000)}`;
 
@@ -281,6 +288,34 @@ export function GitPanel() {
       toast.error(err instanceof Error ? err.message : 'Failed to disconnect');
     } finally {
       setIsDisconnecting(false);
+    }
+  };
+
+  const handleConnectPAT = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!patUsername.trim() || !patToken.trim()) {
+      toast.error('Please enter account username and personal access token');
+      return;
+    }
+    try {
+      setIsConnectingPAT(true);
+      const res = await connectGitProviderWithPAT({
+        provider: patProvider,
+        username: patUsername.trim(),
+        token: patToken.trim(),
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['git-providers'] }),
+        queryClient.invalidateQueries({ queryKey: ['synced-repos'] }),
+      ]);
+      toast.success(`Connected ${res.provider.name} account @${res.provider.username}!`);
+      setConnectOpen(false);
+      setPatUsername('');
+      setPatToken('');
+    } catch {
+      toast.error('Failed to connect git provider with PAT');
+    } finally {
+      setIsConnectingPAT(false);
     }
   };
 
@@ -671,18 +706,14 @@ export function GitPanel() {
           </DialogHeader>
 
           <Tabs defaultValue="github" className="mt-1">
-            <TabsList className="w-full grid grid-cols-3 h-9">
+            <TabsList className="w-full grid grid-cols-2 h-9">
               <TabsTrigger value="github" className="text-xs gap-1.5">
                 <GitHubIcon className="size-3.5" />
-                GitHub
+                GitHub App (Manifest)
               </TabsTrigger>
-              <TabsTrigger value="gitlab" disabled className="text-xs gap-1.5 opacity-50">
-                <GitLabIcon className="size-3.5" />
-                GitLab
-              </TabsTrigger>
-              <TabsTrigger value="gitea" disabled className="text-xs gap-1.5 opacity-50">
-                <GiteaIcon className="size-3.5" />
-                Gitea
+              <TabsTrigger value="pat" className="text-xs gap-1.5">
+                <Key className="size-3.5" />
+                Personal Access Token (PAT)
               </TabsTrigger>
             </TabsList>
 
@@ -780,30 +811,86 @@ export function GitPanel() {
               </form>
             </TabsContent>
 
-            {/* ── GitLab Tab (coming soon) ── */}
-            <TabsContent value="gitlab" className="mt-4">
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <div className="p-3 rounded-xl bg-muted/60">
-                  <GitLabIcon className="size-8 text-orange-500" />
+            {/* ── PAT Tab ── */}
+            <TabsContent value="pat" className="mt-4">
+              <form onSubmit={handleConnectPAT} className="space-y-4">
+                <div className="flex items-start gap-3 px-3.5 py-3 rounded-xl border border-primary/25 bg-primary/5">
+                  <Key className="size-4 text-primary shrink-0 mt-0.5" />
+                  <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
+                    <p>
+                      Connect directly using a Personal Access Token (PAT). Automatically synchronizes repositories without requiring an OAuth application.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-foreground">GitLab — Coming soon</p>
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  GitLab integration via OAuth application and webhook will be available in a future update.
-                </p>
-              </div>
-            </TabsContent>
 
-            {/* ── Gitea Tab (coming soon) ── */}
-            <TabsContent value="gitea" className="mt-4">
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <div className="p-3 rounded-xl bg-muted/60">
-                  <GiteaIcon className="size-8 text-emerald-500" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Provider</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['github', 'gitlab', 'gitea'] as const).map((prov) => (
+                      <button
+                        key={prov}
+                        type="button"
+                        onClick={() => setPatProvider(prov)}
+                        className={`h-9 px-3 rounded-md border text-xs font-medium capitalize flex items-center justify-center gap-1.5 transition-colors ${
+                          patProvider === prov
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-card hover:bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {prov === 'github' && <GitHubIcon className="size-3.5" />}
+                        {prov === 'gitlab' && <GitLabIcon className="size-3.5" />}
+                        {prov === 'gitea' && <GiteaIcon className="size-3.5" />}
+                        {prov}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-foreground">Gitea — Coming soon</p>
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  Gitea integration via personal access token will be available in a future update.
-                </p>
-              </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="pat-user" className="text-xs font-medium">Account Username</Label>
+                  <Input
+                    id="pat-user"
+                    value={patUsername}
+                    onChange={(e) => setPatUsername(e.target.value)}
+                    placeholder="e.g. octocat or myorg"
+                    className="h-9 text-xs font-mono"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="pat-token" className="text-xs font-medium">Personal Access Token</Label>
+                  <Input
+                    id="pat-token"
+                    type="password"
+                    value={patToken}
+                    onChange={(e) => setPatToken(e.target.value)}
+                    placeholder="ghp_... or glpat-..."
+                    className="h-9 text-xs font-mono"
+                    required
+                  />
+                  <p className="text-[10px] text-muted-foreground">Requires <code>repo</code> or <code>read_repository</code> scope.</p>
+                </div>
+
+                <DialogFooter className="gap-2 sm:gap-2.5 pt-1">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setConnectOpen(false)} className="text-xs h-9">
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isConnectingPAT || !patUsername.trim() || !patToken.trim()}
+                    className="flex-1 text-xs h-9 gap-2 font-semibold"
+                  >
+                    {isConnectingPAT ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Key className="size-3.5" />
+                    )}
+                    Connect with PAT
+                  </Button>
+                </DialogFooter>
+              </form>
             </TabsContent>
           </Tabs>
         </DialogContent>
