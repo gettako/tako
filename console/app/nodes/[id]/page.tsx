@@ -89,7 +89,7 @@ export default function NodeDetailPage({
     <>
       <title>{titleText}</title>
       <div className="space-y-6">
-        {/* Node Specifications & Ambient Hero Header */}
+        {/* Node Specifications & Header */}
         <NodeSpecHeader node={node} onRefresh={handleRefresh} />
 
         {/* Navigation Tabs (Line / Underline Tab - Consistent with ServiceTabs & Vega Standards) */}
