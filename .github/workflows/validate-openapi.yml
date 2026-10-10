@@ -1,0 +1,34 @@
+name: Validate OpenAPI Specification
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-openapi:
+    name: Validate OpenAPI Coverage & Integrity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: server/go.sum
+
+      - name: Validate All Server Endpoints Documented
+        run: |
+          cd server
+          go test -v -count=1 -run TestAllServerEndpointsDocumentedInOpenAPI ./internal/api/...
+
+      - name: Lint OpenAPI 3.1 Specification
+        run: |
+          npx -y @redocly/cli lint api/openapi.yaml
+
+      - name: Verify Docs Synchronization
+        run: |
+          cmp -s api/openapi.yaml docs/api-reference/openapi.yaml || (echo "Error: docs/api-reference/openapi.yaml is out of sync with api/openapi.yaml" && exit 1)

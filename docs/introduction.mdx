@@ -1,42 +1,46 @@
 ---
 title: "Introduction"
-description: "A self-hosted, lightweight platform for deploying Docker-based applications across one or more servers."
+description: "A self-hosted, lightweight deployment platform for shipping Docker-based applications across servers."
 ---
 
-Tako is a self-hosted platform for automatically deploying modern web applications to one or more virtual private servers (VPS). It provides a personal deployment dashboard without the resource overhead and operational complexity of larger platforms like Dokploy or Coolify.
+Tako is an open-source, self-hosted platform for deploying applications to virtual private servers (VPS). It provides a personal deployment dashboard backed by an efficient Go control plane and dynamic Traefik v3 routing.
 
-## Who Tako is for
+## Who Tako Is For
 
-Tako is built for solo developers, founders, and small engineering teams who want:
+Tako is designed for solo developers, founders, and small engineering teams who want:
 
-- Full ownership of their hosting infrastructure without vendor lock-in.
-- Automated deployments triggered directly from GitHub on `git push`.
-- Multi-server cluster management from a single control plane.
-- Outbound-only agent connectivity with zero open management ports on remote servers.
-- Automated SSL certificate provisioning and zero-downtime container cutovers.
-- Direct, transparent container builds using standard Dockerfiles.
+- Infrastructure ownership without vendor lock-in or recurring per-seat hosting fees.
+- Automated deployments triggered from GitHub on branch pushes or pull requests.
+- Multi-server cluster management coordinated from a central control plane.
+- Outbound-only agent connectivity that avoids opening SSH port 22 or management ports on worker nodes.
+- Automated Let's Encrypt SSL certificates and zero-downtime cutover gates via Traefik v3.
+- Predictable container builds based on standard `Dockerfile` and `docker-compose.yml` definitions.
 
-## What you can do with Tako
+For an in-depth breakdown of how Tako compares to other infrastructure tooling, read our [Architectural Comparison: Dokploy vs. Kubernetes vs. Swarm vs. Tako](/why-tako#architectural-comparison-dokploy-vs-kubernetes-vs-swarm-vs-tako).
 
-The capabilities below reflect what is fully implemented in the codebase today:
+## Core Capabilities
 
-- **Git-driven deployments:** Connect GitHub repositories and trigger automated builds on branch push events.
-- **Dockerfile and Compose stacks:** Deploy single services from a Dockerfile or multi-container stacks defined in Docker Compose.
-- **Multi-server orchestration:** Attach remote worker nodes across different cloud providers using a one-time enrollment token.
-- **Outbound-only agent streams:** Manage remote nodes without opening SSH or management ports to the internet.
-- **Zero-downtime cutover:** Verify new containers using HTTP health check gates before switching traffic in Traefik.
-- **One-click rollbacks:** Revert to previous successful image tags in seconds without rebuilding from source.
-- **Automated SSL and routing:** Provision Let's Encrypt certificates automatically via Traefik and configure path-prefix routing.
-- **Auxiliary services:** Run background workers and scheduled cron jobs that reuse built application images.
+The capabilities below reflect the active features implemented in the Tako codebase:
+
+- **Git-driven deployments:** Connect GitHub repositories via the Tako GitHub App and trigger automated builds on commit pushes.
+- **Dockerfile and Compose stacks:** Deploy single services or multi-container stacks defined with standard Docker Compose syntax.
+- **Multi-server orchestration:** Attach remote worker nodes across different cloud providers using temporary, one-time enrollment tokens.
+- **Outbound-only agent streams:** Manage remote worker nodes over persistent gRPC with TLS without opening inbound firewall ports.
+- **Zero-downtime cutover:** Validate new containers against HTTP health check gates before switching traffic routes in Traefik.
+- **One-click rollbacks:** Revert to previous successful container image tags in seconds without rebuilding from source.
+- **Automated SSL and routing:** Provision Let's Encrypt certificates automatically via Traefik v3 and manage custom domain routing.
+- **Auxiliary services:** Run background workers and cron jobs that share the built application image.
 - **Managed database templates:** Provision PostgreSQL, MySQL, and Redis services with persistent Docker volumes.
-- **Pull request previews:** Automatically create ephemeral staging environments with wildcard subdomains for GitHub pull requests.
+- **Pull request previews:** Automatically spin up ephemeral staging environments with wildcard subdomains for pull requests.
 - **Encrypted configuration:** Store runtime environment variables and build arguments encrypted at rest with AES-256-GCM.
-- **Real-time log streaming:** Monitor Docker build progress and live container stdout/stderr through Server-Sent Events (SSE).
-- **Web terminal access:** Open interactive shell sessions directly into running containers from the browser.
-- **S3 backups:** Schedule streaming database dumps and volume archives to S3-compatible storage destinations.
-- **Audit logging:** Chronological activity audit trail with ULID ordering and actor attribution for every API mutation.
-- **Team collaboration:** Invite team members with simple role-based access control (`admin` and `member`) in a flat workspace.
+- **Real-time log streaming:** Monitor Docker image build progress and live container stdout/stderr through Server-Sent Events (SSE).
+- **Web terminal access:** Open interactive shell sessions directly into running containers from the web console.
+- **S3 backups:** Schedule database dumps and volume archives to S3-compatible object storage.
+- **Audit logging:** Immutable activity audit trail with ULID ordering and actor attribution for every mutation.
+- **Team collaboration:** Manage team access with flat role-based access control (`admin` and `member`).
 
-## Next steps
+## Next Steps
 
-Follow the [Quickstart Guide](/quickstart/installation) to install Tako on your server using Docker Compose in minutes.
+- Review [Why Tako?](/why-tako) for design trade-offs and decision criteria.
+- Follow the [Quickstart Guide](/quickstart/installation) to install Tako on a clean Linux server.
+- Explore the [System Architecture](/concepts/architecture) for component topologies.

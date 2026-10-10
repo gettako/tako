@@ -4,18 +4,15 @@
 
 # Tako
 
-**The lightweight, self-hosted Platform-as-a-Service.**  
-Zero-SSH multi-node orchestration, automated Let's Encrypt TLS, dynamic Traefik routing, and WebAuthn security.
+**The lightweight, self-hosted deployment platform.**  
+Outbound gRPC node orchestration, automated Let's Encrypt TLS, dynamic Traefik routing, and WebAuthn authentication.
 
-[![Go Version](https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=flat-square&logo=go&logoColor=white)](https://golang.org)
-[![Next.js](https://img.shields.io/badge/Next.js-16.0-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org)
-[![Traefik](https://img.shields.io/badge/Traefik-v3-24A1C1?style=flat-square&logo=traefik&logoColor=white)](https://traefik.io)
-[![Docker](https://img.shields.io/badge/Docker-Engine%20SDK-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docker.com)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE)
-[![Docs](https://img.shields.io/badge/Docs-Mintlify-432DD7?style=flat-square)](https://docs.gettako.dev)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+[![Go Version](https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
+[![Documentation](https://img.shields.io/badge/Docs-docs.gettako.dev-5560D6?style=for-the-badge)](https://docs.gettako.dev)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
 
-[Quickstart](#quick-start) • [Architecture](#architecture) • [Features](#key-features) • [Documentation](https://docs.gettako.dev) • [Contributing](CONTRIBUTING.md)
+[Quickstart](#quick-start) • [Architecture](#architecture) • [Documentation](https://docs.gettako.dev) • [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -23,12 +20,22 @@ Zero-SSH multi-node orchestration, automated Let's Encrypt TLS, dynamic Traefik 
 
 ## Overview
 
-**Tako** is an open-source, resilient PaaS designed to give developers and DevOps teams the seamless developer experience of Heroku or Coolify without the bloat, complex dependencies, or security hazards of opening SSH ports on remote servers.
+**Tako** is an open-source, self-hosted platform for deploying applications across one or more servers without running heavy control plane databases or opening SSH ports on remote worker nodes.
 
 > [!WARNING]
-> **Active Heavy Development**: Tako is under rapid, continuous development and is currently in early preview. Features, database schemas, and configuration structures may change abruptly, and bugs are to be expected. It is not yet recommended for mission-critical production workloads.
+> **Active Development**: Tako is in active development and early preview. Features, schemas, and configurations may change between releases.
 
-Written in **Go** and **Next.js**, Tako coordinates deployments across one or dozens of server nodes using outbound **gRPC streaming** and powers edge routing with **Traefik v3**.
+- **Outbound-only agent architecture:** Worker nodes initiate an outbound gRPC stream to the master server. Remote hosts require no inbound management ports and no SSH keys.
+- **Embedded SQLite persistence:** The master server runs as a static Go binary using embedded SQLite in WAL mode, keeping idle memory usage under 50 MB.
+- **Dynamic Traefik v3 edge routing:** Ingress routing and Let's Encrypt TLS certificate provisioning run automatically with zero-downtime cutover gates.
+- **Standard Docker tooling:** Deploy straight from Git repositories using your own `Dockerfile` or `docker-compose.yml` stacks.
+- **Modern identity:** Native WebAuthn passkeys (Touch ID, Face ID, hardware security keys), TOTP two-factor authentication, and secure session management.
+
+For in-depth guides, architectural deep dives, and tutorials, visit the official documentation at **[docs.gettako.dev](https://docs.gettako.dev)**.
+
+---
+
+## Architecture
 
 ```mermaid
 flowchart TD
@@ -58,21 +65,9 @@ flowchart TD
         AgentB --> DockerB
     end
 
-    AgentA -.->|Outbound gRPC :9090| Server
-    AgentB -.->|Outbound gRPC :9090| Server
+    AgentA -.->|Outbound gRPC :50051| Server
+    AgentB -.->|Outbound gRPC :50051| Server
 ```
-
----
-
-## Key Features
-
-- 🚀 **Zero-SSH Architecture**: Worker nodes dial **outbound** to the Master Server via long-lived bidirectional gRPC (`StreamTasks`). No SSH keys to distribute, no firewall holes to punch on worker nodes.
-- 🔒 **Enterprise-Grade Identity**: Native support for **FIDO2 / WebAuthn Passkeys** (Touch ID, Face ID, YubiKey), Time-based One-Time Passwords (**TOTP 2FA**), and HTTP-only session cookies.
-- 🌐 **Dynamic Traefik v3 Routing**: High-performance reverse proxy with automatic SSL certificate management via Let's Encrypt (HTTP-01 & TLS-ALPN-01), zero-downtime reloads, and atomic configuration file generation.
-- 📦 **Git & Webhook Deployments**: Deploy directly from GitHub repositories using the Tako GitHub App, branch tracking, and webhook triggers, or pull pre-built Docker images directly.
-- ⚡ **Lightweight & Efficient**: The Master Server runs as a single Go binary backed by an embedded SQLite database in **WAL mode** (`journal_mode=WAL`), consuming minimal CPU and RAM idle overhead.
-- 📊 **Real-time Observability**: Live log streaming using Server-Sent Events (SSE), container heartbeat telemetry, and memory/CPU usage monitoring across all nodes.
-- 🛡️ **Comprehensive Audit Trail**: Every sensitive action—deployments, rollbacks, node enrollments, environment variable modifications, and credential updates—is immutably recorded in audit logs.
 
 ---
 
@@ -80,45 +75,28 @@ flowchart TD
 
 ### 1. Install Master Server
 
-Deploy a complete Tako master node (Master Server, Next.js Console, Traefik v3, and SQLite database) on any clean Linux server running Ubuntu, Debian, or Rocky Linux:
+Install the Tako master node (control plane, web console, Traefik v3, and database) on any clean Linux machine running Ubuntu, Debian, or Rocky Linux:
 
 ```bash
 curl -fsSL https://gettako.dev/install.sh | bash
 ```
 
-The interactive installer will prompt you for:
-- Console domain name (e.g., `tako.yourdomain.com`)
-- Admin email address (for Let's Encrypt TLS and administrative login)
-- Initial admin password
-- Node public IP
-
-Once installation completes, visit your console URL in your browser and complete the onboarding checklist.
+The installer configures the console domain, admin credentials, and edge proxy. Once finished, open your console domain in a browser to log in.
 
 ### 2. Attach Worker Nodes (Optional)
 
-Scale your compute capacity by attaching additional worker nodes across any cloud provider or bare-metal host:
+To add compute capacity across different providers or bare-metal servers:
 
-1. In the Tako Console, navigate to **Nodes** → **Enroll Node** and generate a temporary enrollment token.
-2. Run the installer in agent mode on the target machine:
+1. In the console, go to **Nodes** → **Enroll Node** to generate an enrollment token.
+2. Run the agent installer on the target worker machine:
 
 ```bash
 curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
 ```
 
-3. Provide the Master Server gRPC address (`master.yourdomain.com:9090`) and the enrollment token when prompted. The agent connects instantly over outbound gRPC.
+3. Enter your master server gRPC address and enrollment token when prompted. The agent connects outbound over TLS.
 
----
-
-## Architecture & Tech Stack
-
-| Component | Technology | Role |
-| :--- | :--- | :--- |
-| **Console** | Next.js 16, React 19, Tailwind CSS v4, Lucide | Modern, reactive web UI and Backend-for-Frontend (BFF) |
-| **Server** | Go 1.24+, Chi v5, SQLite (WAL mode) | REST API, state store, gRPC orchestrator, SSE hub |
-| **Agent** | Go 1.24+, Docker Engine SDK, gRPC client | Node worker daemon, container lifecycle, host telemetry |
-| **Proxy** | Traefik v3 (Dynamic File Provider) | Edge ingress, auto Let's Encrypt TLS, domain routing |
-| **Protocol** | Protocol Buffers v3 & gRPC | Low-latency RPC contract between Server and Agents |
-| **Docs** | Mintlify MDX & OpenAPI 3.1 | Technical documentation and interactive API reference |
+For complete deployment options, see the [Installation Guide](https://docs.gettako.dev/quickstart/installation).
 
 ---
 
@@ -126,96 +104,63 @@ curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
 
 ```
 gettako/
-├── agent/            # Go node daemon connecting to local Docker Engine SDK
-│   ├── cmd/agent/    # Agent entrypoint
-│   └── internal/     # Docker runner, telemetry collector, gRPC client
-├── api/              # API specifications and contracts
-│   ├── openapi.yaml  # Complete OpenAPI specification
-│   └── proto/        # Protocol buffer definitions & generated Go stubs
-├── console/          # Next.js 16 dashboard
-│   ├── app/          # App router pages and BFF API routes
-│   ├── components/   # UI components (Tailwind v4)
-│   └── lib/          # API client, WebAuthn helpers, authentication
-├── deploy/           # Production deployment definitions
-│   ├── compose.master.yml  # Master node Docker Compose stack
-│   ├── compose.agent.yml   # Worker node Docker Compose stack
-│   ├── scripts/install.sh  # Universal installer script
-│   └── traefik/            # Traefik v3 static configuration
-├── docs/             # Mintlify documentation & OpenAPI 3.1 specification
-│   ├── architecture/ # In-depth technical architecture guides
-│   ├── installation/ # Bare-metal and Docker installation instructions
-│   ├── guides/       # User guides for services, deployments, and logging
-│   └── api-reference/# Synchronized OpenAPI reference
-├── plans/            # Milestones and engineering specifications
-└── server/           # Go master orchestrator
-    ├── cmd/server/   # Server entrypoint
-    ├── internal/     # Domain packages: auth, nodes, services, deployments
-    └── migrations/   # SQLite schema migrations
+├── agent/            # Go node daemon using Docker Engine SDK
+├── api/              # OpenAPI 3.1 specification (openapi.yaml) & Protocol Buffers (proto/)
+├── console/          # Next.js 16 dashboard (React 19, Tailwind CSS v4)
+├── deploy/           # Production installer (install.sh), Compose stacks, Traefik config
+├── docs/             # Technical documentation source (Mintlify MDX)
+└── server/           # Go master orchestrator (Chi REST/SSE, SQLite WAL, gRPC server)
 ```
 
 ---
 
 ## Local Development
 
-To run Tako locally for development:
-
 ```bash
 # 1. Clone repository
-git clone https://github.com/gettako/gettako.git
-cd gettako
+git clone https://github.com/gettako/tako.git
+cd tako
 
-# 2. Run the Master Server
+# 2. Run master server
 cd server
 cp .env.example .env
 go run ./cmd/server
 
-# 3. Run the Agent (in a new terminal)
+# 3. Run node agent (in a separate terminal)
 cd ../agent
 cp .env.example .env
 go run ./cmd/agent
 
-# 4. Run the Web Console (in a new terminal)
+# 4. Run web console (in a separate terminal)
 cd ../console
 npm install
 npm run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to access the console locally.
+Open [http://localhost:3000](http://localhost:3000) to access the console.
 
-For detailed development guidelines, coding conventions, and testing instructions, please read [CONTRIBUTING.md](CONTRIBUTING.md).
+Review [CONTRIBUTING.md](CONTRIBUTING.md) for coding standards, commit formatting, and testing workflows.
 
 ---
 
 ## Documentation
 
-Full documentation is available at [https://docs.gettako.dev](https://docs.gettako.dev):
+Comprehensive documentation, API specs, and operational guides are hosted at **[https://docs.gettako.dev](https://docs.gettako.dev)**:
 
-- [Getting Started & Introduction](https://docs.gettako.dev/introduction)
-- [5-Minute Quickstart Guide](https://docs.gettako.dev/quickstart)
-- [Master Server Installation](https://docs.gettako.dev/installation/main-server)
-- [Worker Node Installation](https://docs.gettako.dev/installation/node-server)
-- [Architecture & gRPC Protocol](https://docs.gettako.dev/architecture/grpc-communication)
-- [Traefik Routing & Auto-TLS](https://docs.gettako.dev/architecture/traefik-routing)
-- [OpenAPI Reference](https://docs.gettako.dev/api-reference)
+- [Why Tako? Architectural Trade-offs & Comparisons](https://docs.gettako.dev/why-tako)
+- [System Architecture](https://docs.gettako.dev/concepts/architecture)
+- [Quickstart: First Deployment](https://docs.gettako.dev/quickstart/first-deploy)
+- [Multi-Server Orchestration](https://docs.gettako.dev/guides/adding-a-server)
+- [Interactive API Reference](https://docs.gettako.dev/api-reference)
 
 ---
 
-## Security
+## Contributing
 
-Security is foundational to Tako. If you discover a security vulnerability, please review our [Security Policy](SECURITY.md) and report it privately via GitHub Security Advisories or by emailing [security@gettako.dev](mailto:security@gettako.dev). Please do not disclose vulnerabilities through public issues.
-
----
-
-## Community & Contributing
-
-Contributions from the community are what make open-source software great. We welcome bug reports, feature requests, documentation improvements, and pull requests.
-
-- Read our [Contributing Guide](CONTRIBUTING.md) to get started.
-- Check open issues and active discussions on GitHub.
-- Submit pull requests adhering to our Conventional Commits standard.
+We welcome contributions, bug reports, and pull requests. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes.
 
 ---
 
 ## License
 
-Tako is licensed under the **Apache License, Version 2.0**. See the [LICENSE](LICENSE) file for the full license text.
+Tako is open source software licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE) for details.

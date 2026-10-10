@@ -696,7 +696,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// GET /api/v1/services/{id}/terminal (WebSocket PTY Stream)
-		r.Handle("/{id}/terminal", websocket.Handler(func(ws *websocket.Conn) {
+		r.Method(http.MethodGet, "/{id}/terminal", websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
 			serviceID := chi.URLParam(ws.Request(), "id")
 			srv, err := orch.Queries().GetServiceByID(ws.Request().Context(), serviceID)

@@ -54,6 +54,8 @@ Tako runs on standard Docker Engine (version 24.0 or newer) on Linux hosts.
 - **No Docker Swarm:** Tako does not schedule services across an overlay swarm network. Each service is explicitly assigned to a specific target server managed by its local agent.
 - **Single-node container scheduling:** If a server experiences hardware failure, its containers do not automatically reschedule to another server. Failover must be handled via DNS or manual reassignment.
 
+For a detailed comparison of these architectural trade-offs, see [When to Choose What](/why-tako#when-to-choose-what).
+
 ## 6. Embedded SQLite database engine
 
 The Tako control plane stores metadata in a local SQLite database using Write-Ahead Logging (WAL) and AES-256-GCM encryption.
