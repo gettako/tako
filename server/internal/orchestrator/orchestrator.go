@@ -284,7 +284,7 @@ func (o *Orchestrator) DispatchContainerAction(ctx context.Context, nodeID, cont
 
 // GenerateEnrollToken creates a cryptographically random enrollment token.
 func (o *Orchestrator) GenerateEnrollToken() string {
-	return "tako_enroll_" + randomHex(16)
+	return randomHex(24)
 }
 
 // RegisterNode handles node registration handshake and persists node record.

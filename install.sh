@@ -13,6 +13,7 @@ set -euo pipefail
 TAKO_VERSION="latest"
 TAKO_DIR="${TAKO_DIR:-/opt/tako}"
 IS_AGENT=0
+AGENT_TOKEN="${TAKO_AGENT_TOKEN:-}"
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -20,6 +21,10 @@ while [[ $# -gt 0 ]]; do
     --agent|-a)
       IS_AGENT=1
       shift
+      ;;
+    --token|-t)
+      AGENT_TOKEN="$2"
+      shift 2
       ;;
     --version|-v)
       TAKO_VERSION="$2"
@@ -224,7 +229,7 @@ if [[ $IS_AGENT -eq 1 ]]; then
   echo -e "\n${BOLD}=== Configuring Tako Worker Node ===${NC}\n"
 
   MASTER_URL="${TAKO_MASTER_URL:-}"
-  AGENT_TOKEN="${TAKO_AGENT_TOKEN:-}"
+  AGENT_TOKEN="${AGENT_TOKEN:-${TAKO_AGENT_TOKEN:-}}"
   NODE_NAME="${TAKO_NODE_NAME:-$(hostname)}"
   NODE_IP="${TAKO_PUBLIC_IP:-$PUBLIC_IP}"
   NODE_PRIVATE_IP="${TAKO_PRIVATE_IP:-$PRIVATE_IP}"

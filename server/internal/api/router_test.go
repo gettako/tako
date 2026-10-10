@@ -63,8 +63,11 @@ func TestRouterEndpoints(t *testing.T) {
 
 		var res map[string]string
 		_ = json.NewDecoder(rec.Body).Decode(&res)
-		if !strings.HasPrefix(res["token"], "tako_enroll_") {
-			t.Errorf("expected tako_enroll_ prefix, got %s", res["token"])
+		if len(res["token"]) == 0 {
+			t.Errorf("expected non-empty enrollment token, got empty")
+		}
+		if strings.HasPrefix(res["token"], "tako_") {
+			t.Errorf("expected token without prefix, got %s", res["token"])
 		}
 	})
 
