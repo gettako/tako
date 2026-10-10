@@ -597,7 +597,7 @@ export function DomainPanel() {
           </div>
         </CardContent>
 
-        <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border pt-4">
+        <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border pt-6 mt-6">
           <p className="text-xs text-muted-foreground">
             Changes take effect immediately on cluster edge routing.
           </p>
