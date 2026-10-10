@@ -33,7 +33,6 @@ const INITIAL_FORM_DATA: ProjectFormData = {
   slug: '',
   description: '',
   environment: 'production',
-  tags: [],
 };
 
 export function CreateProjectDialog({
@@ -108,23 +107,22 @@ export function CreateProjectDialog({
       slug: formData.slug.trim(),
       description: formData.description.trim() || undefined,
       environment: formData.environment,
-      tags: formData.tags.length > 0 ? formData.tags : undefined,
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight text-foreground font-sans">
-            Create New Project
+            Create Project
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Initialize an isolated workload workspace for services, databases, and environments.
+            Create a new workspace for your services and deployments.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {generalError && (
             <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
               {generalError}

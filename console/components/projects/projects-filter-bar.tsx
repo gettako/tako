@@ -52,7 +52,7 @@ export function ProjectsFilterBar({
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
           <Input
             type="search"
-            placeholder="Search projects by name, slug, tag..."
+            placeholder="Search projects by name, slug..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9 pr-8 h-9 text-sm rounded-lg bg-card/60 border-border focus-visible:ring-3"

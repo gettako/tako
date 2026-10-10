@@ -21,7 +21,6 @@ export async function getProjects(): Promise<Project[]> {
     healthyServicesCount: p.healthyServicesCount ?? 0,
     createdAt: p.createdAt || new Date().toISOString(),
     updatedAt: p.updatedAt || new Date().toISOString(),
-    tags: p.tags || [],
   })) as Project[];
 }
 
@@ -49,7 +48,6 @@ export async function getProjectById(id: string): Promise<Project | null> {
     healthyServicesCount: p.healthyServicesCount ?? 0,
     createdAt: p.createdAt || new Date().toISOString(),
     updatedAt: p.updatedAt || new Date().toISOString(),
-    tags: p.tags || [],
   };
 }
 

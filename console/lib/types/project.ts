@@ -11,7 +11,6 @@ export interface Project {
   healthyServicesCount: number;
   createdAt: string;
   updatedAt: string;
-  tags?: string[];
 }
 
 export interface CreateProjectInput {
@@ -19,7 +18,6 @@ export interface CreateProjectInput {
   slug: string;
   description?: string;
   environment?: 'production' | 'staging' | 'development';
-  tags?: string[];
 }
 
 export interface UpdateProjectInput {
@@ -27,5 +25,4 @@ export interface UpdateProjectInput {
   slug?: string;
   description?: string;
   environment?: 'production' | 'staging' | 'development';
-  tags?: string[];
 }

@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, Layers, Tag, Trash2, MoreHorizontal, Folder, Pencil } from 'lucide-react';
+import { Layers, Trash2, Pencil } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -12,13 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Project } from '@/lib/types';
 
@@ -40,8 +32,7 @@ export function ProjectsTable({ projects, onEditProject, onDeleteProject }: Proj
             <TableHead className="hidden sm:table-cell">Environment</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="hidden md:table-cell">Services</TableHead>
-            <TableHead className="hidden lg:table-cell">Tags</TableHead>
-            <TableHead className="hidden xl:table-cell">Last Updated</TableHead>
+            <TableHead className="hidden lg:table-cell">Last Updated</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -111,23 +102,8 @@ export function ProjectsTable({ projects, onEditProject, onDeleteProject }: Proj
                   </div>
                 </TableCell>
 
-                {/* Tags */}
-                <TableCell className="hidden lg:table-cell">
-                  <div className="flex items-center gap-1 overflow-hidden">
-                    {project.tags?.slice(0, 2).map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono"
-                      >
-                        <Tag className="size-2.5" />
-                        <span>{tag}</span>
-                      </span>
-                    ))}
-                  </div>
-                </TableCell>
-
                 {/* Last Updated */}
-                <TableCell className="hidden xl:table-cell text-xs text-muted-foreground font-mono">
+                <TableCell className="hidden lg:table-cell text-xs text-muted-foreground font-mono">
                   {new Date(project.updatedAt).toLocaleDateString([], {
                     month: 'short',
                     day: 'numeric',
@@ -135,56 +111,39 @@ export function ProjectsTable({ projects, onEditProject, onDeleteProject }: Proj
                   })}
                 </TableCell>
 
-                {/* Actions */}
+                {/* Actions: Direct Edit and Delete buttons */}
                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">
-                    {onDeleteProject && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                          aria-label={`More options for ${project.name}`}
-                        >
-                          <MoreHorizontal className="size-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              router.push(`/projects/${project.id}`);
-                            }}
-                            className="cursor-pointer gap-2"
-                          >
-                            <Folder className="size-4 text-muted-foreground" />
-                            <span>View Project</span>
-                          </DropdownMenuItem>
-                          {onEditProject && (
-                            <DropdownMenuItem
-                              onClick={() => onEditProject(project)}
-                              className="cursor-pointer gap-2"
-                            >
-                              <Pencil className="size-4 text-muted-foreground" />
-                              <span>Edit Project</span>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            className="cursor-pointer text-status-danger gap-2"
-                            onClick={() => onDeleteProject(project)}
-                          >
-                            <Trash2 className="size-4" />
-                            <span>Delete Project</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    {onEditProject && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onEditProject(project);
+                        }}
+                        className="size-8 inline-flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+                        title="Edit Project"
+                        aria-label={`Edit ${project.name}`}
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
                     )}
-
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
-                    >
-                      <ChevronRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-                      <span className="sr-only">View project</span>
-                    </Link>
+                    {onDeleteProject && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onDeleteProject(project);
+                        }}
+                        className="size-8 inline-flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-status-danger hover:bg-status-danger/10 transition-colors cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+                        title="Delete Project"
+                        aria-label={`Delete ${project.name}`}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

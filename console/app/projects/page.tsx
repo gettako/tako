@@ -84,8 +84,7 @@ export default function ProjectsPage() {
           p.name.toLowerCase().includes(q) ||
           p.slug.toLowerCase().includes(q) ||
           p.description?.toLowerCase().includes(q) ||
-          p.environment.toLowerCase().includes(q) ||
-          p.tags?.some((t) => t.toLowerCase().includes(q))
+          p.environment.toLowerCase().includes(q)
       );
     }
 

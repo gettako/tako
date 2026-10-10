@@ -19,8 +19,7 @@ import {
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { SectionHeader } from '@/components/ui/section-header';
-import { Server, ChevronRight, Boxes } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Server, Boxes } from 'lucide-react';
 
 interface MonitoringNodesTableProps {
   nodes: Node[];
@@ -56,7 +55,7 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                 <TableHead className="w-[14%] min-w-[125px]">CPU Utilization</TableHead>
                 <TableHead className="w-[14%] min-w-[130px]">Memory (RAM)</TableHead>
                 <TableHead className="w-[14%] min-w-[130px]">Disk Storage</TableHead>
-                <TableHead className="text-right w-[11%] min-w-[100px]">Action</TableHead>
+                <TableHead className="text-right w-[11%] min-w-[100px]">Workloads</TableHead>
               </TableRow>
             </TableHeader>
 
@@ -207,23 +206,13 @@ export function MonitoringNodesTable({ nodes }: MonitoringNodesTableProps) {
                       </div>
                     </TableCell>
 
-                    {/* Action */}
+                    {/* Workloads */}
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0">
+                      <div className="flex items-center justify-end">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0 font-mono">
                           <Boxes className="size-3 text-muted-foreground" />
                           <span>{node.servicesCount}</span>
                         </span>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          render={<Link href={`/nodes/${node.id}`} onClick={(e) => e.stopPropagation()} />}
-                          className="h-8 text-xs gap-1 text-muted-foreground hover:text-primary group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
-                        >
-                          <span>View</span>
-                          <ChevronRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

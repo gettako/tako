@@ -45,7 +45,6 @@ test('Project Lifecycle - updates and renames project metadata', () => {
       status: 'healthy',
       servicesCount: 2,
       healthyServicesCount: 2,
-      tags: ['dev'],
       updatedAt: '2026-10-01T00:00:00Z',
     },
   ];
@@ -68,14 +67,12 @@ test('Project Lifecycle - updates and renames project metadata', () => {
     slug: 'production-billing-system',
     description: 'Mission critical billing gateway',
     environment: 'production',
-    tags: ['billing', 'fintech', 'prod'],
   });
 
   assert.equal(updated.name, 'Production Billing System');
   assert.equal(updated.slug, 'production-billing-system');
   assert.equal(updated.description, 'Mission critical billing gateway');
   assert.equal(updated.environment, 'production');
-  assert.deepEqual(updated.tags, ['billing', 'fintech', 'prod']);
 
   // Check state in list
   assert.equal(projects[0].name, 'Production Billing System');

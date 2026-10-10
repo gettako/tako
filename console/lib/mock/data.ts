@@ -62,7 +62,6 @@ export const mockProjects: Project[] = [
     healthyServicesCount: 3,
     createdAt: '2026-08-10T10:00:00Z',
     updatedAt: '2026-10-04T18:20:00Z',
-    tags: ['retail', 'production', 'high-priority'],
   },
   {
     id: 'proj-2',
@@ -75,7 +74,6 @@ export const mockProjects: Project[] = [
     healthyServicesCount: 1,
     createdAt: '2026-08-25T14:30:00Z',
     updatedAt: '2026-10-04T22:15:00Z',
-    tags: ['data', 'analytics'],
   },
   {
     id: 'proj-3',
@@ -88,7 +86,6 @@ export const mockProjects: Project[] = [
     healthyServicesCount: 1,
     createdAt: '2026-09-01T09:12:00Z',
     updatedAt: '2026-10-05T04:45:00Z',
-    tags: ['finance', 'pci'],
   },
   {
     id: 'proj-4',
@@ -101,7 +98,6 @@ export const mockProjects: Project[] = [
     healthyServicesCount: 0,
     createdAt: '2026-09-15T11:00:00Z',
     updatedAt: '2026-10-01T16:00:00Z',
-    tags: ['internal'],
   },
 ];
 

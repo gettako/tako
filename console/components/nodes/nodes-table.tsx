@@ -13,8 +13,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Button } from '@/components/ui/button';
-import { Server, ChevronRight, Boxes, Copy, Check } from 'lucide-react';
+import { Server, Boxes, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface NodesTableProps {
@@ -225,23 +224,13 @@ export function NodesTable({ nodes }: NodesTableProps) {
                   </div>
                 </TableCell>
 
-                {/* 6. Workloads & Action (Exact 6th Column) */}
+                {/* 6. Workloads */}
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2.5">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0">
+                  <div className="flex items-center justify-end">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0 font-mono">
                       <Boxes className="size-3 text-muted-foreground" />
                       <span>{node.servicesCount}</span>
                     </span>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      render={<Link href={`/nodes/${node.id}`} onClick={(e) => e.stopPropagation()} />}
-                      className="h-8 text-xs gap-1 text-muted-foreground hover:text-primary group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
-                    >
-                      <span>View</span>
-                      <ChevronRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

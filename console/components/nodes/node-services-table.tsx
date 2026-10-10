@@ -24,7 +24,7 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Boxes, ExternalLink, ChevronRight, Database, FileCode2, Layers } from 'lucide-react';
+import { Boxes, ExternalLink, Database, FileCode2, Layers } from 'lucide-react';
 
 interface NodeServicesTableProps {
   services: Service[];
@@ -211,10 +211,9 @@ export function NodeServicesTable({
                               onClick={(e) => e.stopPropagation()}
                             />
                           }
-                          className="h-8 text-xs gap-1 text-muted-foreground hover:text-primary group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
+                          className="h-8 text-xs text-muted-foreground hover:text-primary group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
                         >
                           <span>Manage</span>
-                          <ChevronRight className="size-3.5 group-hover:translate-x-0.5 transition-transform" />
                         </Button>
                       </TableCell>
                     </TableRow>

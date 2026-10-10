@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Globe, Server, Database, Box, Layers, ChevronRight } from 'lucide-react';
+import { Globe, Server, Database, Box, Layers, ExternalLink } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Service } from '@/lib/types';
@@ -91,15 +90,21 @@ export function ServiceRow({ service }: ServiceRowProps) {
       </TableCell>
 
       {/* Action */}
-      <TableCell className="text-right">
-        <Link
-          href={`/services/${service.id}`}
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex size-8 items-center justify-center rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
-        >
-          <ChevronRight className="size-4 group-hover:translate-x-0.5 transition-transform" />
-          <span className="sr-only">Configure service</span>
-        </Link>
+      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end">
+          {primaryDomain ? (
+            <a
+              href={`https://${primaryDomain.domain}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-colors"
+              title={`Open https://${primaryDomain.domain}`}
+              aria-label={`Open https://${primaryDomain.domain}`}
+            >
+              <ExternalLink className="size-3.5" />
+            </a>
+          ) : null}
+        </div>
       </TableCell>
     </TableRow>
   );

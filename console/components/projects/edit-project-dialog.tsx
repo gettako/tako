@@ -39,7 +39,6 @@ export function EditProjectDialog({
     slug: project.slug,
     description: project.description || '',
     environment: project.environment || 'production',
-    tags: project.tags ? [...project.tags] : [],
   });
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
@@ -51,7 +50,6 @@ export function EditProjectDialog({
         slug: project.slug,
         description: project.description || '',
         environment: project.environment || 'production',
-        tags: project.tags ? [...project.tags] : [],
       });
       setErrors({});
       setGeneralError(null);
@@ -112,24 +110,23 @@ export function EditProjectDialog({
         slug: formData.slug.trim(),
         description: formData.description.trim() || undefined,
         environment: formData.environment,
-        tags: formData.tags.length > 0 ? formData.tags : undefined,
       },
     });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold tracking-tight text-foreground font-sans">
-            Edit Project Settings
+            Edit Project
           </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Modify project workspace metadata, environment tier, and classification tags.
+            Update your project workspace and environment settings.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {generalError && (
             <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
               {generalError}
