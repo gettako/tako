@@ -8,7 +8,7 @@ WORKDIR /src
 RUN apk add --no-cache git ca-certificates tzdata
 
 # Copy proto and agent source
-COPY proto/ /src/proto/
+COPY api/proto/ /src/api/proto/
 COPY agent/ /src/agent/
 
 ENV GOWORK=off

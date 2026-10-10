@@ -129,6 +129,9 @@ gettako/
 ├── agent/            # Go node daemon connecting to local Docker Engine SDK
 │   ├── cmd/agent/    # Agent entrypoint
 │   └── internal/     # Docker runner, telemetry collector, gRPC client
+├── api/              # API specifications and contracts
+│   ├── openapi.yaml  # Complete OpenAPI specification
+│   └── proto/        # Protocol buffer definitions & generated Go stubs
 ├── console/          # Next.js 16 dashboard
 │   ├── app/          # App router pages and BFF API routes
 │   ├── components/   # UI components (Tailwind v4)
@@ -142,9 +145,8 @@ gettako/
 │   ├── architecture/ # In-depth technical architecture guides
 │   ├── installation/ # Bare-metal and Docker installation instructions
 │   ├── guides/       # User guides for services, deployments, and logging
-│   └── openapi.yaml  # Complete OpenAPI specification
+│   └── api-reference/# Synchronized OpenAPI reference
 ├── plans/            # Milestones and engineering specifications
-├── proto/            # Protocol buffer definitions (tako.proto)
 └── server/           # Go master orchestrator
     ├── cmd/server/   # Server entrypoint
     ├── internal/     # Domain packages: auth, nodes, services, deployments

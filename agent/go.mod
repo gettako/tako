@@ -2,7 +2,7 @@ module gettako.dev/tako/agent
 
 go 1.27.1
 
-replace gettako.dev/tako/proto => ../proto
+replace gettako.dev/tako/proto => ../api/proto
 
 require (
 	gettako.dev/tako/proto v0.0.0-00010101000000-000000000000

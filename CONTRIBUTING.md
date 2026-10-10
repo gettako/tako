@@ -19,11 +19,11 @@ Tako is organized as a multi-package repository:
 ```
 gettako/
 ├── agent/       # Node Worker Daemon in Go (Docker SDK, gRPC client, telemetry)
+├── api/         # API specifications (OpenAPI 3.1 & Protocol Buffers in api/proto)
 ├── console/     # Management Dashboard in Next.js 16, React 19, Tailwind v4
 ├── deploy/      # Deployment scripts (install.sh), Dockerfiles, Traefik configs
-├── docs/        # Technical documentation (Mintlify MDX) and OpenAPI 3.1 schema
+├── docs/        # Technical documentation (Mintlify MDX)
 ├── plans/       # Architecture plans and milestone specifications
-├── proto/       # Protocol Buffers specifications (tako.proto)
 └── server/      # Master Orchestrator in Go (Chi router, SQLite WAL, gRPC server, SSE)
 ```
 
@@ -90,12 +90,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### 5. Compiling Protocol Buffers
 
-If you make modifications to [proto/tako.proto](file:///Users/SupianIDz/Work/gettako/proto/tako.proto), regenerate the Go stubs:
+If you make modifications to the `.proto` files in `api/proto/tako/v1/`, regenerate the Go stubs:
 
 ```bash
-protoc --go_out=. --go_opt=paths=source_relative \
+cd api/proto && protoc --go_out=. --go_opt=paths=source_relative \
        --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-       proto/tako.proto
+       tako/v1/*.proto
 ```
 
 ---

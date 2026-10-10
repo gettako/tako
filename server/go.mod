@@ -31,4 +31,4 @@ require (
 	modernc.org/memory v1.12.1 // indirect
 )
 
-replace gettako.dev/tako/proto => ../proto
+replace gettako.dev/tako/proto => ../api/proto

@@ -8,7 +8,7 @@ WORKDIR /src
 RUN apk add --no-cache git ca-certificates tzdata
 
 # Copy proto and server source
-COPY proto/ /src/proto/
+COPY api/proto/ /src/api/proto/
 COPY server/ /src/server/
 
 ENV GOWORK=off
