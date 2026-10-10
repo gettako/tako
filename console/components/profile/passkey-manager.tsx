@@ -28,10 +28,14 @@ import {
 } from '@/components/ui/table';
 import { Fingerprint, Plus, Trash2, Loader2, Sparkles, Key } from 'lucide-react';
 import { SectionHeader } from '@/components/ui/section-header';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
+import { toast } from 'sonner';
 
 export function PasskeyManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [keyName, setKeyName] = useState('');
+  const [nameError, setNameError] = useState('');
 
   const { data: passkeys = [], isLoading } = usePasskeys();
 
@@ -39,6 +43,20 @@ export function PasskeyManager() {
     onSuccess: () => {
       setDialogOpen(false);
       setKeyName('');
+      setNameError('');
+    },
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        setNameError(
+          parsed.fieldErrors.name ||
+          parsed.fieldErrors.keyName ||
+          parsed.message ||
+          'Validation failed'
+        );
+      } else {
+        toast.error(parsed.message || 'Passkey registration cancelled or failed');
+      }
     },
   });
 
@@ -47,7 +65,11 @@ export function PasskeyManager() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = keyName.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setNameError('Passkey name is required');
+      return;
+    }
+    setNameError('');
     registerMutation.mutate(trimmed);
   };
 
@@ -67,6 +89,7 @@ export function PasskeyManager() {
                 size="sm"
                 onClick={() => {
                   setKeyName('');
+                  setNameError('');
                   setDialogOpen(true);
                 }}
                 className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 shrink-0 active:not-aria-[haspopup]:translate-y-px"
@@ -167,7 +190,16 @@ export function PasskeyManager() {
       </Card>
 
       {/* Add Passkey Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(val) => {
+          setDialogOpen(val);
+          if (!val) {
+            setKeyName('');
+            setNameError('');
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-lg bg-card border-border">
           <form onSubmit={handleRegister}>
             <DialogHeader>
@@ -184,13 +216,17 @@ export function PasskeyManager() {
                 <Label className="text-xs font-medium text-foreground">Passkey Name</Label>
                 <Input
                   value={keyName}
-                  onChange={(e) => setKeyName(e.target.value)}
+                  onChange={(e) => {
+                    setKeyName(e.target.value);
+                    if (nameError) setNameError('');
+                  }}
                   placeholder="e.g. MacBook Pro Touch ID, YubiKey 5C NFC"
-                  required
                   disabled={isRegistering}
+                  error={!!nameError}
                   className="text-xs h-9"
                   autoFocus
                 />
+                <FieldError error={nameError} />
                 <p className="text-[11px] text-muted-foreground">
                   Give this key a name that will help you identify which device was used.
                 </p>
@@ -211,7 +247,7 @@ export function PasskeyManager() {
                 size="sm"
                 onClick={() => setDialogOpen(false)}
                 disabled={isRegistering}
-                className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+                className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
               >
                 Cancel
               </Button>
@@ -219,7 +255,7 @@ export function PasskeyManager() {
                 type="submit"
                 size="sm"
                 disabled={!keyName.trim() || isRegistering}
-                className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+                className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isRegistering ? (
                   <>

@@ -377,7 +377,7 @@ export function BackupsPanel() {
               variant="outline"
               size="sm"
               onClick={() => setRestoreModalOpen(false)}
-              className="text-xs h-9"
+              className="text-sm h-9"
             >
               Cancel
             </Button>
@@ -386,7 +386,7 @@ export function BackupsPanel() {
               size="sm"
               disabled={confirmText !== 'RESTORE' || isRestoring}
               onClick={handleConfirmRestore}
-              className="text-xs h-9 bg-amber-600 hover:bg-amber-700 text-white font-medium gap-1.5"
+              className="text-sm h-9 bg-amber-600 hover:bg-amber-700 text-white font-medium gap-1.5"
             >
               {isRestoring ? (
                 <Loader2 className="size-3.5 animate-spin" />

@@ -19,6 +19,8 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/searchable-select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CopyButton } from '@/components/ui/copy-button';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 import { ConfirmDestructiveDialog } from '@/components/ui/confirm-destructive-dialog';
 import {
   Table,
@@ -45,6 +47,8 @@ export function UsersPanel() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('member');
   const [inviteExpiry, setInviteExpiry] = useState<number>(7);
+  const [inviteEmailError, setInviteEmailError] = useState<string | null>(null);
+  const [inviteGeneralError, setInviteGeneralError] = useState<string | null>(null);
   const [generatedInvite, setGeneratedInvite] = useState<UserInvite | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
@@ -57,6 +61,20 @@ export function UsersPanel() {
   const createInviteMutation = useCreateUserInvite({
     onSuccess: (newInv) => {
       setGeneratedInvite(newInv);
+      setInviteEmailError(null);
+      setInviteGeneralError(null);
+    },
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (parsed.fieldErrors.email) {
+          setInviteEmailError(parsed.fieldErrors.email);
+        } else {
+          setInviteGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setInviteGeneralError(parsed.message || 'Failed to create invite link');
+      }
     },
   });
   const revokeInviteMutation = useRevokeUserInvite();
@@ -317,24 +335,45 @@ export function UsersPanel() {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                setInviteGeneralError(null);
+                const trimmed = inviteEmail.trim();
+                if (!trimmed) {
+                  setInviteEmailError('Email address is required');
+                  return;
+                }
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+                  setInviteEmailError('Please enter a valid email address');
+                  return;
+                }
                 createInviteMutation.mutate({
-                  email: inviteEmail,
+                  email: trimmed,
                   role: inviteRole,
                   expiryDays: inviteExpiry,
                 });
               }}
               className="space-y-4 py-3 text-sm"
+              noValidate
             >
+              {inviteGeneralError && (
+                <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+                  {inviteGeneralError}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-foreground">Email Address</Label>
                 <Input
                   type="email"
                   placeholder="colleague@company.com"
                   value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setInviteEmail(e.target.value);
+                    if (inviteEmailError) setInviteEmailError(null);
+                  }}
+                  error={!!inviteEmailError}
                   className="text-sm"
                 />
+                <FieldError error={inviteEmailError} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -372,7 +411,7 @@ export function UsersPanel() {
                   variant="outline"
                   size="sm"
                   onClick={() => setInviteDialogOpen(false)}
-                  className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+                  className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
                 >
                   Cancel
                 </Button>
@@ -380,7 +419,7 @@ export function UsersPanel() {
                   type="submit"
                   size="sm"
                   disabled={!inviteEmail.trim() || createInviteMutation.isPending}
-                  className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+                  className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
                 >
                   {createInviteMutation.isPending ? 'Generating...' : 'Generate Invite Link'}
                 </Button>

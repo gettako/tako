@@ -13,6 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 
 export interface AddDomainInput {
   domain: string;
@@ -25,7 +27,7 @@ export interface AddDomainInput {
 export interface AddDomainDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddDomain: (data: AddDomainInput) => void;
+  onAddDomain: (data: AddDomainInput) => void | Promise<void>;
   defaultPort?: number;
 }
 
@@ -40,10 +42,14 @@ export function AddDomainDialog({
   const [pathInput, setPathInput] = useState('/');
   const [internalPathInput, setInternalPathInput] = useState('/');
   const [sslEnabled, setSslEnabled] = useState(true);
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setGeneralError(null);
+    const newErrors: Record<string, string> = {};
+
     const trimmedDomain = domainInput.trim().toLowerCase();
     const parsedPort = parseInt(portInput, 10);
     const trimmedPath = pathInput.trim() || '/';
@@ -51,43 +57,77 @@ export function AddDomainDialog({
 
     // Basic domain validation
     const domainRegex = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,10}$/;
-    if (!domainRegex.test(trimmedDomain)) {
-      setError('Please enter a valid domain format (e.g. app.yourdomain.com)');
-      return;
+    if (!trimmedDomain) {
+      newErrors.domain = 'Domain name is required';
+    } else if (!domainRegex.test(trimmedDomain)) {
+      newErrors.domain = 'Please enter a valid domain format (e.g. app.yourdomain.com)';
     }
 
     if (isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
-      setError('Port must be a valid number between 1 and 65535');
+      newErrors.port = 'Port must be a valid number between 1 and 65535';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
       return;
     }
 
-    onAddDomain({
-      domain: trimmedDomain,
-      port: parsedPort,
-      path: trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`,
-      internalPath: trimmedInternalPath.startsWith('/') ? trimmedInternalPath : `/${trimmedInternalPath}`,
-      ssl: sslEnabled,
-    });
+    try {
+      await onAddDomain({
+        domain: trimmedDomain,
+        port: parsedPort,
+        path: trimmedPath.startsWith('/') ? trimmedPath : `/${trimmedPath}`,
+        internalPath: trimmedInternalPath.startsWith('/') ? trimmedInternalPath : `/${trimmedInternalPath}`,
+        ssl: sslEnabled,
+      });
 
-    setDomainInput('');
-    setPortInput(defaultPort.toString());
-    setPathInput('/');
-    setInternalPathInput('/');
-    setSslEnabled(true);
-    setError('');
-    onOpenChange(false);
+      setDomainInput('');
+      setPortInput(defaultPort.toString());
+      setPathInput('/');
+      setInternalPathInput('/');
+      setSslEnabled(true);
+      setFieldErrors({});
+      setGeneralError(null);
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setFieldErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setGeneralError(parsed.message);
+          }
+        } else {
+          setGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setGeneralError(parsed.message || 'Failed to add domain');
+      }
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(val) => {
+      onOpenChange(val);
+      if (!val) {
+        setFieldErrors({});
+        setGeneralError(null);
+      }
+    }}>
       <DialogContent className="sm:max-w-xl">
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <DialogHeader>
             <DialogTitle>Add Custom Domain</DialogTitle>
             <DialogDescription>
               Configure an external hostname, container routing port, and SSL certificate for this service.
             </DialogDescription>
           </DialogHeader>
+
+          {generalError && (
+            <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+              {generalError}
+            </div>
+          )}
 
           <div className="space-y-4">
             {/* Domain Name */}
@@ -102,12 +142,15 @@ export function AddDomainDialog({
                 value={domainInput}
                 onChange={(e) => {
                   setDomainInput(e.target.value);
-                  if (error) setError('');
+                  if (fieldErrors.domain) {
+                    setFieldErrors((prev) => ({ ...prev, domain: undefined }));
+                  }
                 }}
+                error={!!fieldErrors.domain}
                 className="font-mono text-xs h-9"
                 autoFocus
-                required
               />
+              <FieldError error={fieldErrors.domain} />
               <p className="text-[11px] text-muted-foreground">
                 External domain or subdomain (e.g. app.yourcompany.com)
               </p>
@@ -124,12 +167,18 @@ export function AddDomainDialog({
                   type="number"
                   placeholder="3000"
                   value={portInput}
-                  onChange={(e) => setPortInput(e.target.value)}
+                  onChange={(e) => {
+                    setPortInput(e.target.value);
+                    if (fieldErrors.port) {
+                      setFieldErrors((prev) => ({ ...prev, port: undefined }));
+                    }
+                  }}
+                  error={!!fieldErrors.port}
                   className="font-mono text-xs h-9"
                   min={1}
                   max={65535}
-                  required
                 />
+                <FieldError error={fieldErrors.port} />
                 <p className="text-[10px] text-muted-foreground">Internal service port</p>
               </div>
 
@@ -142,10 +191,16 @@ export function AddDomainDialog({
                   type="text"
                   placeholder="/"
                   value={pathInput}
-                  onChange={(e) => setPathInput(e.target.value)}
+                  onChange={(e) => {
+                    setPathInput(e.target.value);
+                    if (fieldErrors.path) {
+                      setFieldErrors((prev) => ({ ...prev, path: undefined }));
+                    }
+                  }}
+                  error={!!fieldErrors.path}
                   className="font-mono text-xs h-9"
-                  required
                 />
+                <FieldError error={fieldErrors.path} />
                 <p className="text-[10px] text-muted-foreground">Incoming request path</p>
               </div>
 
@@ -181,8 +236,6 @@ export function AddDomainDialog({
                 onCheckedChange={setSslEnabled}
               />
             </div>
-
-            {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
 
           <DialogFooter className="pt-2 gap-2 sm:gap-2.5">
@@ -191,14 +244,14 @@ export function AddDomainDialog({
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               size="sm"
-              className="text-xs h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
               <Plus className="size-3.5" />
               <span>Add Domain</span>

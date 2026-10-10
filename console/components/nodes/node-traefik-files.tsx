@@ -17,6 +17,8 @@ import { Node, TraefikConfigFile } from '@/lib/types';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 import { Badge } from '@/components/ui/badge';
 import { CopyButton } from '@/components/ui/copy-button';
 import {
@@ -382,7 +384,13 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
       setCreateDialogOpen(false);
       setNewFileName('');
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Failed to create file');
+      const parsed = parseApiError(err);
+      setCreateError(
+        parsed.fieldErrors.filename ||
+        parsed.fieldErrors.name ||
+        parsed.message ||
+        'Failed to create file'
+      );
     }
   };
 
@@ -946,9 +954,11 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                   if (createError) setCreateError(null);
                 }}
                 placeholder="e.g. my-custom-router.yml"
+                error={!!createError}
                 className="h-8 text-xs font-mono"
                 autoFocus
               />
+              <FieldError error={createError} />
               <p className="text-[11px] text-muted-foreground">
                 Supported formats: <code>.yml</code>, <code>.yaml</code>, <code>.toml</code>, <code>.json</code>
               </p>
@@ -1005,13 +1015,6 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                 </div>
               </div>
             </div>
-
-            {createError && (
-              <div className="flex items-center gap-2 text-xs text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
-                <AlertCircle className="size-4 shrink-0" />
-                <span>{createError}</span>
-              </div>
-            )}
           </div>
 
           <DialogFooter>
@@ -1019,14 +1022,14 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               variant="outline"
               size="sm"
               onClick={() => setCreateDialogOpen(false)}
-              className="text-xs h-8 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
             <Button
               size="sm"
               onClick={handleCreateFile}
-              className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
               <FilePlus2 className="size-3.5" />
               <span>Create File</span>
@@ -1054,7 +1057,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               variant="outline"
               size="sm"
               onClick={() => setDeleteTarget(null)}
-              className="text-xs h-8 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -1063,7 +1066,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               size="sm"
               disabled={deleteMutation.isPending}
               onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
-              className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
               {deleteMutation.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />

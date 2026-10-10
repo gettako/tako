@@ -1,10 +1,19 @@
 import { simulateDelay } from './delay';
 import { User } from '@/lib/types';
 import { getUserAvatarUrl } from '@/lib/avatar';
+import { APIError } from '@/lib/api-client';
 
 export async function login(email: string, password: string): Promise<User> {
-  if (!email || !password) {
-    throw new Error('Email and password are required.');
+  const trimmedEmail = email ? email.trim() : '';
+
+  if (!trimmedEmail || !password) {
+    const errors: Record<string, string> = {};
+    if (!trimmedEmail) errors.email = 'Email is required';
+    if (!password) errors.password = 'Password is required';
+    throw new APIError(422, errors.email || errors.password || 'Email and password are required', {
+      error: 'Validation failed',
+      errors,
+    });
   }
 
   if (typeof window !== 'undefined') {
@@ -12,12 +21,12 @@ export async function login(email: string, password: string): Promise<User> {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: trimmedEmail, password }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Invalid credentials');
+        throw new APIError(res.status, data.error || data.message || 'Invalid credentials', data);
       }
 
       // Also set client-readable cookie as fallback
@@ -186,7 +195,7 @@ export async function loginWithPasskey(): Promise<User> {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || 'Failed to authenticate with passkey');
+    throw new APIError(res.status, data.error || data.message || 'Failed to authenticate with passkey', data);
   }
 
   document.cookie = 'tako_session=active_session; path=/; max-age=604800; SameSite=Lax';

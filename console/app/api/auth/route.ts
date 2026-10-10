@@ -100,8 +100,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
+    const trimmedEmail = typeof email === 'string' ? email.trim() : '';
+    const fieldErrors: Record<string, string> = {};
+
+    if (!trimmedEmail) {
+      fieldErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      fieldErrors.email = 'Please enter a valid email address';
+    }
+
+    if (!password) {
+      fieldErrors.password = 'Password is required';
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return NextResponse.json(
+        {
+          error: Object.values(fieldErrors)[0],
+          errors: fieldErrors,
+        },
+        { status: 422 }
+      );
     }
 
     try {
@@ -111,7 +130,7 @@ export async function POST(req: NextRequest) {
         user: { id: string; name: string; email: string; role: string; avatarUrl?: string; twoFactorEnabled?: boolean; createdAt?: string };
       }>('/api/v1/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: trimmedEmail, password }),
       });
 
       const userWithAvatar = {
@@ -141,6 +160,19 @@ export async function POST(req: NextRequest) {
       if (apiErr instanceof APIError) {
         if (apiErr.status === 401) {
           return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+        }
+        if (apiErr.status === 422) {
+          return NextResponse.json(
+            {
+              error: apiErr.message,
+              errors:
+                apiErr.errors ||
+                (apiErr.data && typeof apiErr.data === 'object' && apiErr.data.errors
+                  ? apiErr.data.errors
+                  : { email: apiErr.message }),
+            },
+            { status: 422 }
+          );
         }
         return NextResponse.json({ error: apiErr.message }, { status: apiErr.status });
       }

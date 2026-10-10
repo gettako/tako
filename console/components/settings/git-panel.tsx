@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -91,6 +93,12 @@ export function GitPanel() {
   const [targetOrg, setTargetOrg] = useState('');
   const [showPerms, setShowPerms] = useState(false);
 
+  // Error States
+  const [appFieldErrors, setAppFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [appGeneralError, setAppGeneralError] = useState<string | null>(null);
+  const [patFieldErrors, setPatFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [patGeneralError, setPatGeneralError] = useState<string | null>(null);
+
   // PAT State
   const [patProvider, setPatProvider] = useState<'github' | 'gitlab' | 'gitea'>('github');
   const [patUsername, setPatUsername] = useState('');
@@ -100,7 +108,16 @@ export function GitPanel() {
   const generateSlug = () => `tako-${Math.floor(10000 + Math.random() * 90000)}`;
 
   useEffect(() => { setAppSlug(generateSlug()); }, []);
-  useEffect(() => { if (!connectOpen) { setIsCreatingManifest(false); setShowPerms(false); } }, [connectOpen]);
+  useEffect(() => {
+    if (!connectOpen) {
+      setIsCreatingManifest(false);
+      setShowPerms(false);
+      setAppFieldErrors({});
+      setAppGeneralError(null);
+      setPatFieldErrors({});
+      setPatGeneralError(null);
+    }
+  }, [connectOpen]);
 
   /* Queries & Mutations */
   const { data: githubApp } = useGitHubAppConfig();
@@ -201,14 +218,33 @@ export function GitPanel() {
   /* Actions */
   const handleLaunchManifest = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAppGeneralError(null);
+    if (!appName.trim()) {
+      setAppFieldErrors({ appName: 'App name is required' });
+      return;
+    }
+
     try {
       setIsCreatingManifest(true);
       const slug = appSlug.trim() || generateSlug();
       const name = appName.trim() || 'Tako';
       const manifest = await getGitHubAppManifestMutation.mutateAsync({ customName: name, customSlug: slug });
       submitGitHubAppManifestForm(manifest, targetOrg.trim());
-    } catch {
+    } catch (err: unknown) {
       setIsCreatingManifest(false);
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setAppFieldErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setAppGeneralError(parsed.message);
+          }
+        } else {
+          setAppGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setAppGeneralError(parsed.message || 'Failed to generate GitHub App manifest');
+      }
     }
   };
 
@@ -233,10 +269,17 @@ export function GitPanel() {
 
   const handleConnectPAT = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patUsername.trim() || !patToken.trim()) {
-      toast.error('Please enter account username and personal access token');
+    setPatGeneralError(null);
+    const newErrors: Record<string, string> = {};
+
+    if (!patUsername.trim()) newErrors.username = 'Account username is required';
+    if (!patToken.trim()) newErrors.token = 'Personal access token is required';
+
+    if (Object.keys(newErrors).length > 0) {
+      setPatFieldErrors(newErrors);
       return;
     }
+
     try {
       setIsConnectingPAT(true);
       await connectGitProviderWithPATMutation.mutateAsync({
@@ -247,6 +290,22 @@ export function GitPanel() {
       setConnectOpen(false);
       setPatUsername('');
       setPatToken('');
+      setPatFieldErrors({});
+      setPatGeneralError(null);
+    } catch (err: unknown) {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setPatFieldErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setPatGeneralError(parsed.message);
+          }
+        } else {
+          setPatGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setPatGeneralError(parsed.message || 'Failed to connect PAT');
+      }
     } finally {
       setIsConnectingPAT(false);
     }
@@ -517,7 +576,13 @@ export function GitPanel() {
 
             {/* ── GitHub Tab ── */}
             <TabsContent value="github" className="mt-4">
-              <form onSubmit={handleLaunchManifest} className="space-y-4">
+              <form onSubmit={handleLaunchManifest} className="space-y-4" noValidate>
+                {appGeneralError && (
+                  <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+                    {appGeneralError}
+                  </div>
+                )}
+
                 <div className="flex items-start gap-3 px-3.5 py-3 rounded-xl border border-primary/25 bg-primary/5">
                   <Sparkles className="size-4 text-primary shrink-0 mt-0.5" />
                   <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
@@ -532,8 +597,20 @@ export function GitPanel() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="gh-name" className="text-xs font-medium">App Name</Label>
-                  <Input id="gh-name" value={appName} onChange={(e) => setAppName(e.target.value)}
-                    placeholder="Tako" className="h-9 text-xs font-mono" required />
+                  <Input
+                    id="gh-name"
+                    value={appName}
+                    onChange={(e) => {
+                      setAppName(e.target.value);
+                      if (appFieldErrors.appName) {
+                        setAppFieldErrors((prev) => ({ ...prev, appName: undefined }));
+                      }
+                    }}
+                    placeholder="Tako"
+                    className="h-9 text-xs font-mono"
+                    error={!!appFieldErrors.appName}
+                  />
+                  <FieldError error={appFieldErrors.appName} />
                   <p className="text-[10px] text-muted-foreground">Display name shown in your GitHub account.</p>
                 </div>
 
@@ -557,8 +634,20 @@ export function GitPanel() {
                   <Label htmlFor="gh-org" className="text-xs font-medium">
                     App Owner Organization <span className="font-normal text-muted-foreground">(Optional)</span>
                   </Label>
-                  <Input id="gh-org" value={targetOrg} onChange={(e) => setTargetOrg(e.target.value)}
-                    placeholder="e.g. acme-corp (leave blank for personal)" className="h-9 text-xs font-mono" />
+                  <Input
+                    id="gh-org"
+                    value={targetOrg}
+                    onChange={(e) => {
+                      setTargetOrg(e.target.value);
+                      if (appFieldErrors.targetOrg || appFieldErrors.org) {
+                        setAppFieldErrors((prev) => ({ ...prev, targetOrg: undefined, org: undefined }));
+                      }
+                    }}
+                    placeholder="e.g. acme-corp (leave blank for personal)"
+                    error={!!(appFieldErrors.targetOrg || appFieldErrors.org)}
+                    className="h-9 text-xs font-mono"
+                  />
+                  <FieldError error={appFieldErrors.targetOrg || appFieldErrors.org} />
                   <p className="text-[10px] text-muted-foreground">Account/org where this GitHub App is registered. You can install it into any other orgs later.</p>
                 </div>
 
@@ -594,11 +683,11 @@ export function GitPanel() {
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-2.5 pt-1">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setConnectOpen(false)} className="text-xs h-9">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setConnectOpen(false)} className="text-sm h-9">
                     Cancel
                   </Button>
                   <Button type="submit" size="sm" disabled={isCreatingManifest || !appName.trim()}
-                    className="flex-1 text-xs h-9 gap-2 font-semibold">
+                    className="flex-1 text-sm h-9 gap-2 font-semibold">
                     {isCreatingManifest
                       ? <Loader2 className="size-3.5 animate-spin" />
                       : <GitHubIcon className="size-3.5" />
@@ -611,7 +700,13 @@ export function GitPanel() {
 
             {/* ── PAT Tab ── */}
             <TabsContent value="pat" className="mt-4">
-              <form onSubmit={handleConnectPAT} className="space-y-4">
+              <form onSubmit={handleConnectPAT} className="space-y-4" noValidate>
+                {patGeneralError && (
+                  <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+                    {patGeneralError}
+                  </div>
+                )}
+
                 <div className="flex items-start gap-3 px-3.5 py-3 rounded-xl border border-primary/25 bg-primary/5">
                   <Key className="size-4 text-primary shrink-0 mt-0.5" />
                   <div className="text-xs text-muted-foreground leading-relaxed space-y-1">
@@ -649,11 +744,17 @@ export function GitPanel() {
                   <Input
                     id="pat-user"
                     value={patUsername}
-                    onChange={(e) => setPatUsername(e.target.value)}
+                    onChange={(e) => {
+                      setPatUsername(e.target.value);
+                      if (patFieldErrors.username) {
+                        setPatFieldErrors((prev) => ({ ...prev, username: undefined }));
+                      }
+                    }}
                     placeholder="e.g. octocat or myorg"
                     className="h-9 text-xs font-mono"
-                    required
+                    error={!!patFieldErrors.username}
                   />
+                  <FieldError error={patFieldErrors.username} />
                 </div>
 
                 <div className="space-y-1.5">
@@ -662,23 +763,29 @@ export function GitPanel() {
                     id="pat-token"
                     type="password"
                     value={patToken}
-                    onChange={(e) => setPatToken(e.target.value)}
+                    onChange={(e) => {
+                      setPatToken(e.target.value);
+                      if (patFieldErrors.token) {
+                        setPatFieldErrors((prev) => ({ ...prev, token: undefined }));
+                      }
+                    }}
                     placeholder="ghp_... or glpat-..."
                     className="h-9 text-xs font-mono"
-                    required
+                    error={!!patFieldErrors.token}
                   />
+                  <FieldError error={patFieldErrors.token} />
                   <p className="text-[10px] text-muted-foreground">Requires <code>repo</code> or <code>read_repository</code> scope.</p>
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-2.5 pt-1">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setConnectOpen(false)} className="text-xs h-9">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setConnectOpen(false)} className="text-sm h-9">
                     Cancel
                   </Button>
                   <Button
                     type="submit"
                     size="sm"
                     disabled={isConnectingPAT || !patUsername.trim() || !patToken.trim()}
-                    className="flex-1 text-xs h-9 gap-2 font-semibold"
+                    className="flex-1 text-sm h-9 gap-2 font-semibold"
                   >
                     {isConnectingPAT ? (
                       <Loader2 className="size-3.5 animate-spin" />
@@ -705,10 +812,10 @@ export function GitPanel() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-2.5">
-            <Button variant="outline" size="sm" disabled={isDisconnecting} onClick={() => setDisconnectOpen(false)} className="text-xs h-9">
+            <Button variant="outline" size="sm" disabled={isDisconnecting} onClick={() => setDisconnectOpen(false)} className="text-sm h-9">
               Cancel
             </Button>
-            <Button variant="destructive" size="sm" disabled={isDisconnecting} onClick={handleDisconnect} className="text-xs h-9 gap-1.5">
+            <Button variant="destructive" size="sm" disabled={isDisconnecting} onClick={handleDisconnect} className="text-sm h-9 gap-1.5">
               {isDisconnecting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
               Disconnect
             </Button>

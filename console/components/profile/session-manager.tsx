@@ -94,7 +94,7 @@ export function SessionManager() {
               variant="outline"
               size="sm"
               onClick={() => setBulkDialogOpen(false)}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -103,7 +103,7 @@ export function SessionManager() {
               size="sm"
               onClick={() => revokeAllMutation.mutate()}
               disabled={revokeAllMutation.isPending}
-              className="text-xs h-9 bg-status-danger hover:bg-status-danger/90 text-white font-medium active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 bg-status-danger hover:bg-status-danger/90 text-white font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {revokeAllMutation.isPending ? 'Logging Out...' : 'Confirm Log Out'}
             </Button>

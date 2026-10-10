@@ -118,7 +118,7 @@ export function WebhookPayloadDialog({
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
           >
             Close
           </Button>

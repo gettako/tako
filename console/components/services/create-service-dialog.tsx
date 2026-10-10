@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 import { SearchableSelect, SearchableSelectOption } from '@/components/ui/searchable-select';
 import {
   Layers,
@@ -477,7 +479,35 @@ export function CreateServiceDialog({
       }
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Failed to create service');
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        let hasStep1Error = false;
+        if (parsed.fieldErrors.name) {
+          setNameError(parsed.fieldErrors.name);
+          hasStep1Error = true;
+        }
+        if (parsed.fieldErrors.slug) {
+          setSlugError(parsed.fieldErrors.slug);
+          hasStep1Error = true;
+        }
+        if (parsed.fieldErrors.repository || parsed.fieldErrors.customGitUrl || parsed.fieldErrors.url) {
+          setUrlError(parsed.fieldErrors.repository || parsed.fieldErrors.customGitUrl || parsed.fieldErrors.url);
+          hasStep1Error = true;
+        }
+        if (parsed.fieldErrors.repoId || parsed.fieldErrors.repositoryId) {
+          setRepoError(parsed.fieldErrors.repoId || parsed.fieldErrors.repositoryId);
+          hasStep1Error = true;
+        }
+        if (parsed.fieldErrors.nodeId || parsed.fieldErrors.node) {
+          setNodeError(parsed.fieldErrors.nodeId || parsed.fieldErrors.node);
+        }
+        if (hasStep1Error) {
+          setStep(1);
+        }
+        toast.error(parsed.message || 'Validation failed. Please check the marked fields.');
+      } else {
+        toast.error(parsed.message || 'Failed to create service');
+      }
     },
   });
 
@@ -937,9 +967,7 @@ export function CreateServiceDialog({
                             }}
                           />
                         </div>
-                        {repoError && (
-                          <p className="text-xs font-medium text-status-danger mt-1">{repoError}</p>
-                        )}
+                        <FieldError error={repoError} />
                       </div>
                     </div>
                   ) : (
@@ -955,13 +983,11 @@ export function CreateServiceDialog({
                           value={customGitUrl}
                           onChange={(e) => handleCustomUrlChange(e.target.value)}
                           placeholder="https://github.com/organization/my-service.git"
-                          aria-invalid={!!urlError}
-                          className={cn('pl-8 h-9 text-xs sm:text-sm font-mono', urlError && 'border-status-danger')}
+                          error={!!urlError}
+                          className="pl-8 h-9 text-xs sm:text-sm font-mono"
                         />
                       </div>
-                      {urlError && (
-                        <p className="text-xs font-medium text-status-danger mt-1">{urlError}</p>
-                      )}
+                      <FieldError error={urlError} />
                     </div>
                   )}
                 </div>
@@ -997,12 +1023,10 @@ export function CreateServiceDialog({
                     value={name}
                     onChange={(e) => handleNameChange(e.target.value)}
                     placeholder={serviceType === 'compose' ? 'e.g. backend-stack' : 'e.g. web-frontend'}
-                    aria-invalid={!!nameError}
+                    error={!!nameError}
                     className="h-9 text-xs sm:text-sm"
                   />
-                  {nameError && (
-                    <p className="text-xs font-medium text-status-danger mt-1">{nameError}</p>
-                  )}
+                  <FieldError error={nameError} />
                 </div>
 
                 {/* Service Slug */}
@@ -1022,12 +1046,10 @@ export function CreateServiceDialog({
                       if (slugError) setSlugError('');
                     }}
                     placeholder="e.g. web-frontend"
-                    aria-invalid={!!slugError}
+                    error={!!slugError}
                     className="h-9 text-xs sm:text-sm font-mono"
                   />
-                  {slugError && (
-                    <p className="text-xs font-medium text-status-danger mt-1">{slugError}</p>
-                  )}
+                  <FieldError error={slugError} />
                 </div>
               </div>
 
@@ -1193,7 +1215,7 @@ export function CreateServiceDialog({
                   type="button"
                   variant="outline"
                   onClick={() => onOpenChange(false)}
-                  className="text-xs sm:text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+                  className="text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
                 >
                   Cancel
                 </Button>
@@ -1204,7 +1226,7 @@ export function CreateServiceDialog({
                     e.stopPropagation();
                     handleNextStep();
                   }}
-                  className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
+                  className="text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
                 >
                   <span>Next: Node & Resources</span>
                   <ArrowRight className="size-3.5" />
@@ -1217,7 +1239,7 @@ export function CreateServiceDialog({
                   variant="outline"
                   onClick={() => setStep(1)}
                   disabled={createMutation.isPending}
-                  className="text-xs sm:text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
+                  className="text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
                 >
                   <ArrowLeft className="size-3.5" />
                   <span>Back to Service</span>
@@ -1226,7 +1248,7 @@ export function CreateServiceDialog({
                 <Button
                   type="submit"
                   disabled={createMutation.isPending || !selectedNodeId}
-                  className="text-xs sm:text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
+                  className="text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
                 >
                   {createMutation.isPending ? (
                     <>

@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { FieldError } from '@/components/ui/field';
 import { cn } from '@/lib/utils';
 
 export interface ProjectFormData {
@@ -20,6 +21,8 @@ export interface ProjectFormData {
 export interface ProjectFormErrors {
   name?: string;
   slug?: string;
+  description?: string;
+  [key: string]: string | undefined;
 }
 
 export const ENV_OPTIONS: Array<{
@@ -164,15 +167,11 @@ export function ProjectFormFields({
           value={formData.name}
           onChange={handleNameChange}
           disabled={isSubmitting}
-          aria-invalid={!!errors.name}
+          error={!!errors.name}
           autoFocus={!isEditMode}
           className="h-9.5 text-sm"
         />
-        {errors.name && (
-          <p className="text-xs font-medium text-status-danger mt-1">
-            {errors.name}
-          </p>
-        )}
+        <FieldError error={errors.name} />
       </div>
 
       {/* Project Slug */}
@@ -190,14 +189,11 @@ export function ProjectFormFields({
           value={formData.slug}
           onChange={handleSlugChange}
           disabled={isSubmitting}
-          aria-invalid={!!errors.slug}
+          error={!!errors.slug}
           className="h-9.5 text-sm font-mono"
         />
-        {errors.slug ? (
-          <p className="text-xs font-medium text-status-danger mt-1">
-            {errors.slug}
-          </p>
-        ) : (
+        <FieldError error={errors.slug} />
+        {!errors.slug && (
           <div className="rounded-md border border-border bg-muted/20 px-3 py-1.5 flex items-center justify-between text-xs font-mono text-muted-foreground">
             <span className="truncate flex items-center gap-1.5">
               <Globe className="size-3 shrink-0 text-muted-foreground/80" />
@@ -275,13 +271,18 @@ export function ProjectFormFields({
           id="project-description"
           placeholder="Core storefront, checkout API gateway, and PostgreSQL cluster..."
           value={formData.description}
-          onChange={(e) =>
-            onChange((prev) => ({ ...prev, description: e.target.value }))
-          }
+          onChange={(e) => {
+            onChange((prev) => ({ ...prev, description: e.target.value }));
+            if (errors.description) {
+              setErrors((prev) => ({ ...prev, description: undefined }));
+            }
+          }}
           disabled={isSubmitting}
+          error={!!errors.description}
           rows={3}
           className="resize-none text-xs sm:text-sm"
         />
+        <FieldError error={errors.description} />
       </div>
 
       {/* Tags */}

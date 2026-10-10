@@ -44,7 +44,10 @@ export function useNode(id: string | undefined | null) {
   });
 }
 
-export function useUpdateNode(options?: { onSuccess?: (updated: Node) => void }) {
+export function useUpdateNode(options?: {
+  onSuccess?: (updated: Node) => void;
+  onError?: (err: Error) => void;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<Node, Error, { id: string; input: Partial<Node> }>({
@@ -56,7 +59,11 @@ export function useUpdateNode(options?: { onSuccess?: (updated: Node) => void })
       options?.onSuccess?.(updated);
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to update node');
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Failed to update node');
+      }
     },
   });
 }

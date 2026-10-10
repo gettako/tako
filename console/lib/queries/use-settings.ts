@@ -116,7 +116,10 @@ export function useUserInvites() {
   });
 }
 
-export function useCreateUserInvite(options?: { onSuccess?: (invite: UserInvite) => void }) {
+export function useCreateUserInvite(options?: {
+  onSuccess?: (invite: UserInvite) => void;
+  onError?: (err: Error) => void;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<UserInvite, Error, { email: string; role: UserRole; expiryDays?: number }>({
@@ -127,7 +130,11 @@ export function useCreateUserInvite(options?: { onSuccess?: (invite: UserInvite)
       options?.onSuccess?.(invite);
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to create invite');
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Failed to create invite');
+      }
     },
   });
 }
@@ -307,7 +314,10 @@ export function useS3Buckets() {
   });
 }
 
-export function useAddS3Bucket(options?: { onSuccess?: () => void }) {
+export function useAddS3Bucket(options?: {
+  onSuccess?: () => void;
+  onError?: (err: Error) => void;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<S3Bucket, Error, Omit<S3Bucket, 'id' | 'createdAt'>>({
@@ -318,12 +328,19 @@ export function useAddS3Bucket(options?: { onSuccess?: () => void }) {
       options?.onSuccess?.();
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to add S3 bucket');
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Failed to add S3 bucket');
+      }
     },
   });
 }
 
-export function useUpdateS3Bucket(options?: { onSuccess?: () => void }) {
+export function useUpdateS3Bucket(options?: {
+  onSuccess?: () => void;
+  onError?: (err: Error) => void;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<S3Bucket, Error, { id: string; input: Partial<Omit<S3Bucket, 'id' | 'createdAt'>> }>({
@@ -334,12 +351,19 @@ export function useUpdateS3Bucket(options?: { onSuccess?: () => void }) {
       options?.onSuccess?.();
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to update S3 bucket');
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Failed to update S3 bucket');
+      }
     },
   });
 }
 
-export function useDeleteS3Bucket(options?: { onSuccess?: () => void }) {
+export function useDeleteS3Bucket(options?: {
+  onSuccess?: () => void;
+  onError?: (err: Error) => void;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, string>({
@@ -350,7 +374,11 @@ export function useDeleteS3Bucket(options?: { onSuccess?: () => void }) {
       options?.onSuccess?.();
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to delete S3 bucket');
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Failed to delete S3 bucket');
+      }
     },
   });
 }

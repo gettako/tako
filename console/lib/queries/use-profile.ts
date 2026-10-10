@@ -44,7 +44,10 @@ export function useUpdateProfileUser(options?: { onSuccess?: (u: User) => void }
   });
 }
 
-export function useChangePassword(options?: { onSuccess?: () => void }) {
+export function useChangePassword(options?: {
+  onSuccess?: () => void;
+  onError?: (err: Error) => void;
+}) {
   return useMutation<void, Error, { currentPassword: string; newPassword: string }>({
     mutationFn: ({ currentPassword, newPassword }) => changePassword(currentPassword, newPassword),
     onSuccess: () => {
@@ -52,7 +55,11 @@ export function useChangePassword(options?: { onSuccess?: () => void }) {
       options?.onSuccess?.();
     },
     onError: (err) => {
-      toast.error(err.message || 'Failed to update password');
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Failed to update password');
+      }
     },
   });
 }
@@ -161,7 +168,10 @@ export function useDeletePasskey(options?: { onSuccess?: () => void }) {
   });
 }
 
-export function useRegisterPasskey(options?: { onSuccess?: () => void }) {
+export function useRegisterPasskey(options?: {
+  onSuccess?: () => void;
+  onError?: (err: Error) => void;
+}) {
   const queryClient = useQueryClient();
 
   return useMutation<Passkey, Error, string | undefined>({
@@ -172,7 +182,11 @@ export function useRegisterPasskey(options?: { onSuccess?: () => void }) {
       options?.onSuccess?.();
     },
     onError: (err) => {
-      toast.error(err.message || 'Passkey registration cancelled or failed');
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Passkey registration cancelled or failed');
+      }
     },
   });
 }

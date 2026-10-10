@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User as UserIcon, Mail, Save, Loader2, Sparkles, Hash } from 'lucide-react';
 import { getUserAvatarUrl, md5 } from '@/lib/avatar';
 import { toast } from 'sonner';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 
 interface EditProfileDialogProps {
   open: boolean;
@@ -33,12 +35,16 @@ export function EditProfileDialog({
 }: EditProfileDialogProps) {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setName(user.name);
       setEmail(user.email);
+      setFieldErrors({});
+      setGeneralError(null);
     }
   }, [open, user.name, user.email]);
 
@@ -47,23 +53,53 @@ export function EditProfileDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim()) {
-      toast.error('Name and email are required');
+    setGeneralError(null);
+    const newErrors: Record<string, string> = {};
+
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      newErrors.name = 'Full display name is required';
+    }
+
+    if (!trimmedEmail) {
+      newErrors.email = 'Email address is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
       return;
     }
 
     try {
       setIsSaving(true);
       await onUpdate({
-        name: name.trim(),
-        email: email.trim(),
+        name: trimmedName,
+        email: trimmedEmail,
         avatarUrl: previewAvatarUrl,
       });
       toast.success('Profile updated successfully');
+      setFieldErrors({});
+      setGeneralError(null);
       onOpenChange(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update profile';
-      toast.error(msg);
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setFieldErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setGeneralError(parsed.message);
+          }
+        } else {
+          setGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setGeneralError(parsed.message || 'Failed to update profile');
+        toast.error(parsed.message || 'Failed to update profile');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -81,7 +117,7 @@ export function EditProfileDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg bg-card border-border">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
             <DialogTitle className="text-base font-semibold">
               Edit Account Profile
@@ -92,6 +128,12 @@ export function EditProfileDialog({
           </DialogHeader>
 
           <div className="py-4 space-y-4">
+            {generalError && (
+              <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+                {generalError}
+              </div>
+            )}
+
             {/* Live Avatar Preview */}
             <div className="flex items-center gap-3.5 p-3 rounded-xl border border-border bg-muted/20">
               <Avatar className="size-14 rounded-full border border-border ring-2 ring-primary/20 shrink-0 bg-background">
@@ -121,13 +163,19 @@ export function EditProfileDialog({
               </Label>
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (fieldErrors.name) {
+                    setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  }
+                }}
                 placeholder="e.g. Administrator"
                 disabled={isSaving}
+                error={!!fieldErrors.name}
                 className="text-xs h-9"
-                required
                 autoFocus
               />
+              <FieldError error={fieldErrors.name} />
             </div>
 
             {/* Email Address */}
@@ -139,12 +187,18 @@ export function EditProfileDialog({
               <Input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) {
+                    setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                  }
+                }}
                 placeholder="admin@gettako.dev"
                 disabled={isSaving}
+                error={!!fieldErrors.email}
                 className="text-xs h-9 font-mono"
-                required
               />
+              <FieldError error={fieldErrors.email} />
             </div>
           </div>
 
@@ -155,7 +209,7 @@ export function EditProfileDialog({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isSaving}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -163,7 +217,7 @@ export function EditProfileDialog({
               type="submit"
               size="sm"
               disabled={isSaving || !name.trim() || !email.trim()}
-              className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               {isSaving ? (
                 <>

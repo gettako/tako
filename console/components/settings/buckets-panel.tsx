@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { CopyButton } from '@/components/ui/copy-button';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 import {
   Table,
   TableBody,
@@ -85,6 +87,10 @@ export function BucketsPanel() {
   const [rowTestingId, setRowTestingId] = useState<string | null>(null);
   const [rowStatusMap, setRowStatusMap] = useState<Record<string, ConnectionStatus>>({});
 
+  // Validation States
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
   const { data: buckets = [], isLoading } = useS3Buckets();
 
   // Mutations
@@ -93,12 +99,42 @@ export function BucketsPanel() {
       setAddDialogOpen(false);
       resetForm();
     },
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setFieldErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setGeneralError(parsed.message);
+          }
+        } else {
+          setGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setGeneralError(parsed.message || 'Failed to add storage bucket');
+      }
+    },
   });
 
   const updateMutation = useUpdateS3Bucket({
     onSuccess: () => {
       setEditDialogOpen(false);
       resetForm();
+    },
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setFieldErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setGeneralError(parsed.message);
+          }
+        } else {
+          setGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setGeneralError(parsed.message || 'Failed to update storage bucket');
+      }
     },
   });
 
@@ -122,6 +158,8 @@ export function BucketsPanel() {
     setIsDefault(false);
     setTestResult(null);
     setSelectedBucket(null);
+    setFieldErrors({});
+    setGeneralError(null);
   };
 
   const openEditDialog = (b: S3Bucket) => {
@@ -134,6 +172,8 @@ export function BucketsPanel() {
     setSecretAccessKey('');
     setIsDefault(b.isDefault);
     setTestResult(null);
+    setFieldErrors({});
+    setGeneralError(null);
     setEditDialogOpen(true);
   };
 
@@ -198,7 +238,19 @@ export function BucketsPanel() {
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !endpoint.trim() || !bucket.trim() || !accessKeyId.trim()) return;
+    setGeneralError(null);
+    const newErrors: Record<string, string> = {};
+
+    if (!name.trim()) newErrors.name = 'Storage name is required';
+    if (!endpoint.trim()) newErrors.endpoint = 'Endpoint URL is required';
+    if (!bucket.trim()) newErrors.bucket = 'Bucket name is required';
+    if (!accessKeyId.trim()) newErrors.accessKeyId = 'Access Key ID is required';
+    if (!secretAccessKey.trim()) newErrors.secretAccessKey = 'Secret Access Key is required';
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      return;
+    }
 
     addMutation.mutate({
       name: name.trim(),
@@ -213,7 +265,19 @@ export function BucketsPanel() {
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBucket || !name.trim() || !endpoint.trim() || !bucket.trim() || !accessKeyId.trim()) return;
+    if (!selectedBucket) return;
+    setGeneralError(null);
+    const newErrors: Record<string, string> = {};
+
+    if (!name.trim()) newErrors.name = 'Storage name is required';
+    if (!endpoint.trim()) newErrors.endpoint = 'Endpoint URL is required';
+    if (!bucket.trim()) newErrors.bucket = 'Bucket name is required';
+    if (!accessKeyId.trim()) newErrors.accessKeyId = 'Access Key ID is required';
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      return;
+    }
 
     updateMutation.mutate({
       id: selectedBucket.id,
@@ -419,7 +483,7 @@ export function BucketsPanel() {
       {/* Add S3 Bucket Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="sm:max-w-xl">
-          <form onSubmit={handleAddSubmit}>
+          <form onSubmit={handleAddSubmit} noValidate>
             <DialogHeader>
               <DialogTitle className="text-lg font-semibold">
                 Configure S3 Compatible Storage
@@ -430,14 +494,24 @@ export function BucketsPanel() {
             </DialogHeader>
 
             <div className="space-y-4 py-4">
+              {generalError && (
+                <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+                  {generalError}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-foreground">Display Name</Label>
                 <Input
                   placeholder="e.g. Primary Backups (Cloudflare R2)"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  }}
+                  error={!!fieldErrors.name}
                 />
+                <FieldError error={fieldErrors.name} />
               </div>
 
               <div className="space-y-1.5">
@@ -445,10 +519,14 @@ export function BucketsPanel() {
                 <Input
                   placeholder="https://<account>.r2.cloudflarestorage.com"
                   value={endpoint}
-                  onChange={(e) => setEndpoint(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setEndpoint(e.target.value);
+                    if (fieldErrors.endpoint) setFieldErrors((prev) => ({ ...prev, endpoint: undefined }));
+                  }}
+                  error={!!fieldErrors.endpoint}
                   className="font-mono text-sm"
                 />
+                <FieldError error={fieldErrors.endpoint} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -457,19 +535,28 @@ export function BucketsPanel() {
                   <Input
                     placeholder="my-tako-backups"
                     value={bucket}
-                    onChange={(e) => setBucket(e.target.value)}
-                    required
+                    onChange={(e) => {
+                      setBucket(e.target.value);
+                      if (fieldErrors.bucket) setFieldErrors((prev) => ({ ...prev, bucket: undefined }));
+                    }}
+                    error={!!fieldErrors.bucket}
                     className="font-mono text-sm"
                   />
+                  <FieldError error={fieldErrors.bucket} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-foreground">Region</Label>
                   <Input
                     placeholder="e.g. us-east-1 or auto"
                     value={region}
-                    onChange={(e) => setRegion(e.target.value)}
+                    onChange={(e) => {
+                      setRegion(e.target.value);
+                      if (fieldErrors.region) setFieldErrors((prev) => ({ ...prev, region: undefined }));
+                    }}
+                    error={!!fieldErrors.region}
                     className="font-mono text-sm"
                   />
+                  <FieldError error={fieldErrors.region} />
                 </div>
               </div>
 
@@ -478,10 +565,14 @@ export function BucketsPanel() {
                 <Input
                   placeholder="AKIAIOSFODNN7EXAMPLE"
                   value={accessKeyId}
-                  onChange={(e) => setAccessKeyId(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setAccessKeyId(e.target.value);
+                    if (fieldErrors.accessKeyId) setFieldErrors((prev) => ({ ...prev, accessKeyId: undefined }));
+                  }}
+                  error={!!fieldErrors.accessKeyId}
                   className="font-mono text-sm"
                 />
+                <FieldError error={fieldErrors.accessKeyId} />
               </div>
 
               <div className="space-y-1.5">
@@ -490,9 +581,14 @@ export function BucketsPanel() {
                   type="password"
                   placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
                   value={secretAccessKey}
-                  onChange={(e) => setSecretAccessKey(e.target.value)}
+                  onChange={(e) => {
+                    setSecretAccessKey(e.target.value);
+                    if (fieldErrors.secretAccessKey) setFieldErrors((prev) => ({ ...prev, secretAccessKey: undefined }));
+                  }}
+                  error={!!fieldErrors.secretAccessKey}
                   className="font-mono text-sm"
                 />
+                <FieldError error={fieldErrors.secretAccessKey} />
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -540,7 +636,7 @@ export function BucketsPanel() {
                 size="sm"
                 onClick={() => handleTestConnection()}
                 disabled={isTesting || !endpoint || !bucket}
-                className="text-xs h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+                className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isTesting ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -556,7 +652,7 @@ export function BucketsPanel() {
                   variant="outline"
                   size="sm"
                   onClick={() => setAddDialogOpen(false)}
-                  className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+                  className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
                 >
                   Cancel
                 </Button>
@@ -564,7 +660,7 @@ export function BucketsPanel() {
                   type="submit"
                   size="sm"
                   disabled={!name || !endpoint || !bucket || !accessKeyId || addMutation.isPending}
-                  className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+                  className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
                 >
                   {addMutation.isPending ? 'Saving...' : 'Save Storage'}
                 </Button>
@@ -577,7 +673,7 @@ export function BucketsPanel() {
       {/* Edit S3 Bucket Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-xl">
-          <form onSubmit={handleEditSubmit}>
+          <form onSubmit={handleEditSubmit} noValidate>
             <DialogHeader>
               <DialogTitle className="text-lg font-semibold">
                 Edit S3 Storage Bucket
@@ -588,23 +684,37 @@ export function BucketsPanel() {
             </DialogHeader>
 
             <div className="space-y-4 py-4">
+              {generalError && (
+                <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+                  {generalError}
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-foreground">Display Name</Label>
                 <Input
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  }}
+                  error={!!fieldErrors.name}
                 />
+                <FieldError error={fieldErrors.name} />
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-foreground">S3 Endpoint URL</Label>
                 <Input
                   value={endpoint}
-                  onChange={(e) => setEndpoint(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setEndpoint(e.target.value);
+                    if (fieldErrors.endpoint) setFieldErrors((prev) => ({ ...prev, endpoint: undefined }));
+                  }}
+                  error={!!fieldErrors.endpoint}
                   className="font-mono text-sm"
                 />
+                <FieldError error={fieldErrors.endpoint} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -612,18 +722,27 @@ export function BucketsPanel() {
                   <Label className="text-xs font-medium text-foreground">Bucket Name</Label>
                   <Input
                     value={bucket}
-                    onChange={(e) => setBucket(e.target.value)}
-                    required
+                    onChange={(e) => {
+                      setBucket(e.target.value);
+                      if (fieldErrors.bucket) setFieldErrors((prev) => ({ ...prev, bucket: undefined }));
+                    }}
+                    error={!!fieldErrors.bucket}
                     className="font-mono text-sm"
                   />
+                  <FieldError error={fieldErrors.bucket} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium text-foreground">Region</Label>
                   <Input
                     value={region}
-                    onChange={(e) => setRegion(e.target.value)}
+                    onChange={(e) => {
+                      setRegion(e.target.value);
+                      if (fieldErrors.region) setFieldErrors((prev) => ({ ...prev, region: undefined }));
+                    }}
+                    error={!!fieldErrors.region}
                     className="font-mono text-sm"
                   />
+                  <FieldError error={fieldErrors.region} />
                 </div>
               </div>
 
@@ -631,10 +750,14 @@ export function BucketsPanel() {
                 <Label className="text-xs font-medium text-foreground">Access Key ID</Label>
                 <Input
                   value={accessKeyId}
-                  onChange={(e) => setAccessKeyId(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setAccessKeyId(e.target.value);
+                    if (fieldErrors.accessKeyId) setFieldErrors((prev) => ({ ...prev, accessKeyId: undefined }));
+                  }}
+                  error={!!fieldErrors.accessKeyId}
                   className="font-mono text-sm"
                 />
+                <FieldError error={fieldErrors.accessKeyId} />
               </div>
 
               <div className="space-y-1.5">
@@ -643,9 +766,14 @@ export function BucketsPanel() {
                   type="password"
                   placeholder="Leave blank to preserve existing key"
                   value={secretAccessKey}
-                  onChange={(e) => setSecretAccessKey(e.target.value)}
+                  onChange={(e) => {
+                    setSecretAccessKey(e.target.value);
+                    if (fieldErrors.secretAccessKey) setFieldErrors((prev) => ({ ...prev, secretAccessKey: undefined }));
+                  }}
+                  error={!!fieldErrors.secretAccessKey}
                   className="font-mono text-sm"
                 />
+                <FieldError error={fieldErrors.secretAccessKey} />
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -696,7 +824,7 @@ export function BucketsPanel() {
                   )
                 }
                 disabled={isTesting || !endpoint || !bucket}
-                className="text-xs h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+                className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
               >
                 {isTesting ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -712,7 +840,7 @@ export function BucketsPanel() {
                   variant="outline"
                   size="sm"
                   onClick={() => setEditDialogOpen(false)}
-                  className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+                  className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
                 >
                   Cancel
                 </Button>
@@ -720,7 +848,7 @@ export function BucketsPanel() {
                   type="submit"
                   size="sm"
                   disabled={!name || !endpoint || !bucket || !accessKeyId || updateMutation.isPending}
-                  className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+                  className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
                 >
                   {updateMutation.isPending ? 'Updating...' : 'Save Changes'}
                 </Button>
@@ -759,7 +887,7 @@ export function BucketsPanel() {
               variant="outline"
               size="sm"
               onClick={() => setDeleteDialogOpen(false)}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -773,7 +901,7 @@ export function BucketsPanel() {
                   deleteMutation.mutate(selectedBucket.id);
                 }
               }}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Confirm Delete'}
             </Button>

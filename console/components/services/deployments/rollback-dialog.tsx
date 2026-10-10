@@ -71,7 +71,7 @@ export function RollbackDialog({
             variant="outline"
             size="sm"
             onClick={() => onOpenChange(false)}
-            className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
           >
             Cancel
           </Button>
@@ -81,7 +81,7 @@ export function RollbackDialog({
             size="sm"
             disabled={isRollingBack}
             onClick={() => onConfirm(deployment.id)}
-            className="text-xs h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+            className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
           >
             <RotateCcw className="size-3.5" />
             <span>{isRollingBack ? 'Initiating Rollback...' : 'Confirm Rollback'}</span>

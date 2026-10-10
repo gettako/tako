@@ -13,6 +13,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 import { cn } from 'cn';
 import {
   validateCronExpression,
@@ -39,6 +41,8 @@ export function CronJobDialog({
   const [name, setName] = useState('');
   const [schedule, setSchedule] = useState('0 3 * * *');
   const [command, setCommand] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -51,6 +55,8 @@ export function CronJobDialog({
       setSchedule('0 3 * * *');
       setCommand('');
     }
+    setFieldErrors({});
+    setGeneralError(null);
   }, [initialJob, open]);
 
   const validation = validateCronExpression(schedule);
@@ -59,17 +65,57 @@ export function CronJobDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !command.trim() || !validation.isValid) return;
+    setGeneralError(null);
+    const newErrors: Record<string, string> = {};
+
+    const trimmedName = name.trim();
+    const trimmedSchedule = schedule.trim();
+    const trimmedCommand = command.trim();
+
+    if (!trimmedName) {
+      newErrors.name = 'Job name is required';
+    }
+
+    if (!trimmedSchedule) {
+      newErrors.schedule = 'Cron schedule expression is required';
+    } else if (!validation.isValid) {
+      newErrors.schedule = validation.error || 'Invalid cron expression format';
+    }
+
+    if (!trimmedCommand) {
+      newErrors.command = 'Container execution command is required';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      return;
+    }
 
     try {
       setIsSaving(true);
       await onSave({
         serviceId,
-        name: name.trim(),
-        schedule: schedule.trim(),
-        command: command.trim(),
+        name: trimmedName,
+        schedule: trimmedSchedule,
+        command: trimmedCommand,
       });
+      setFieldErrors({});
+      setGeneralError(null);
       onOpenChange(false);
+    } catch (err: unknown) {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setFieldErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setGeneralError(parsed.message);
+          }
+        } else {
+          setGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setGeneralError(parsed.message || 'Failed to save cron job');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -85,7 +131,7 @@ export function CronJobDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
               {initialJob ? 'Edit Cron Job' : 'Add Scheduled Cron Job'}
@@ -96,17 +142,29 @@ export function CronJobDialog({
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {generalError && (
+              <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+                {generalError}
+              </div>
+            )}
+
             {/* Job Name */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-foreground">Job Name</Label>
               <Input
                 placeholder="e.g. sitemap-regenerator"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (fieldErrors.name) {
+                    setFieldErrors((prev) => ({ ...prev, name: undefined }));
+                  }
+                }}
                 disabled={isSaving}
+                error={!!fieldErrors.name}
                 className="font-mono text-sm"
               />
+              <FieldError error={fieldErrors.name} />
             </div>
 
             {/* Schedule Expression */}
@@ -123,7 +181,12 @@ export function CronJobDialog({
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setSchedule(p.expr)}
+                      onClick={() => {
+                        setSchedule(p.expr);
+                        if (fieldErrors.schedule) {
+                          setFieldErrors((prev) => ({ ...prev, schedule: undefined }));
+                        }
+                      }}
                       disabled={isSaving}
                       className={cn( 'h-7 px-2 text-xs font-mono transition-colors', schedule === p.expr ? 'border-primary/50 bg-primary/10 text-primary font-medium' : 'border-border text-muted-foreground hover:text-foreground' )}
                     >
@@ -137,11 +200,17 @@ export function CronJobDialog({
                 <Input
                   placeholder="*/15 * * * *"
                   value={schedule}
-                  onChange={(e) => setSchedule(e.target.value)}
-                  required
+                  onChange={(e) => {
+                    setSchedule(e.target.value);
+                    if (fieldErrors.schedule) {
+                      setFieldErrors((prev) => ({ ...prev, schedule: undefined }));
+                    }
+                  }}
                   disabled={isSaving}
+                  error={!!fieldErrors.schedule}
                   className="font-mono text-sm"
                 />
+                <FieldError error={fieldErrors.schedule} />
               </div>
 
               {/* Realtime Validation & Human Explanation */}
@@ -187,11 +256,17 @@ export function CronJobDialog({
               <Input
                 placeholder="npm run job:cleanup"
                 value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                required
+                onChange={(e) => {
+                  setCommand(e.target.value);
+                  if (fieldErrors.command) {
+                    setFieldErrors((prev) => ({ ...prev, command: undefined }));
+                  }
+                }}
                 disabled={isSaving}
+                error={!!fieldErrors.command}
                 className="font-mono text-sm"
               />
+              <FieldError error={fieldErrors.command} />
               <p className="text-xs text-muted-foreground mt-1">
                 Command is invoked via <code>/bin/sh -c</code> inside the service workspace.
               </p>
@@ -205,7 +280,7 @@ export function CronJobDialog({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isSaving}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -213,7 +288,7 @@ export function CronJobDialog({
               type="submit"
               size="sm"
               disabled={!name.trim() || !command.trim() || !validation.isValid || isSaving}
-              className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {isSaving ? 'Saving...' : initialJob ? 'Update Job' : 'Create Job'}
             </Button>

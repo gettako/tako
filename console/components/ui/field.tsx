@@ -49,7 +49,7 @@ function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 const fieldVariants = cva(
-  "group/field flex w-full gap-3 data-[invalid=true]:text-destructive",
+  "group/field flex w-full gap-1.5 data-[invalid=true]:text-destructive",
   {
     variants: {
       orientation: {
@@ -168,9 +168,11 @@ function FieldSeparator({
 function FieldError({
   className,
   children,
+  error,
   errors,
   ...props
 }: React.ComponentProps<"div"> & {
+  error?: string | null
   errors?: Array<{ message?: string } | undefined>
 }) {
   const content = useMemo(() => {
@@ -178,27 +180,31 @@ function FieldError({
       return children
     }
 
+    if (error) {
+      return error
+    }
+
     if (!errors?.length) {
       return null
     }
 
     const uniqueErrors = [
-      ...new Map(errors.map((error) => [error?.message, error])).values(),
+      ...new Map(errors.map((item) => [item?.message, item])).values(),
     ]
 
-    if (uniqueErrors?.length == 1) {
+    if (uniqueErrors?.length === 1) {
       return uniqueErrors[0]?.message
     }
 
     return (
       <ul className="ml-4 flex list-disc flex-col gap-1">
         {uniqueErrors.map(
-          (error, index) =>
-            error?.message && <li key={index}>{error.message}</li>
+          (item, index) =>
+            item?.message && <li key={index}>{item.message}</li>
         )}
       </ul>
     )
-  }, [children, errors])
+  }, [children, error, errors])
 
   if (!content) {
     return null
@@ -208,7 +214,10 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn("text-sm font-normal text-destructive", className)}
+      className={cn(
+        "text-xs font-medium text-destructive transition-all duration-150 animate-in fade-in-50 slide-in-from-top-0.5",
+        className
+      )}
       {...props}
     >
       {content}

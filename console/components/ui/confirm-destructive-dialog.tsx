@@ -112,7 +112,7 @@ export function ConfirmDestructiveDialog({
             size="sm"
             onClick={() => handleOpenChange(false)}
             disabled={isPending}
-            className="h-9 text-xs"
+            className="h-9 text-sm"
           >
             Cancel
           </Button>
@@ -122,7 +122,7 @@ export function ConfirmDestructiveDialog({
             size="sm"
             onClick={handleConfirm}
             disabled={!isConfirmed || isPending}
-            className="h-9 text-xs gap-1.5"
+            className="h-9 text-sm gap-1.5"
           >
             {isPending ? (
               <Loader2 className="size-3.5 animate-spin" />

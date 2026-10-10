@@ -25,6 +25,8 @@ import {
   Power,
   AlertTriangle,
 } from 'lucide-react';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
 import { toast } from 'sonner';
 import { useUpdateNode, useRebootNode } from '@/lib/queries';
 
@@ -87,12 +89,27 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
   const [editName, setEditName] = useState(node.name);
   const [editPrivateIp, setEditPrivateIp] = useState(node.ipAddress);
   const [editPublicIp, setEditPublicIp] = useState(node.publicIp || '');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [generalError, setGeneralError] = useState('');
+
+  const clearFieldError = (field: string) => {
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (generalError) setGeneralError('');
+  };
 
   useEffect(() => {
     if (editDialogOpen) {
       setEditName(node.name);
       setEditPrivateIp(node.ipAddress);
       setEditPublicIp(node.publicIp || '');
+      setFieldErrors({});
+      setGeneralError('');
     }
   }, [editDialogOpen, node]);
 
@@ -102,6 +119,15 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
     onSuccess: () => {
       setEditDialogOpen(false);
       if (onRefresh) onRefresh();
+    },
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        setFieldErrors(parsed.fieldErrors);
+        setGeneralError(parsed.message || 'Validation failed');
+      } else {
+        toast.error(parsed.message || 'Failed to update node');
+      }
     },
   });
 
@@ -270,25 +296,48 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              const errors: Record<string, string> = {};
+              if (!editName.trim()) {
+                errors.name = 'Node hostname/name is required';
+              }
+              if (!editPrivateIp.trim()) {
+                errors.ipAddress = 'Private IP address is required';
+              }
+              if (Object.keys(errors).length > 0) {
+                setFieldErrors(errors);
+                return;
+              }
+
               updateMutation.mutate({
                 id: node.id,
                 input: {
-                  name: editName,
-                  ipAddress: editPrivateIp,
-                  publicIp: editPublicIp,
+                  name: editName.trim(),
+                  ipAddress: editPrivateIp.trim(),
+                  publicIp: editPublicIp.trim() || undefined,
                 },
               });
             }}
             className="space-y-4 py-1"
           >
+            {generalError && (
+              <div className="rounded-md bg-destructive/10 border border-destructive/20 p-2.5 text-xs text-destructive">
+                {generalError}
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">Node Hostname / Name</label>
               <Input
                 value={editName}
-                onChange={(e) => setEditName(e.target.value)}
+                onChange={(e) => {
+                  setEditName(e.target.value);
+                  clearFieldError('name');
+                }}
                 placeholder="e.g. tako-worker-01"
+                error={!!fieldErrors.name}
                 className="h-8 text-xs font-sans"
               />
+              <FieldError error={fieldErrors.name} />
             </div>
 
             <div className="space-y-1.5">
@@ -298,10 +347,16 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               </div>
               <Input
                 value={editPrivateIp}
-                onChange={(e) => setEditPrivateIp(e.target.value)}
+                onChange={(e) => {
+                  setEditPrivateIp(e.target.value);
+                  clearFieldError('ipAddress');
+                  clearFieldError('privateIp');
+                }}
                 placeholder="e.g. 10.3.19.31 or 192.168.1.10"
+                error={!!(fieldErrors.ipAddress || fieldErrors.privateIp)}
                 className="h-8 text-xs font-mono"
               />
+              <FieldError error={fieldErrors.ipAddress || fieldErrors.privateIp} />
               <p className="text-[11px] text-muted-foreground">
                 Internal cluster interface IP (from <code>ip -br addr show</code>).
               </p>
@@ -314,10 +369,15 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               </div>
               <Input
                 value={editPublicIp}
-                onChange={(e) => setEditPublicIp(e.target.value)}
+                onChange={(e) => {
+                  setEditPublicIp(e.target.value);
+                  clearFieldError('publicIp');
+                }}
                 placeholder="e.g. 43.156.243.241"
+                error={!!fieldErrors.publicIp}
                 className="h-8 text-xs font-mono"
               />
+              <FieldError error={fieldErrors.publicIp} />
               <p className="text-[11px] text-muted-foreground">
                 Public IPv4 used by Traefik routing and domain DNS records.
               </p>
@@ -329,7 +389,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setEditDialogOpen(false)}
-                className="text-xs h-8 active:not-aria-[haspopup]:translate-y-px"
+                className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
               >
                 Cancel
               </Button>
@@ -337,7 +397,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
                 type="submit"
                 size="sm"
                 disabled={updateMutation.isPending}
-                className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+                className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
               >
                 {updateMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
                 <span>Save Changes</span>
@@ -379,7 +439,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               size="sm"
               disabled={rebootMutation.isPending}
               onClick={() => setRebootDialogOpen(false)}
-              className="text-xs h-8 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -389,7 +449,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               size="sm"
               disabled={rebootMutation.isPending}
               onClick={() => rebootMutation.mutate(node.id)}
-              className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
             >
               {rebootMutation.isPending ? (
                 <Loader2 className="size-3.5 animate-spin" />

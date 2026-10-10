@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { parseApiError } from '@/lib/form-errors';
 
 export interface EditProjectDialogProps {
   project: Project;
@@ -41,6 +42,7 @@ export function EditProjectDialog({
     tags: project.tags ? [...project.tags] : [],
   });
   const [errors, setErrors] = useState<ProjectFormErrors>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && project) {
@@ -52,6 +54,7 @@ export function EditProjectDialog({
         tags: project.tags ? [...project.tags] : [],
       });
       setErrors({});
+      setGeneralError(null);
     }
   }, [open, project]);
 
@@ -60,10 +63,26 @@ export function EditProjectDialog({
       onOpenChange(false);
       onSuccess?.(updated);
     },
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setGeneralError(parsed.message);
+          }
+        } else {
+          setGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setGeneralError(parsed.message || 'Failed to update project');
+      }
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setGeneralError(null);
 
     let hasError = false;
     const newErrors: ProjectFormErrors = {};
@@ -110,7 +129,12 @@ export function EditProjectDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          {generalError && (
+            <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+              {generalError}
+            </div>
+          )}
           <ProjectFormFields
             formData={formData}
             onChange={setFormData}
@@ -127,7 +151,7 @@ export function EditProjectDialog({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={updateMutation.isPending}
-              className="text-xs h-9 cursor-pointer"
+              className="text-sm h-9 cursor-pointer"
             >
               Cancel
             </Button>
@@ -135,7 +159,7 @@ export function EditProjectDialog({
               type="submit"
               size="sm"
               disabled={updateMutation.isPending}
-              className="text-xs h-9 gap-1.5 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 gap-1.5 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
             >
               {updateMutation.isPending ? (
                 <>

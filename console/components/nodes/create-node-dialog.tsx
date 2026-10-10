@@ -255,7 +255,7 @@ export function CreateNodeDialog({
             type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="h-9 cursor-pointer text-xs active:not-aria-[haspopup]:translate-y-px sm:text-sm"
+            className="h-9 cursor-pointer text-sm active:not-aria-[haspopup]:translate-y-px"
           >
             {newlyConnectedNode ? "Done" : "Close"}
           </Button>
@@ -264,7 +264,7 @@ export function CreateNodeDialog({
             variant="default"
             size="sm"
             disabled={enrollMutation.isPending}
-            className="h-9 cursor-pointer gap-1.5 bg-primary px-4 text-xs text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px sm:text-sm"
+            className="h-9 cursor-pointer gap-1.5 bg-primary px-4 text-sm text-primary-foreground hover:bg-primary/90 active:not-aria-[haspopup]:translate-y-px"
           >
             Copy Command
           </CopyButton>

@@ -262,7 +262,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
               variant="outline"
               size="sm"
               onClick={() => setRegenerateDialogOpen(false)}
-              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               Cancel
             </Button>
@@ -271,7 +271,7 @@ export function WebhookSection({ service }: WebhookSectionProps) {
               size="sm"
               onClick={() => regenerateMutation.mutate()}
               disabled={regenerateMutation.isPending}
-              className="text-xs h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium active:not-aria-[haspopup]:translate-y-px"
             >
               {regenerateMutation.isPending ? 'Regenerating...' : 'Confirm & Regenerate'}
             </Button>

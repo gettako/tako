@@ -12,6 +12,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CopyButton } from '@/components/ui/copy-button';
+import { FieldError } from '@/components/ui/field';
+import { parseApiError } from '@/lib/form-errors';
+import { cn } from '@/lib/utils';
 import { ArrowRight, Download, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
 import { use2FASetup, useVerifyAndEnable2FA } from '@/lib/queries';
 import { toast } from 'sonner';
@@ -29,6 +32,7 @@ export function TotpSetupDialog({
 }: TotpSetupDialogProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
 
   const { data: setupData, isLoading: isLoadingSetup } = use2FASetup(open);
@@ -38,6 +42,7 @@ export function TotpSetupDialog({
     if (open) {
       setStep(1);
       setCode('');
+      setCodeError('');
     }
   }, [open]);
 
@@ -61,20 +66,22 @@ export function TotpSetupDialog({
     e.preventDefault();
     if (!setupData) return;
     if (code.length < 6) {
-      toast.error('Please enter the 6-digit code from your authenticator');
+      setCodeError('Please enter the 6-digit code from your authenticator');
       return;
     }
 
     try {
       setIsVerifying(true);
+      setCodeError('');
       await verifyMutation.mutateAsync({
         code,
         secret: setupData.secret,
         recoveryCodes: setupData.recoveryCodes,
       });
       setStep(3); // Proceed to recovery codes confirmation
-    } catch {
-      // Error handled by mutation toast
+    } catch (err) {
+      const parsed = parseApiError(err);
+      setCodeError(parsed.fieldErrors.code || parsed.message || 'Invalid verification code');
     } finally {
       setIsVerifying(false);
     }
@@ -86,6 +93,7 @@ export function TotpSetupDialog({
     onOpenChange(false);
     setStep(1);
     setCode('');
+    setCodeError('');
   };
 
   const qrImageUrl = setupData?.otpauthUrl
@@ -100,6 +108,7 @@ export function TotpSetupDialog({
         if (!val) {
           setStep(1);
           setCode('');
+          setCodeError('');
         }
       }}
     >
@@ -158,7 +167,7 @@ export function TotpSetupDialog({
                     type="button"
                     size="sm"
                     onClick={() => setStep(2)}
-                    className="w-full text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+                    className="w-full text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
                   >
                     <span>Next: Verify Code</span>
                     <ArrowRight className="size-3.5" />
@@ -174,17 +183,25 @@ export function TotpSetupDialog({
                   Enter the 6-digit code currently shown in your authenticator app to complete setup:
                 </p>
 
-                <div className="flex justify-center py-3">
+                <div className="flex flex-col items-center justify-center py-3">
                   <Input
                     type="text"
                     inputMode="numeric"
                     maxLength={6}
                     value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => {
+                      setCode(e.target.value.replace(/\D/g, ''));
+                      if (codeError) setCodeError('');
+                    }}
                     placeholder="000000"
                     autoFocus
-                    className="w-48 text-center text-2xl font-mono tracking-widest h-12 font-bold bg-muted/20 border-primary/50 focus-visible:ring-primary"
+                    error={!!codeError}
+                    className={cn(
+                      'w-48 text-center text-2xl font-mono tracking-widest h-12 font-bold bg-muted/20',
+                      !codeError && 'border-primary/50 focus-visible:ring-primary'
+                    )}
                   />
+                  <FieldError error={codeError} className="mt-2 text-center" />
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-2.5 pt-2">
@@ -194,7 +211,7 @@ export function TotpSetupDialog({
                     size="sm"
                     onClick={() => setStep(1)}
                     disabled={isVerifying}
-                    className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+                    className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
                   >
                     Back
                   </Button>
@@ -202,7 +219,7 @@ export function TotpSetupDialog({
                     type="submit"
                     size="sm"
                     disabled={code.length < 6 || isVerifying}
-                    className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
+                    className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
                   >
                     {isVerifying ? (
                       <>
@@ -263,7 +280,7 @@ export function TotpSetupDialog({
                     type="button"
                     size="sm"
                     onClick={handleFinish}
-                    className="w-full text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-9 active:not-aria-[haspopup]:translate-y-px"
+                    className="w-full text-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium h-9 active:not-aria-[haspopup]:translate-y-px"
                   >
                     Complete Two-Factor Setup
                   </Button>

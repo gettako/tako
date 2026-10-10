@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { parseApiError } from '@/lib/form-errors';
 
 export interface CreateProjectDialogProps {
   open: boolean;
@@ -44,11 +45,13 @@ export function CreateProjectDialog({
 
   const [formData, setFormData] = useState<ProjectFormData>(INITIAL_FORM_DATA);
   const [errors, setErrors] = useState<ProjectFormErrors>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       setFormData(INITIAL_FORM_DATA);
       setErrors({});
+      setGeneralError(null);
     }
   }, [open]);
 
@@ -58,10 +61,26 @@ export function CreateProjectDialog({
       onSuccess?.(newProject);
       router.push(`/projects/${newProject.id}`);
     },
+    onError: (err) => {
+      const parsed = parseApiError(err);
+      if (parsed.is422) {
+        if (Object.keys(parsed.fieldErrors).length > 0) {
+          setErrors(parsed.fieldErrors);
+          if (parsed.message && !Object.values(parsed.fieldErrors).includes(parsed.message)) {
+            setGeneralError(parsed.message);
+          }
+        } else {
+          setGeneralError(parsed.message || 'Validation failed');
+        }
+      } else {
+        setGeneralError(parsed.message || 'Failed to create project');
+      }
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setGeneralError(null);
 
     let hasError = false;
     const newErrors: ProjectFormErrors = {};
@@ -105,7 +124,13 @@ export function CreateProjectDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          {generalError && (
+            <div role="alert" className="text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 p-2.5 rounded-md">
+              {generalError}
+            </div>
+          )}
+
           <ProjectFormFields
             formData={formData}
             onChange={setFormData}
@@ -122,7 +147,7 @@ export function CreateProjectDialog({
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={createMutation.isPending}
-              className="text-xs h-9 cursor-pointer"
+              className="text-sm h-9 cursor-pointer"
             >
               Cancel
             </Button>
@@ -130,7 +155,7 @@ export function CreateProjectDialog({
               type="submit"
               size="sm"
               disabled={createMutation.isPending}
-              className="text-xs h-9 gap-1.5 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+              className="text-sm h-9 gap-1.5 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
             >
               {createMutation.isPending ? (
                 <>
