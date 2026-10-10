@@ -15,6 +15,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Clock,
   RotateCw,
   Cpu,
@@ -24,6 +30,7 @@ import {
   Loader2,
   Power,
   AlertTriangle,
+  MoreHorizontal,
 } from 'lucide-react';
 import { FieldError } from '@/components/ui/field';
 import { parseApiError } from '@/lib/form-errors';
@@ -148,12 +155,12 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-2xl border border-border/70 bg-gradient-to-b from-primary/5 via-background to-background p-5 sm:p-6 shadow-2xs space-y-5">
       {/* 1. Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="space-y-1.5 min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground font-sans">
               {node.name}
             </h1>
             <StatusBadge status={node.status} />
@@ -176,7 +183,7 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
             onClick={() => setEditDialogOpen(true)}
             className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
           >
-            <Pencil className="size-3.5" />
+            <Pencil className="size-3.5 text-muted-foreground" />
             <span>Edit Node</span>
           </Button>
 
@@ -185,100 +192,114 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               variant="outline"
               size="sm"
               onClick={handleRefreshClick}
+              disabled={isRefreshing}
               className="text-xs gap-1.5 h-9 active:not-aria-[haspopup]:translate-y-px"
             >
               <RotateCw
-                className={`size-3.5 ${isRefreshing ? 'animate-spin text-primary' : ''}`}
+                className={`size-3.5 text-muted-foreground ${isRefreshing ? 'animate-spin text-primary' : ''}`}
               />
               <span>Refresh</span>
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRebootDialogOpen(true)}
-            className="text-xs gap-1.5 h-9 text-status-danger hover:text-status-danger border-border hover:border-status-danger/40 hover:bg-status-danger/5 active:not-aria-[haspopup]:translate-y-px"
-          >
-            <Power className="size-3.5" />
-            <span>Reboot Node</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="size-9 active:not-aria-[haspopup]:translate-y-px"
+                  title="More node actions"
+                >
+                  <MoreHorizontal className="size-4 text-muted-foreground" />
+                  <span className="sr-only">More actions</span>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={() => setRebootDialogOpen(true)}
+                className="text-xs gap-2 text-status-danger focus:text-status-danger focus:bg-status-danger/10 cursor-pointer"
+              >
+                <Power className="size-3.5" />
+                <span>Reboot Node...</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
       {/* 2. Hardware & Network Telemetry Grid */}
-      <div className="rounded-xl border border-border bg-card p-4 sm:p-5 text-xs">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6 text-xs">
-          {/* Private IP */}
-          <div className="space-y-1">
-            <span className="text-[11px] text-muted-foreground font-medium">Private IP</span>
-            <div className="flex items-center gap-1.5 font-mono text-foreground font-medium text-xs">
-              <span>{node.ipAddress}</span>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 pt-4 border-t border-border/60 text-xs">
+        {/* Private IP */}
+        <div className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1">
+          <span className="text-[11px] text-muted-foreground font-medium block">Private IP</span>
+          <div className="flex items-center justify-between gap-1 font-mono text-foreground font-medium text-xs">
+            <span className="truncate">{node.ipAddress}</span>
+            <CopyButton
+              text={node.ipAddress}
+              tooltip="Copy Private IP"
+              className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
+            />
+          </div>
+        </div>
+
+        {/* Public IP */}
+        <div className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1">
+          <span className="text-[11px] text-muted-foreground font-medium block">Public IP</span>
+          <div className="flex items-center justify-between gap-1 font-mono text-foreground font-medium text-xs">
+            <span className="truncate">{node.publicIp || 'None'}</span>
+            {node.publicIp && (
               <CopyButton
-                text={node.ipAddress}
-                tooltip="Copy Private IP"
-                className="size-5 text-muted-foreground hover:text-foreground"
+                text={node.publicIp}
+                tooltip="Copy Public IP"
+                className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
               />
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Public IP */}
-          <div className="space-y-1">
-            <span className="text-[11px] text-muted-foreground font-medium">Public IP</span>
-            <div className="flex items-center gap-1.5 font-mono text-foreground font-medium text-xs">
-              <span>{node.publicIp || 'None'}</span>
-              {node.publicIp && (
-                <CopyButton
-                  text={node.publicIp}
-                  tooltip="Copy Public IP"
-                  className="size-5 text-muted-foreground hover:text-foreground"
-                />
-              )}
-            </div>
+        {/* CPU Cores */}
+        <div className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1">
+          <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+            <Cpu className="size-3 text-muted-foreground" />
+            Compute Cores
+          </span>
+          <div className="font-mono text-foreground font-medium text-xs">
+            {node.cpuTotalCores} vCPU threads
           </div>
+        </div>
 
-          {/* CPU Cores */}
-          <div className="space-y-1">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-              <Cpu className="size-3 text-primary" />
-              Compute Cores
-            </span>
-            <div className="font-mono text-foreground font-medium text-xs">
-              {node.cpuTotalCores} vCPU threads
-            </div>
+        {/* Host Memory */}
+        <div className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1">
+          <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+            <Layers className="size-3 text-muted-foreground" />
+            Memory Limit
+          </span>
+          <div className="font-mono text-foreground font-medium text-xs">
+            {formatHostMemory(node.memoryTotalMb)}
           </div>
+        </div>
 
-          {/* Host Memory */}
-          <div className="space-y-1">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-              <Layers className="size-3 text-status-success" />
-              Memory Limit
-            </span>
-            <div className="font-mono text-foreground font-medium text-xs">
-              {formatHostMemory(node.memoryTotalMb)}
-            </div>
+        {/* Persistent Disk */}
+        <div className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1">
+          <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+            <HardDrive className="size-3 text-muted-foreground" />
+            Storage Volume
+          </span>
+          <div className="font-mono text-foreground font-medium text-xs">
+            {node.diskTotalGb >= 10 ? Math.round(node.diskTotalGb) : node.diskTotalGb.toFixed(1)} GB NVMe
           </div>
+        </div>
 
-          {/* Persistent Disk */}
-          <div className="space-y-1">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-              <HardDrive className="size-3 text-status-warning" />
-              Storage Volume
-            </span>
-            <div className="font-mono text-foreground font-medium text-xs">
-              {node.diskTotalGb >= 10 ? Math.round(node.diskTotalGb) : node.diskTotalGb.toFixed(1)} GB NVMe/SSD
-            </div>
-          </div>
-
-          {/* System Uptime */}
-          <div className="space-y-1">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
-              <Clock className="size-3" />
-              System Uptime
-            </span>
-            <div className="font-medium text-foreground text-xs truncate" title={node.uptime}>
-              {formatUptime(node.uptime)}
-            </div>
+        {/* System Uptime */}
+        <div className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1">
+          <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+            <Clock className="size-3 text-muted-foreground" />
+            System Uptime
+          </span>
+          <div className="font-medium text-foreground text-xs truncate" title={node.uptime}>
+            {formatUptime(node.uptime)}
           </div>
         </div>
       </div>

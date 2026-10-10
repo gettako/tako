@@ -47,15 +47,15 @@ export function NodeMetricsCharts({
         description={`Real-time resource utilization for ${nodeName} (sampled over ${timeRangeLabel})`}
         action={
           onTimeRangeChange ? (
-            <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border bg-muted/20">
+            <div className="flex items-center gap-1 p-0.5 rounded-lg border border-border bg-muted/40 shadow-2xs">
               {(['1h', '6h', '24h', '7d'] as const).map((range) => (
                 <button
                   key={range}
                   type="button"
                   onClick={() => onTimeRangeChange(range)}
-                  className={`px-2.5 py-1 text-xs font-mono rounded-md transition-all active:not-aria-[haspopup]:translate-y-px ${
+                  className={`px-2.5 py-1 text-xs font-mono rounded-md transition-all active:not-aria-[haspopup]:translate-y-px cursor-pointer ${
                     timeRange === range
-                      ? 'bg-background text-foreground font-semibold'
+                      ? 'bg-background text-foreground font-semibold shadow-2xs'
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >

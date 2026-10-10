@@ -11,9 +11,11 @@ import { NodeSpecHeader } from '@/components/nodes/node-spec-header';
 import { NodeMetricsCharts, NodeTimeRange } from '@/components/nodes/node-metrics-charts';
 import { NodeServicesTable } from '@/components/nodes/node-services-table';
 import { NodeTraefikPanel } from '@/components/nodes/node-traefik-panel';
+import { NodeTraefikFiles } from '@/components/nodes/node-traefik-files';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { Activity, Sliders } from 'lucide-react';
+import { Activity, Sliders, FolderTree } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useNodeEvents } from '@/hooks/use-node-events';
 
 export default function NodeDetailPage({
@@ -27,7 +29,7 @@ export default function NodeDetailPage({
   // Subscribe to live node events via SSE (metrics & status changes)
   useNodeEvents();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'traefik'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traefik' | 'files'>('overview');
   const [timeRange, setTimeRange] = useState<NodeTimeRange>('1h');
 
   const {
@@ -87,42 +89,65 @@ export default function NodeDetailPage({
     <>
       <title>{titleText}</title>
       <div className="space-y-6">
-        {/* Node Specifications & Header */}
+        {/* Node Specifications & Ambient Hero Header */}
         <NodeSpecHeader node={node} onRefresh={handleRefresh} />
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 border-b border-border">
-          <button
-            type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px active:not-aria-[haspopup]:translate-y-px ${
-              activeTab === 'overview'
-                ? 'border-primary text-foreground font-semibold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Activity className="size-4" />
-            <span>Overview & Metrics</span>
-          </button>
+        {/* Navigation Tabs (Line / Underline Tab - Consistent with ServiceTabs & Vega Standards) */}
+        <div className="border-b border-border overflow-x-auto scrollbar-none">
+          <nav className="flex space-x-1 sm:space-x-2 min-w-max pb-px">
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none whitespace-nowrap active:not-aria-[haspopup]:translate-y-px cursor-pointer',
+                activeTab === 'overview'
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/60'
+              )}
+            >
+              <Activity
+                className={cn('size-4 shrink-0', activeTab === 'overview' ? 'text-primary' : 'text-muted-foreground')}
+              />
+              <span>Overview & Metrics</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('traefik')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px active:not-aria-[haspopup]:translate-y-px ${
-              activeTab === 'traefik'
-                ? 'border-primary text-foreground font-semibold'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Sliders className="size-4" />
-            <span>Traefik Ingress</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('traefik')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none whitespace-nowrap active:not-aria-[haspopup]:translate-y-px cursor-pointer',
+                activeTab === 'traefik'
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/60'
+              )}
+            >
+              <Sliders
+                className={cn('size-4 shrink-0', activeTab === 'traefik' ? 'text-primary' : 'text-muted-foreground')}
+              />
+              <span>Traefik Ingress</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('files')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none whitespace-nowrap active:not-aria-[haspopup]:translate-y-px cursor-pointer',
+                activeTab === 'files'
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/60'
+              )}
+            >
+              <FolderTree
+                className={cn('size-4 shrink-0', activeTab === 'files' ? 'text-primary' : 'text-muted-foreground')}
+              />
+              <span>Routing Files & Editor</span>
+            </button>
+          </nav>
         </div>
 
-        {/* Tab Content */}
+        {/* Tab 1: Overview & Metrics */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* 4-Chart Telemetry Breakdown */}
             <NodeMetricsCharts
               metrics={metrics}
               nodeName={node.name}
@@ -130,7 +155,6 @@ export default function NodeDetailPage({
               onTimeRangeChange={setTimeRange}
             />
 
-            {/* Connected Container Services */}
             <NodeServicesTable
               services={hostedServices}
               projects={projects}
@@ -139,9 +163,17 @@ export default function NodeDetailPage({
           </div>
         )}
 
+        {/* Tab 2: Traefik Ingress Configuration */}
         {activeTab === 'traefik' && (
           <div className="space-y-6">
             <NodeTraefikPanel node={node} />
+          </div>
+        )}
+
+        {/* Tab 3: Dynamic Config Files & Editor */}
+        {activeTab === 'files' && (
+          <div className="mt-2">
+            <NodeTraefikFiles node={node} />
           </div>
         )}
       </div>

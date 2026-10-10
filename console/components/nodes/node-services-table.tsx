@@ -88,12 +88,11 @@ export function NodeServicesTable({
             <Table>
               <TableHeader className="bg-muted/40 border-b border-border">
                 <TableRow className="h-10 hover:bg-transparent">
-                  <TableHead className="w-[32%]">Service</TableHead>
-                  <TableHead className="w-[20%]">Parent Project</TableHead>
-                  <TableHead className="w-[12%]">Type</TableHead>
+                  <TableHead className="w-[36%]">Service</TableHead>
+                  <TableHead className="w-[24%]">Parent Project</TableHead>
+                  <TableHead className="w-[14%]">Type</TableHead>
                   <TableHead className="w-[12%]">Status</TableHead>
-                  <TableHead className="w-[14%]">Compute Usage</TableHead>
-                  <TableHead className="text-right w-[10%]">Action</TableHead>
+                  <TableHead className="w-[14%] text-right pr-6">Compute Usage</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -179,7 +178,7 @@ export function NodeServicesTable({
                       </TableCell>
 
                       {/* 5. Compute (CPU & RAM) */}
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="font-mono text-xs text-right pr-6">
                         {(() => {
                           const cpuPct = service.usage?.cpuPercent ?? 0;
                           const memMb = service.usage?.memoryUsedMb ?? 0;
@@ -200,23 +199,6 @@ export function NodeServicesTable({
                             </div>
                           );
                         })()}
-                      </TableCell>
-
-                      {/* 6. Action */}
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          render={
-                            <Link
-                              href={`/projects/${projectPath}/services/${service.id}`}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          }
-                          className="h-8 text-xs text-muted-foreground hover:text-primary group-hover:text-primary active:not-aria-[haspopup]:translate-y-px"
-                        >
-                          <span>Manage</span>
-                        </Button>
                       </TableCell>
                     </TableRow>
                   );

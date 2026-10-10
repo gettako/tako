@@ -406,62 +406,41 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Top Banner & Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-muted/40 border border-border rounded-lg p-3.5">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-md bg-primary/10 text-primary">
-            <FolderTree className="size-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm text-foreground">Traefik Config Files & Editor</span>
-              <Badge variant="outline" className="font-mono text-[11px] bg-background">
-                {files.length} {files.length === 1 ? 'file' : 'files'}
-              </Badge>
-            </div>
-            <p className="font-mono text-xs text-muted-foreground mt-0.5">
-              /etc/tako/traefik
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reloadMutation.mutate()}
-            disabled={reloadMutation.isPending}
-            className="h-8 text-xs gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-            title="Tell Traefik on this node to reload rules immediately"
-          >
-            <RefreshCw
-              className={`size-3.5 ${reloadMutation.isPending ? 'animate-spin text-primary' : 'text-muted-foreground'}`}
-            />
-            <span>Reload Traefik</span>
-          </Button>
-
-          <Button
-            size="sm"
-            onClick={() => {
-              setNewFileName('');
-              setCreateError(null);
-              setCreateDialogOpen(true);
-            }}
-            className="h-8 text-xs gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-          >
-            <Plus className="size-3.5" />
-            <span>New Dynamic File</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Two-Column Layout */}
+    <>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* Left Column: File Explorer (Sidebar) */}
-        <Card className="lg:col-span-4 xl:col-span-3 border-border bg-card p-3 flex flex-col min-h-[500px]">
-          {/* Search Bar */}
-          <div className="relative mb-3">
+      {/* Left Column: File Explorer (Sidebar) */}
+      <Card className="lg:col-span-4 xl:col-span-3 border-border bg-card flex flex-col min-h-[500px] p-0 py-0 gap-0 overflow-hidden">
+        {/* Sidebar Header: Mount Path & Actions */}
+        <div className="flex items-center justify-between px-3.5 border-b border-border/80 bg-card h-11">
+          <div className="flex items-center gap-2 min-w-0">
+            <FolderTree className="size-4 text-primary shrink-0" />
+            <span className="text-xs font-mono font-medium text-foreground truncate">
+              /etc/tako/traefik
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-4 bg-muted/30 text-muted-foreground border-border/60">
+              {files.length}
+            </Badge>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => {
+                setNewFileName('');
+                setCreateError(null);
+                setCreateDialogOpen(true);
+              }}
+              className="size-6 text-muted-foreground hover:text-foreground hover:bg-muted"
+              title="Create new dynamic configuration file"
+            >
+              <Plus className="size-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Search Bar Container */}
+        <div className="p-3 pb-2">
+          <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
             <Input
               value={searchQuery}
@@ -470,9 +449,10 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               className="h-8 text-xs pl-8 bg-background"
             />
           </div>
+        </div>
 
-          {/* Files List / Tree Explorer */}
-          <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+        {/* Files List / Tree Explorer */}
+        <div className="flex-1 overflow-y-auto space-y-1.5 px-3 pb-3 pr-2">
             {isFilesLoading && files.length === 0 ? (
               <div className="flex items-center justify-center py-12 text-muted-foreground gap-2 text-xs">
                 <Loader2 className="size-4 animate-spin text-primary" />
@@ -678,7 +658,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
           </div>
 
           {/* Quick Presets Footer */}
-          <div className="mt-3 pt-3 border-t border-border">
+          <div className="p-3 border-t border-border/80 bg-card">
             <div className="text-[11px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
               <Code2 className="size-3" />
               <span>Quick Template Presets</span>
@@ -741,33 +721,31 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
         </Card>
 
         {/* Right Column: Code Editor & Toolbar */}
-        <Card className="lg:col-span-8 xl:col-span-9 border-border bg-card flex flex-col min-h-[500px]">
+        <Card className="lg:col-span-8 xl:col-span-9 border-border bg-card flex flex-col min-h-[500px] p-0 py-0 gap-0 overflow-hidden">
           {selectedFileName && activeFile ? (
             <>
               {/* Editor Header Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-muted/20 px-4 py-2.5">
+              <div className="flex items-center justify-between gap-2 border-b border-border/80 bg-card px-3.5 h-11">
                 <div className="flex items-center gap-2.5 min-w-0">
                   {getFileIcon(activeFile.name)}
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-foreground">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-mono text-xs font-semibold text-foreground truncate">
                       {activeFile.name === 'traefik.yml' ? './traefik.yml' : `/dynamic/${activeFile.name}`}
                     </span>
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] font-mono uppercase bg-muted/50 border-border"
-                    >
-                      {activeFile.name === 'traefik.yml' ? 'Static Config' : 'Dynamic Route'}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] font-mono uppercase ${
-                        isDirty
-                          ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
-                          : 'bg-status-success/10 text-status-success border-status-success/30'
-                      }`}
-                    >
-                      {isDirty ? 'Unsaved Changes' : 'Saved'}
-                    </Badge>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-border/60 text-muted-foreground bg-muted/20 shrink-0 uppercase font-medium">
+                      {activeFile.name === 'traefik.yml' ? 'static' : 'dynamic'}
+                    </span>
+                    {isDirty ? (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-amber-400 shrink-0">
+                        <span className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        Unsaved
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground/70 shrink-0">
+                        <span className="size-1.5 rounded-full bg-emerald-500/80" />
+                        Saved
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -792,7 +770,22 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                     className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground px-2"
                   />
 
-                  <div className="h-4 w-px bg-border mx-0.5" />
+                  <div className="h-3.5 w-px bg-border/60 mx-0.5" />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => reloadMutation.mutate()}
+                    disabled={reloadMutation.isPending}
+                    className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground hover:text-foreground active:not-aria-[haspopup]:translate-y-px border-border/80"
+                    title="Reload Traefik daemon on this node"
+                  >
+                    <RefreshCw
+                      className={`size-3 ${reloadMutation.isPending ? 'animate-spin text-primary' : 'text-muted-foreground'}`}
+                    />
+                    <span className="hidden md:inline">Reload Traefik</span>
+                  </Button>
 
                   <Button
                     type="button"
@@ -810,30 +803,22 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
                       <Save className="size-3.5" />
                     )}
                     <span>Save File</span>
-                    <span className="hidden md:inline text-[10px] opacity-60 ml-0.5">⌘S</span>
+                    <span className="hidden md:inline text-[10px] opacity-60 ml-0.5 font-mono">⌘S</span>
                   </Button>
                 </div>
               </div>
 
-              {/* Warning Banner */}
-              <div className="flex items-start gap-2.5 px-4 py-2.5 border-b border-status-warning/25 bg-status-warning/10 text-xs">
-                <AlertTriangle className="size-4 shrink-0 mt-0.5 text-status-warning" />
-                <div className="flex-1 min-w-0 leading-relaxed text-foreground">
-                  {activeFile.name === 'traefik.yml' ? (
-                    <>
-                      <span className="font-semibold text-status-warning">Static Config:</span> Modifying{' '}
-                      <code className="font-mono px-1 py-0.5 bg-background/50 rounded font-semibold">./traefik.yml</code> updates
-                      core Traefik entry points, ACME certificate resolvers, and provider watchers. Reload or restart Traefik after saving for static updates to take effect.
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-semibold text-status-warning">Dynamic Config:</span> Dynamic routing rules in{' '}
-                      <code className="font-mono px-1 py-0.5 bg-background/50 rounded font-semibold">/dynamic/{activeFile.name}</code> are
-                      reloaded automatically by Traefik without downtime. Syntax errors or misconfigured routing rules may disrupt active service traffic.
-                    </>
-                  )}
+              {/* Notice for Static Config */}
+              {activeFile.name === 'traefik.yml' && (
+                <div className="flex items-center justify-between gap-2 px-3.5 py-1.5 border-b border-border/60 bg-amber-500/[0.04] text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <AlertTriangle className="size-3.5 text-amber-400 shrink-0" />
+                    <span className="truncate">
+                      <strong className="text-foreground/90 font-medium">Static config:</strong> Traefik reload or container restart required after saving for static updates to take effect.
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Live Syntax-Highlighted Editor Area */}
               <div
@@ -890,7 +875,7 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
               </div>
 
               {/* Editor Footer Status Bar */}
-              <div className="flex flex-wrap items-center justify-between border-t border-border bg-muted/10 px-4 py-2 text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between border-t border-border/80 bg-card px-3.5 py-1.5 text-[11px] text-muted-foreground">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1 font-mono">
                     <CheckCircle2 className="size-3 text-status-success" />
@@ -1078,6 +1063,6 @@ export function NodeTraefikFiles({ node }: NodeTraefikFilesProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

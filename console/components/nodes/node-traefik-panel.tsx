@@ -7,7 +7,15 @@ import {
   useReloadNodeTraefik,
 } from '@/lib/queries';
 import { Node, NodeTraefikConfig } from '@/lib/types';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+  CardFooter,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -27,21 +35,16 @@ import {
   Layers,
   Lock,
 } from 'lucide-react';
-import { SectionHeader } from '@/components/ui/section-header';
 import { toast } from 'sonner';
-import { NodeTraefikFiles } from './node-traefik-files';
 
 interface NodeTraefikPanelProps {
   node: Node;
 }
 
 export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'settings' | 'files'>('settings');
-
   const {
     data: config,
     isLoading,
-    refetch,
   } = useNodeTraefikConfig(node.id);
 
   const [enabled, setEnabled] = useState(true);
@@ -109,7 +112,7 @@ export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
 
   if (isLoading && !config) {
     return (
-      <Card className="border-border bg-card p-6">
+      <Card className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-center justify-center py-12 text-sm text-muted-foreground gap-2">
           <Loader2 className="size-4 animate-spin text-primary" />
           <span>Loading node Traefik settings...</span>
@@ -119,78 +122,55 @@ export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
   }
 
   return (
-    <Card className="border-border bg-card p-6">
-      <CardHeader className="px-0 pt-0 pb-4">
-        <SectionHeader
-          icon={Sliders}
-          title="Traefik Ingress Configuration"
-          description={`Configure edge reverse proxy routing, Let's Encrypt TLS, and ports for ${node.name}.`}
-          action={
-            <div className="flex items-center gap-2">
-              <Badge
-                variant="outline"
-                className={
-                  enabled
-                    ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
-                    : 'bg-muted text-muted-foreground border-border font-mono text-xs'
-                }
-              >
-                <Radio className="size-3" />
-                {enabled ? 'Ingress Active' : 'Ingress Disabled'}
-              </Badge>
+    <Card className="rounded-xl border border-border bg-card overflow-hidden">
+      <CardHeader>
+        <div className="flex items-center gap-3.5 min-w-0">
+          <div className="flex size-10 items-center justify-center rounded-xl border border-border/80 bg-muted/40 text-foreground shrink-0 shadow-2xs">
+            <Sliders className="size-5 text-muted-foreground" />
+          </div>
+          <div className="space-y-0.5 min-w-0">
+            <CardTitle className="text-base font-semibold tracking-tight text-foreground">
+              Traefik Ingress Configuration
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              Configure edge reverse proxy routing, Let&apos;s Encrypt TLS, and ports for {node.name}.
+            </CardDescription>
+          </div>
+        </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => reloadMutation.mutate()}
-                disabled={reloadMutation.isPending || !enabled}
-                className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-                title="Trigger dynamic routing reload on this node"
-              >
-                <RefreshCw
-                  className={`size-3.5 ${reloadMutation.isPending ? 'animate-spin text-primary' : 'text-muted-foreground'}`}
-                />
-                <span>Reload Traefik</span>
-              </Button>
-            </div>
-          }
-        />
+        <CardAction>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={
+                enabled
+                  ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1.5'
+                  : 'bg-muted text-muted-foreground border-border font-mono text-xs'
+              }
+            >
+              <Radio className="size-3" />
+              {enabled ? 'Ingress Active' : 'Ingress Disabled'}
+            </Badge>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => reloadMutation.mutate()}
+              disabled={reloadMutation.isPending || !enabled}
+              className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+              title="Trigger dynamic routing reload on this node"
+            >
+              <RefreshCw
+                className={`size-3.5 ${reloadMutation.isPending ? 'animate-spin text-primary' : 'text-muted-foreground'}`}
+              />
+              <span>Reload Traefik</span>
+            </Button>
+          </div>
+        </CardAction>
       </CardHeader>
 
-      {/* Sub-tab Navigation */}
-      <div className="flex items-center gap-1 border-b border-border mb-6">
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('settings')}
-          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors -mb-px active:not-aria-[haspopup]:translate-y-px ${
-            activeSubTab === 'settings'
-              ? 'border-primary text-foreground font-semibold'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Sliders className="size-3.5" />
-          <span>Ingress Settings</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveSubTab('files')}
-          className={`flex items-center gap-2 px-3 py-2 text-xs font-medium border-b-2 transition-colors -mb-px active:not-aria-[haspopup]:translate-y-px ${
-            activeSubTab === 'files'
-              ? 'border-primary text-foreground font-semibold'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FolderTree className="size-3.5" />
-          <span>Dynamic Config Files & Editor</span>
-        </button>
-      </div>
-
-      {activeSubTab === 'files' ? (
-        <NodeTraefikFiles node={node} />
-      ) : (
-        <form onSubmit={handleSave}>
-        <CardContent className="px-0 space-y-6 pt-2 pb-6">
+      <form onSubmit={handleSave}>
+        <CardContent className="space-y-6 pt-0">
           {/* Node Edge Telemetry Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs font-mono">
             <div className="p-3 rounded-xl border border-border bg-muted/20 space-y-1">
@@ -450,7 +430,6 @@ export function NodeTraefikPanel({ node }: NodeTraefikPanelProps) {
           </Button>
         </CardFooter>
       </form>
-      )}
     </Card>
   );
 }
