@@ -22,31 +22,28 @@ export interface TerminalTabProps {
   onNavigateToTerminalTab?: () => void;
 }
 
+function isValidGitCommit(commit?: string): boolean {
+  if (!commit) return false;
+  const c = commit.trim();
+  if (c === 'main' || c === 'master') return false;
+  return /^[0-9a-f]{7,40}$/i.test(c);
+}
+
 function resolveActiveContainerName(service: Service, deployments?: Deployment[]): string {
-  // 1. Check active deployment if present
+  // 1. Check service's active commitHash first
+  if (isValidGitCommit(service.commitHash)) {
+    return `tako-app-${service.slug}-${service.commitHash!.slice(0, 8)}`;
+  }
+
+  // 2. Check live or latest deployment with a valid commitHash
   if (deployments && deployments.length > 0) {
-    const dep = deployments[0];
-    const rawCommit = dep.commitHash || service.commitHash || '';
-    let commit8 = rawCommit.length > 8 ? rawCommit.slice(0, 8) : rawCommit;
-    if (!commit8 || commit8 === 'main' || commit8 === 'master') {
-      const cleanDep = dep.id.replace('dep-', '');
-      commit8 = cleanDep.length >= 8 ? cleanDep.slice(0, 8) : '';
-    }
-    if (commit8) {
-      return `tako-app-${service.slug}-${commit8}`;
+    const liveDep = deployments.find((d) => d.status === 'live') || deployments[0];
+    if (isValidGitCommit(liveDep.commitHash)) {
+      return `tako-app-${service.slug}-${liveDep.commitHash!.slice(0, 8)}`;
     }
   }
 
-  // 2. Check service commitHash synchronously available on initial render
-  if (service.commitHash) {
-    const rawCommit = service.commitHash;
-    let commit8 = rawCommit.length > 8 ? rawCommit.slice(0, 8) : rawCommit;
-    if (commit8 && commit8 !== 'main' && commit8 !== 'master') {
-      return `tako-app-${service.slug}-${commit8}`;
-    }
-  }
-
-  // 3. Fallback to base container name
+  // 3. Fallback to base container name (which the agent resolves to the active container)
   return `tako-app-${service.slug}`;
 }
 
@@ -60,34 +57,34 @@ export function TerminalTab({
     const opts: { value: string; label: string }[] = [];
     const seen = new Set<string>();
 
-    if (deployments && deployments.length > 0) {
-      deployments.forEach((dep, idx) => {
-        const rawCommit = dep.commitHash || service.commitHash || '';
-        let commit8 = rawCommit.length > 8 ? rawCommit.slice(0, 8) : rawCommit;
-        if (!commit8 || commit8 === 'main' || commit8 === 'master') {
-          const cleanDep = dep.id.replace('dep-', '');
-          commit8 = cleanDep.length >= 8 ? cleanDep.slice(0, 8) : '';
-        }
-        const name = commit8 ? `tako-app-${service.slug}-${commit8}` : `tako-app-${service.slug}`;
-        if (!seen.has(name)) {
-          seen.add(name);
-          opts.push({
-            value: name,
-            label: idx === 0 ? `${name} (Active)` : `${name} (rev: ${commit8})`,
-          });
-        }
-      });
-    } else if (service.commitHash) {
-      const rawCommit = service.commitHash;
-      const commit8 = rawCommit.length > 8 ? rawCommit.slice(0, 8) : rawCommit;
-      const name = `tako-app-${service.slug}-${commit8}`;
-      seen.add(name);
+    // 1. Service's active commit container
+    if (isValidGitCommit(service.commitHash)) {
+      const activeName = `tako-app-${service.slug}-${service.commitHash!.slice(0, 8)}`;
+      seen.add(activeName);
       opts.push({
-        value: name,
-        label: `${name} (Active)`,
+        value: activeName,
+        label: `${activeName} (Active)`,
       });
     }
 
+    // 2. Known deployments with valid commit hashes
+    if (deployments && deployments.length > 0) {
+      deployments.forEach((dep) => {
+        if (isValidGitCommit(dep.commitHash)) {
+          const commit8 = dep.commitHash!.slice(0, 8);
+          const name = `tako-app-${service.slug}-${commit8}`;
+          if (!seen.has(name)) {
+            seen.add(name);
+            opts.push({
+              value: name,
+              label: `${name} (rev: ${commit8})`,
+            });
+          }
+        }
+      });
+    }
+
+    // 3. Always provide base auto-resolve option
     const baseName = `tako-app-${service.slug}`;
     if (!seen.has(baseName)) {
       opts.push({

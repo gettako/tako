@@ -80,11 +80,6 @@ export function normalizeDeployment(d: Record<string, unknown>): Deployment {
     const urlMatch = previewUrlCandidate.match(/https?:\/\/([a-f0-9]{7,40})[-.]/i);
     if (urlMatch && urlMatch[1]) {
       resolvedCommit = urlMatch[1];
-    } else if (d.id) {
-      const cleanId = String(d.id).replace(/^dep-/, '');
-      if (cleanId.length >= 7) {
-        resolvedCommit = cleanId.slice(0, 8);
-      }
     }
   }
   if (!resolvedCommit) resolvedCommit = 'main';

@@ -137,6 +137,45 @@ func (c *Client) ResolveAllContainers(ctx context.Context, nameOrSlug string) []
 	}
 
 	if len(matched) == 0 {
+		// Secondary fallback: if nameOrSlug contained a revision suffix (like tako-app-my-slug-d060ee29)
+		// but that specific revision container is not present or dead, resolve to active containers for the base service
+		baseSlug := slug
+		if idx := strings.LastIndex(slug, "-"); idx > 0 && len(slug)-idx-1 >= 7 {
+			candidateHash := slug[idx+1:]
+			isHex := true
+			for _, ch := range candidateHash {
+				if !((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+					isHex = false
+					break
+				}
+			}
+			if isHex {
+				baseSlug = slug[:idx]
+			}
+		}
+
+		if baseSlug != slug {
+			basePrefix := "tako-app-" + baseSlug + "-"
+			baseLegacy := "tako-app-" + baseSlug
+			for _, cont := range all {
+				isMatch := cont.Labels["tako.service.name"] == baseSlug
+				if !isMatch {
+					for _, n := range cont.Names {
+						clean := strings.TrimPrefix(n, "/")
+						if strings.HasPrefix(clean, basePrefix) || clean == baseLegacy || clean == baseSlug {
+							isMatch = true
+							break
+						}
+					}
+				}
+				if isMatch {
+					matched = append(matched, cont)
+				}
+			}
+		}
+	}
+
+	if len(matched) == 0 {
 		return []string{nameOrSlug}
 	}
 

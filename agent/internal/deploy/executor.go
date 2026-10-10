@@ -182,20 +182,6 @@ func (e *Executor) ExecuteDeployWithCallback(
 	}
 	_ = traefik.WriteDynamicConfig(dynamicDir, previewCfg)
 
-	// 2. Write canonical dynamic config (service-level, pointing to current active container)
-	if len(canonicalDomains) > 0 {
-		canonicalCfg := traefik.RouteConfig{
-			ServiceName:   serviceName,
-			ConfigName:    serviceName, // writes to <serviceName>.yml
-			ContainerName: containerName,
-			Domains:       canonicalDomains,
-			TargetPort:    targetPort,
-			EnableTLS:     hasCustomDomain,
-			Network:       "tako-network",
-		}
-		_ = traefik.WriteDynamicConfig(dynamicDir, canonicalCfg)
-	}
-
 	traefikLabels := traefik.GenerateLabels(previewCfg)
 	traefikLabels["tako.service.id"] = req.GetServiceId()
 	traefikLabels["tako.service.name"] = serviceName
@@ -313,6 +299,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 			}
 
 			if startErr != nil {
+				_ = os.Remove(filepath.Join(dynamicDir, fmt.Sprintf("%s-%s.yml", serviceName, commit8)))
 				sendLog("Deploy", fmt.Sprintf("Error: could not start container %s: %v", resp.ID[:12], startErr), true)
 				return fmt.Errorf("failed to start container %s: %w", resp.ID[:12], startErr)
 			} else {
@@ -340,11 +327,13 @@ func (e *Executor) ExecuteDeployWithCallback(
 
 			if inspect.State != nil {
 				if !inspect.State.Running && inspect.State.ExitCode != 0 {
+					_ = os.Remove(filepath.Join(dynamicDir, fmt.Sprintf("%s-%s.yml", serviceName, commit8)))
 					errMsg := fmt.Sprintf("Health check FAILED: container exited prematurely with code %d (Error: %s)", inspect.State.ExitCode, inspect.State.Error)
 					sendLog("Health check", errMsg, true)
 					return fmt.Errorf("container exited prematurely with code %d", inspect.State.ExitCode)
 				}
 				if inspect.State.OOMKilled {
+					_ = os.Remove(filepath.Join(dynamicDir, fmt.Sprintf("%s-%s.yml", serviceName, commit8)))
 					errMsg := "Health check FAILED: container terminated by OOM killer"
 					sendLog("Health check", errMsg, true)
 					return fmt.Errorf("container terminated by OOM killer")
@@ -359,6 +348,21 @@ func (e *Executor) ExecuteDeployWithCallback(
 			sendLog("Health check", fmt.Sprintf("Notice: container inspect returned: %v", lastInspectErr), false)
 		} else if healthy {
 			sendLog("Health check", fmt.Sprintf("Health check passed: container %s is running and stable", containerName), false)
+
+			// Safely promote canonical domain routing ONLY after health check passes
+			if len(canonicalDomains) > 0 {
+				canonicalCfg := traefik.RouteConfig{
+					ServiceName:   serviceName,
+					ConfigName:    serviceName, // writes to <serviceName>.yml
+					ContainerName: containerName,
+					Domains:       canonicalDomains,
+					TargetPort:    targetPort,
+					EnableTLS:     hasCustomDomain,
+					Network:       "tako-network",
+				}
+				_ = traefik.WriteDynamicConfig(dynamicDir, canonicalCfg)
+				sendLog("Deploy", fmt.Sprintf("Canonical domain routing updated to %s", containerName), false)
+			}
 		}
 	} else {
 		time.Sleep(50 * time.Millisecond)
@@ -419,6 +423,42 @@ func (e *Executor) pruneOldDeployments(
 		}
 		if isMatch {
 			serviceContainers = append(serviceContainers, c)
+		}
+	}
+
+	// 1. Clean up any orphaned preview YAML files in dynamicDir for which no container exists
+	if files, err := filepath.Glob(filepath.Join(dynamicDir, fmt.Sprintf("%s-*.yml", serviceName))); err == nil {
+		for _, f := range files {
+			base := filepath.Base(f)
+			commitPart := strings.TrimSuffix(strings.TrimPrefix(base, serviceName+"-"), ".yml")
+			if commitPart != "" && commitPart != serviceName {
+				expectedContainer := fmt.Sprintf("tako-app-%s-%s", serviceName, commitPart)
+				containerExists := false
+				for _, sc := range allContainers {
+					for _, name := range sc.Names {
+						if strings.TrimPrefix(name, "/") == expectedContainer {
+							containerExists = true
+							break
+						}
+					}
+					if containerExists {
+						break
+					}
+				}
+				if !containerExists {
+					_ = os.Remove(f)
+					sendLog("Health check", fmt.Sprintf("Cleaned orphaned Traefik route file %s", base), false)
+				}
+			}
+		}
+	}
+
+	// 2. Clean up any zero-byte empty YAML files in dynamicDir
+	if allYmls, err := filepath.Glob(filepath.Join(dynamicDir, "*.yml")); err == nil {
+		for _, y := range allYmls {
+			if fi, err := os.Stat(y); err == nil && fi.Size() == 0 {
+				_ = os.Remove(y)
+			}
 		}
 	}
 
