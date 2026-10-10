@@ -1,0 +1,73 @@
+---
+title: "Managed Databases"
+description: "Provision and manage persistent PostgreSQL, MySQL, and Redis services with automated S3 backups."
+---
+
+Tako provides curated, one-click database templates for essential client-server databases. These services run as isolated containers on your target server and store data in persistent Docker volumes.
+
+## Supported Database Engines
+
+Tako offers templates for three core database systems:
+
+| Engine | Version | Default Port | Storage Driver |
+|---|---|---|---|
+| **PostgreSQL** | 16-alpine | `5432` | Dedicated Docker volume (`/var/lib/postgresql/data`) |
+| **MySQL** | 8.0 | `3306` | Dedicated Docker volume (`/var/lib/mysql`) |
+| **Redis** | 7.2-alpine | `6379` | Append-Only File (AOF) volume (`/data`) |
+
+<Note>
+**SQLite Support:** Embedded in-process databases such as SQLite do not need a standalone database service. Per ADR-008, SQLite databases are supported by mounting a persistent host directory directly to your web application container.
+</Note>
+
+---
+
+## Provisioning a Database
+
+To create a new managed database:
+
+1. Open your project in the Tako web console.
+2. Click **Create Service** and select **Managed Database**.
+3. Choose the database engine:
+   - **PostgreSQL 16**
+   - **MySQL 8.0**
+   - **Redis 7.2**
+4. Configure database settings:
+   - **Service Name:** A unique identifier within the project (e.g., `postgres-main`).
+   - **Database Name:** The initial database to create (e.g., `production`).
+   - **Username:** Master database user (defaults to `postgres` or `admin`).
+   - **Password:** Automatically generated strong random password (or supply your own).
+   - **Target Server:** Select the server node where the database should reside.
+5. Click **Create Database**.
+
+The agent pulls the verified image, initializes the persistent volume, and starts the container on the private Docker bridge network.
+
+---
+
+## Connecting Applications to Your Database
+
+Databases run on the isolated `tako_network` bridge. They are not exposed to the public internet by default, protecting them from automated network scanners.
+
+### One-Click Connection String Injection
+To connect a web application or worker in the same project:
+
+1. Open your web application service and click the **Environment** tab.
+2. Click **Inject Connection String**.
+3. Select your database from the list.
+4. Set the destination variable name (such as `DATABASE_URL`).
+5. Tako generates the internal URI:
+   ```
+   postgres://username:password@postgres-main:5432/production?sslmode=disable
+   ```
+6. Click **Save Changes** and redeploy your service to apply the new credentials.
+
+---
+
+## Streaming Backups to S3 Storage
+
+Tako includes native streaming backup support for managed databases:
+
+- **PostgreSQL:** Generates compressed custom-format dumps using `pg_dump -Fc`.
+- **MySQL:** Creates atomic consistent database dumps using `mysqldump --single-transaction`.
+- **Redis:** Uses `redis-cli --rdb -` to stream an RDB snapshot over the Redis protocol to stdout. Note: automatic database restore is **not supported** for Redis — restoration must be performed manually via the RDB file.
+
+Dumps stream directly into your configured S3-compatible storage destination without writing massive uncompressed archive files to the local host disk. You can schedule automated backups or trigger on-demand snapshots from the service **Backups** tab.

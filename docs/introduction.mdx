@@ -1,37 +1,42 @@
 ---
-title: "Introduction to Tako"
-description: "A modern, lightweight PaaS with an SSH-free gRPC agent architecture and Traefik v3."
+title: "Introduction"
+description: "A self-hosted, lightweight platform for deploying Docker-based applications across one or more servers."
 ---
 
-# Welcome to Tako PaaS 🐙
+Tako is a self-hosted platform for automatically deploying modern web applications to one or more virtual private servers (VPS). It provides a personal deployment dashboard without the resource overhead and operational complexity of larger platforms like Dokploy or Coolify.
 
-**Tako** is an open-source Platform-as-a-Service (PaaS) engineered for simplicity, reliability, and modern cloud-native workloads. Unlike traditional self-hosted solutions that rely on fragile SSH connections and heavy external databases, Tako introduces a clean, distributed architecture powered by:
+## Who Tako is for
 
-- **SSH-Free gRPC Agent Architecture**: Worker nodes initiate resilient outbound gRPC connections to the Master Server over port `50051`. No inbound SSH or management ports required on worker servers.
-- **Dedicated Traefik v3 Reverse Proxy**: Clean ingress separation. Application routing is isolated on ports `80` and `443` using Traefik's dynamic file provider, while the Console UI resides on port `3000` (with fallback routing on ports 80/443).
-- **Pure-Go SQLite WAL Database**: Zero external database dependencies like Postgres or Redis for the control plane. SQLite in WAL mode delivers sub-millisecond query performance and zero-config portability.
-- **Real-Time Streaming**: Live node heartbeats, resource metrics, and build logs piped directly to the Next.js Console via Server-Sent Events (SSE).
-- **Single-Line Deployment**: Deploy entire clusters with a unified installer script or simple Docker Compose manifests.
+Tako is built for solo developers, founders, and small engineering teams who want:
 
----
+- Full ownership of their hosting infrastructure without vendor lock-in.
+- Automated deployments triggered directly from GitHub on `git push`.
+- Multi-server cluster management from a single control plane.
+- Outbound-only agent connectivity with zero open management ports on remote servers.
+- Automated SSL certificate provisioning and zero-downtime container cutovers.
+- Direct, transparent container builds using standard Dockerfiles.
 
-## Architectural Highlights
+## What you can do with Tako
 
-| Component | Technology | Primary Role |
-| :--- | :--- | :--- |
-| **Tako Console** | Next.js 16 + React 19 + TailwindCSS v4 | Developer dashboard, BFF API proxy, and management UI |
-| **Tako Server** | Go 1.27 + Chi v5 + SQLite WAL + Goose | Master control plane, REST API, audit logs, and gRPC Hub |
-| **Tako Agent** | Go 1.27 + Docker Engine SDK + gopsutil | Node daemon collecting telemetry and managing container lifecycles |
-| **Tako Traefik** | Traefik v3 | Dynamic file provider reverse proxy with automated Let's Encrypt SSL |
+The capabilities below reflect what is fully implemented in the codebase today:
 
----
+- **Git-driven deployments:** Connect GitHub repositories and trigger automated builds on branch push events.
+- **Dockerfile and Compose stacks:** Deploy single services from a Dockerfile or multi-container stacks defined in Docker Compose.
+- **Multi-server orchestration:** Attach remote worker nodes across different cloud providers using a one-time enrollment token.
+- **Outbound-only agent streams:** Manage remote nodes without opening SSH or management ports to the internet.
+- **Zero-downtime cutover:** Verify new containers using HTTP health check gates before switching traffic in Traefik.
+- **One-click rollbacks:** Revert to previous successful image tags in seconds without rebuilding from source.
+- **Automated SSL and routing:** Provision Let's Encrypt certificates automatically via Traefik and configure path-prefix routing.
+- **Auxiliary services:** Run background workers and scheduled cron jobs that reuse built application images.
+- **Managed database templates:** Provision PostgreSQL, MySQL, and Redis services with persistent Docker volumes.
+- **Pull request previews:** Automatically create ephemeral staging environments with wildcard subdomains for GitHub pull requests.
+- **Encrypted configuration:** Store runtime environment variables and build arguments encrypted at rest with AES-256-GCM.
+- **Real-time log streaming:** Monitor Docker build progress and live container stdout/stderr through Server-Sent Events (SSE).
+- **Web terminal access:** Open interactive shell sessions directly into running containers from the browser.
+- **S3 backups:** Schedule streaming database dumps and volume archives to S3-compatible storage destinations.
+- **Audit logging:** Chronological activity audit trail with ULID ordering and actor attribution for every API mutation.
+- **Team collaboration:** Invite team members with simple role-based access control (`admin` and `member`) in a flat workspace.
 
-## Why Tako?
+## Next steps
 
-1. **Firewall & NAT Friendly**: Worker nodes communicate outbound via gRPC (`50051`). Workers can safely run behind strict corporate firewalls, NATs, or private VPCs without exposing SSH or inbound ports.
-2. **Deterministic Dual Routing**: Traefik routes user traffic dynamically using filesystem configs (`/etc/tako/traefik/dynamic/*.yml`) and Docker labels, cleanly separating production domains with SSL from local/preview wildcard domains (`sslip.io`).
-3. **Robust Security & Auth**: First-class Passkey (WebAuthn) support, Two-Factor Authentication (2FA), granular session tracking with remote revocation, and comprehensive audit logging.
-4. **No Container Prefix Bloat**: Strict explicit `container_name:` directives (`tako-server`, `tako-agent`, `tako-app-<slug>`) prevent messy auto-generated Docker names.
-5. **Lightweight Footprint**: The entire master stack runs smoothly with under 200MB of RAM baseline usage.
-
-Get started by following the [Quickstart Guide](/quickstart).
+Follow the [Quickstart Guide](/quickstart/installation) to install Tako on your server using Docker Compose in minutes.

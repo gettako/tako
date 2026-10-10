@@ -1,0 +1,51 @@
+---
+title: "Roadmap"
+description: "Future direction and planned capabilities not yet available in current releases."
+---
+
+<Note>
+**Planned, Not Available Yet:** The features listed on this page represent future milestones and community proposals under consideration. They are not yet built or available in current Tako releases.
+</Note>
+
+Tako evolves deliberately. New capabilities are evaluated against the core philosophy of maintaining a lightweight, zero-bloat footprint that runs comfortably on small virtual private servers.
+
+## Future Milestones & Planned Capabilities
+
+### 1. Expanded Git Providers
+Currently, Tako integrates with GitHub through GitHub Apps and Personal Access Tokens. Future releases plan to introduce native connection managers and webhook parsers for additional git hosts:
+- **GitLab:** Native GitLab App integration and push webhook handling for gitlab.com and self-hosted GitLab CE/EE instances.
+- **Gitea / Forgejo:** Lightweight self-hosted git platform integrations.
+- **Bitbucket Cloud:** Repository listing and commit push notifications.
+
+### 2. Pre-Deployment Database Migration Hooks
+Executing schema migrations before cutting over traffic:
+- Ability to define an optional pre-deploy task (such as `php artisan migrate --force` or `npx prisma migrate deploy`).
+- The task executes in an ephemeral container using the freshly built image before health checks run.
+- If migrations fail, the deployment is aborted immediately, preserving active traffic on the previous container with zero downtime.
+
+### 3. Remote Registry Build Caching & Image Distribution
+Currently, images are built locally on the target worker node:
+- Support for pushing built images to private container registries (GitHub Container Registry, Docker Hub, AWS ECR, or self-hosted registries).
+- Allows building an image once on a powerful build server and distributing it to multiple remote worker nodes simultaneously.
+
+### 4. Additional Notification Channels
+Tako currently supports Discord and Telegram webhooks. Planned notification adapters include:
+- **Slack:** Native Slack incoming webhook formatting with interactive deployment action buttons.
+- **Generic Webhooks:** Customizable JSON payload webhooks for integration with n8n, Zapier, or internal incident response tools.
+- **Email Alerts:** Optional SMTP notifications for critical server health alerts.
+
+### 5. Automated DNS Provider Integration
+Currently, users create DNS `A` records manually pointing to their server's public IP:
+- Direct API integration with DNS providers (Cloudflare, Hetzner DNS, AWS Route 53, DigitalOcean DNS).
+- Automatically create and update DNS records when adding custom domains or spinning up preview environments.
+
+---
+
+## Explicit Long-Term Non-Goals
+
+To maintain long-term stability and code maintainability, the following capabilities will **not** be added to Tako:
+
+- **No Kubernetes or Swarm orchestration:** Tako operates directly on standard Docker Engine.
+- **No commercial billing or metering modules:** Tako is built for personal and team infrastructure, not public PaaS reselling.
+- **No monolithic template app store:** Tako deploys your code via Dockerfile and Compose, avoiding unmaintained third-party catalog sprawl.
+- **No multi-tenant organizations:** Tako provides a shared flat workspace for trusted collaborators rather than isolated tenant boundaries.

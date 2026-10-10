@@ -1,0 +1,57 @@
+---
+title: "Domains & Automated SSL"
+description: "How Traefik handles reverse proxy routing, Let's Encrypt certificates, and path-prefix matching."
+---
+
+Tako uses **Traefik v3** as its native ingress reverse proxy. Each managed server runs its own dedicated Traefik container, isolating traffic and eliminating single points of failure across your cluster.
+
+## Traefik Configuration Architecture
+
+Traefik dynamically discovers and reloads routing configurations using its **File Provider**. The Tako Agent manages routing by writing configuration files to the `/etc/traefik/dynamic` directory.
+
+### File Isolation: Automated vs Custom Rules
+
+To prevent automated deployments from overwriting user customizations, Tako strictly separates dynamic configuration files:
+
+1. **`tako.yml` (Automated):** Managed exclusively by the Tako Agent. It defines routers, services, and load balancer targets for deployed web applications, preview deployments, and container ports.
+2. **`custom.yaml` (User-defined):** Edited directly by administrators through Server Settings. You can define custom middlewares (such as CORS headers, IP allowlists, basic auth, or rate limiters) without risk of being overwritten during service updates.
+
+Traefik monitors both files simultaneously and hot-reloads its routing table in memory without dropping connections.
+
+---
+
+## Automated SSL via Let's Encrypt
+
+Every domain attached to a Tako service receives an automated SSL certificate generated via Let's Encrypt:
+
+- **ACME HTTP-01 Challenge:** Traefik listens on port 80 to solve HTTP-01 challenge requests automatically.
+- **Persistent Certificate Storage:** Issued certificates and private keys are saved securely in the `tako_traefik_acme` volume at `/etc/traefik/acme/acme.json`.
+- **Automatic Renewal:** Traefik monitors certificate expiration and renews certificates automatically 30 days before expiration.
+- **HTTP to HTTPS Redirection:** Port 80 automatically redirects all unencrypted HTTP traffic to port 443 with a 301 Permanent Redirect.
+
+### DNS Requirements for Custom Domains
+
+To route traffic to a service:
+1. Identify the public IP address of the server hosting the service.
+2. In your DNS provider, create an `A` record pointing your domain (e.g., `app.example.com`) to that IP address.
+3. In Tako, add the domain under the service's **Domains** tab.
+4. Once DNS propagates, Traefik solves the ACME challenge and the certificate status badge updates to **Active**.
+
+---
+
+## Path-Prefix Routing & Multi-Service Domains
+
+Tako supports advanced routing rules that allow multiple distinct services to share the same domain name using Traefik's `PathPrefix()` matchers:
+
+- **Frontend and Backend Separation:** Route root requests (`/`) to a Next.js or Single Page Application (SPA), while routing `/api` requests to a backend Go or Laravel container.
+- **Strip-Prefix Middleware:** Optionally strip the prefix (e.g., remove `/api`) before forwarding the request to the upstream application container.
+- **Target Selection:** For multi-container Docker Compose stacks, point domain ingress directly to specific internal services within the stack.
+
+---
+
+## Wildcard Subdomains for Preview Deployments
+
+For Pull Request preview environments, Tako automatically generates accessible subdomains:
+
+- **Custom Domain Wildcard:** If a custom domain (such as `example.com`) is configured with a wildcard DNS record (`*.example.com`), preview URLs follow the format `pr-42.example.com`.
+- **Automated Fallback with sslip.io:** If no wildcard domain is available, Tako uses `sslip.io` with dashed IP notation (for example, `pr-42.192-168-1-1.sslip.io`). This provides guaranteed, zero-configuration DNS resolution for any server IP without requiring manual DNS records.

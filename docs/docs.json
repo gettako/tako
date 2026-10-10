@@ -7,49 +7,112 @@
     "light": "#7980e0",
     "dark": "#3e49be"
   },
-  "favicon": {
-    "light": "/images/favicon.ico",
-    "dark": "/images/favicon.ico"
+  "navbar": {
+    "links": [
+      {
+        "label": "Website",
+        "href": "https://gettako.dev"
+      },
+      {
+        "label": "GitHub",
+        "href": "https://github.com/gettako/tako"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "website": "https://gettako.dev",
+      "github": "https://github.com/gettako/tako"
+    }
+  },
+  "api": {
+    "baseUrl": "https://api.gettako.dev",
+    "examples": {
+      "languages": ["bash", "javascript", "go"]
+    }
   },
   "navigation": {
-    "groups": [
+    "tabs": [
       {
-        "group": "Getting Started",
-        "pages": [
-          "introduction",
-          "quickstart"
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "icon": "book-2",
+            "pages": [
+              "introduction",
+              "why-tako",
+              "limitations"
+            ]
+          },
+          {
+            "group": "Quickstart",
+            "icon": "rocket",
+            "pages": [
+              "quickstart/installation",
+              "quickstart/first-deploy"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "icon": "topology-star",
+            "pages": [
+              "concepts/architecture",
+              "concepts/projects-and-services",
+              "concepts/servers-and-agents",
+              "concepts/deployments",
+              "concepts/domains-and-ssl",
+              "concepts/tech-stack"
+            ]
+          },
+          {
+            "group": "Guides",
+            "icon": "map",
+            "pages": [
+              "guides/adding-a-server",
+              "guides/connecting-github",
+              "guides/environment-variables",
+              "guides/rollback",
+              "guides/auxiliary-services",
+              "guides/databases",
+              "guides/team-collaboration"
+            ]
+          },
+          {
+            "group": "Self-Hosting",
+            "icon": "cloud-upload",
+            "pages": [
+              "self-hosting/requirements",
+              "self-hosting/backup"
+            ]
+          },
+          {
+            "group": "Project",
+            "icon": "flag",
+            "pages": [
+              "roadmap"
+            ]
+          }
         ]
       },
       {
-        "group": "Installation",
-        "pages": [
-          "installation/main-server",
-          "installation/node-server",
-          "installation/manual-docker"
-        ]
-      },
-      {
-        "group": "Architecture",
-        "pages": [
-          "architecture/overview",
-          "architecture/grpc-communication",
-          "architecture/traefik-routing"
-        ]
-      },
-      {
-        "group": "User Guides",
-        "pages": [
-          "guides/services-deployments",
-          "guides/monitoring-logs"
-        ]
-      },
-      {
-        "group": "API Reference",
-        "pages": [
-          "api-reference/overview"
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Control Plane API",
+            "icon": "api",
+            "openapi": "api-reference/openapi.yaml"
+          }
         ]
       }
     ]
+  },
+  "icons": {
+    "library": "tabler"
+  },
+  "favicon": {
+    "light": "/images/favicon.ico",
+    "dark": "/images/favicon.ico"
   },
   "logo": {
     "light": "/images/tako-logo.svg",
@@ -57,26 +120,16 @@
     "href": "https://gettako.dev",
     "width": 72
   },
-  "navbar": {
-    "links": [
-      {
-        "label": "GitHub",
-        "href": "https://github.com/gettako/tako"
-      },
-      {
-        "label": "Website",
-        "href": "https://gettako.dev"
+  "styling": {
+    "codeblocks": {
+      "theme": {
+        "light": "github-light",
+        "dark": "github-dark"
       }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Get Started",
-      "href": "/quickstart"
     }
   },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/gettako/tako"
-    }
+  "fonts": {
+    "family": "Inter"
   }
 }
+

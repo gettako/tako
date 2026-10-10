@@ -1,0 +1,65 @@
+---
+title: "Technology Stack"
+description: "Why Tako is built with Go, SQLite, Next.js, Docker, Traefik, and gRPC."
+---
+
+Every technology chosen in Tako answers one core question: *does this keep the platform lightweight enough to run reliably on an affordable virtual private server?*
+
+The choices below reflect what is implemented in `go.mod`, `console/package.json`, and the Architecture Decision Records (ADRs).
+
+## Go: Control Plane & Node Agent
+
+The entire backend infrastructure (REST API, deployment orchestrator, and node agent daemon) is written in **Go** (module `gettako.dev/tako`, Go 1.24+).
+
+### Key Architectural Advantages
+- **Single static binaries:** Compiled with `CGO_ENABLED=0`, both the server and agent build as standalone executables with zero external dynamic runtime dependencies.
+- **Efficient concurrency:** Goroutines and channels handle parallel image builds, live log streaming over gRPC and Server-Sent Events, health check polling, and node heartbeats with minimal overhead.
+- **Low memory consumption:** An idle Go process requires only tens of megabytes of memory, serving as the basis for the "runs comfortably on a 1 GB VPS" standard.
+- **Core backend libraries:**
+  - `go-chi/chi/v5`: Lightweight HTTP router.
+  - `google.golang.org/grpc`: Persistent bidirectional agent-to-server streams.
+  - `pressly/goose/v3`: Embedded SQL schema migrations.
+  - `go-webauthn/webauthn`: FIDO2 and hardware passkey authentication.
+  - `pquerna/otp`: Time-based one-time password (TOTP) two-factor authentication.
+  - `aws-sdk-go-v2/service/s3`: Streaming database dumps and volume backups to S3 storage.
+  - `robfig/cron/v3`: Embedded cron scheduler for auxiliary jobs and automated backups.
+
+## SQLite: Embedded State Persistence
+
+Tako persists all system metadata in an embedded **SQLite** database using `modernc.org/sqlite`, a pure-Go driver that requires no CGO or external C toolchain.
+
+### Key Architectural Advantages
+- **Zero operational overhead:** No separate PostgreSQL or MySQL container to provision, maintain, or keep in memory.
+- **Single-file management:** The database resides in a single file (`TAKO_DB_PATH`, default `/etc/tako/tako.db`).
+- **High read concurrency:** Runs with Write-Ahead Logging (WAL) enabled (`PRAGMA journal_mode=WAL;`), 5-second busy timeouts, and foreign key enforcement.
+- **Zero-lock online backups:** Backups use SQLite's native `VACUUM INTO` command, creating consistent, uncorrupted database snapshots concurrently without blocking active readers or writers.
+- **Encrypted secrets at rest:** All service environment variables, git deploy keys, and webhook secrets are encrypted with AES-256-GCM before writing to disk.
+
+## Next.js: Modern Web Console
+
+The web dashboard (`console/`) is built with **Next.js 16 (App Router)** and **React 19**, packaged with Bun.
+
+### Key Architectural Advantages
+- **Internal API rewrite proxy:** The web browser connects to Next.js on port `3000`. Requests to `/api/*` are rewritten server-side to the Go backend on port `8080`. This eliminates Cross-Origin Resource Sharing (CORS) complexities and protects session cookies with `HttpOnly; SameSite=Lax; Secure` flags.
+- **Contract-first typed client:** TypeScript API clients and types are generated directly from `api/openapi.yaml`, guaranteeing that the frontend and backend remain strictly synchronized.
+- **Precision flat UI:** Configured with Base UI (`@base-ui/react`) and shadcn/ui `base-vega` style, utilizing Tailwind CSS v4 and zero drop shadows.
+- **In-browser web terminal:** Uses `xterm.js` to provide full interactive shell sessions directly into running containers over HTTP streaming.
+
+## Docker Engine SDK: Application Runtime
+
+The Tako Agent interacts with the local container daemon using the official **Docker Engine Go SDK** (`github.com/docker/docker/client`).
+
+### Key Architectural Advantages
+- **Direct Engine API:** The agent communicates through `/var/run/docker.sock` directly via API calls rather than spawning wrapper shell processes.
+- **Standard Dockerfile builds:** Builds use standard Docker BuildKit, supporting multi-stage builds, custom build targets, and build arguments.
+- **Automated image retention:** Automatically retains the last 5 successful deployment images per service for instant rollbacks, and schedules cleanup of dangling build caches.
+
+## Traefik: Decentralized Per-Node Ingress
+
+Each server node runs its own **Traefik v3** instance.
+
+### Key Architectural Advantages
+- **Decentralized reliability:** Traffic routing is distributed across nodes, avoiding a centralized edge gateway bottleneck.
+- **Dynamic File Provider:** The Tako Agent writes routing definitions to `/etc/traefik/dynamic/tako.yml`. Traefik reloads changes dynamically without restarting or terminating active connections.
+- **Separation of user customizations:** Custom middlewares (CORS headers, rate limits, basic authentication) are kept in `/etc/traefik/dynamic/custom.yaml`, ensuring that automated deployments never overwrite custom user routing.
+- **Automated SSL:** Generates and renews Let's Encrypt certificates automatically using the HTTP-01 challenge.

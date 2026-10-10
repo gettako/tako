@@ -1,0 +1,69 @@
+---
+title: "Environment Variables & Secrets"
+description: "Managing runtime configuration, build arguments, and AES-256-GCM encrypted secrets."
+---
+
+Tako provides dedicated management for application configuration and sensitive credentials, enforcing a strict separation between values needed during image construction and values injected at runtime.
+
+## Build Arguments vs Runtime Environment Variables
+
+Understanding the distinction between these two configuration types is essential for maintaining application security:
+
+| Feature | Build Arguments (`BUILD_ARGS`) | Runtime Environment Variables (`ENV_VARS`) |
+|---|---|---|
+| **Lifecycle phase** | Passed during `docker build` | Injected when the container starts |
+| **Exposure in image** | Baked into Docker image history layers | Never exposed in image metadata or layers |
+| **Recommended contents**| Non-sensitive build flags (e.g. `NODE_ENV=production`) | Database passwords, API keys, private tokens |
+| **Encryption at rest** | Plaintext in metadata | Encrypted at rest using AES-256-GCM |
+
+<Warning>
+Never store passwords, private keys, or API tokens in **Build Arguments**. Any value passed to `docker build --build-arg` is permanently recorded in Docker image layers and can be retrieved by anyone with access to inspect the image.
+</Warning>
+
+---
+
+## Secret Encryption at Rest
+
+All runtime environment variables and secrets are encrypted before they are stored in the SQLite database:
+
+- **Algorithm:** AES-256-GCM with a unique 96-bit initialization vector (nonce) generated per encryption operation.
+- **Master Key:** Derived from the `TAKO_SECRET_KEY` environment variable configured on your control plane host.
+- **In-Memory Decryption:** The control plane decrypts secret values in memory only when assembling a deployment job or inspecting values in the dashboard. Plaintext secrets are never written to log files or persisted in unencrypted tables.
+
+---
+
+## Managing Variables in the Web Console
+
+To edit configuration for a service:
+
+1. Open the project containing your service and click the service name.
+2. Select the **Environment** tab.
+3. You can manage variables using the structured key-value editor, or toggle the **Bulk Edit** view to paste `.env` format text directly:
+   ```ini
+   APP_ENV=production
+   APP_KEY=base64:AbCdEfGhIjKlMnOpQrStUvWxYz=
+   DATABASE_URL=postgres://user:secret@postgres-node:5432/app_db
+   CACHE_DRIVER=redis
+   ```
+4. Click **Save Changes**.
+
+---
+
+## Automatic Database Connection String Injection
+
+If you run a managed database service (PostgreSQL, MySQL, or Redis) within the same project:
+
+1. Open your web application service and click the **Environment** tab.
+2. Click **Inject Connection String**.
+3. Select the target database from the dropdown menu.
+4. Choose the environment variable key name (e.g., `DATABASE_URL` or `REDIS_URL`).
+5. Tako constructs the internal network connection string and adds it to your runtime variables automatically.
+
+---
+
+## Applying Environment Variable Updates
+
+Updating runtime environment variables does not require a full code rebuild:
+
+- **Redeploy Container:** On the service overview page, click **Redeploy**. The agent starts a fresh container using the current image tag, injects the updated environment variables, runs the health check, and hot-swaps traffic with zero downtime.
+- **Restart Container:** Alternatively, use the **Restart** action for immediate in-place container restarts when zero-downtime cutover is not required.

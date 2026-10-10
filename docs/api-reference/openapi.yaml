@@ -1,0 +1,5795 @@
+openapi: 3.1.0
+info:
+  title: Tako Control Plane API
+  version: 1.0.0
+  description: API specification for Tako, a self-hosted application deployment platform.
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: /
+    description: Current Host
+security:
+  - cookieAuth: []
+paths:
+  # ---------------------------------------------------------------------------
+  # Authentication & Profile
+  # ---------------------------------------------------------------------------
+  /api/auth/login:
+    post:
+      summary: Password login
+      description: Validates administrator password and checks whether two-factor authentication is required.
+      operationId: login
+      tags:
+        - Auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful or 2FA required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/logout:
+    post:
+      summary: Terminate session
+      description: Invalidates active session and clears session cookies.
+      operationId: logout
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: Session terminated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/me:
+    get:
+      summary: Current session profile
+      description: Retrieves the currently authenticated administrator profile and security settings.
+      operationId: getCurrentUser
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: Profile of authenticated administrator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/profile:
+    patch:
+      summary: Update administrator profile
+      description: Updates the administrator profile details such as email.
+      operationId: updateProfile
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile of administrator
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/change-password:
+    post:
+      summary: Change administrator password
+      description: Validates current password and updates to new password.
+      operationId: changePassword
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Password updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/2fa/setup:
+    post:
+      summary: Begin TOTP setup
+      description: Generates a new TOTP secret, QR code SVG, and backup recovery codes.
+      operationId: setupTwoFactor
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: TOTP setup details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorSetupResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/2fa/verify:
+    post:
+      summary: Verify and enable TOTP
+      description: Confirms six-digit TOTP verification code to activate two-factor authentication.
+      operationId: verifyTwoFactor
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerifyRequest'
+      responses:
+        '200':
+          description: Two-factor authentication enabled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/passkey/register/begin:
+    post:
+      summary: Begin passkey registration
+      description: Generates WebAuthn registration options for hardware key or biometric authenticator.
+      operationId: beginPasskeyRegistration
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: WebAuthn creation options
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyRegistrationOptions'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/passkey/register/finish:
+    post:
+      summary: Finish passkey registration
+      description: Verifies WebAuthn attestation response and stores the registered public key.
+      operationId: finishPasskeyRegistration
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyRegistrationVerification'
+      responses:
+        '200':
+          description: Passkey registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyRegistrationResult'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/auth/passkey/login/begin:
+    post:
+      summary: Begin passkey login
+      description: Generates WebAuthn assertion challenge options for passwordless login.
+      operationId: beginPasskeyLogin
+      tags:
+        - Auth
+      security: []
+      responses:
+        '200':
+          description: WebAuthn assertion request options
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasskeyLoginOptions'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/auth/passkey/login/finish:
+    post:
+      summary: Finish passkey login
+      description: Validates WebAuthn assertion response and establishes a secure session.
+      operationId: finishPasskeyLogin
+      tags:
+        - Auth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasskeyLoginVerification'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ---------------------------------------------------------------------------
+  # User Management & Collaboration
+  # ---------------------------------------------------------------------------
+  /api/users:
+    get:
+      summary: List all users
+      description: Lists all active users in the cluster. Requires administrator privileges.
+      operationId: listUsers
+      tags:
+        - Users
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/users/{id}/role:
+    patch:
+      summary: Update user role
+      description: Updates the role of a user between admin and member. Requires administrator privileges. Prevents self-demotion or removing the last admin.
+      operationId: updateUserRole
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Target user identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRoleRequest'
+      responses:
+        '200':
+          description: User role updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/users/{id}:
+    delete:
+      summary: Delete user
+      description: Deletes a user and purges all active sessions immediately. Requires administrator privileges. Prevents deleting self or last admin.
+      operationId: deleteUser
+      tags:
+        - Users
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Target user identifier
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invites:
+    post:
+      summary: Create invitation
+      description: Generates a single-use invitation token and copyable registration URL. Requires administrator privileges.
+      operationId: createInvite
+      tags:
+        - Invites
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteRequest'
+      responses:
+        '201':
+          description: Invitation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateInviteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+    get:
+      summary: List pending invites
+      description: Lists all pending, non-expired invitations. Requires administrator privileges.
+      operationId: listInvites
+      tags:
+        - Invites
+      responses:
+        '200':
+          description: List of pending invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invite'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+
+  /api/invites/{id}:
+    delete:
+      summary: Revoke invitation
+      description: Revokes an active pending invitation. Requires administrator privileges.
+      operationId: revokeInvite
+      tags:
+        - Invites
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Invitation identifier
+      responses:
+        '200':
+          description: Invitation revoked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invites/validate:
+    get:
+      summary: Validate invitation token
+      description: Public endpoint returning invitation role and validity for the registration screen.
+      operationId: validateInvite
+      tags:
+        - Invites
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Raw invitation token
+      responses:
+        '200':
+          description: Invitation is valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteValidationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/invites/accept:
+    post:
+      summary: Accept invitation and register
+      description: Public endpoint to register with a valid invitation token, creating the user and establishing an active session.
+      operationId: acceptInvite
+      tags:
+        - Invites
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInviteRequest'
+      responses:
+        '200':
+          description: User registered successfully and session established
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  # ---------------------------------------------------------------------------
+  # Server Management
+  # ---------------------------------------------------------------------------
+  /api/servers:
+    get:
+      summary: List servers
+      description: Lists all managed nodes with their current status, agent versions, and resource utilization.
+      operationId: listServers
+      tags:
+        - Servers
+      responses:
+        '200':
+          description: List of managed servers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Server'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Add server
+      description: Registers a new server node and returns a one-time enrollment token and Docker Compose snippet.
+      operationId: createServer
+      tags:
+        - Servers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServerRequest'
+      responses:
+        '201':
+          description: Server created with enrollment command
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateServerResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/servers/{id}:
+    get:
+      summary: Server detail
+      description: Retrieves detailed specification, active container count, and agent health telemetry for a server.
+      operationId: getServer
+      tags:
+        - Servers
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+      responses:
+        '200':
+          description: Detailed server information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      summary: Update server settings
+      description: Updates operational configuration for a server node such as maximum concurrent deployment builds.
+      operationId: updateServer
+      tags:
+        - Servers
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServerRequest'
+      responses:
+        '200':
+          description: Server updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerDetail'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete server
+      description: Unregisters a server node. Rejects deletion if services are currently assigned to this node.
+      operationId: deleteServer
+      tags:
+        - Servers
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+      responses:
+        '200':
+          description: Server successfully deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/servers/{id}/prune:
+    post:
+      summary: Trigger resource cleanup
+      description: Dispatches a maintenance job to the node agent to prune dangling images, old containers, and build cache.
+      operationId: pruneServer
+      tags:
+        - Servers
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+      responses:
+        '200':
+          description: Prune job executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PruneResult'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/servers/{id}/traefik/config:
+    get:
+      summary: Get server Traefik configuration
+      description: Returns the custom dynamic YAML configuration and active static configuration for the node.
+      operationId: getServerTraefikConfig
+      tags:
+        - Servers
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+      responses:
+        '200':
+          description: Traefik configuration retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTraefikConfig'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update server Traefik custom configuration
+      description: Validates and updates the custom dynamic rules in /etc/traefik/dynamic/custom.yaml on the target node.
+      operationId: updateServerTraefikConfig
+      tags:
+        - Servers
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTraefikConfigRequest'
+      responses:
+        '200':
+          description: Custom configuration updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerTraefikConfig'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/servers/{id}/traefik/restart:
+    post:
+      summary: Restart server Traefik container
+      description: Restarts the Traefik proxy container on the target node to reload static configuration changes.
+      operationId: restartServerTraefik
+      tags:
+        - Servers
+      parameters:
+        - $ref: '#/components/parameters/ServerId'
+      responses:
+        '200':
+          description: Traefik container restart triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+
+  # ---------------------------------------------------------------------------
+  # Project Management
+  # ---------------------------------------------------------------------------
+  /api/projects:
+    get:
+      summary: List projects
+      description: Retrieves all project workspaces with active service counts.
+      operationId: listProjects
+      tags:
+        - Projects
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create project
+      description: Creates a new project workspace container for grouping services.
+      operationId: createProject
+      tags:
+        - Projects
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/projects/{id}:
+    get:
+      summary: Project detail
+      description: Retrieves project details alongside its associated services.
+      operationId: getProject
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Project details and child services
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      summary: Update project
+      description: Updates project metadata such as name and description.
+      operationId: updateProject
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete project
+      description: Deletes a project and terminates all child services and deployments.
+      operationId: deleteProject
+      tags:
+        - Projects
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Project and associated services deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # Service Management
+  # ---------------------------------------------------------------------------
+  /api/services:
+    get:
+      summary: List services
+      description: Retrieves services with optional filtering by project or host server.
+      operationId: listServices
+      tags:
+        - Services
+      parameters:
+        - name: project_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter services by project ID
+        - name: server_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter services by server ID
+        - name: parent_service_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter services by parent service ID
+      responses:
+        '200':
+          description: Filtered list of services
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Service'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create service
+      description: Configures and provisions a new service assigned to a specific server and project.
+      operationId: createService
+      tags:
+        - Services
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateServiceRequest'
+      responses:
+        '201':
+          description: Service successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/services/validate-compose:
+    post:
+      summary: Validate Docker Compose content
+      description: Validates Docker Compose schema, services, ports, and environment variables.
+      operationId: validateCompose
+      tags:
+        - Services
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateComposeRequest'
+      responses:
+        '200':
+          description: Compose validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateComposeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/services/{id}:
+    get:
+      summary: Service detail
+      description: Returns configuration, runtime status, active deployment, and attached domains for a service.
+      operationId: getService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Service detail configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      summary: Update service
+      description: Updates service configuration such as branch, Dockerfile path, port, or target server.
+      operationId: updateService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServiceRequest'
+      responses:
+        '200':
+          description: Updated service object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete service
+      description: Gracefully stops containers, removes reverse proxy configurations, and removes the service.
+      operationId: deleteService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: delete_volumes
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to permanently delete persistent host storage volumes.
+        - name: prune_images
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Whether to remove unused Docker images from host.
+      responses:
+        '200':
+          description: Service deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/start:
+    post:
+      summary: Start service
+      description: Starts the active container for a stopped service.
+      operationId: startService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Service started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/stop:
+    post:
+      summary: Stop service
+      description: Gracefully stops the running container for a service.
+      operationId: stopService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Service stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/restart:
+    post:
+      summary: Restart service
+      description: Restarts the active container for a service.
+      operationId: restartService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Service restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/rebuild:
+    post:
+      summary: Trigger rebuild
+      description: Triggers a clean build and zero-downtime deployment from the configured Git repository.
+      operationId: rebuildService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RebuildRequest'
+      responses:
+        '202':
+          description: Deployment job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/redeploy:
+    post:
+      summary: Redeploy service
+      description: Triggers a full build and deployment cycle for git-based services using current environment variables and latest repository commit.
+      operationId: redeployService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '202':
+          description: Deployment job queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/webhook:
+    post:
+      summary: Service webhook trigger
+      description: Webhook endpoint dedicated to a single service. Receives push and tag events from GitHub, GitLab, or generic webhooks to trigger automated deployments.
+      operationId: triggerServiceWebhook
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Webhook received and processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/pull-update:
+    post:
+      summary: Pull latest image and recreate container
+      description: Pulls the designated image tag, checks if image digest changed, and recreates the container preserving mounted volumes, ports, and environment configurations.
+      operationId: pullUpdateService
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Image update result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PullUpdateResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # Deployments & Rollbacks
+  # ---------------------------------------------------------------------------
+  /api/services/{id}/deployments:
+    get:
+      summary: List deployments
+      description: Returns a paginated list of past and ongoing deployments for a service.
+      operationId: listDeployments
+      tags:
+        - Deployments
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Page number
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Items per page
+      responses:
+        '200':
+          description: Paginated deployments list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    post:
+      summary: Trigger manual deployment
+      description: Queues a new deployment for a specific branch or commit.
+      operationId: createDeployment
+      tags:
+        - Deployments
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeploymentRequest'
+      responses:
+        '202':
+          description: Deployment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/deployments/{deployment_id}:
+    get:
+      summary: Deployment detail
+      description: Retrieves timing metrics, commit details, build steps, and failure reason for a deployment.
+      operationId: getDeployment
+      tags:
+        - Deployments
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DeploymentId'
+      responses:
+        '200':
+          description: Deployment detail information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentDetail'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/deployments/{deployment_id}/cancel:
+    post:
+      summary: Cancel deployment
+      description: Aborts an in-progress deployment and terminates the remote build job.
+      operationId: cancelDeployment
+      tags:
+        - Deployments
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DeploymentId'
+      responses:
+        '200':
+          description: Deployment cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/deployments/{deployment_id}/rollback:
+    post:
+      summary: Rollback to deployment
+      description: Immediately points traffic to the Docker image associated with an earlier successful deployment.
+      operationId: rollbackDeployment
+      tags:
+        - Deployments
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DeploymentId'
+      responses:
+        '202':
+          description: Rollback initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deployment'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # Ephemeral Preview Environments
+  # ---------------------------------------------------------------------------
+  /api/services/{id}/previews:
+    get:
+      summary: List preview environments
+      description: Returns active ephemeral preview environments for pull requests targeting this service.
+      operationId: listServicePreviews
+      tags:
+        - Previews
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: List of preview environments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PreviewEnvironment'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/previews/{preview_id}:
+    delete:
+      summary: Delete preview environment
+      description: Tears down container, deletes proxy route, and frees resources for the ephemeral preview.
+      operationId: deleteServicePreview
+      tags:
+        - Previews
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: preview_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique preview service identifier
+      responses:
+        '200':
+          description: Preview environment successfully deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Preview environment deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # Environment Variables & Secrets
+  # ---------------------------------------------------------------------------
+  /api/services/{id}/env:
+    get:
+      summary: Get environment variables
+      description: Returns runtime environment variables and build arguments. Secrets are masked by default.
+      operationId: getServiceEnv
+      tags:
+        - Environment
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: reveal
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: When true, decrypts and returns actual secret values. Requires administrator privileges.
+      responses:
+        '200':
+          description: Environment variables and build arguments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceEnv'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update environment variables
+      description: Encrypts and saves runtime environment variables and build arguments for a service.
+      operationId: updateServiceEnv
+      tags:
+        - Environment
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateServiceEnvRequest'
+      responses:
+        '200':
+          description: Environment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceEnv'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/inject-connection-string:
+    post:
+      summary: Inject database connection string
+      description: Injects or updates the database connection string as an environment variable in another service within the same project.
+      operationId: injectConnectionString
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InjectConnectionStringRequest'
+      responses:
+        '200':
+          description: Connection string injected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InjectConnectionStringResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # Domains & SSL
+  # ---------------------------------------------------------------------------
+  /api/services/{id}/domains:
+    get:
+      summary: List service domains
+      description: Returns all custom domains routed to this service with Let's Encrypt SSL certificate status.
+      operationId: listServiceDomains
+      tags:
+        - Domains
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: List of domains and SSL status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Domain'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    post:
+      summary: Add custom domain
+      description: Attaches a custom domain name and container port mapping to the Traefik router.
+      operationId: addServiceDomain
+      tags:
+        - Domains
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddDomainRequest'
+      responses:
+        '201':
+          description: Domain added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/domains/{domain}:
+    patch:
+      summary: Update custom domain configuration
+      description: Updates path routing, canonical status, redirects, basic auth, or target service.
+      operationId: updateServiceDomain
+      tags:
+        - Domains
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DomainParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDomainRequest'
+      responses:
+        '200':
+          description: Domain updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Remove custom domain
+      description: Removes a domain routing rule from the service reverse proxy.
+      operationId: removeServiceDomain
+      tags:
+        - Domains
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DomainParam'
+      responses:
+        '200':
+          description: Domain removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/domains/{domain}/check-ssl:
+    post:
+      summary: Check domain SSL status
+      description: Initiates a certificate check to verify DNS resolution and Let's Encrypt challenge status.
+      operationId: checkDomainSsl
+      tags:
+        - Domains
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DomainParam'
+      responses:
+        '200':
+          description: Domain status refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Domain'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # GitHub Integration
+  # ---------------------------------------------------------------------------
+  /api/github/status:
+    get:
+      summary: GitHub connection status
+      description: Reports whether GitHub is connected via GitHub App or Personal Access Token.
+      operationId: getGitHubStatus
+      tags:
+        - GitHub
+      responses:
+        '200':
+          description: GitHub connection status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubStatus'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/github/repos:
+    get:
+      summary: List GitHub repositories
+      description: Lists accessible repositories from the connected GitHub account or organization.
+      operationId: listGitHubRepos
+      tags:
+        - GitHub
+      responses:
+        '200':
+          description: Repositories available for deployment
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubRepo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/github/repos/{owner}/{repo}/branches:
+    get:
+      summary: List repository branches
+      description: Lists branches for the selected repository.
+      operationId: listGitHubBranches
+      tags:
+        - GitHub
+      parameters:
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository owner
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository name
+      responses:
+        '200':
+          description: List of branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubBranch'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/github/webhook:
+    post:
+      summary: GitHub webhook handler
+      description: Receives GitHub push event webhooks to trigger automated deployments.
+      operationId: handleGitHubWebhook
+      tags:
+        - GitHub
+      security: []
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/github/webhook/{connection_id}:
+    post:
+      summary: Multiplexed GitHub webhook listener
+      description: Receives push event webhooks routed by GitHub connection ID.
+      operationId: handleGitHubWebhookByConnection
+      tags:
+        - GitHub
+      security: []
+      parameters:
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: GitHub connection ID
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/github/manifest:
+    get:
+      summary: Get GitHub App Manifest
+      description: Generates a GitHub App Manifest configuration to create a GitHub App automatically with 1-click.
+      operationId: getGitHubManifest
+      tags:
+        - GitHub
+      responses:
+        '200':
+          description: GitHub App manifest configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubManifestResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/github/manifest/exchange:
+    post:
+      summary: Exchange GitHub App Manifest code
+      description: Exchanges the temporary code returned by GitHub after manifest app creation for credentials.
+      operationId: exchangeGitHubManifest
+      tags:
+        - GitHub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitHubAppExchangeRequest'
+      responses:
+        '201':
+          description: GitHub App created and registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubAppExchangeResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/github/sync-installations:
+    post:
+      summary: Sync GitHub App installations
+      description: Synchronizes all installed organizations and personal accounts for the registered GitHub App.
+      operationId: syncGitHubInstallations
+      tags:
+        - GitHub
+      responses:
+        '200':
+          description: Updated list of GitHub connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubConnection'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/github/connections:
+    get:
+      summary: List GitHub connections
+      description: Lists all connected GitHub accounts and App installations.
+      operationId: listGitHubConnections
+      tags:
+        - GitHub
+      responses:
+        '200':
+          description: List of GitHub connections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubConnection'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create GitHub connection
+      description: Registers a new GitHub Personal Access Token or GitHub App installation.
+      operationId: createGitHubConnection
+      tags:
+        - GitHub
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGitHubConnectionRequest'
+      responses:
+        '201':
+          description: GitHub connection created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitHubConnection'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/github/connections/{id}:
+    delete:
+      summary: Delete GitHub connection
+      description: Removes a connected GitHub account. Rejects if connected to active services.
+      operationId: deleteGitHubConnection
+      tags:
+        - GitHub
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Connection ID
+      responses:
+        '200':
+          description: GitHub connection removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/github/connections/{id}/repos:
+    get:
+      summary: List repositories for GitHub connection
+      description: Lists repositories accessible by a specific GitHub connection.
+      operationId: listConnectionRepos
+      tags:
+        - GitHub
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Connection ID
+      responses:
+        '200':
+          description: List of repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubRepo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/github/connections/{id}/repos/{owner}/{repo}/branches:
+    get:
+      summary: List repository branches for GitHub connection
+      description: Lists branches for the repository using the specified connection.
+      operationId: listConnectionBranches
+      tags:
+        - GitHub
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Connection ID
+        - name: owner
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository owner
+        - name: repo
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Repository name
+      responses:
+        '200':
+          description: List of branches
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GitHubBranch'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # Real-Time SSE Streams
+  # ---------------------------------------------------------------------------
+  /api/services/{id}/logs/build:
+    get:
+      summary: Live Docker build logs stream
+      description: Server-Sent Events stream emitting build progress, step outputs, and final status.
+      operationId: streamBuildLogs
+      tags:
+        - Logs
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: deployment_id
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Target deployment identifier
+      responses:
+        '200':
+          description: Real-time event stream for Docker build
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/BuildLogStreamEvent'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/logs/runtime:
+    get:
+      summary: Container runtime logs stream
+      description: Server-Sent Events stream emitting container stdout and stderr line by line.
+      operationId: streamContainerLogs
+      tags:
+        - Logs
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: tail
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 2000
+          description: Number of recent log lines to replay before streaming
+        - name: follow
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Keep connection open and stream new logs
+        - name: container
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional filter by specific container or sub-service name in the stack
+      responses:
+        '200':
+          description: Real-time event stream for container output
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ContainerLogEvent'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/status:
+    get:
+      summary: Real-time service status stream
+      description: Server-Sent Events stream emitting service lifecycle updates and deployment state transitions.
+      operationId: streamServiceStatus
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Real-time event stream for service state transitions
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/ServiceStatusEvent'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/stack:
+    get:
+      summary: Compose stack overview
+      description: Returns sub-services, container statuses, and isolated network for a compose stack.
+      operationId: getComposeStack
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: Stack overview details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComposeStackOverview'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/metrics:
+    get:
+      summary: Service historical resource utilization metrics
+      description: Retrieves historical time-series resource utilization metrics (CPU, RAM, Network I/O rate, container restart count) for interactive monitoring charts.
+      operationId: getServiceMetrics
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: range
+          in: query
+          required: false
+          description: Time window duration for metrics aggregation
+          schema:
+            type: string
+            enum:
+              - 1h
+              - 6h
+              - 24h
+              - 7d
+            default: 1h
+      responses:
+        '200':
+          description: Service historical metrics time-series and current summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceMetricsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/terminal:
+    get:
+      summary: Service web interactive terminal WebSocket
+      description: Interactive bidirectional WebSocket connection to attach a shell inside the service container.
+      operationId: serviceTerminal
+      tags:
+        - Services
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: shell
+          in: query
+          required: false
+          schema:
+            type: string
+            default: /bin/sh
+          description: Shell executable to run inside container (/bin/sh or /bin/bash)
+        - name: container
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Specific container or sub-service name for multi-container compose services
+      responses:
+        '101':
+          description: WebSocket connection established
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/settings/backup:
+    get:
+      summary: Get global S3 backup configuration
+      description: Retrieves the global S3 object storage settings, cron schedule, and retention policy.
+      operationId: getBackupConfig
+      tags:
+        - Backups
+      responses:
+        '200':
+          description: Global S3 backup configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupConfig'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      summary: Update global S3 backup configuration
+      description: Updates the S3 storage endpoint, bucket, access credentials, cron schedule, and retention count.
+      operationId: updateBackupConfig
+      tags:
+        - Backups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBackupConfigRequest'
+      responses:
+        '200':
+          description: Updated S3 backup configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupConfig'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/settings/backup/test:
+    post:
+      summary: Test S3 storage connection
+      description: Tests bucket connectivity and credentials against the S3 provider.
+      operationId: testBackupStorage
+      tags:
+        - Backups
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestS3ConfigRequest'
+      responses:
+        '200':
+          description: S3 connection succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '502':
+          description: Bad gateway / S3 connection failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/settings/backup/records:
+    get:
+      summary: List control plane SQLite backups
+      description: Lists historical snapshots taken of the control plane SQLite database.
+      operationId: listControlPlaneBackups
+      tags:
+        - Backups
+      responses:
+        '200':
+          description: List of control plane backups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupRecord'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/settings/backup/trigger:
+    post:
+      summary: Trigger manual control plane SQLite backup
+      description: Takes an online non-locking SQLite snapshot using VACUUM INTO, compresses with gzip, and uploads to S3.
+      operationId: triggerControlPlaneBackup
+      tags:
+        - Backups
+      responses:
+        '200':
+          description: Backup snapshot created and uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupRecord'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/settings/backup/records/{id}/download:
+    get:
+      summary: Download control plane backup
+      description: Returns a temporary presigned URL to download a control plane backup.
+      operationId: downloadControlPlaneBackup
+      tags:
+        - Backups
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the backup record
+      responses:
+        '200':
+          description: Presigned download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadBackupResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/settings/backup/records/{id}:
+    delete:
+      summary: Delete control plane backup
+      description: Deletes the backup object from S3 and removes the record from database.
+      operationId: deleteControlPlaneBackup
+      tags:
+        - Backups
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the backup record
+      responses:
+        '200':
+          description: Backup deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/settings/notifications:
+    get:
+      summary: List notification channels
+      description: Returns all configured Discord and Telegram notification channels.
+      operationId: listNotificationChannels
+      tags:
+        - Settings
+      responses:
+        '200':
+          description: List of notification channels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationChannel'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    post:
+      summary: Create notification channel
+      description: Configures a new Discord webhook or Telegram notification channel.
+      operationId: createNotificationChannel
+      tags:
+        - Settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNotificationChannelRequest'
+      responses:
+        '201':
+          description: Notification channel created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationChannel'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/settings/notifications/{id}:
+    patch:
+      summary: Update notification channel
+      description: Updates channel credentials, active status, or notification event preferences.
+      operationId: updateNotificationChannel
+      tags:
+        - Settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the notification channel
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNotificationChannelRequest'
+      responses:
+        '200':
+          description: Notification channel updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationChannel'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    delete:
+      summary: Delete notification channel
+      description: Permanently deletes a notification channel.
+      operationId: deleteNotificationChannel
+      tags:
+        - Settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the notification channel
+      responses:
+        '200':
+          description: Notification channel deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/settings/notifications/{id}/test:
+    post:
+      summary: Send test notification
+      description: Dispatches a sample notification to verify webhook or bot connectivity.
+      operationId: testNotificationChannel
+      tags:
+        - Settings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the notification channel
+      responses:
+        '200':
+          description: Test notification dispatched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ---------------------------------------------------------------------------
+  # Console Domain & SSL Settings
+  # ---------------------------------------------------------------------------
+  /api/settings/console-domain:
+    get:
+      summary: Get console domain configuration
+      description: Retrieves the current Tako console domain, SSL certificate resolver, and HTTPS redirection status.
+      operationId: getConsoleDomainConfig
+      tags:
+        - Settings
+      responses:
+        '200':
+          description: Console domain configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsoleDomainConfig'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      summary: Update console domain and SSL configuration
+      description: Updates the Tako control plane domain, configures Traefik dynamic router, and manages SSL certificate settings.
+      operationId: updateConsoleDomainConfig
+      tags:
+        - Settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConsoleDomainRequest'
+      responses:
+        '200':
+          description: Updated console domain configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsoleDomainConfig'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/settings/console-domain/verify:
+    post:
+      summary: Verify console domain DNS resolution
+      description: Resolves public A/AAAA records for the domain and checks if they match the Tako host public IP address.
+      operationId: verifyConsoleDomainDNS
+      tags:
+        - Settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyConsoleDomainRequest'
+      responses:
+        '200':
+          description: DNS resolution verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyConsoleDomainResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  # ---------------------------------------------------------------------------
+  # Audit Log & Activity Feed
+  # ---------------------------------------------------------------------------
+  /api/audit-log:
+    get:
+      summary: List audit log entries
+      description: Retrieves a cursor-paginated list of administrative and system audit events, sorted newest-first.
+      operationId: listAuditLog
+      tags:
+        - Audit
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Maximum number of entries to return (default 50, maximum 100).
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Cursor for pagination (fetch records created before this cursor).
+      responses:
+        '200':
+          description: Paginated list of audit events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogListResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/storage/s3:
+    get:
+      summary: List S3 storage destinations
+      description: Returns all configured S3-compatible storage destinations.
+      operationId: listS3Destinations
+      tags:
+        - Storage
+      responses:
+        '200':
+          description: List of S3 destinations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/S3Destination'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create S3 storage destination
+      description: Registers a new S3 storage destination with encrypted credentials.
+      operationId: createS3Destination
+      tags:
+        - Storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateS3DestinationRequest'
+      responses:
+        '201':
+          description: S3 destination created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/S3Destination'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/storage/s3/{id}:
+    patch:
+      summary: Update S3 storage destination
+      description: Updates endpoint, credentials, or default status of an S3 destination.
+      operationId: updateS3Destination
+      tags:
+        - Storage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: S3 Destination ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateS3DestinationRequest'
+      responses:
+        '200':
+          description: S3 destination updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/S3Destination'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete S3 storage destination
+      description: Removes an S3 destination, prevented if bound to active backup schedules.
+      operationId: deleteS3Destination
+      tags:
+        - Storage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: S3 Destination ID
+      responses:
+        '200':
+          description: S3 destination removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/storage/s3/{id}/test:
+    post:
+      summary: Test S3 storage destination connection
+      description: Tests credentials and connectivity for an existing S3 storage destination.
+      operationId: testS3Destination
+      tags:
+        - Storage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: S3 Destination ID
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestS3DestinationRequest'
+      responses:
+        '200':
+          description: S3 connection successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '502':
+          description: Bad gateway / S3 connection failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/storage/s3/test:
+    post:
+      summary: Test raw S3 storage destination credentials
+      description: Tests connection for provided credentials before creating or saving.
+      operationId: testS3DestinationRaw
+      tags:
+        - Storage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestS3DestinationRequest'
+      responses:
+        '200':
+          description: S3 connection successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '502':
+          description: Bad gateway / S3 connection failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/services/{id}/backups:
+    get:
+      summary: List service backups
+      description: Lists database dumps and volume snapshots for a service.
+      operationId: listServiceBackups
+      tags:
+        - Backups
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      responses:
+        '200':
+          description: List of service backups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupRecord'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    post:
+      summary: Trigger on-demand service backup
+      description: Dumps the database or volume, compresses with gzip, and uploads to S3.
+      operationId: triggerServiceBackup
+      tags:
+        - Backups
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerBackupRequest'
+      responses:
+        '200':
+          description: Backup initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupRecord'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/backup-schedule:
+    get:
+      summary: Get service backup schedule
+      description: Returns the automated backup schedule configuration for a service.
+      operationId: getServiceBackupSchedule
+      tags:
+        - Backups
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Service backup schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceBackupSchedule'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update service backup schedule
+      description: Configures automated backup schedule, target S3 destination, and retention limit for a service.
+      operationId: updateServiceBackupSchedule
+      tags:
+        - Backups
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Service ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBackupScheduleRequest'
+      responses:
+        '200':
+          description: Updated service backup schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceBackupSchedule'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/services/{id}/backups/{backup_id}/download:
+    get:
+      summary: Download service backup
+      description: Returns a presigned download URL for the service backup archive.
+      operationId: downloadServiceBackup
+      tags:
+        - Backups
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: backup_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the service backup
+      responses:
+        '200':
+          description: Presigned download URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadBackupResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/backups/{backup_id}/restore:
+    post:
+      summary: Restore service backup
+      description: Streams the backup dump archive from S3 directly into the container database or volume.
+      operationId: restoreServiceBackup
+      tags:
+        - Backups
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: backup_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the service backup
+      responses:
+        '200':
+          description: Service backup restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/services/{id}/backups/{backup_id}:
+    delete:
+      summary: Delete service backup
+      description: Deletes the backup file from S3 and removes the record from database.
+      operationId: deleteServiceBackup
+      tags:
+        - Backups
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - name: backup_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the service backup
+      responses:
+        '200':
+          description: Backup deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: tako_session
+      description: Session cookie set after successful authentication
+
+  parameters:
+    ServerId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the server
+
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the project
+
+    ServiceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the service
+
+    DeploymentId:
+      name: deployment_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Unique identifier of the deployment
+
+    DomainParam:
+      name: domain
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Fully qualified domain name
+
+  responses:
+    BadRequestError:
+      description: Invalid request payload or parameter validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnauthorizedError:
+      description: Missing or invalid authentication session
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ForbiddenError:
+      description: Insufficient privileges (administrator role required)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFoundError:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ConflictError:
+      description: Resource conflict or active dependency prevents operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    SuccessResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation completed successfully.
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: NOT_FOUND
+        message:
+          type: string
+          example: Resource was not found.
+        details:
+          type:
+            - object
+            - 'null'
+          additionalProperties: true
+
+    UserRole:
+      type: string
+      enum:
+        - admin
+        - member
+      example: member
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+        - two_factor_enabled
+        - passkeys_enabled
+        - created_at
+      properties:
+        id:
+          type: string
+          example: usr_01h8x123
+        email:
+          type: string
+          format: email
+          example: dev@gettako.dev
+        name:
+          type: string
+          example: Alex Developer
+        role:
+          $ref: '#/components/schemas/UserRole'
+        two_factor_enabled:
+          type: boolean
+          example: false
+        passkeys_enabled:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-30T10:00:00Z'
+
+    UpdateUserRoleRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    Invite:
+      type: object
+      required:
+        - id
+        - role
+        - created_by
+        - expires_at
+        - created_at
+      properties:
+        id:
+          type: string
+          example: inv_01h8x123
+        role:
+          $ref: '#/components/schemas/UserRole'
+        created_by:
+          type: string
+          example: usr_admin
+        expires_at:
+          type: string
+          format: date-time
+          example: '2026-10-07T10:00:00Z'
+        used_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-30T10:00:00Z'
+
+    CreateInviteRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/UserRole'
+          default: member
+
+    CreateInviteResponse:
+      type: object
+      required:
+        - id
+        - role
+        - token
+        - invite_url
+        - expires_at
+        - created_at
+      properties:
+        id:
+          type: string
+          example: inv_01h8x123
+        role:
+          $ref: '#/components/schemas/UserRole'
+        token:
+          type: string
+          example: tako_inv_a1b2c3d4e5f6...
+        invite_url:
+          type: string
+          example: /register?token=tako_inv_a1b2c3d4e5f6...
+        expires_at:
+          type: string
+          format: date-time
+          example: '2026-10-07T10:00:00Z'
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-30T10:00:00Z'
+
+    InviteValidationResponse:
+      type: object
+      required:
+        - valid
+        - role
+        - cluster_name
+      properties:
+        valid:
+          type: boolean
+          example: true
+        role:
+          $ref: '#/components/schemas/UserRole'
+        cluster_name:
+          type: string
+          example: Tako
+
+    AcceptInviteRequest:
+      type: object
+      required:
+        - token
+        - name
+        - email
+        - password
+      properties:
+        token:
+          type: string
+          example: tako_inv_a1b2c3d4e5f6...
+        name:
+          type: string
+          example: Jordan Lee
+        email:
+          type: string
+          format: email
+          example: jordan@company.com
+        password:
+          type: string
+          format: password
+          example: supersafepassword123
+
+    AdminUser:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - role
+        - two_factor_enabled
+        - passkeys_enabled
+        - created_at
+      properties:
+        id:
+          type: string
+          example: usr_admin
+        email:
+          type: string
+          format: email
+          example: admin@gettako.dev
+        name:
+          type: string
+          example: Admin Owner
+        role:
+          $ref: '#/components/schemas/UserRole'
+          default: admin
+        two_factor_enabled:
+          type: boolean
+          example: false
+        passkeys_enabled:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:00:00Z'
+
+    UpdateProfileRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@gettako.dev
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+          example: current_secret_pwd
+        new_password:
+          type: string
+          minLength: 8
+          example: new_secure_pwd_123
+
+    LoginRequest:
+      type: object
+      required:
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@gettako.dev
+        password:
+          type: string
+          format: password
+          example: supersecretmasterpassword
+        two_factor_code:
+          type:
+            - string
+            - 'null'
+          example: '123456'
+
+    LoginResponse:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/AdminUser'
+        requires_2fa:
+          type:
+            - boolean
+            - 'null'
+          example: false
+        session_id:
+          type:
+            - string
+            - 'null'
+          example: sess_abc123
+
+    TwoFactorSetupResponse:
+      type: object
+      required:
+        - secret
+        - qr_code_svg
+        - recovery_codes
+      properties:
+        secret:
+          type: string
+          example: JBSWY3DPEHPK3PXP
+        qr_code_svg:
+          type: string
+          description: SVG image payload of the TOTP barcode
+          example: <svg xmlns="http://www.w3.org/2000/svg">...</svg>
+        recovery_codes:
+          type: array
+          items:
+            type: string
+          example:
+            - abcd-1234
+            - efgh-5678
+
+    TwoFactorVerifyRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          example: '654321'
+
+    PasskeyRegistrationOptions:
+      type: object
+      required:
+        - challenge
+        - rp
+        - user
+        - pubKeyCredParams
+      properties:
+        challenge:
+          type: string
+        rp:
+          type: object
+          required:
+            - name
+            - id
+          properties:
+            name:
+              type: string
+            id:
+              type: string
+        user:
+          type: object
+          required:
+            - id
+            - name
+            - displayName
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            displayName:
+              type: string
+        pubKeyCredParams:
+          type: array
+          items:
+            type: object
+            required:
+              - type
+              - alg
+            properties:
+              type:
+                type: string
+              alg:
+                type: integer
+
+    PasskeyRegistrationVerification:
+      type: object
+      required:
+        - id
+        - rawId
+        - response
+        - type
+      properties:
+        id:
+          type: string
+        rawId:
+          type: string
+        type:
+          type: string
+        response:
+          type: object
+          required:
+            - clientDataJSON
+            - attestationObject
+          properties:
+            clientDataJSON:
+              type: string
+            attestationObject:
+              type: string
+
+    PasskeyRegistrationResult:
+      type: object
+      required:
+        - success
+        - credential_id
+      properties:
+        success:
+          type: boolean
+          example: true
+        credential_id:
+          type: string
+          example: cred_webauthn_123
+
+    PasskeyLoginOptions:
+      type: object
+      required:
+        - challenge
+      properties:
+        challenge:
+          type: string
+        timeout:
+          type:
+            - integer
+            - 'null'
+        rpId:
+          type:
+            - string
+            - 'null'
+        allowCredentials:
+          type:
+            - array
+            - 'null'
+          items:
+            type: object
+            required:
+              - id
+              - type
+            properties:
+              id:
+                type: string
+              type:
+                type: string
+
+    PasskeyLoginVerification:
+      type: object
+      required:
+        - id
+        - rawId
+        - response
+        - type
+      properties:
+        id:
+          type: string
+        rawId:
+          type: string
+        type:
+          type: string
+        response:
+          type: object
+          required:
+            - clientDataJSON
+            - authenticatorData
+            - signature
+          properties:
+            clientDataJSON:
+              type: string
+            authenticatorData:
+              type: string
+            signature:
+              type: string
+            userHandle:
+              type:
+                - string
+                - 'null'
+
+    Server:
+      type: object
+      required:
+        - id
+        - name
+        - host
+        - status
+        - agent_version
+        - cpu_percent
+        - ram_percent
+        - ram_total_bytes
+        - ram_used_bytes
+        - disk_percent
+        - active_services_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: srv_primary
+        name:
+          type: string
+          example: Primary Server
+        host:
+          type: string
+          example: 198.51.100.1
+        status:
+          type: string
+          enum: [online, offline, pending]
+          example: online
+        agent_version:
+          type: string
+          example: v1.0.0
+        agent_version_mismatch:
+          type: boolean
+          description: True if the agent version differs from the expected control plane version
+          example: false
+        cpu_percent:
+          type: number
+          example: 14.5
+        ram_percent:
+          type: number
+          example: 42.1
+        ram_total_bytes:
+          type: integer
+          example: 8589934592
+        ram_used_bytes:
+          type: integer
+          example: 3616609075
+        disk_percent:
+          type: number
+          example: 38.0
+        active_services_count:
+          type: integer
+          example: 4
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:05:00Z'
+
+    CreateServerRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Worker Node 01
+        host:
+          type:
+            - string
+            - 'null'
+          example: 203.0.113.10
+
+    CreateServerResponse:
+      type: object
+      required:
+        - server
+        - enrollment_token
+        - compose_snippet
+      properties:
+        server:
+          $ref: '#/components/schemas/Server'
+        enrollment_token:
+          type: string
+          example: tako_tok_9b2d88a4c0
+        compose_snippet:
+          type: string
+          description: Ready to run docker compose YAML snippet
+          example: |
+            services:
+              tako-agent:
+                image: ghcr.io/gettako/agent:latest
+                restart: unless-stopped
+                environment:
+                  - TAKO_SERVER_URL=https://gettako.dev
+                  - TAKO_ENROLLMENT_TOKEN=tako_tok_9b2d88a4c0
+                volumes:
+                  - /var/run/docker.sock:/var/run/docker.sock
+                  - /etc/tako:/etc/tako
+
+    UpdateServerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Primary Server
+        host:
+          type: string
+          example: 198.51.100.22
+        max_concurrent_builds:
+          type: integer
+          minimum: 1
+          maximum: 8
+          description: Maximum number of concurrent deployment builds allowed on this server
+          example: 2
+
+    ServerDetail:
+      allOf:
+        - $ref: '#/components/schemas/Server'
+        - type: object
+          required:
+            - docker_version
+            - os_info
+            - uptime_seconds
+            - last_heartbeat_at
+            - services
+          properties:
+            docker_version:
+              type: string
+              example: 26.1.3
+            os_info:
+              type: string
+              example: Ubuntu 24.04 LTS (x86_64)
+            uptime_seconds:
+              type: integer
+              example: 864200
+            last_heartbeat_at:
+              type:
+                - string
+                - 'null'
+              format: date-time
+              example: '2026-09-28T12:04:50Z'
+            expected_agent_version:
+              type: string
+              description: Agent version expected by the control plane
+              example: v1.0.0
+            max_concurrent_builds:
+              type: integer
+              minimum: 1
+              maximum: 8
+              default: 2
+              description: Maximum number of concurrent deployment builds allowed on this server
+              example: 2
+            services:
+              type: array
+              items:
+                $ref: '#/components/schemas/ServiceSummary'
+
+    PruneResult:
+      type: object
+      required:
+        - success
+        - reclaimed_bytes
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        reclaimed_bytes:
+          type: integer
+          example: 4831838208
+        message:
+          type: string
+          example: Cleaned 4.5 GB of build cache and dangling images.
+
+    ServerTraefikConfig:
+      type: object
+      required:
+        - custom_yaml
+        - static_yaml
+      properties:
+        custom_yaml:
+          type: string
+          description: Content of /etc/traefik/dynamic/custom.yaml
+        static_yaml:
+          type: string
+          description: Content of /etc/traefik/traefik.yaml
+
+    UpdateTraefikConfigRequest:
+      type: object
+      required:
+        - custom_yaml
+      properties:
+        custom_yaml:
+          type: string
+          description: New YAML content for /etc/traefik/dynamic/custom.yaml
+
+    Project:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - services_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: prj_acme
+        name:
+          type: string
+          example: Acme Application
+        description:
+          type:
+            - string
+            - 'null'
+          example: Core production applications for Acme.
+        services_count:
+          type: integer
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:10:00Z'
+
+    CreateProjectRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Acme Application
+        description:
+          type:
+            - string
+            - 'null'
+          example: Core production applications for Acme.
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Acme Application
+        description:
+          type:
+            - string
+            - 'null'
+          example: Core production applications for Acme.
+
+    ProjectDetail:
+      allOf:
+        - $ref: '#/components/schemas/Project'
+        - type: object
+          required:
+            - services
+          properties:
+            services:
+              type: array
+              items:
+                $ref: '#/components/schemas/Service'
+
+    ServiceStatus:
+      type: string
+      enum: [running, stopped, building, failed, unhealthy]
+      example: running
+
+    ServiceType:
+      type: string
+      enum: [web, worker, cron, database, compose]
+      default: web
+      example: web
+
+    Service:
+      type: object
+      required:
+        - id
+        - project_id
+        - server_id
+        - name
+        - repository
+        - branch
+        - dockerfile_path
+        - internal_port
+        - health_check_path
+        - status
+        - service_type
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: srv_web
+        project_id:
+          type: string
+          example: prj_acme
+        server_id:
+          type: string
+          example: srv_primary
+        name:
+          type: string
+          example: acme-web
+        service_type:
+          $ref: '#/components/schemas/ServiceType'
+        parent_service_id:
+          type:
+            - string
+            - 'null'
+          example: srv_web
+        command:
+          type:
+            - string
+            - 'null'
+          example: php artisan queue:work
+        cron_expression:
+          type:
+            - string
+            - 'null'
+          example: "* * * * *"
+        database_engine:
+          type:
+            - string
+            - 'null'
+          example: postgres
+        database_version:
+          type:
+            - string
+            - 'null'
+          example: 16-alpine
+        database_name:
+          type:
+            - string
+            - 'null'
+          example: app_db
+        database_user:
+          type:
+            - string
+            - 'null'
+          example: postgres
+        database_password:
+          type:
+            - string
+            - 'null'
+          example: secret_password
+        volume_name:
+          type:
+            - string
+            - 'null'
+          example: tako_vol_srv_db_data
+        volume_mount_path:
+          type:
+            - string
+            - 'null'
+          example: /var/lib/postgresql/data
+        connection_uri:
+          type:
+            - string
+            - 'null'
+          example: postgres://postgres:secret@tako-srv_db:5432/app_db
+        repository:
+          type: string
+          example: acme/web-frontend
+        branch:
+          type: string
+          example: main
+        dockerfile_path:
+          type: string
+          example: Dockerfile
+        internal_port:
+          type: integer
+          example: 3000
+        published_port:
+          type:
+            - integer
+            - 'null'
+          example: 3000
+        health_check_path:
+          type: string
+          example: /healthz
+        status:
+          $ref: '#/components/schemas/ServiceStatus'
+        primary_domain:
+          type:
+            - string
+            - 'null'
+          example: acme.example.com
+        active_deployment_id:
+          type:
+            - string
+            - 'null'
+          example: dep_01
+        pre_deploy_command:
+          type:
+            - string
+            - 'null'
+          example: php artisan down
+        post_deploy_command:
+          type:
+            - string
+            - 'null'
+          example: php artisan migrate --force
+        compose_file_content:
+          type:
+            - string
+            - 'null'
+          example: "version: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n"
+        compose_file_path:
+          type:
+            - string
+            - 'null'
+          example: docker-compose.yml
+        github_connection_id:
+          type:
+            - string
+            - 'null'
+          example: ghc-1234abcd
+        auto_deploy:
+          type: boolean
+          example: true
+        trigger_on_push:
+          type: boolean
+          example: true
+        trigger_on_tag:
+          type: boolean
+          example: false
+        tag_pattern:
+          type:
+            - string
+            - 'null'
+          example: '*'
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:15:00Z'
+
+    ServiceSummary:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - internal_port
+      properties:
+        id:
+          type: string
+          example: srv_web
+        name:
+          type: string
+          example: acme-web
+        status:
+          $ref: '#/components/schemas/ServiceStatus'
+        internal_port:
+          type: integer
+          example: 3000
+
+    CreateServiceRequest:
+      type: object
+      required:
+        - project_id
+        - name
+      properties:
+        project_id:
+          type: string
+          example: prj_acme
+        server_id:
+          type: string
+          example: srv_primary
+        name:
+          type: string
+          example: acme-web
+        service_type:
+          $ref: '#/components/schemas/ServiceType'
+        parent_service_id:
+          type: string
+          example: srv_web
+        command:
+          type: string
+          example: php artisan queue:work
+        cron_expression:
+          type: string
+          example: "* * * * *"
+        database_engine:
+          type: string
+          example: postgres
+        database_version:
+          type: string
+          example: 16-alpine
+        database_name:
+          type: string
+          example: app_db
+        database_user:
+          type: string
+          example: postgres
+        database_password:
+          type: string
+          example: custom_password
+        volume_name:
+          type: string
+          example: tako_vol_custom
+        volume_mount_path:
+          type: string
+          example: /var/lib/postgresql/data
+        repository:
+          type: string
+          example: acme/web-frontend
+        branch:
+          type: string
+          example: main
+        dockerfile_path:
+          type: string
+          default: Dockerfile
+          example: Dockerfile
+        internal_port:
+          type: integer
+          default: 3000
+          example: 3000
+        published_port:
+          type:
+            - integer
+            - 'null'
+          example: 3000
+        health_check_path:
+          type: string
+          default: /healthz
+          example: /healthz
+        pre_deploy_command:
+          type: string
+          example: php artisan down
+        post_deploy_command:
+          type: string
+          example: php artisan migrate --force
+        compose_file_content:
+          type: string
+          example: "version: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n"
+        compose_file_path:
+          type: string
+          example: docker-compose.yml
+        github_connection_id:
+          type:
+            - string
+            - 'null'
+          example: ghc-1234abcd
+        auto_deploy:
+          type: boolean
+          example: true
+        trigger_on_push:
+          type: boolean
+          example: true
+        trigger_on_tag:
+          type: boolean
+          example: false
+        tag_pattern:
+          type:
+            - string
+            - 'null'
+          example: '*'
+
+    UpdateServiceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: acme-web
+        service_type:
+          $ref: '#/components/schemas/ServiceType'
+        branch:
+          type: string
+          example: main
+        dockerfile_path:
+          type: string
+          example: Dockerfile
+        internal_port:
+          type: integer
+          example: 3000
+        published_port:
+          type:
+            - integer
+            - 'null'
+          example: 3000
+        health_check_path:
+          type: string
+          example: /healthz
+        server_id:
+          type: string
+          example: srv_primary
+        command:
+          type: string
+          example: php artisan queue:work
+        cron_expression:
+          type: string
+          example: "* * * * *"
+        volume_name:
+          type: string
+          example: tako_vol_custom
+        volume_mount_path:
+          type: string
+          example: /var/lib/postgresql/data
+        pre_deploy_command:
+          type: string
+          example: php artisan down
+        post_deploy_command:
+          type: string
+          example: php artisan migrate --force
+        compose_file_content:
+          type: string
+          example: "version: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n"
+        compose_file_path:
+          type: string
+          example: docker-compose.yml
+        github_connection_id:
+          type:
+            - string
+            - 'null'
+          example: ghc-1234abcd
+        auto_deploy:
+          type: boolean
+          example: true
+        trigger_on_push:
+          type: boolean
+          example: true
+        trigger_on_tag:
+          type: boolean
+          example: false
+        tag_pattern:
+          type:
+            - string
+            - 'null'
+          example: '*'
+
+    RebuildRequest:
+      type: object
+      properties:
+        branch:
+          type:
+            - string
+            - 'null'
+          example: main
+        commit_sha:
+          type:
+            - string
+            - 'null'
+          example: 7a21ac2
+
+    PullUpdateResponse:
+      type: object
+      required:
+        - updated
+        - message
+      properties:
+        updated:
+          type: boolean
+          description: Whether a new image digest was detected and the container was recreated.
+        message:
+          type: string
+          description: Informative status message.
+        image_digest:
+          type: string
+          description: The active image digest after pull check.
+
+    ServiceDetail:
+      allOf:
+        - $ref: '#/components/schemas/Service'
+        - type: object
+          required:
+            - server
+            - project
+            - domains
+            - env_vars_count
+          properties:
+            server:
+              $ref: '#/components/schemas/Server'
+            project:
+              $ref: '#/components/schemas/Project'
+            domains:
+              type: array
+              items:
+                $ref: '#/components/schemas/Domain'
+            active_deployment:
+              anyOf:
+                - $ref: '#/components/schemas/Deployment'
+                - type: 'null'
+            env_vars_count:
+              type: integer
+              example: 5
+
+    DeploymentStatus:
+      type: string
+      enum: [queued, building, deploying, success, failed, cancelled]
+      example: success
+
+    Deployment:
+      type: object
+      required:
+        - id
+        - service_id
+        - status
+        - commit_sha
+        - commit_message
+        - commit_author
+        - branch
+        - image_tag
+        - created_at
+      properties:
+        id:
+          type: string
+          example: dep_01
+        service_id:
+          type: string
+          example: srv_web
+        status:
+          $ref: '#/components/schemas/DeploymentStatus'
+        commit_sha:
+          type: string
+          example: 7a21ac2
+        commit_message:
+          type: string
+          example: add health check route
+        commit_author:
+          type: string
+          example: Developer
+        branch:
+          type: string
+          example: main
+        image_tag:
+          type:
+            - string
+            - 'null'
+          example: tako-app-srv_web:dep_01
+        started_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-09-28T12:01:00Z'
+        finished_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+          example: '2026-09-28T12:02:15Z'
+        duration_seconds:
+          type:
+            - integer
+            - 'null'
+          example: 75
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:00:50Z'
+        env_snapshot:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvVar'
+
+    CreateDeploymentRequest:
+      type: object
+      properties:
+        branch:
+          type:
+            - string
+            - 'null'
+          example: main
+        commit_sha:
+          type:
+            - string
+            - 'null'
+          example: 7a21ac2
+
+    DeploymentListResponse:
+      type: object
+      required:
+        - items
+        - total
+        - page
+        - limit
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deployment'
+        total:
+          type: integer
+          example: 24
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+
+    PreviewEnvironment:
+      type: object
+      required:
+        - id
+        - service_id
+        - pr_number
+        - name
+        - branch
+        - commit_sha
+        - status
+        - url
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: svc_preview_42
+        service_id:
+          type: string
+          example: svc_web_prod
+        pr_number:
+          type: integer
+          example: 42
+        name:
+          type: string
+          example: Web-pr-42
+        branch:
+          type: string
+          example: feat/new-button
+        commit_sha:
+          type: string
+          example: a1b2c3d
+        status:
+          type: string
+          example: healthy
+        url:
+          type: string
+          example: https://pr-42.myapp.gettako.dev
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    BuildStep:
+      type: object
+      required:
+        - event
+        - step
+        - title
+        - status
+      properties:
+        event:
+          type: string
+          enum: [build_step]
+          default: build_step
+        step:
+          type: string
+          example: 1/6
+        title:
+          type: string
+          example: FROM node:20-alpine
+        status:
+          type: string
+          enum: [pending, running, success, failed]
+          example: success
+        duration_seconds:
+          type:
+            - integer
+            - 'null'
+          example: 12
+
+    DeploymentDetail:
+      allOf:
+        - $ref: '#/components/schemas/Deployment'
+        - type: object
+          required:
+            - build_steps
+          properties:
+            build_steps:
+              type: array
+              items:
+                $ref: '#/components/schemas/BuildStep'
+            error_trace:
+              type:
+                - string
+                - 'null'
+              example: Command failed with exit code 1
+
+    EnvVar:
+      type: object
+      required:
+        - key
+        - value
+        - is_secret
+      properties:
+        key:
+          type: string
+          example: DATABASE_URL
+        value:
+          type: string
+          example: postgres://user:pass@db:5432/app
+        is_secret:
+          type: boolean
+          example: true
+
+    EnvVarInput:
+      type: object
+      required:
+        - key
+        - value
+        - is_secret
+      properties:
+        key:
+          type: string
+          example: DATABASE_URL
+        value:
+          type: string
+          example: postgres://user:pass@db:5432/app
+        is_secret:
+          type: boolean
+          default: false
+          example: true
+
+    ServiceEnv:
+      type: object
+      required:
+        - env_vars
+        - build_args
+      properties:
+        env_vars:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvVar'
+        build_args:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvVar'
+
+    UpdateServiceEnvRequest:
+      type: object
+      required:
+        - env_vars
+        - build_args
+      properties:
+        env_vars:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvVarInput'
+        build_args:
+          type: array
+          items:
+            $ref: '#/components/schemas/EnvVarInput'
+
+    InjectConnectionStringRequest:
+      type: object
+      required:
+        - target_service_id
+      properties:
+        target_service_id:
+          type: string
+          description: Target service ID in the same project to receive the connection string
+          example: srv_web
+        env_key:
+          type: string
+          description: Environment variable key name (defaults to DATABASE_URL or REDIS_URL)
+          example: DATABASE_URL
+
+    InjectConnectionStringResponse:
+      type: object
+      required:
+        - success
+        - target_service_id
+        - env_key
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        target_service_id:
+          type: string
+          example: srv_web
+        env_key:
+          type: string
+          example: DATABASE_URL
+        message:
+          type: string
+          example: Connection string injected successfully
+
+    Domain:
+      type: object
+      required:
+        - id
+        - service_id
+        - domain
+        - port
+        - ssl_status
+        - created_at
+      properties:
+        id:
+          type: string
+          example: dom_01
+        service_id:
+          type: string
+          example: srv_web
+        service_name:
+          type:
+            - string
+            - 'null'
+          example: Web Frontend
+        domain:
+          type: string
+          example: app.example.com
+        port:
+          type: integer
+          default: 3000
+          example: 3000
+        path_prefix:
+          type: string
+          default: ''
+          example: /api
+        strip_prefix:
+          type: boolean
+          default: false
+          example: false
+        is_canonical:
+          type: boolean
+          default: false
+          example: true
+        redirect_mode:
+          type: string
+          enum: [none, www_to_non_www, non_www_to_www]
+          default: none
+          example: www_to_non_www
+        auth_enabled:
+          type: boolean
+          default: false
+          example: false
+        auth_user:
+          type: string
+          default: ''
+          example: staging_admin
+        entrypoints:
+          type: string
+          default: web,websecure
+          example: web,websecure
+        ssl_resolver:
+          type: string
+          enum: [letsencrypt, none]
+          default: letsencrypt
+          example: letsencrypt
+        ssl_status:
+          type: string
+          enum: [active, pending, error]
+          example: active
+        ssl_error:
+          type:
+            - string
+            - 'null'
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:00:00Z'
+
+    AddDomainRequest:
+      type: object
+      required:
+        - domain
+      properties:
+        domain:
+          type: string
+          example: app.example.com
+        service_id:
+          type: string
+          description: Optional target service ID for cross-service routing within project
+          example: srv_web
+        port:
+          type: integer
+          default: 3000
+          example: 3000
+        path_prefix:
+          type: string
+          default: ''
+          example: /api
+        strip_prefix:
+          type: boolean
+          default: false
+          example: false
+        is_canonical:
+          type: boolean
+          default: false
+          example: false
+        redirect_mode:
+          type: string
+          enum: [none, www_to_non_www, non_www_to_www]
+          default: none
+          example: none
+        auth_enabled:
+          type: boolean
+          default: false
+          example: false
+        auth_user:
+          type: string
+          example: admin
+        auth_password:
+          type: string
+          example: secretpass123
+        entrypoints:
+          type: string
+          default: web,websecure
+          example: web,websecure
+        ssl_resolver:
+          type: string
+          enum: [letsencrypt, none]
+          default: letsencrypt
+          example: letsencrypt
+
+    UpdateDomainRequest:
+      type: object
+      properties:
+        service_id:
+          type: string
+          example: srv_web
+        port:
+          type: integer
+          example: 3000
+        path_prefix:
+          type: string
+          example: /api
+        strip_prefix:
+          type: boolean
+          example: false
+        is_canonical:
+          type: boolean
+          example: true
+        redirect_mode:
+          type: string
+          enum: [none, www_to_non_www, non_www_to_www]
+          example: www_to_non_www
+        auth_enabled:
+          type: boolean
+          example: false
+        auth_user:
+          type: string
+          example: admin
+        auth_password:
+          type: string
+          example: secretpass123
+        entrypoints:
+          type: string
+          example: web,websecure
+        ssl_resolver:
+          type: string
+          enum: [letsencrypt, none]
+          example: letsencrypt
+
+    GitHubStatus:
+      type: object
+      required:
+        - connected
+      properties:
+        connected:
+          type: boolean
+          example: true
+        username:
+          type:
+            - string
+            - 'null'
+          example: octocat
+        avatar_url:
+          type:
+            - string
+            - 'null'
+          example: https://avatars.githubusercontent.com/u/583231
+        app_installed:
+          type:
+            - boolean
+            - 'null'
+          example: true
+
+    GitHubRepo:
+      type: object
+      required:
+        - id
+        - name
+        - full_name
+        - private
+        - default_branch
+        - html_url
+      properties:
+        id:
+          type: integer
+          example: 1296269
+        name:
+          type: string
+          example: web-frontend
+        full_name:
+          type: string
+          example: acme/web-frontend
+        private:
+          type: boolean
+          example: true
+        default_branch:
+          type: string
+          example: main
+        html_url:
+          type: string
+          example: https://github.com/acme/web-frontend
+
+    GitHubBranch:
+      type: object
+      required:
+        - name
+        - commit_sha
+        - protected
+      properties:
+        name:
+          type: string
+          example: main
+        commit_sha:
+          type: string
+          example: 7a21ac20260928
+        protected:
+          type: boolean
+          example: true
+
+    GitHubConnection:
+      type: object
+      required:
+        - id
+        - name
+        - auth_type
+        - account_name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: ghc-1234abcd
+        name:
+          type: string
+          example: Personal GitHub
+        auth_type:
+          type: string
+          enum:
+            - pat
+            - app
+          example: pat
+        account_name:
+          type: string
+          example: octocat
+        avatar_url:
+          type:
+            - string
+            - 'null'
+          example: https://avatars.githubusercontent.com/u/583231
+        app_id:
+          type:
+            - string
+            - 'null'
+          example: '123456'
+        app_slug:
+          type:
+            - string
+            - 'null'
+          example: tako-deployer-123
+        installation_id:
+          type:
+            - string
+            - 'null'
+          example: '789012'
+        service_count:
+          type: integer
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-09-30T10:00:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          example: '2026-09-30T10:00:00Z'
+
+    CreateGitHubConnectionRequest:
+      type: object
+      required:
+        - name
+        - auth_type
+      properties:
+        name:
+          type: string
+          example: Personal GitHub
+        auth_type:
+          type: string
+          enum:
+            - pat
+            - app
+          example: pat
+        token:
+          type: string
+          description: Personal Access Token (for auth_type=pat)
+          example: ghp_1234567890abcdef
+        account_name:
+          type: string
+          description: Account or organization name
+          example: octocat
+        app_id:
+          type: string
+          description: GitHub App ID (for auth_type=app)
+          example: '123456'
+        app_slug:
+          type: string
+          description: GitHub App slug (for auth_type=app)
+          example: tako-deployer-123
+        installation_id:
+          type: string
+          description: GitHub App Installation ID (for auth_type=app)
+          example: '789012'
+        private_key:
+          type: string
+          description: GitHub App Private Key PEM (for auth_type=app)
+        webhook_secret:
+          type: string
+          description: GitHub Webhook secret for verification
+          example: whsec_abc123
+
+    GitHubManifestResponse:
+      type: object
+      required:
+        - action_url
+        - manifest
+      properties:
+        action_url:
+          type: string
+          example: https://github.com/settings/apps/new
+        manifest:
+          type: object
+          additionalProperties: true
+          description: Raw GitHub App manifest configuration payload
+
+    GitHubAppExchangeRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          example: 0123456789abcdef
+        name:
+          type: string
+          example: Tako Deployer
+
+    GitHubAppExchangeResponse:
+      type: object
+      required:
+        - connection_id
+        - app_id
+        - app_slug
+        - install_url
+      properties:
+        connection_id:
+          type: string
+          example: ghc-12345
+        app_id:
+          type: string
+          example: '98765'
+        app_slug:
+          type: string
+          example: tako-deployer-123
+        install_url:
+          type: string
+          example: https://github.com/apps/tako-deployer-123/installations/new
+
+    GitHubAppInstallation:
+      type: object
+      required:
+        - id
+        - account_name
+        - account_type
+      properties:
+        id:
+          type: integer
+          example: 123456
+        account_name:
+          type: string
+          example: octopy
+        account_type:
+          type: string
+          example: Organization
+        avatar_url:
+          type:
+            - string
+            - 'null'
+          example: https://avatars.githubusercontent.com/u/123456
+        app_id:
+          type: integer
+          example: 98765
+        target_id:
+          type: integer
+          example: 54321
+
+    WebhookResponse:
+      type: object
+      required:
+        - received
+      properties:
+        received:
+          type: boolean
+          example: true
+        deployment_triggered:
+          type:
+            - boolean
+            - 'null'
+          example: true
+        service_id:
+          type:
+            - string
+            - 'null'
+          example: srv_web
+
+    # -------------------------------------------------------------------------
+    # SSE Stream Event Payloads
+    # -------------------------------------------------------------------------
+    BuildLogEvent:
+      type: object
+      required:
+        - event
+        - stream
+        - line
+        - timestamp
+      properties:
+        event:
+          type: string
+          enum: [build_log]
+          default: build_log
+        stream:
+          type: string
+          enum: [stdout, stderr]
+          example: stdout
+        line:
+          type: string
+          example: 'Step 2/6 : WORKDIR /app'
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:01:10.123Z'
+
+    BuildCompleteEvent:
+      type: object
+      required:
+        - event
+        - status
+        - duration_seconds
+      properties:
+        event:
+          type: string
+          enum: [build_complete]
+          default: build_complete
+        status:
+          type: string
+          enum: [success, failed]
+          example: success
+        image_tag:
+          type:
+            - string
+            - 'null'
+          example: tako-app-srv_web:dep_01
+        duration_seconds:
+          type: integer
+          example: 45
+        error:
+          type:
+            - string
+            - 'null'
+          example: null
+
+    BuildLogStreamEvent:
+      description: Event emitted during Docker image build. Can be build_step, build_log, or build_complete.
+      discriminator:
+        propertyName: event
+        mapping:
+          build_step: '#/components/schemas/BuildStep'
+          build_log: '#/components/schemas/BuildLogEvent'
+          build_complete: '#/components/schemas/BuildCompleteEvent'
+      oneOf:
+        - $ref: '#/components/schemas/BuildStep'
+        - $ref: '#/components/schemas/BuildLogEvent'
+        - $ref: '#/components/schemas/BuildCompleteEvent'
+
+    ContainerLogEvent:
+      type: object
+      required:
+        - container_id
+        - stream
+        - line
+        - timestamp
+      properties:
+        container_id:
+          type: string
+          example: c7a8b9f01234
+        container_name:
+          type: string
+          example: web
+        stream:
+          type: string
+          enum: [stdout, stderr]
+          example: stdout
+        line:
+          type: string
+          example: Server listening on port 3000
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-09-28T12:05:00.456Z'
+
+    ValidateComposeRequest:
+      type: object
+      required:
+        - compose_content
+      properties:
+        compose_content:
+          type: string
+          example: "version: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n"
+
+    ComposeSubServiceSummary:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: web
+        image:
+          type: string
+          example: nginx:alpine
+        ports:
+          type: array
+          items:
+            type: string
+          example: ["80:80"]
+        environment:
+          type: object
+          additionalProperties:
+            type: string
+        depends_on:
+          type: array
+          items:
+            type: string
+          example: ["db"]
+
+    ValidateComposeResponse:
+      type: object
+      required:
+        - valid
+        - services
+        - errors
+      properties:
+        valid:
+          type: boolean
+          example: true
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComposeSubServiceSummary'
+        errors:
+          type: array
+          items:
+            type: string
+          example: []
+
+    ComposeSubService:
+      type: object
+      required:
+        - name
+        - status
+      properties:
+        name:
+          type: string
+          example: web
+        image:
+          type: string
+          example: nginx:alpine
+        container_id:
+          type: string
+          example: c7a8b9f01234
+        container_name:
+          type: string
+          example: tako-srv_1-web
+        status:
+          type: string
+          example: running
+        ip_address:
+          type: string
+          example: 172.28.0.2
+        ports:
+          type: array
+          items:
+            type: string
+          example: ["80:80"]
+        environment:
+          type: object
+          additionalProperties:
+            type: string
+        depends_on:
+          type: array
+          items:
+            type: string
+          example: ["db"]
+        cpu_percent:
+          type: number
+          example: 1.2
+        memory_bytes:
+          type: integer
+          example: 45000000
+
+    ComposeStackOverview:
+      type: object
+      required:
+        - service_id
+        - project_id
+        - network_name
+        - sub_services
+      properties:
+        service_id:
+          type: string
+          example: srv_compose_1
+        project_id:
+          type: string
+          example: prj_acme
+        network_name:
+          type: string
+          example: tako_compose_prj_acme
+        compose_content:
+          type: string
+          example: "version: '3.8'\nservices:\n  web:\n    image: nginx:alpine\n"
+        compose_path:
+          type: string
+          example: docker-compose.yml
+        sub_services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComposeSubService'
+
+    ServiceStatusEvent:
+      type: object
+      required:
+        - service_id
+        - status
+      properties:
+        service_id:
+          type: string
+          example: srv_web
+        status:
+          $ref: '#/components/schemas/ServiceStatus'
+        active_deployment_id:
+          type:
+            - string
+            - 'null'
+          example: dep_01
+        uptime_seconds:
+          type:
+            - integer
+            - 'null'
+          example: 3600
+
+    BackupConfig:
+      type: object
+      required:
+        - id
+        - enabled
+        - endpoint_url
+        - bucket
+        - region
+        - access_key
+        - has_secret_key
+        - cron_expression
+        - retention_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: global
+        service_id:
+          type: string
+          nullable: true
+          example: null
+        enabled:
+          type: boolean
+          example: true
+        endpoint_url:
+          type: string
+          example: https://s3.us-east-1.amazonaws.com
+        bucket:
+          type: string
+          example: my-tako-backups
+        region:
+          type: string
+          example: us-east-1
+        access_key:
+          type: string
+          example: AKIAIOSFODNN7EXAMPLE
+        has_secret_key:
+          type: boolean
+          example: true
+        cron_expression:
+          type: string
+          example: '0 2 * * *'
+        retention_count:
+          type: integer
+          example: 30
+        s3_destination_id:
+          type: string
+          nullable: true
+          example: s3d_cloudflare_r2
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UpdateBackupConfigRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        s3_destination_id:
+          type: string
+          nullable: true
+        endpoint_url:
+          type: string
+        bucket:
+          type: string
+        region:
+          type: string
+        access_key:
+          type: string
+        secret_key:
+          type: string
+        cron_expression:
+          type: string
+        retention_count:
+          type: integer
+
+    TestS3ConfigRequest:
+      type: object
+      properties:
+        endpoint_url:
+          type: string
+        bucket:
+          type: string
+        region:
+          type: string
+        access_key:
+          type: string
+        secret_key:
+          type: string
+
+    BackupType:
+      type: string
+      enum:
+        - database
+        - volume
+        - control_plane
+
+    BackupStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - completed
+        - failed
+
+    BackupRecord:
+      type: object
+      required:
+        - id
+        - backup_type
+        - status
+        - file_name
+        - s3_key
+        - file_size_bytes
+        - created_at
+      properties:
+        id:
+          type: string
+          example: bkp_123
+        service_id:
+          type: string
+          nullable: true
+        server_id:
+          type: string
+          nullable: true
+        backup_type:
+          $ref: '#/components/schemas/BackupType'
+        database_engine:
+          type: string
+          nullable: true
+          example: postgres
+        status:
+          $ref: '#/components/schemas/BackupStatus'
+        file_name:
+          type: string
+          example: tako-control-plane-20260929.db.gz
+        s3_key:
+          type: string
+          example: backups/control-plane/tako-control-plane-20260929.db.gz
+        file_size_bytes:
+          type: integer
+          format: int64
+          example: 1048576
+        s3_destination_id:
+          type: string
+          nullable: true
+        s3_destination_name:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        download_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    TriggerBackupRequest:
+      type: object
+      properties:
+        backup_type:
+          type: string
+          enum:
+            - database
+            - volume
+        s3_destination_id:
+          type: string
+          nullable: true
+
+    ServiceBackupSchedule:
+      type: object
+      required:
+        - id
+        - service_id
+        - enabled
+        - cron_expression
+        - retention_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        service_id:
+          type: string
+        enabled:
+          type: boolean
+        s3_destination_id:
+          type: string
+          nullable: true
+        s3_destination_name:
+          type: string
+          nullable: true
+        cron_expression:
+          type: string
+          example: "0 2 * * *"
+        retention_count:
+          type: integer
+          example: 7
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UpdateBackupScheduleRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        s3_destination_id:
+          type: string
+          nullable: true
+        cron_expression:
+          type: string
+          example: "0 2 * * *"
+        retention_count:
+          type: integer
+          example: 7
+
+    DownloadBackupResponse:
+      type: object
+      required:
+        - download_url
+      properties:
+        download_url:
+          type: string
+
+    ServiceMetricPoint:
+      type: object
+      required:
+        - timestamp
+        - cpu_percent
+        - memory_bytes
+        - memory_limit_bytes
+        - network_rx_bytes
+        - network_tx_bytes
+        - network_rx_rate
+        - network_tx_rate
+        - restart_count
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-09-29T12:00:00Z'
+        cpu_percent:
+          type: number
+          example: 1.4
+        memory_bytes:
+          type: integer
+          example: 148897792
+        memory_limit_bytes:
+          type: integer
+          example: 1073741824
+        network_rx_bytes:
+          type: integer
+          example: 10485760
+        network_tx_bytes:
+          type: integer
+          example: 5242880
+        network_rx_rate:
+          type: number
+          example: 1024.5
+        network_tx_rate:
+          type: number
+          example: 512.0
+        restart_count:
+          type: integer
+          example: 0
+
+    ServiceMetricsCurrent:
+      type: object
+      required:
+        - cpu_percent
+        - memory_bytes
+        - memory_limit_bytes
+        - network_rx_bytes
+        - network_tx_bytes
+        - network_rx_rate
+        - network_tx_rate
+        - restart_count
+      properties:
+        cpu_percent:
+          type: number
+          example: 1.4
+        memory_bytes:
+          type: integer
+          example: 148897792
+        memory_limit_bytes:
+          type: integer
+          example: 1073741824
+        network_rx_bytes:
+          type: integer
+          example: 10485760
+        network_tx_bytes:
+          type: integer
+          example: 5242880
+        network_rx_rate:
+          type: number
+          example: 1024.5
+        network_tx_rate:
+          type: number
+          example: 512.0
+        restart_count:
+          type: integer
+          example: 0
+
+    ServiceMetricsResponse:
+      type: object
+      required:
+        - service_id
+        - range
+        - current
+        - points
+      properties:
+        service_id:
+          type: string
+          example: srv_web
+        range:
+          type: string
+          enum:
+            - 1h
+            - 6h
+            - 24h
+            - 7d
+          example: 1h
+        current:
+          $ref: '#/components/schemas/ServiceMetricsCurrent'
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/ServiceMetricPoint'
+
+    NotificationChannelType:
+      type: string
+      enum:
+        - discord
+        - telegram
+      example: discord
+
+    NotificationChannel:
+      type: object
+      required:
+        - id
+        - type
+        - name
+        - enabled
+        - on_deploy_success
+        - on_deploy_failed
+        - on_container_crashed
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: notif_abc123
+        type:
+          $ref: '#/components/schemas/NotificationChannelType'
+        name:
+          type: string
+          example: Deploy Alerts Discord
+        enabled:
+          type: boolean
+          example: true
+        webhook_url:
+          type: string
+          nullable: true
+          example: https://discord.com/api/webhooks/123/xyz
+        bot_token:
+          type: string
+          nullable: true
+          example: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+        chat_id:
+          type: string
+          nullable: true
+          example: "-1001234567890"
+        on_deploy_success:
+          type: boolean
+          example: true
+        on_deploy_failed:
+          type: boolean
+          example: true
+        on_container_crashed:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateNotificationChannelRequest:
+      type: object
+      required:
+        - type
+        - name
+      properties:
+        type:
+          $ref: '#/components/schemas/NotificationChannelType'
+        name:
+          type: string
+          example: Deploy Alerts Discord
+        enabled:
+          type: boolean
+          default: true
+        webhook_url:
+          type: string
+          example: https://discord.com/api/webhooks/123/xyz
+        bot_token:
+          type: string
+          example: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+        chat_id:
+          type: string
+          example: "-1001234567890"
+        on_deploy_success:
+          type: boolean
+          default: true
+        on_deploy_failed:
+          type: boolean
+          default: true
+        on_container_crashed:
+          type: boolean
+          default: true
+
+    UpdateNotificationChannelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Production Alerts Discord
+        enabled:
+          type: boolean
+        webhook_url:
+          type: string
+        bot_token:
+          type: string
+        chat_id:
+          type: string
+        on_deploy_success:
+          type: boolean
+        on_deploy_failed:
+          type: boolean
+        on_container_crashed:
+          type: boolean
+
+    S3Destination:
+      type: object
+      required:
+        - id
+        - name
+        - endpoint
+        - region
+        - bucket_name
+        - access_key_id
+        - use_path_style
+        - is_default
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: s3d_abc123
+        name:
+          type: string
+          example: AWS S3 Production
+        endpoint:
+          type: string
+          example: https://s3.us-east-1.amazonaws.com
+        region:
+          type: string
+          example: us-east-1
+        bucket_name:
+          type: string
+          example: tako-backups
+        access_key_id:
+          type: string
+          example: AKIAIOSFODNN7EXAMPLE
+        use_path_style:
+          type: boolean
+          example: false
+        is_default:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateS3DestinationRequest:
+      type: object
+      required:
+        - name
+        - endpoint
+        - bucket_name
+        - access_key_id
+        - secret_access_key
+      properties:
+        name:
+          type: string
+          example: AWS S3 Production
+        endpoint:
+          type: string
+          example: https://s3.us-east-1.amazonaws.com
+        region:
+          type: string
+          example: us-east-1
+        bucket_name:
+          type: string
+          example: tako-backups
+        access_key_id:
+          type: string
+          example: AKIAIOSFODNN7EXAMPLE
+        secret_access_key:
+          type: string
+          example: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        use_path_style:
+          type: boolean
+          default: false
+        is_default:
+          type: boolean
+          default: false
+
+    UpdateS3DestinationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: AWS S3 Production Updated
+        endpoint:
+          type: string
+          example: https://s3.us-east-1.amazonaws.com
+        region:
+          type: string
+          example: us-east-1
+        bucket_name:
+          type: string
+          example: tako-backups
+        access_key_id:
+          type: string
+          example: AKIAIOSFODNN7EXAMPLE
+        secret_access_key:
+          type: string
+          example: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        use_path_style:
+          type: boolean
+        is_default:
+          type: boolean
+
+    TestS3DestinationRequest:
+      type: object
+      properties:
+        endpoint:
+          type: string
+          example: https://s3.us-east-1.amazonaws.com
+        region:
+          type: string
+          example: us-east-1
+        bucket_name:
+          type: string
+          example: tako-backups
+        access_key_id:
+          type: string
+          example: AKIAIOSFODNN7EXAMPLE
+        secret_access_key:
+          type: string
+          example: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+        use_path_style:
+          type: boolean
+          default: false
+
+    AuditLogEntry:
+      type: object
+      required:
+        - id
+        - actor
+        - action
+        - created_at
+      properties:
+        id:
+          type: string
+          description: Unique ULID identifier of the audit log entry.
+          example: 01HZX8N8V7QY6XW3T1ABCDEF01
+        actor:
+          type: string
+          description: Identity of the user or system actor that performed the action.
+          example: usr_01HZX8N8V7QY6XW3
+        action:
+          type: string
+          description: Event action identifier (e.g. 'service.deploy', 'project.create', 'server.delete', 'env.update').
+          example: service.deploy
+        resource_id:
+          type: string
+          nullable: true
+          description: Identifier of the target resource.
+          example: srv_01h8x123
+        resource_type:
+          type: string
+          nullable: true
+          description: Category of the resource affected.
+          example: service
+        metadata:
+          type: string
+          nullable: true
+          description: Optional JSON-encoded string containing action-specific non-sensitive metadata.
+          example: '{"branch":"main","commit_sha":"a1b2c3d"}'
+        ip_address:
+          type: string
+          nullable: true
+          description: Client IP address from which the request originated.
+          example: 203.0.113.195
+        created_at:
+          type: string
+          format: date-time
+          description: ISO-8601 UTC timestamp when the action occurred.
+          example: '2026-09-30T10:15:30Z'
+
+    AuditLogListResponse:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditLogEntry'
+        next_cursor:
+          type: string
+          nullable: true
+          description: Opaque cursor string to pass to the 'before' query parameter for the next page. Null if no older entries exist.
+
+    # ---------------------------------------------------------------------------
+    # Console Domain Configuration Schemas
+    # ---------------------------------------------------------------------------
+    ConsoleDomainConfig:
+      type: object
+      required:
+        - domain
+        - ssl_provider
+        - force_https
+        - ssl_status
+      properties:
+        domain:
+          type: string
+          description: Active domain name or IP used to access the Tako control plane console.
+          example: tako.mycompany.com
+        ssl_provider:
+          type: string
+          enum: [letsencrypt, none, custom]
+          description: SSL certificate automation mode.
+          example: letsencrypt
+        force_https:
+          type: boolean
+          description: Whether HTTP traffic is automatically redirected to HTTPS.
+          example: true
+        ssl_status:
+          type: string
+          enum: [active, pending, error]
+          description: Current SSL certificate issuance or validation status.
+          example: active
+        ssl_error:
+          type: string
+          nullable: true
+          description: Detailed diagnostic message if SSL issuance or verification failed.
+          example: null
+        custom_cert:
+          type: string
+          nullable: true
+          description: Custom public SSL certificate in PEM format (masked in responses).
+        custom_key:
+          type: string
+          nullable: true
+          description: Custom private key in PEM format (masked in responses).
+        updated_at:
+          type: string
+          format: date-time
+          description: ISO-8601 UTC timestamp of last domain configuration update.
+          example: '2026-09-30T10:15:30Z'
+
+    UpdateConsoleDomainRequest:
+      type: object
+      required:
+        - domain
+      properties:
+        domain:
+          type: string
+          description: Fully qualified domain name or IP address for the Tako control plane.
+          example: tako.mycompany.com
+        ssl_provider:
+          type: string
+          enum: [letsencrypt, none, custom]
+          default: letsencrypt
+          description: Desired SSL certificate mode.
+        force_https:
+          type: boolean
+          default: true
+          description: Redirect all HTTP (port 80) traffic to HTTPS (port 443).
+        custom_cert:
+          type: string
+          description: PEM-encoded custom SSL certificate chain when ssl_provider is custom.
+        custom_key:
+          type: string
+          description: PEM-encoded private key when ssl_provider is custom.
+
+    VerifyConsoleDomainRequest:
+      type: object
+      required:
+        - domain
+      properties:
+        domain:
+          type: string
+          description: Target domain to test DNS resolution against the host server IP.
+          example: tako.mycompany.com
+
+    VerifyConsoleDomainResponse:
+      type: object
+      required:
+        - matches
+        - domain
+        - expected_ip
+        - resolved_ips
+      properties:
+        matches:
+          type: boolean
+          description: True if the domain's resolved IP matches the Tako server's public IP address.
+          example: true
+        domain:
+          type: string
+          description: The queried domain name.
+          example: tako.mycompany.com
+        expected_ip:
+          type: string
+          description: The detected public IP of the Tako server.
+          example: 203.0.113.195
+        resolved_ips:
+          type: array
+          items:
+            type: string
+          description: IP addresses returned by public DNS resolution.
+          example: ["203.0.113.195"]
+        error_message:
+          type: string
+          nullable: true
+          description: Diagnostic failure explanation if resolution failed or mismatched.
+          example: null
+
+
+
+

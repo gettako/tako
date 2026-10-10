@@ -1,0 +1,51 @@
+---
+title: "Why Tako?"
+description: "Design philosophy, architectural motivation, and trade-offs behind Tako."
+---
+
+Self-hosting platforms such as Dokploy and Coolify demonstrated that developers want the convenience of a modern platform-as-a-service on their own virtual private servers. Tako shares this goal, but takes a different engineering approach: deliberate simplicity with fewer moving parts, built specifically for solo developers and small teams.
+
+## Focused scope over feature sprawl
+
+Many modern self-hosting tools expand over time into sprawling platforms with one-click marketplaces for hundreds of community applications, complex multi-tenancy hierarchies, and heavyweight dependencies.
+
+Tako approaches infrastructure with an explicit set of constraints:
+
+1. **Deploying your own code:** Tako focuses strictly on shipping your code reliably using standard Dockerfiles and Compose stacks.
+2. **Predictable resource usage:** The control plane runs as a pure-Go static binary with embedded SQLite, avoiding the need to run an external relational database container just to operate the panel.
+3. **Low maintenance overhead:** Fewer abstractions mean fewer failure modes. Upgrading or backing up Tako requires copying a single SQLite file and pulling updated container images.
+
+## Outbound-only agent architecture
+
+The architectural decision that most distinguishes Tako from other deployment tools is its communication model.
+
+In traditional tools, deployment orchestration often relies on one of two patterns:
+
+- **SSH-based control:** The control plane initiates SSH connections into every managed server. This requires keeping port 22 open to the public internet, provisioning root SSH keys, managing firewall allowlists, and handling connection drops during commands.
+- **Inbound agent webhooks:** Remote agents expose an HTTP server. This requires opening inbound ports, managing TLS certificates for the agent API, and configuring NAT traversal or port forwarding.
+
+Tako reverses this connection direction:
+
+```
+[Remote Worker Node]  --- outbound gRPC over TLS (port 50051) --->  [Control Plane]
+```
+
+Remote worker nodes run the lightweight **Tako Agent** daemon. Upon startup, the agent initiates an **outbound persistent gRPC stream** to the central control plane.
+
+### Practical benefits of outbound streams
+
+- **Zero inbound management ports:** Firewalls on remote nodes only need standard public web traffic ports (`80` and `443`) open for application ingress. Port 22 can remain locked down or restricted to an internal VPN.
+- **NAT and private network compatibility:** Nodes located behind carrier-grade NAT, private clouds, or dynamic IPs connect to the control plane without port forwarding or public static IPs.
+- **Multiplexed bidirectional telemetry:** A single HTTP/2 connection carries real-time deploy commands, deployment cancel signals, live build log streams, container runtime logs, and 15-second heartbeat metrics.
+
+## Minimal resource footprint by design
+
+Tako is built to operate comfortably on affordable virtual private servers, such as a 1 GB or 2 GB RAM instance, where every megabyte matters.
+
+- **Pure-Go control plane:** The Go server compiles statically with `CGO_ENABLED=0` and runs without a heavy runtime environment.
+- **Embedded SQLite persistence:** The database uses `modernc.org/sqlite` in Write-Ahead Logging (WAL) mode. This avoids dedicating 150 MB to 300 MB of system memory to a standalone PostgreSQL or MySQL daemon.
+- **Native Docker Engine SDK:** The agent interacts directly with the local Docker daemon over the local unix socket `/var/run/docker.sock`, rather than invoking shell commands or managing wrapper processes.
+
+<Note>
+Resource consumption is kept low through standard library primitives and minimal runtime dependencies. Formalized load-testing benchmarks under high-concurrency workloads have not yet been completed, so exact resource metrics are not presented as benchmark facts. Comprehensive benchmark reports will be published as test suites expand.
+</Note>

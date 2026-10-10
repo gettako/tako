@@ -1,0 +1,122 @@
+---
+title: "Adding a Remote Server"
+description: "How to connect and provision a new remote Linux node using the Tako Agent."
+---
+
+Tako supports managing multiple remote Linux servers from a single control plane. Services can be deployed to any connected server, allowing you to distribute workloads across cloud providers or private infrastructure.
+
+## Prerequisites
+
+Before adding a server, verify the target machine meets these conditions:
+
+- **Operating System:** Clean Linux installation (Ubuntu 22.04+, Debian 12+, Rocky Linux 9+, or Alpine Linux).
+- **Docker Engine:** Docker 24.0 or newer with Docker Compose v2 installed.
+- **Inbound Ports:** Standard HTTP (`80`) and HTTPS (`443`) ports open to the public internet for application routing.
+- **Outbound Connectivity:** The server must be able to establish an outbound TCP connection to your Tako control plane on port `50051`.
+- **No Inbound Management Ports:** Remote servers do not need port 22 or any management ports open to the control plane.
+
+---
+
+## Step-by-Step Instructions
+
+### Step 1: Generate an Enrollment Token
+
+1. In the Tako web console, click **Servers** in the primary navigation.
+2. Click **Add Server**.
+3. Enter a descriptive label for the machine (for example, `worker-fra-01`).
+4. Click **Generate Token**.
+
+Tako will display a single-use enrollment token and a ready-to-run installation command. The token remains valid for 15 minutes.
+
+### Step 2: Run the Agent Installer
+
+Connect to your target remote server via SSH and run the installer:
+
+```bash
+curl -fsSL https://gettako.dev/install-agent.sh | \
+  TAKO_SERVER_URL="https://controlplane.yourdomain.com:50051" \
+  TAKO_ENROLLMENT_TOKEN="tok_sec_example123456789" \
+  bash
+```
+
+If you prefer to configure the agent manually with Docker Compose, create `/etc/tako/docker-compose.agent.yml`:
+
+```yaml
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: tako-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - tako_traefik_acme:/etc/traefik/acme
+    networks:
+      - tako_network
+
+  agent:
+    image: ghcr.io/gettako/agent:latest
+    container_name: tako-agent
+    restart: unless-stopped
+    environment:
+      - TAKO_SERVER_URL=https://controlplane.yourdomain.com:50051
+      - TAKO_ENROLLMENT_TOKEN=tok_sec_example123456789
+      - TAKO_CONFIG_DIR=/etc/tako
+      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/traefik/dynamic
+      - TAKO_TRAEFIK_ACME_PATH=/etc/traefik/acme/acme.json
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - tako_agent_data:/etc/tako
+      - tako_traefik_dynamic:/etc/traefik/dynamic
+      - tako_traefik_acme:/etc/traefik/acme:ro
+    networks:
+      - tako_network
+
+volumes:
+  tako_agent_data:
+  tako_traefik_dynamic:
+  tako_traefik_acme:
+
+networks:
+  tako_network:
+    name: tako_network
+```
+
+Run the stack:
+
+```bash
+docker compose -f /etc/tako/docker-compose.agent.yml up -d
+```
+
+### Step 3: Verify Node Health
+
+Within a few seconds of launching:
+1. The remote agent contacts the control plane, redeems the enrollment token, and saves its persistent credentials to `/etc/tako/agent.json`.
+2. The server card in your Tako dashboard transitions to **Online** with a green status indicator.
+3. Telemetry metrics will begin charting CPU, memory, and container count.
+
+---
+
+## Server Management Operations
+
+### Running Manual Disk Pruning
+To clean up unused Docker image layers, stopped containers, and build cache on a specific node:
+1. Navigate to **Servers** and select the server node.
+2. In the top action bar, click **Prune Server**.
+3. Confirm the action. The agent will run a non-destructive prune operation while preserving the images associated with your latest successful deployments.
+
+### Editing Traefik Dynamic Configuration
+To add custom Traefik middlewares (such as basic auth or IP allowlists) to a specific server:
+1. Open the server detail page and click **Traefik Config**.
+2. Edit `/etc/traefik/dynamic/custom.yaml` directly in the editor.
+3. Click **Save & Reload**. Traefik applies your changes instantly without restarting the container.
+
+### Safely Removing a Server
+To decommission a server node:
+1. Before deleting a server, ensure that all services deployed to it have either been deleted or reassigned to a different server.
+2. In the server detail view, click **Delete Server**.
+3. If active services are still assigned to the server, Tako will reject the deletion and prompt you to move or remove those services first.
