@@ -1,4 +1,3 @@
- import { simulateDelay } from './delay';
 import {
   mockCurrentUser,
   mockUsers,
@@ -135,7 +134,6 @@ export async function getUsers(): Promise<User[]> {
       return [...users];
     }
   }
-  await simulateDelay();
   return [...users];
 }
 
@@ -168,7 +166,6 @@ export async function updateUserRole(userId: string, role: UserRole): Promise<Us
       // Fallback
     }
   }
-  await simulateDelay();
   const idx = users.findIndex((u) => u.id === userId);
   if (idx === -1) throw new Error('User not found');
   users[idx] = { ...users[idx], role };
@@ -187,7 +184,6 @@ export async function deactivateUser(userId: string): Promise<void> {
       // Fallback
     }
   }
-  await simulateDelay();
   users = users.filter((u) => u.id !== userId);
   await saveSettingToBFF('team_users', users).catch(() => {});
 }
@@ -197,12 +193,10 @@ export async function getUserInvites(): Promise<UserInvite[]> {
   if (Array.isArray(remote)) {
     invites = remote;
   }
-  await simulateDelay();
   return [...invites];
 }
 
 export async function createUserInvite(email: string, role: UserRole, expiryDays: number = 7): Promise<UserInvite> {
-  await simulateDelay();
   const newInvite: UserInvite = {
     id: `inv-${Date.now()}`,
     email,
@@ -231,7 +225,6 @@ export async function createUserInvite(email: string, role: UserRole, expiryDays
 }
 
 export async function revokeUserInvite(inviteId: string): Promise<void> {
-  await simulateDelay();
   invites = invites.filter((i) => i.id !== inviteId);
   await saveSettingToBFF('user_invites', invites);
 }
@@ -242,12 +235,10 @@ export async function getS3Buckets(): Promise<S3Bucket[]> {
   if (Array.isArray(remote)) {
     buckets = remote;
   }
-  await simulateDelay();
   return [...buckets];
 }
 
 export async function addS3Bucket(input: Omit<S3Bucket, 'id' | 'createdAt'>): Promise<S3Bucket> {
-  await simulateDelay();
   const isFirst = buckets.length === 0;
   const shouldBeDefault = input.isDefault ?? isFirst;
 
@@ -270,7 +261,6 @@ export async function updateS3Bucket(
   id: string,
   input: Partial<Omit<S3Bucket, 'id' | 'createdAt'>>
 ): Promise<S3Bucket> {
-  await simulateDelay();
   const idx = buckets.findIndex((b) => b.id === id);
   if (idx === -1) throw new Error('S3 bucket not found');
 
@@ -293,7 +283,6 @@ export async function updateS3Bucket(
 }
 
 export async function deleteS3Bucket(id: string): Promise<void> {
-  await simulateDelay();
   const wasDefault = buckets.find((b) => b.id === id)?.isDefault;
   buckets = buckets.filter((b) => b.id !== id);
   if (wasDefault && buckets.length > 0) {
@@ -303,7 +292,6 @@ export async function deleteS3Bucket(id: string): Promise<void> {
 }
 
 export async function setDefaultS3Bucket(id: string): Promise<S3Bucket[]> {
-  await simulateDelay();
   buckets = buckets.map((b) => ({
     ...b,
     isDefault: b.id === id,
@@ -333,8 +321,6 @@ export async function testS3BucketConnection(
       // Fallback
     }
   }
-
-  await simulateDelay(200, 350);
   const isValidUrl = /^https?:\/\//i.test(bucket.endpoint || '');
   if (!isValidUrl) {
     return {
@@ -396,7 +382,6 @@ export async function connectGitProviderWithPAT(input: {
   username: string;
   token: string;
 }): Promise<{ provider: GitProvider; repos: SyncedRepo[] }> {
-  await simulateDelay(300, 600);
   const newProvider: GitProvider = {
     id: `git-${input.provider}-${input.username}`,
     type: input.provider === 'gitea' ? 'github' : input.provider,
@@ -462,12 +447,10 @@ export async function getBackupSchedule(): Promise<ClusterBackupSchedule> {
   if (remote && remote.frequency) {
     backupSchedule = remote;
   }
-  await simulateDelay();
   return { ...backupSchedule };
 }
 
 export async function updateBackupSchedule(input: Partial<ClusterBackupSchedule>): Promise<ClusterBackupSchedule> {
-  await simulateDelay();
   backupSchedule = { ...backupSchedule, ...input };
   await saveSettingToBFF('backup_schedule', backupSchedule);
   return { ...backupSchedule };
@@ -502,7 +485,6 @@ export async function getBackupSnapshots(): Promise<ClusterBackupSnapshot[]> {
   if (Array.isArray(remote) && remote.length > 0) {
     backupSnapshots = remote;
   }
-  await simulateDelay(100, 200);
   return [...backupSnapshots];
 }
 
@@ -543,8 +525,6 @@ export async function triggerManualBackup(): Promise<{
       // Fallback
     }
   }
-
-  await simulateDelay(500, 800);
   const now = new Date();
   const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const snapshot: ClusterBackupSnapshot = {
@@ -590,8 +570,6 @@ export async function restoreBackupSnapshot(snapshotId: string): Promise<{ ok: b
       // Fallback
     }
   }
-
-  await simulateDelay(400, 800);
   const snap = backupSnapshots.find((s) => s.id === snapshotId);
   if (!snap) throw new Error('Backup snapshot not found');
   return {
@@ -610,12 +588,10 @@ export async function getDomainSettings(): Promise<ClusterDomainSettings> {
       domain: remote.domain !== undefined ? sanitizeDomain(remote.domain) : domainSettings.domain,
     };
   }
-  await simulateDelay();
   return { ...domainSettings };
 }
 
 export async function updateDomainSettings(input: Partial<ClusterDomainSettings>): Promise<ClusterDomainSettings> {
-  await simulateDelay();
   const cleanInput = { ...input };
   if (cleanInput.domain !== undefined) {
     cleanInput.domain = sanitizeDomain(cleanInput.domain);
@@ -656,8 +632,6 @@ export async function verifyDomainAndSSL(
       // Fallback
     }
   }
-
-  await simulateDelay(300, 500);
   const isMatch = !expectedIp || expectedIp === '127.0.0.1' || sanitized.includes(expectedIp.replace(/\./g, '-'));
   const fallbackResult: DomainVerificationResult = {
     domain: sanitized,
@@ -690,12 +664,10 @@ export async function getNotificationSettings(): Promise<NotificationSettings> {
   if (remote && (remote.email || remote.slack || remote.telegram)) {
     notificationSettings = remote;
   }
-  await simulateDelay();
   return { ...notificationSettings };
 }
 
 export async function updateNotificationSettings(input: NotificationSettings): Promise<NotificationSettings> {
-  await simulateDelay();
   notificationSettings = { ...input };
   await saveSettingToBFF('notification_settings', notificationSettings);
   return { ...notificationSettings };
@@ -718,7 +690,6 @@ export async function sendTestNotification(
       // Fallback
     }
   }
-  await simulateDelay(300, 500);
   return {
     success: true,
     message: `Test notification sent successfully to ${channel.toUpperCase()}!`,
@@ -734,18 +705,15 @@ export async function getNotifications(): Promise<Notification[]> {
   if (Array.isArray(remote)) {
     notifications = remote;
   }
-  await simulateDelay(50, 150);
   return [...notifications];
 }
 
 export async function markNotificationAsRead(id: string): Promise<void> {
-  await simulateDelay(50, 100);
   notifications = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
   await saveSettingToBFF('cluster_notifications', notifications);
 }
 
 export async function markAllNotificationsAsRead(): Promise<void> {
-  await simulateDelay(50, 100);
   notifications = notifications.map((n) => ({ ...n, read: true }));
   await saveSettingToBFF('cluster_notifications', notifications);
 }

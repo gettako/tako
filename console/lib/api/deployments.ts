@@ -1,14 +1,19 @@
-import { simulateDelay } from './delay';
-import { mockDeployments } from '@/lib/mock/data';
 import { Deployment, DeploymentStep, DeploymentStatus } from '@/lib/types';
 
-let deployments = [...mockDeployments];
-
-export function setDeploymentsMockData(newDeployments: Deployment[]): void {
-  deployments = [...newDeployments];
+function generatePreviewUrl(commitHash?: string, depId?: string): string {
+  let commit8 = (commitHash || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (commit8.length >= 8) {
+    commit8 = commit8.slice(0, 8);
+  } else if (commit8 && commit8 !== 'main') {
+    commit8 = (commit8 + '00000000').slice(0, 8);
+  } else {
+    const cleanId = (depId || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^dep/, '');
+    commit8 = cleanId.length >= 8 ? cleanId.slice(0, 8) : 'abc123ef';
+  }
+  return `http://${commit8}-127-0-0-1.sslip.io`;
 }
 
-function normalizeDeployment(d: Record<string, unknown>): Deployment {
+export function normalizeDeployment(d: Record<string, unknown>): Deployment {
   let steps: DeploymentStep[] = [];
   if (Array.isArray(d.steps)) {
     steps = d.steps as DeploymentStep[];
@@ -63,19 +68,6 @@ function normalizeDeployment(d: Record<string, unknown>): Deployment {
     }
   }
 
-function generatePreviewUrl(commitHash?: string, depId?: string): string {
-  let commit8 = (commitHash || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (commit8.length >= 8) {
-    commit8 = commit8.slice(0, 8);
-  } else if (commit8 && commit8 !== 'main') {
-    commit8 = (commit8 + '00000000').slice(0, 8);
-  } else {
-    const cleanId = (depId || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/^dep/, '');
-    commit8 = cleanId.length >= 8 ? cleanId.slice(0, 8) : 'abc123ef';
-  }
-  return `http://${commit8}-127-0-0-1.sslip.io`;
-}
-
   let resolvedCommit = ((d.commitHash as string) || (d.commit_hash as string) || '').trim();
   const previewUrlCandidate = (d.url as string) || (d.previewUrl as string) || (d.preview_url as string) || '';
   if (!resolvedCommit || resolvedCommit === 'main' || resolvedCommit === 'master') {
@@ -114,50 +106,30 @@ function generatePreviewUrl(commitHash?: string, depId?: string): string {
 }
 
 export async function getDeployments(serviceId?: string): Promise<Deployment[]> {
-  if (typeof window !== 'undefined') {
-    try {
-      const url = serviceId ? `/api/deployments?serviceId=${encodeURIComponent(serviceId)}` : '/api/deployments';
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const mapped = data.map(normalizeDeployment);
-          if (serviceId) {
-            return mapped.filter((d) => d.serviceId === serviceId);
-          }
-          return mapped;
-        }
-      }
-    } catch {
-      // Fallback
-    }
+  const url = serviceId ? `/api/deployments?serviceId=${encodeURIComponent(serviceId)}` : '/api/deployments';
+  const res = await fetch(url);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to fetch deployments (HTTP ${res.status})`);
   }
-
-  await simulateDelay();
+  const data = await res.json();
+  if (!Array.isArray(data)) return [];
+  const mapped = data.map(normalizeDeployment);
   if (serviceId) {
-    return deployments.filter((d) => d.serviceId === serviceId);
+    return mapped.filter((d) => d.serviceId === serviceId);
   }
-  return [...deployments];
+  return mapped;
 }
 
 export async function getDeploymentById(id: string): Promise<Deployment | null> {
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch(`/api/deployments/${id}`);
-      if (res.ok) {
-        const d = await res.json();
-        if (d && d.id) {
-          return normalizeDeployment(d);
-        }
-      }
-    } catch {
-      // Fallback
-    }
+  const res = await fetch(`/api/deployments/${encodeURIComponent(id)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to fetch deployment ${id} (HTTP ${res.status})`);
   }
-
-  await simulateDelay();
-  const dep = deployments.find((d) => d.id === id);
-  return dep ? { ...dep } : null;
+  const d = await res.json();
+  return d && d.id ? normalizeDeployment(d) : null;
 }
 
 export async function triggerDeployment(
@@ -165,58 +137,34 @@ export async function triggerDeployment(
   branch = 'main',
   commitHash?: string
 ): Promise<Deployment> {
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch(`/api/services/${serviceId}/deploy`, { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ branch, commitHash }),
-      });
-      if (res.ok) {
-        const triggerRes = await res.json();
-        const depId = triggerRes.deploymentId || `dep-${Date.now()}`;
-        const newDep: Deployment = {
-          id: depId,
-          serviceId,
-          serviceName: 'Service',
-          commitHash: commitHash || '',
-          commitMessage: `deploy: pipeline triggered via console (${branch})`,
-          branch,
-          author: 'Admin',
-          status: 'running',
-          startedAt: new Date().toISOString(),
-          steps: [
-            { name: 'Queued', status: 'success', durationMs: 500 },
-            { name: 'Clone', status: 'running', logs: ['Initiating git clone...'] },
-            { name: 'Build', status: 'pending' },
-            { name: 'Push/Load image', status: 'pending' },
-            { name: 'Deploy', status: 'pending' },
-            { name: 'Health check', status: 'pending' },
-            { name: 'Live', status: 'pending' },
-          ],
-        };
-        deployments.unshift(newDep);
-        return newDep;
-      }
-    } catch {
-      // Fallback
-    }
+  const res = await fetch(`/api/services/${encodeURIComponent(serviceId)}/deploy`, { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ branch, commitHash }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to trigger deployment for service ${serviceId}`);
   }
-
-  await simulateDelay();
-  const newDeployment: Deployment = {
-    id: `dep-${Date.now()}`,
+  const triggerRes = await res.json();
+  const depId = triggerRes.deploymentId;
+  if (depId) {
+    const fetched = await getDeploymentById(depId).catch(() => null);
+    if (fetched) return fetched;
+  }
+  return {
+    id: depId || `dep-${Date.now()}`,
     serviceId,
     serviceName: 'Service',
-    commitHash: Math.random().toString(16).substring(2, 9),
-    commitMessage: `chore: triggered manual deployment on ${branch}`,
+    commitHash: commitHash || '',
+    commitMessage: `deploy: pipeline triggered via console (${branch})`,
     branch,
-    author: 'Current User',
-    status: 'running',
+    author: 'Admin',
+    status: (triggerRes.status as DeploymentStatus) || 'running',
     startedAt: new Date().toISOString(),
     steps: [
-      { name: 'Queued', status: 'success', durationMs: 800 },
-      { name: 'Clone', status: 'running', logs: ['Initiating git checkout...'] },
+      { name: 'Queued', status: 'success', durationMs: 500 },
+      { name: 'Clone', status: 'running', logs: ['Initiating git clone...'] },
       { name: 'Build', status: 'pending' },
       { name: 'Push/Load image', status: 'pending' },
       { name: 'Deploy', status: 'pending' },
@@ -224,81 +172,44 @@ export async function triggerDeployment(
       { name: 'Live', status: 'pending' },
     ],
   };
-
-  deployments.unshift(newDeployment);
-  return newDeployment;
 }
 
 export async function rollbackDeployment(deploymentId: string): Promise<Deployment> {
-  if (typeof window !== 'undefined') {
-    try {
-      const res = await fetch(`/api/deployments/${deploymentId}/rollback`, { method: 'POST' });
-      if (res.ok) {
-        const triggerRes = await res.json();
-        const newDepId = triggerRes.deploymentId || `dep-${Date.now()}`;
-        const target = deployments.find((d) => d.id === deploymentId);
-        const rollbackDep: Deployment = {
-          id: newDepId,
-          serviceId: target?.serviceId || '',
-          serviceName: target?.serviceName || 'Service',
-          commitHash: target?.commitHash || '',
-          commitMessage: `rollback: revert to ${target?.commitHash || 'previous'} (${target?.commitMessage || ''})`,
-          branch: target?.branch || 'main',
-          author: 'Admin',
-          status: 'running',
-          startedAt: new Date().toISOString(),
-          rollbackFromId: deploymentId,
-          isRollback: true,
-          steps: [
-            { name: 'Queued', status: 'success', durationMs: 500 },
-            { name: 'Clone', status: 'running', logs: ['Reverting to revision...'] },
-            { name: 'Build', status: 'pending' },
-            { name: 'Push/Load image', status: 'pending' },
-            { name: 'Deploy', status: 'pending' },
-            { name: 'Health check', status: 'pending' },
-            { name: 'Live', status: 'pending' },
-          ],
-        };
-        deployments.unshift(rollbackDep);
-        return rollbackDep;
-      }
-    } catch {
-      // Fallback
-    }
+  const res = await fetch(`/api/deployments/${encodeURIComponent(deploymentId)}/rollback`, { method: 'POST' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to rollback deployment ${deploymentId}`);
   }
-
-  await simulateDelay();
-  const target = deployments.find((d) => d.id === deploymentId);
-  if (!target) throw new Error(`Deployment ${deploymentId} not found`);
-
-  const rollbackDep: Deployment = {
-    id: `dep-${Date.now()}`,
-    serviceId: target.serviceId,
-    serviceName: target.serviceName,
-    commitHash: target.commitHash,
-    commitMessage: `rollback: revert to ${target.commitHash} (${target.commitMessage})`,
-    branch: target.branch,
-    author: 'Current User',
-    status: 'running',
+  const triggerRes = await res.json();
+  const newDepId = triggerRes.deploymentId;
+  if (newDepId) {
+    const fetched = await getDeploymentById(newDepId).catch(() => null);
+    if (fetched) return fetched;
+  }
+  return {
+    id: newDepId || `dep-${Date.now()}`,
+    serviceId: '',
+    serviceName: 'Service',
+    commitHash: '',
+    commitMessage: `rollback: revert to revision of ${deploymentId}`,
+    branch: 'main',
+    author: 'Admin',
+    status: (triggerRes.status as DeploymentStatus) || 'running',
     startedAt: new Date().toISOString(),
-    rollbackFromId: target.id,
+    rollbackFromId: deploymentId,
     isRollback: true,
     steps: [
       { name: 'Queued', status: 'success', durationMs: 500 },
-      { name: 'Clone', status: 'success', durationMs: 1200 },
-      { name: 'Build', status: 'success', durationMs: 4000 },
-      { name: 'Push/Load image', status: 'success', durationMs: 1500 },
-      { name: 'Deploy', status: 'running', logs: ['Rolling back container image...'] },
+      { name: 'Clone', status: 'running', logs: ['Reverting to revision...'] },
+      { name: 'Build', status: 'pending' },
+      { name: 'Push/Load image', status: 'pending' },
+      { name: 'Deploy', status: 'pending' },
       { name: 'Health check', status: 'pending' },
       { name: 'Live', status: 'pending' },
     ],
   };
-
-  deployments.unshift(rollbackDep);
-  return rollbackDep;
 }
 
 export function getDeploymentLogsStreamUrl(deploymentId: string): string {
   return `/api/sse/deployments/${deploymentId}/logs`;
 }
-

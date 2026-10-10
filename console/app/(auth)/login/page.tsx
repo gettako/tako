@@ -4,7 +4,7 @@ import { Check, Server } from "lucide-react";
 
 import { BrandLockup } from "@/components/brand";
 import { DeployTerminalAnimation } from "@/components/deploy-terminal-animation";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {

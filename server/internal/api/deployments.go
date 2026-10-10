@@ -1,0 +1,141 @@
+package api
+
+import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"gettako.dev/tako/internal/events"
+	"gettako.dev/tako/internal/orchestrator"
+)
+
+func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
+	r.Route("/deployments", func(r chi.Router) {
+		// GET /api/v1/deployments?serviceId=...
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			serviceID := r.URL.Query().Get("serviceId")
+			if serviceID != "" {
+				deps, err := orch.Queries().ListDeploymentsWithServiceByService(r.Context(), serviceID)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(deps)
+				return
+			}
+			deps, err := orch.Queries().ListRecentDeployments(r.Context(), 10)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(deps)
+		})
+
+		// GET /api/v1/deployments/{id}
+		r.Get("/{id}", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			dep, err := orch.GetDeployment(r.Context(), id)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					http.Error(w, "deployment not found", http.StatusNotFound)
+					return
+				}
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(dep)
+		})
+
+		// POST /api/v1/deployments/{id}/rollback
+		r.Post("/{id}/rollback", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			dep, err := orch.RollbackDeployment(r.Context(), id)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"deploymentId": dep.ID,
+				"status":       dep.Status,
+			})
+		})
+
+		// GET /api/v1/deployments/{id}/logs (SSE)
+		r.Get("/{id}/logs", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			dep, err := orch.GetDeployment(r.Context(), id)
+			if err != nil {
+				http.Error(w, "deployment not found", http.StatusNotFound)
+				return
+			}
+
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+
+			// Initial logs
+			if dep.Logs != "" {
+				lines := strings.Split(dep.Logs, "\n")
+				for _, line := range lines {
+					trimmed := strings.TrimSpace(line)
+					if trimmed != "" {
+						_, _ = fmt.Fprintf(w, "event: log\ndata: %s\n\n", trimmed)
+					}
+				}
+				flusher.Flush()
+			}
+
+			sub := orch.Bus().Subscribe()
+			defer orch.Bus().Unsubscribe(sub)
+
+			ctx := r.Context()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case ev, ok := <-sub:
+					if !ok {
+						return
+					}
+					if ev.Type == events.EventDeploymentLog {
+						if p, ok := ev.Payload.(map[string]any); ok && p["deployment_id"] == id {
+							data, _ := json.Marshal(p)
+							_, _ = fmt.Fprintf(w, "event: log\ndata: %s\n\n", data)
+							flusher.Flush()
+						}
+					}
+				}
+			}
+		})
+
+		// GET /api/v1/deployments/{id}/logs/history
+		r.Get("/{id}/logs/history", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			dep, err := orch.GetDeployment(r.Context(), id)
+			if err != nil {
+				http.Error(w, "deployment not found", http.StatusNotFound)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = w.Write([]byte(dep.Logs))
+		})
+	})
+}

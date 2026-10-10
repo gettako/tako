@@ -98,6 +98,7 @@ func NewRouter(db *sql.DB, orch *orchestrator.Orchestrator) http.Handler {
 			registerNodeRoutes(r, orch)
 			registerEventsRoutes(r, orch)
 			registerServiceRoutes(r, orch)
+			registerDeploymentRoutes(r, orch)
 			registerProjectRoutes(r, orch)
 			registerAuthRoutes(r, orch)
 			registerAuditLogRoutes(r, orch)
