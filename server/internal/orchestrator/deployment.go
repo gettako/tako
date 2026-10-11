@@ -568,8 +568,16 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		}
 
 		// Gather env vars
-		envDB, _ := o.queries.ListServiceEnvVars(bgCtx, srv.ID)
 		envMap := make(map[string]string)
+		// 1. Inherit project shared env vars
+		if projEnvs, err := o.queries.ListProjectEnvVars(bgCtx, srv.ProjectID); err == nil {
+			for _, pev := range projEnvs {
+				decrypted, _ := security.Decrypt(pev.Value)
+				envMap[pev.Key] = decrypted
+			}
+		}
+		// 2. Service env vars take precedence
+		envDB, _ := o.queries.ListServiceEnvVars(bgCtx, srv.ID)
 		for _, ev := range envDB {
 			decrypted, _ := security.Decrypt(ev.Value)
 			envMap[ev.Key] = decrypted

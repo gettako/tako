@@ -43,6 +43,8 @@ export interface EnvVar {
   isSecret: boolean;
   createdAt: string;
   updatedAt: string;
+  inherited?: boolean;
+  source?: string;
 }
 
 export interface Notification {

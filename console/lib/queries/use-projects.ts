@@ -9,7 +9,7 @@ import {
   updateProject,
   deleteProject,
 } from '@/lib/api/projects';
-import { Project, CreateProjectInput, UpdateProjectInput } from '@/lib/types';
+import { Project, CreateProjectInput, UpdateProjectInput, EnvVar } from '@/lib/types';
 import { toast } from 'sonner';
 
 export interface UseProjectsOptions {
@@ -111,3 +111,34 @@ export function useDeleteProject(options?: UseDeleteProjectOptions) {
     },
   });
 }
+
+export function useProjectEnvVars(projectId: string | undefined | null) {
+  return useQuery({
+    queryKey: ['projects', projectId, 'env'],
+    queryFn: () => (projectId ? import('@/lib/api/projects').then((m) => m.getProjectEnvVars(projectId)) : Promise.resolve([])),
+    enabled: Boolean(projectId),
+  });
+}
+
+export function useUpdateProjectEnvVars(
+  projectId: string,
+  options?: { onSuccess?: (updated: EnvVar[]) => void; onError?: (err: Error) => void }
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation<EnvVar[], Error, Partial<EnvVar>[]>({
+    mutationFn: (envVars) =>
+      import('@/lib/api/projects').then((m) => m.updateProjectEnvVars(projectId, envVars)),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'env'] });
+      queryClient.invalidateQueries({ queryKey: serviceKeys.all });
+      toast.success('Shared environment variables saved successfully');
+      options?.onSuccess?.(updated);
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to save shared environment variables');
+      options?.onError?.(err);
+    },
+  });
+}
+

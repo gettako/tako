@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"gettako.dev/tako/internal/orchestrator"
+	"gettako.dev/tako/internal/security"
 	"gettako.dev/tako/internal/store/db"
 	"github.com/go-chi/chi/v5"
 )
@@ -341,5 +342,121 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
 		})
+
+		r.Get("/{id}/env", handleListProjectEnvVars(orch))
+		r.Post("/{id}/env", handleUpdateProjectEnvVars(orch))
+		r.Delete("/{id}/env/{key}", handleDeleteProjectEnvVar(orch))
 	})
+}
+
+type ProjectEnvVarResponse struct {
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	IsSecret  bool   `json:"isSecret"`
+}
+
+func handleListProjectEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		vars, err := orch.Queries().ListProjectEnvVars(r.Context(), id)
+		if err != nil {
+			RespondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		res := make([]ProjectEnvVarResponse, 0, len(vars))
+		for _, v := range vars {
+			decrypted, _ := security.Decrypt(v.Value)
+			res = append(res, ProjectEnvVarResponse{
+				ID:        v.ID,
+				ProjectID: v.ProjectID,
+				Key:       v.Key,
+				Value:     decrypted,
+				IsSecret:  v.IsSecret == 1,
+			})
+		}
+		RespondJSON(w, http.StatusOK, res)
+	}
+}
+
+func handleUpdateProjectEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		_, err := orch.Queries().GetProjectByID(r.Context(), id)
+		if err != nil {
+			RespondError(w, http.StatusNotFound, "project not found")
+			return
+		}
+
+		var reqVars []struct {
+			Key      string `json:"key"`
+			Value    string `json:"value"`
+			IsSecret bool   `json:"isSecret"`
+		}
+		if err := DecodeJSON(r, &reqVars); err != nil {
+			RespondError(w, http.StatusBadRequest, "invalid request body")
+			return
+		}
+
+		_ = orch.Queries().DeleteProjectEnvVars(r.Context(), id)
+
+		res := make([]ProjectEnvVarResponse, 0, len(reqVars))
+		for _, v := range reqVars {
+			if v.Key == "" {
+				continue
+			}
+			isSec := int64(0)
+			valToStore := v.Value
+			if v.IsSecret {
+				isSec = 1
+				if enc, err := security.Encrypt(v.Value); err == nil {
+					valToStore = enc
+				}
+			}
+			ev, err := orch.Queries().CreateProjectEnvVar(r.Context(), db.CreateProjectEnvVarParams{
+				ID:        "penv-" + randomHexID(8),
+				ProjectID: id,
+				Key:       v.Key,
+				Value:     valToStore,
+				IsSecret:  isSec,
+			})
+			if err == nil {
+				res = append(res, ProjectEnvVarResponse{
+					ID:        ev.ID,
+					ProjectID: ev.ProjectID,
+					Key:       ev.Key,
+					Value:     v.Value,
+					IsSecret:  ev.IsSecret == 1,
+				})
+			}
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "update_project_shared_env",
+			TargetType: "project",
+			TargetID:   id,
+			TargetName: id,
+			Metadata: map[string]interface{}{
+				"count": len(res),
+			},
+		})
+
+		RespondJSON(w, http.StatusOK, res)
+	}
+}
+
+func handleDeleteProjectEnvVar(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		key := chi.URLParam(r, "key")
+		if err := orch.Queries().DeleteProjectEnvVarByKey(r.Context(), db.DeleteProjectEnvVarByKeyParams{
+			ProjectID: id,
+			Key:       key,
+		}); err != nil {
+			RespondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
+	}
 }

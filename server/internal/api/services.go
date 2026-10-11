@@ -73,10 +73,12 @@ type ServiceDomainResponse struct {
 }
 
 type ServiceEnvVarResponse struct {
-	ID       string `json:"id"`
-	Key      string `json:"key"`
-	Value    string `json:"value"`
-	IsSecret bool   `json:"isSecret"`
+	ID        string `json:"id"`
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	IsSecret  bool   `json:"isSecret"`
+	Inherited bool   `json:"inherited,omitempty"`
+	Source    string `json:"source,omitempty"`
 }
 
 type ServiceResponse struct {

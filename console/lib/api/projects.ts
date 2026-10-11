@@ -1,4 +1,4 @@
-import { Project, CreateProjectInput, UpdateProjectInput } from '@/lib/types';
+import { Project, CreateProjectInput, UpdateProjectInput, EnvVar } from '@/lib/types';
 
 export async function getProjects(): Promise<Project[]> {
   const res = await fetch('/api/projects');
@@ -85,3 +85,37 @@ export async function deleteProject(id: string, options?: { cascade?: boolean })
     throw new Error(data.error || 'Failed to delete project');
   }
 }
+
+export async function getProjectEnvVars(projectId: string): Promise<EnvVar[]> {
+  const res = await fetch(`/api/projects/${projectId}/env`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to fetch project shared environment variables');
+  }
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+export async function updateProjectEnvVars(projectId: string, envVars: Partial<EnvVar>[]): Promise<EnvVar[]> {
+  const res = await fetch(`/api/projects/${projectId}/env`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(envVars),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to update project shared environment variables');
+  }
+  return res.json();
+}
+
+export async function deleteProjectEnvVar(projectId: string, key: string): Promise<void> {
+  const res = await fetch(`/api/projects/${projectId}/env/${encodeURIComponent(key)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to delete environment variable ${key}`);
+  }
+}
+

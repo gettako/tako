@@ -19,14 +19,37 @@ func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 		}
 
 		res := make([]ServiceEnvVarResponse, 0, len(envDB))
+		serviceKeyMap := make(map[string]bool, len(envDB))
 		for _, ev := range envDB {
 			decrypted, _ := security.Decrypt(ev.Value)
+			serviceKeyMap[ev.Key] = true
 			res = append(res, ServiceEnvVarResponse{
-				ID:       ev.ID,
-				Key:      ev.Key,
-				Value:    decrypted,
-				IsSecret: ev.IsSecret == 1,
+				ID:        ev.ID,
+				Key:       ev.Key,
+				Value:     decrypted,
+				IsSecret:  ev.IsSecret == 1,
+				Inherited: false,
 			})
+		}
+
+		if r.URL.Query().Get("include_shared") == "true" {
+			if srv, errSrv := orch.Queries().GetServiceByID(r.Context(), id); errSrv == nil {
+				if projEnvs, errP := orch.Queries().ListProjectEnvVars(r.Context(), srv.ProjectID); errP == nil {
+					for _, pev := range projEnvs {
+						if !serviceKeyMap[pev.Key] {
+							decrypted, _ := security.Decrypt(pev.Value)
+							res = append(res, ServiceEnvVarResponse{
+								ID:        pev.ID,
+								Key:       pev.Key,
+								Value:     decrypted,
+								IsSecret:  pev.IsSecret == 1,
+								Inherited: true,
+								Source:    "project",
+							})
+						}
+					}
+				}
+			}
 		}
 
 		RespondJSON(w, http.StatusOK, res)

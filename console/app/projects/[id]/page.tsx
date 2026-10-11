@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Layers, SearchX, Plus } from 'lucide-react';
+import { Search, Layers, SearchX, Plus, KeyRound } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ViewToggle, ViewMode } from '@/components/ui/view-toggle';
@@ -14,12 +14,14 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components
 import { ProjectDetailHeader } from '@/components/projects/project-detail-header';
 import { ServiceCard } from '@/components/projects/service-card';
 import { ServiceRow } from '@/components/projects/service-row';
+import { ProjectSharedEnvPanel } from '@/components/projects/project-shared-env-panel';
 import { CreateServiceDialog } from '@/components/services/create-service-dialog';
 import { DeleteProjectDialog } from '@/components/projects/delete-project-dialog';
 import { EditProjectDialog } from '@/components/projects/edit-project-dialog';
 import { useProject, useServices } from '@/lib/queries';
 import { useDebounce } from '@/hooks/use-debounce';
 import { ServiceType } from '@/lib/types';
+import { cn } from '@/lib/utils';
 
 export default function ProjectDetailPage({
   params,
@@ -30,6 +32,7 @@ export default function ProjectDetailPage({
   const projectId = resolvedParams.id;
   const router = useRouter();
 
+  const [activeTab, setActiveTab] = useState<'services' | 'shared-env'>('services');
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery, 200);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
@@ -119,83 +122,124 @@ export default function ProjectDetailPage({
           onDeleteProject={() => setDeleteProjectOpen(true)}
         />
 
-        {/* Services Controls Bar */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-            <Input
-              type="search"
-              placeholder="Filter services by name, type, domain..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 text-sm rounded-lg bg-card/60 border-border focus-visible:ring-3"
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">
-              Showing <strong className="text-foreground font-semibold">{filteredServices.length}</strong> of{' '}
-              {services.length} services
-            </span>
-            <ViewToggle mode={viewMode} onChange={setViewMode} />
-          </div>
+        {/* Project Section Tabs */}
+        <div className="border-b border-border flex items-center justify-between gap-4">
+          <nav className="flex space-x-2 -mb-px">
+            <button
+              type="button"
+              onClick={() => setActiveTab('services')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none',
+                activeTab === 'services'
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              )}
+            >
+              <Layers className="size-4 shrink-0" />
+              <span>Services</span>
+              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-muted font-normal text-muted-foreground">
+                {services.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('shared-env')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none',
+                activeTab === 'shared-env'
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              )}
+            >
+              <KeyRound className="size-4 shrink-0" />
+              <span>Shared Variables</span>
+            </button>
+          </nav>
         </div>
 
-        {/* Main Services Listing */}
-        {loadingServices ? (
-          <LoadingSkeleton variant={viewMode === 'grid' ? 'cards' : 'table'} count={3} />
-        ) : filteredServices.length === 0 ? (
-          searchQuery ? (
-            <EmptyState
-              title="No services match search"
-              description={`No workloads match "${searchQuery}" in this project.`}
-              icon={SearchX}
-              action={{
-                label: 'Clear Search',
-                onClick: () => setSearchQuery(''),
-              }}
-            />
-          ) : (
-            <EmptyState
-              title="No services added yet"
-              description="This project currently has no active services or databases. Deploy your first workload now."
-              icon={Layers}
-              action={{
-                label: 'Deploy First Service',
-                icon: Plus,
-                onClick: () => {
-                  setCreateServiceType('app');
-                  setCreateServiceOpen(true);
-                },
-              }}
-            />
-          )
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredServices.map((service) => (
-              <ServiceCard key={service.id} service={service} />
-            ))}
-          </div>
+        {activeTab === 'shared-env' ? (
+          <ProjectSharedEnvPanel projectId={project.id} />
         ) : (
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
-            <Table>
-              <TableHeader className="bg-muted/40 border-b border-border">
-                <TableRow className="h-10 hover:bg-transparent">
-                  <TableHead className="w-[260px]">Service</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="hidden sm:table-cell">Node</TableHead>
-                  <TableHead className="hidden md:table-cell">Primary Domain / Endpoint</TableHead>
-                  <TableHead className="hidden lg:table-cell">Resources & Replicas</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <>
+            {/* Services Controls Bar */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
+              <div className="relative flex-1 max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+                <Input
+                  type="search"
+                  placeholder="Filter services by name, type, domain..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 h-9 text-sm rounded-lg bg-card/60 border-border focus-visible:ring-3"
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">
+                  Showing <strong className="text-foreground font-semibold">{filteredServices.length}</strong> of{' '}
+                  {services.length} services
+                </span>
+                <ViewToggle mode={viewMode} onChange={setViewMode} />
+              </div>
+            </div>
+
+            {/* Main Services Listing */}
+            {loadingServices ? (
+              <LoadingSkeleton variant={viewMode === 'grid' ? 'cards' : 'table'} count={3} />
+            ) : filteredServices.length === 0 ? (
+              searchQuery ? (
+                <EmptyState
+                  title="No services match search"
+                  description={`No workloads match "${searchQuery}" in this project.`}
+                  icon={SearchX}
+                  action={{
+                    label: 'Clear Search',
+                    onClick: () => setSearchQuery(''),
+                  }}
+                />
+              ) : (
+                <EmptyState
+                  title="No services added yet"
+                  description="This project currently has no active services or databases. Deploy your first workload now."
+                  icon={Layers}
+                  action={{
+                    label: 'Deploy First Service',
+                    icon: Plus,
+                    onClick: () => {
+                      setCreateServiceType('app');
+                      setCreateServiceOpen(true);
+                    },
+                  }}
+                />
+              )
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredServices.map((service) => (
-                  <ServiceRow key={service.id} service={service} />
+                  <ServiceCard key={service.id} service={service} />
                 ))}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-muted/40 border-b border-border">
+                    <TableRow className="h-10 hover:bg-transparent">
+                      <TableHead className="w-[260px]">Service</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="hidden sm:table-cell">Node</TableHead>
+                      <TableHead className="hidden md:table-cell">Primary Domain / Endpoint</TableHead>
+                      <TableHead className="hidden lg:table-cell">Resources & Replicas</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredServices.map((service) => (
+                      <ServiceRow key={service.id} service={service} />
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </>
         )}
       </div>
 

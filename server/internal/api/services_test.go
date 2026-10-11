@@ -383,8 +383,9 @@ func TestServiceDeploymentsAndLogs(t *testing.T) {
 
 	// 5. GET /api/v1/deployments/{id}/logs (SSE)
 	t.Run("Stream Deployment Logs SSE", func(t *testing.T) {
-		// Populate some initial logs in the deployment
-		_ = orch.Queries().AppendDeploymentLog(ctx, db.AppendDeploymentLogParams{
+		time.Sleep(20 * time.Millisecond)
+		// Populate initial logs in the deployment
+		_ = orch.Queries().UpdateDeploymentStatus(ctx, db.UpdateDeploymentStatusParams{
 			ID:     depID,
 			Logs:   "[Build] Building container image...\n[Live] Service live\n",
 			Status: "live",

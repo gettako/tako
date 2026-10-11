@@ -75,12 +75,19 @@ export function EnvTableView({ envVars, onChange }: EnvTableViewProps) {
                   <TableRow key={item.id} className="h-14">
                     {/* Key Input */}
                     <TableCell>
-                      <Input
-                        value={item.key}
-                        placeholder="KEY_NAME"
-                        onChange={(e) => handleUpdate(item.id, 'key', e.target.value.toUpperCase())}
-                        className="font-mono text-xs uppercase h-8"
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          value={item.key}
+                          placeholder="KEY_NAME"
+                          onChange={(e) => handleUpdate(item.id, 'key', e.target.value.toUpperCase())}
+                          className="font-mono text-xs uppercase h-8"
+                        />
+                        {item.inherited && (
+                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.2 rounded-sm bg-primary/15 text-primary border border-primary/25 font-medium">
+                            Inherited from Project
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
 
                     {/* Value Input + Secret Mask */}

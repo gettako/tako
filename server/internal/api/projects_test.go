@@ -2,6 +2,7 @@ package api_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -281,4 +282,113 @@ func TestUpdateProject(t *testing.T) {
 	if fetched.Name != "Renamed Project" {
 		t.Fatalf("expected project name 'Renamed Project', got %q", fetched.Name)
 	}
+}
+
+func TestProjectSharedEnvironmentVariables(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := context.Background()
+
+	// 1. Create a project
+	proj, err := orch.Queries().CreateProject(ctx, db.CreateProjectParams{
+		ID:          "proj-shared-env",
+		Name:        "Shared Env Project",
+		Slug:        "shared-env-proj",
+		Description: "Testing shared env",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+	if err != nil {
+		t.Fatalf("failed to create project: %v", err)
+	}
+
+	// 2. Set shared environment variables via POST /api/v1/projects/{id}/env
+	sharedVars := []map[string]any{
+		{"key": "SHARED_DB_URL", "value": "postgres://user:pass@db:5432/main", "isSecret": true},
+		{"key": "SHARED_APP_REGION", "value": "ap-southeast-1", "isSecret": false},
+	}
+	body, _ := json.Marshal(sharedVars)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+proj.ID+"/env", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var savedShared []api.ProjectEnvVarResponse
+	if err := json.NewDecoder(rec.Body).Decode(&savedShared); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(savedShared) != 2 {
+		t.Fatalf("expected 2 shared vars, got %d", len(savedShared))
+	}
+
+	// 3. GET /api/v1/projects/{id}/env
+	reqGet := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+proj.ID+"/env", nil)
+	recGet := httptest.NewRecorder()
+	router.ServeHTTP(recGet, reqGet)
+	if recGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 on GET, got %d", recGet.Code)
+	}
+
+	// 4. Create service under this project and verify include_shared=true
+	srv, err := orch.CreateService(ctx, CreateServiceParamsTest(orch, "svc-child", "node-control"))
+	if err != nil {
+		t.Fatalf("failed to create service: %v", err)
+	}
+	// Reassign to proj-shared-env
+	_ = orch.Queries().DeleteProject(ctx, "default") // clean up default
+	srvChild, _ := orch.Queries().CreateService(ctx, db.CreateServiceParams{
+		ID:        "srv-child-shared",
+		ProjectID: proj.ID,
+		NodeID:    "node-control",
+		Name:      "Child App",
+		Slug:      "child-app",
+		Type:      "app",
+		Status:    "healthy",
+		Ports:     "[80]",
+	})
+
+	// Add service specific variable
+	_, _ = orch.Queries().CreateServiceEnvVar(ctx, db.CreateServiceEnvVarParams{
+		ID:        "env-child-1",
+		ServiceID: srvChild.ID,
+		Key:       "PORT",
+		Value:     "8080",
+		IsSecret:  0,
+	})
+
+	reqSvcEnv := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srvChild.ID+"/env?include_shared=true", nil)
+	recSvcEnv := httptest.NewRecorder()
+	router.ServeHTTP(recSvcEnv, reqSvcEnv)
+
+	if recSvcEnv.Code != http.StatusOK {
+		t.Fatalf("expected 200 on service env get, got %d", recSvcEnv.Code)
+	}
+	var svcEnvs []api.ServiceEnvVarResponse
+	_ = json.NewDecoder(recSvcEnv.Body).Decode(&svcEnvs)
+
+	// Should have 3 total: 1 service-specific + 2 inherited
+	if len(svcEnvs) != 3 {
+		t.Fatalf("expected 3 total env vars (1 own + 2 inherited), got %d: %+v", len(svcEnvs), svcEnvs)
+	}
+	inheritedCount := 0
+	for _, e := range svcEnvs {
+		if e.Inherited {
+			inheritedCount++
+		}
+	}
+	if inheritedCount != 2 {
+		t.Fatalf("expected 2 inherited vars, got %d", inheritedCount)
+	}
+
+	// 5. Delete one shared variable via DELETE /api/v1/projects/{id}/env/{key}
+	reqDel := httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+proj.ID+"/env/SHARED_APP_REGION", nil)
+	recDel := httptest.NewRecorder()
+	router.ServeHTTP(recDel, reqDel)
+	if recDel.Code != http.StatusOK {
+		t.Fatalf("expected 200 on DELETE shared var, got %d", recDel.Code)
+	}
+	_ = srv
 }
