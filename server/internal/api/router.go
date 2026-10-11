@@ -108,6 +108,7 @@ func NewRouter(db *sql.DB, orch *orchestrator.Orchestrator) http.Handler {
 			registerBackupRoutes(r, orch)
 			registerSystemRoutes(r, orch)
 			registerRegistryRoutes(r, orch)
+			registerCronRoutes(r, orch)
 		}
 	})
 

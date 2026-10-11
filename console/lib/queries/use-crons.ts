@@ -22,10 +22,10 @@ export function useCronJobs(serviceId: string | undefined | null) {
   });
 }
 
-export function useCronJobRuns(cronJobId: string | undefined | null) {
+export function useCronJobRuns(cronJobId: string | undefined | null, serviceId?: string) {
   return useQuery<CronJobRun[]>({
     queryKey: cronJobId ? cronKeys.runs(cronJobId) : ['crons', 'runs', 'none'],
-    queryFn: () => (cronJobId ? getCronJobRuns(cronJobId) : Promise.resolve([])),
+    queryFn: () => (cronJobId ? getCronJobRuns(cronJobId, serviceId) : Promise.resolve([])),
     enabled: Boolean(cronJobId),
   });
 }
@@ -50,7 +50,7 @@ export function useUpdateCronJob(serviceId: string, options?: { onSuccess?: () =
   const queryClient = useQueryClient();
 
   return useMutation<CronJob, Error, { id?: string; jobId?: string; input: UpdateCronJobInput }>({
-    mutationFn: ({ id, jobId, input }) => updateCronJob(id || jobId || '', input),
+    mutationFn: ({ id, jobId, input }) => updateCronJob(id || jobId || '', input, serviceId),
     onSuccess: (job) => {
       queryClient.invalidateQueries({ queryKey: cronKeys.lists(serviceId) });
       toast.success(`Cron job "${job.name}" updated`);
@@ -66,7 +66,7 @@ export function useToggleCronJob(serviceId: string) {
   const queryClient = useQueryClient();
 
   return useMutation<CronJob, Error, string>({
-    mutationFn: toggleCronJobStatus,
+    mutationFn: (cronJobId) => toggleCronJobStatus(cronJobId, serviceId),
     onSuccess: (job) => {
       queryClient.invalidateQueries({ queryKey: cronKeys.lists(serviceId) });
       toast.success(`Cron job is now ${job.status}`);
@@ -81,7 +81,7 @@ export function useRunCronJob(serviceId: string, options?: { onSuccess?: () => v
   const queryClient = useQueryClient();
 
   return useMutation<CronJobRun, Error, string>({
-    mutationFn: runCronJobNow,
+    mutationFn: (cronJobId) => runCronJobNow(cronJobId, serviceId),
     onSuccess: (run) => {
       queryClient.invalidateQueries({ queryKey: cronKeys.lists(serviceId) });
       queryClient.invalidateQueries({ queryKey: cronKeys.runs(run.cronJobId) });
@@ -100,7 +100,7 @@ export function useDeleteCronJob(serviceId: string, options?: { onSuccess?: () =
   const queryClient = useQueryClient();
 
   return useMutation<void, Error, string>({
-    mutationFn: deleteCronJob,
+    mutationFn: (cronJobId) => deleteCronJob(cronJobId, serviceId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: cronKeys.lists(serviceId) });
       toast.success('Cron job deleted');

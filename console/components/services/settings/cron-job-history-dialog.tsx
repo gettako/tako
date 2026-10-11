@@ -29,7 +29,7 @@ export function CronJobHistoryDialog({
   onOpenChange,
   job,
 }: CronJobHistoryDialogProps) {
-  const { data: runs = [], isLoading } = useCronJobRuns(open && job ? job.id : null);
+  const { data: runs = [], isLoading } = useCronJobRuns(open && job ? job.id : null, job?.serviceId);
 
   const formatDuration = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;

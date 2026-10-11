@@ -1166,6 +1166,237 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/crons:
+    get:
+      summary: List service cron jobs
+      description: Retrieves all scheduled background tasks configured for this service.
+      operationId: listServiceCronJobs
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of cron jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CronJob'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    post:
+      summary: Create service cron job
+      description: Creates a new periodic scheduled task executing a command inside the service container.
+      operationId: createServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - schedule
+              - command
+              properties:
+                name:
+                  type: string
+                schedule:
+                  type: string
+                  example: "0 0 * * *"
+                command:
+                  type: string
+                  example: "npm run cleanup"
+      responses:
+        '201':
+          description: Cron job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJob'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/services/{id}/crons/{cronId}:
+    get:
+      summary: Get service cron job
+      description: Retrieves a specific scheduled task by ID.
+      operationId: getServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Cron job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJob'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      summary: Update service cron job
+      description: Updates the schedule expression, command, or active/paused status of a scheduled task.
+      operationId: updateServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                schedule:
+                  type: string
+                command:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, paused]
+      responses:
+        '200':
+          description: Updated cron job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJob'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete service cron job
+      description: Deletes a scheduled task and its execution history.
+      operationId: deleteServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Cron job deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/crons/{cronId}/run:
+    post:
+      summary: Trigger cron job execution now
+      description: Manually triggers immediate execution of the scheduled task inside the service container.
+      operationId: runServiceCronJobNow
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Execution result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJobRun'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/crons/{cronId}/runs:
+    get:
+      summary: List cron job execution runs
+      description: Retrieves historical execution logs and exit codes for this scheduled task.
+      operationId: listServiceCronJobRuns
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of execution runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CronJobRun'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/deployments:
     get:
       summary: List all deployments
@@ -2328,6 +2559,64 @@ components:
           schema:
             $ref: '#/components/schemas/SuccessResponse'
   schemas:
+    CronJob:
+      type: object
+      required:
+      - id
+      - serviceId
+      - name
+      - schedule
+      - command
+      - status
+      - createdAt
+      properties:
+        id:
+          type: string
+        serviceId:
+          type: string
+        name:
+          type: string
+        schedule:
+          type: string
+        command:
+          type: string
+        status:
+          type: string
+        lastRunAt:
+          type: string
+        nextRunAt:
+          type: string
+        lastStatus:
+          type: string
+        createdAt:
+          type: string
+    CronJobRun:
+      type: object
+      required:
+      - id
+      - cronJobId
+      - startedAt
+      - durationMs
+      - status
+      - exitCode
+      - output
+      properties:
+        id:
+          type: string
+        cronJobId:
+          type: string
+        startedAt:
+          type: string
+        finishedAt:
+          type: string
+        durationMs:
+          type: integer
+        status:
+          type: string
+        exitCode:
+          type: integer
+        output:
+          type: string
     Registry:
       type: object
       required:
