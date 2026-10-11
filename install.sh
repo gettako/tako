@@ -394,50 +394,16 @@ EOF
   echo -e "\n${YELLOW}Menjalankan Tako Worker Agent...${NC}"
   (cd "${TAKO_DIR}" && docker compose up -d)
 
-  # Pasang tako CLI wrapper
-  cat << EOF > /usr/local/bin/tako
-#!/usr/bin/env bash
-set -e
-TAKO_DIR="${TAKO_DIR}"
-ACTION="\${1:-status}"
-case "\$ACTION" in
-  status)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" ps
-    ;;
-  logs)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" logs -f "\${@:2}"
-    ;;
-  restart)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" restart "\${@:2}"
-    ;;
-  stop)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" stop "\${@:2}"
-    ;;
-  start)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" start "\${@:2}"
-    ;;
-  update)
-    echo "Pulling latest code changes..."
-    if [[ -d "\${TAKO_DIR}/src/.git" ]]; then
-      (cd "\${TAKO_DIR}/src" && git pull)
-    fi
-    (cd "\${TAKO_DIR}" && docker compose build agent && docker compose up -d agent)
-    echo "Tako Agent updated successfully!"
-    ;;
-  *)
-    echo "Usage: tako {status|logs|restart|stop|start|update}"
-    exit 1
-    ;;
-esac
-EOF
-  chmod +x /usr/local/bin/tako
-
   echo -e "\n--------------------------------------------------"
   echo -e "${GREEN}${BOLD}✓ Tako Worker Agent berhasil terpasang!${NC}"
   echo -e "--------------------------------------------------"
   echo -e "Node Name        : ${BOLD}${NODE_NAME}${NC}"
   echo -e "Terkoneksi ke    : ${BOLD}${MASTER_URL}${NC}"
-  echo -e "CLI Management   : ${BOLD}tako status | tako logs | tako update${NC}"
+  echo -e "Direktori Kerja  : ${BOLD}${TAKO_DIR}${NC}"
+  echo -e "--------------------------------------------------"
+  echo -e "Kontrol Service (Docker Compose):"
+  echo -e "  Status : ${BOLD}cd ${TAKO_DIR} && docker compose ps${NC}"
+  echo -e "  Logs   : ${BOLD}cd ${TAKO_DIR} && docker compose logs -f${NC}"
   echo -e "--------------------------------------------------"
   exit 0
 fi
@@ -612,45 +578,6 @@ echo -e "\n${YELLOW}Membangun container Tako Master dari source code lokal...${N
 echo -e "\n${YELLOW}Menjalankan Tako Master stack...${NC}"
 (cd "${TAKO_DIR}" && docker compose up -d)
 
-# Pasang tako CLI wrapper ke sistem host
-cat << EOF > /usr/local/bin/tako
-#!/usr/bin/env bash
-set -e
-TAKO_DIR="${TAKO_DIR}"
-ACTION="\${1:-status}"
-case "\$ACTION" in
-  status)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" ps
-    ;;
-  logs)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" logs -f "\${@:2}"
-    ;;
-  restart)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" restart "\${@:2}"
-    ;;
-  stop)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" stop "\${@:2}"
-    ;;
-  start)
-    docker compose -f "\${TAKO_DIR}/docker-compose.yml" start "\${@:2}"
-    ;;
-  update)
-    echo "Pulling latest code changes..."
-    if [[ -d "\${TAKO_DIR}/src/.git" ]]; then
-      (cd "\${TAKO_DIR}/src" && git pull)
-    fi
-    echo "Rebuilding and restarting Tako containers..."
-    (cd "\${TAKO_DIR}" && docker compose build && docker compose up -d)
-    echo "Tako updated successfully!"
-    ;;
-  *)
-    echo "Usage: tako {status|logs|restart|stop|start|update}"
-    exit 1
-    ;;
-esac
-EOF
-chmod +x /usr/local/bin/tako
-
 echo -e "\n=================================================="
 echo -e "${GREEN}${BOLD}✓ Tako Master Berhasil Terpasang dari Source!${NC}"
 echo -e "=================================================="
@@ -658,12 +585,12 @@ echo -e "Console Dashboard : ${BOLD}http://${SERVER_IP}:3000${NC}"
 echo -e "Admin Email       : ${BOLD}${ADMIN_EMAIL}${NC}"
 echo -e "Admin Password    : ${YELLOW}${BOLD}${ADMIN_PASSWORD}${NC}  ${RED}(Simpan password ini!)${NC}"
 echo -e "Enrollment Token  : ${CYAN}${BOLD}${ENROLL_TOKEN}${NC}"
+echo -e "Direktori Kerja   : ${BOLD}${TAKO_DIR}${NC}"
 echo -e "Credentials File  : ${BOLD}${TAKO_DIR}/.env (chmod 600)${NC}"
 echo -e "--------------------------------------------------"
-echo -e "CLI Management:"
-echo -e "  ${BOLD}tako status${NC}  - Cek status container"
-echo -e "  ${BOLD}tako logs${NC}    - Pantau logs realtime"
-echo -e "  ${BOLD}tako update${NC}  - Git pull & rebuild terbaru otomatis"
+echo -e "Kontrol Service (Docker Compose):"
+echo -e "  Status : ${BOLD}cd ${TAKO_DIR} && docker compose ps${NC}"
+echo -e "  Logs   : ${BOLD}cd ${TAKO_DIR} && docker compose logs -f${NC}"
 echo -e "--------------------------------------------------"
 echo -e "Untuk menambahkan Worker Node, jalankan perintah ini di worker server:"
 echo -e "  ${BOLD}curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent --token '${ENROLL_TOKEN}' --master '${SERVER_IP}:50051'${NC}"
