@@ -208,20 +208,6 @@ export async function createUserInvite(email: string, role: UserRole, expiryDays
   };
   invites = [newInvite, ...invites.filter((i) => i.email !== email)];
   await saveSettingToBFF('user_invites', invites);
-
-  // Also provision the user record in database if online
-  if (typeof window !== 'undefined') {
-    fetch('/api/auth/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: email.split('@')[0],
-        email,
-        role,
-      }),
-    }).catch(() => {});
-  }
-
   return { ...newInvite };
 }
 
@@ -382,66 +368,35 @@ export async function connectGitProviderWithPAT(input: {
   provider: 'github' | 'gitlab' | 'gitea';
   username: string;
   token: string;
+  baseUrl?: string;
 }): Promise<{ provider: GitProvider; repos: SyncedRepo[] }> {
-  const newProvider: GitProvider = {
-    id: `git-${input.provider}-${input.username}`,
-    type: input.provider === 'gitea' ? 'github' : input.provider,
-    name:
-      input.provider === 'github'
-        ? 'GitHub (PAT)'
-        : input.provider === 'gitlab'
-          ? 'GitLab (PAT)'
-          : 'Gitea (PAT)',
-    username: input.username,
-    connected: true,
-    avatarUrl: `https://github.com/${input.username}.png`,
-    connectedAt: new Date().toISOString(),
-  };
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/git/pat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
 
-  const dummyRepos: SyncedRepo[] = [
-    {
-      id: `repo-${input.username}-app`,
-      providerId: newProvider.id,
-      name: `${input.username}-app`,
-      fullName: `${input.username}/${input.username}-app`,
-      defaultBranch: 'main',
-      private: true,
-      htmlUrl: `https://${input.provider}.com/${input.username}/${input.username}-app`,
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: `repo-${input.username}-api`,
-      providerId: newProvider.id,
-      name: `${input.username}-api`,
-      fullName: `${input.username}/${input.username}-api`,
-      defaultBranch: 'main',
-      private: false,
-      htmlUrl: `https://${input.provider}.com/${input.username}/${input.username}-api`,
-      updatedAt: new Date().toISOString(),
-    },
-  ];
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to authenticate Personal Access Token');
+    }
 
-  providers = [newProvider, ...providers.filter((p) => p.id !== newProvider.id)];
-  syncedRepos = [...dummyRepos, ...syncedRepos.filter((r) => r.providerId !== newProvider.id)];
+    const { provider, repos } = await res.json();
+    providers = [provider, ...providers.filter((p) => p.id !== provider.id)];
+    syncedRepos = [...repos, ...syncedRepos.filter((r: SyncedRepo) => r.providerId !== provider.id)];
 
-  await saveSettingToBFF('git_providers', providers);
-  await saveSettingToBFF('synced_repos', syncedRepos);
+    await saveSettingToBFF('git_providers', providers);
+    await saveSettingToBFF('synced_repos', syncedRepos);
 
-  return { provider: newProvider, repos: dummyRepos };
+    return { provider, repos };
+  }
+
+  throw new Error('PAT integration requires a browser environment');
 }
 
 /* --- Backups --- */
-let backupSnapshots: ClusterBackupSnapshot[] = [
-  {
-    id: 'snap-1',
-    filename: 'tako-cluster-snapshot-2026-10-09-000000.tar.gz',
-    sizeBytes: 148897792,
-    sizeMb: 142.0,
-    checksum: 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-    status: 'completed',
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-];
+let backupSnapshots: ClusterBackupSnapshot[] = [];
 
 export async function getBackupSchedule(): Promise<ClusterBackupSchedule> {
   const remote = await fetchSettingFromBFF<ClusterBackupSchedule>('backup_schedule', backupSchedule);

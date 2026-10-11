@@ -1461,6 +1461,37 @@ paths:
           description: Operation succeeded
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/auth/invite/accept:
+    post:
+      summary: Accept team invitation
+      description: Accepts a cluster invitation and sets account credentials.
+      operationId: acceptUserInvite
+      tags:
+      - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - name
+              - password
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: Invitation accepted, returns authentication session token
+        '400':
+          $ref: '#/components/responses/ValidationError'
   /api/v1/audit-logs:
     get:
       summary: Query audit logs

@@ -88,6 +88,13 @@ export function UsersPanel() {
       .slice(0, 2);
   };
 
+  const getInviteUrl = (tok: string) => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/invite?token=${tok}`;
+    }
+    return `https://console.gettako.dev/invite?token=${tok}`;
+  };
+
   return (
     <div className="space-y-6">
       {/* Team Members Card */}
@@ -263,7 +270,7 @@ export function UsersPanel() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <CopyButton
-                            value={`https://console.gettako.dev/invite?token=${inv.token}`}
+                            value={getInviteUrl(inv.token)}
                             label="invite link"
                           />
                           <Button
@@ -309,11 +316,11 @@ export function UsersPanel() {
                 <div className="flex items-center gap-2">
                   <Input
                     readOnly
-                    value={`https://console.gettako.dev/invite?token=${generatedInvite.token}`}
+                    value={getInviteUrl(generatedInvite.token)}
                     className="font-mono text-sm bg-muted/40"
                   />
                   <CopyButton
-                    text={`https://console.gettako.dev/invite?token=${generatedInvite.token}`}
+                    text={getInviteUrl(generatedInvite.token)}
                     tooltip="Copy invite URL"
                     className="h-9 px-3 text-sm shrink-0"
                   />

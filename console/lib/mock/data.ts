@@ -716,18 +716,7 @@ export const mockSessions: Session[] = [
   },
 ];
 
-export const mockS3Buckets: S3Bucket[] = [
-  {
-    id: 's3-1',
-    name: 'Primary Backups (Cloudflare R2)',
-    endpoint: 'https://r2.cloudflarestorage.com',
-    region: 'auto',
-    bucket: 'tako-production-backups',
-    accessKeyId: '09a8bc47e2...',
-    isDefault: true,
-    createdAt: '2026-08-10T12:00:00Z',
-  },
-];
+export const mockS3Buckets: S3Bucket[] = [];
 
 export const mockGitProviders: GitProvider[] = [];
 

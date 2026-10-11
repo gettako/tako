@@ -48,6 +48,7 @@ func main() {
 	orch.StartLivenessWatcher(ctx, 5*time.Second, 15)
 	orch.StartAutoScaler(ctx, 15*time.Second)
 	orch.StartRetentionCleaner(ctx, 24*time.Hour, 90)
+	api.StartBackupScheduler(ctx, orch, 1*time.Minute)
 
 	router := api.NewRouter(db, orch)
 

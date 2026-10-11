@@ -182,6 +182,7 @@ func registerAuthRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Post("/users", handleCreateUser(orch))
 		r.Put("/users/{id}/role", handleUpdateUserRole(orch))
 		r.Delete("/users/{id}", handleDeleteUser(orch))
+		r.Post("/invite/accept", handleAcceptInvite(orch))
 	})
 }
 
@@ -998,3 +999,99 @@ func handleDeleteUser(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}
 }
+
+type AcceptInvitePayload struct {
+	Email    string `json:"email"`
+	Name     string `json:"name"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
+}
+
+func handleAcceptInvite(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req AcceptInvitePayload
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"Invalid request payload"}`, http.StatusBadRequest)
+			return
+		}
+
+		req.Email = strings.TrimSpace(req.Email)
+		req.Name = strings.TrimSpace(req.Name)
+		if req.Email == "" || req.Name == "" || len(req.Password) < 8 {
+			http.Error(w, `{"error":"Email, name, and password (min 8 chars) are required"}`, http.StatusBadRequest)
+			return
+		}
+
+		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, `{"error":"Failed to hash password"}`, http.StatusInternalServerError)
+			return
+		}
+
+		user, err := orch.Queries().GetUserByEmail(r.Context(), req.Email)
+		if err == nil {
+			updatedUser, err := orch.Queries().UpdateUserPassword(r.Context(), db.UpdateUserPasswordParams{
+				ID:           user.ID,
+				PasswordHash: string(hash),
+			})
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error":"Failed to update password: %s"}`, err.Error()), http.StatusInternalServerError)
+				return
+			}
+			user = updatedUser
+			if req.Name != "" && req.Name != user.Name {
+				_ = orch.DB().QueryRowContext(r.Context(), `UPDATE users SET name = ? WHERE id = ? RETURNING id`, req.Name, user.ID).Scan(&user.ID)
+				user.Name = req.Name
+			}
+		} else {
+			role := req.Role
+			if role == "" {
+				role = "member"
+			}
+			id := fmt.Sprintf("usr-%d", time.Now().UnixMilli())
+			newUser, err := orch.Queries().CreateUser(r.Context(), db.CreateUserParams{
+				ID:           id,
+				Name:         req.Name,
+				Email:        req.Email,
+				PasswordHash: string(hash),
+				Role:         role,
+				AvatarUrl:    sql.NullString{String: "", Valid: false},
+			})
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error":"Failed to create user: %s"}`, err.Error()), http.StatusBadRequest)
+				return
+			}
+			user = newUser
+		}
+
+		token := "tako_tk_" + randomHexID(24)
+		orch.RegisterUserSession(token, user)
+
+		avatar := ""
+		if user.AvatarUrl.Valid {
+			avatar = user.AvatarUrl.String
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "accept_invite",
+			TargetType: "user",
+			TargetID:   user.ID,
+			TargetName: user.Name,
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(LoginResponse{
+			Token: token,
+			User: AuthUserResponse{
+				ID:               user.ID,
+				Name:             user.Name,
+				Email:            user.Email,
+				Role:             user.Role,
+				AvatarURL:        avatar,
+				TwoFactorEnabled: false,
+				CreatedAt:        user.CreatedAt.Format(time.RFC3339),
+			},
+		})
+	}
+}
+
