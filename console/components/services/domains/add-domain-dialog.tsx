@@ -60,7 +60,7 @@ export function AddDomainDialog({
     if (!trimmedDomain) {
       newErrors.domain = 'Domain name is required';
     } else if (!domainRegex.test(trimmedDomain)) {
-      newErrors.domain = 'Please enter a valid domain format (e.g. app.yourdomain.com)';
+      newErrors.domain = 'Please enter a valid domain format (e.g. app.example.com)';
     }
 
     if (isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535) {

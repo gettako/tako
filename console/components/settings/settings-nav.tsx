@@ -76,7 +76,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'notifications',
     label: 'Notifications',
-    description: 'Email, Slack, and Telegram channels',
+    description: 'Outbound alerts (Coming Soon)',
     icon: Bell,
   },
 ];

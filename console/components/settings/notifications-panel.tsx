@@ -1,450 +1,132 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  useNotificationSettings,
-  useUpdateNotificationSettings,
-  useSendTestNotification,
-} from '@/lib/queries';
-import { NotificationSettings } from '@/lib/types';
+import React from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
+  Bell,
   Mail,
   MessageSquare,
   Send,
-  Save,
-  Loader2,
-  BellRing,
-  CheckCircle2,
+  Webhook,
+  Clock,
+  ExternalLink,
 } from 'lucide-react';
 import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
-import { toast } from 'sonner';
+import Link from 'next/link';
 
 export function NotificationsPanel() {
-  const [isSaving, setIsSaving] = useState(false);
-  const [testingChannel, setTestingChannel] = useState<string | null>(null);
-
-  const { data: initialSettings } = useNotificationSettings();
-  const updateSettingsMutation = useUpdateNotificationSettings();
-  const sendTestMutation = useSendTestNotification();
-
-  const [settings, setSettings] = useState<NotificationSettings>(
-    initialSettings || {
-      email: {
-        enabled: true,
-        smtpHost: 'smtp.mailgun.org',
-        smtpPort: 587,
-        fromEmail: 'alerts@gettako.dev',
-      },
-      slack: {
-        enabled: true,
-        webhookUrl: 'https://hooks.slack.com/services/T00/B00/X00',
-        channelName: '#infrastructure-alerts',
-      },
-      discord: {
-        enabled: false,
-        webhookUrl: '',
-        channelName: '#tako-alerts',
-      },
-      telegram: {
-        enabled: false,
-        botToken: '',
-        chatId: '',
-      },
-    }
-  );
-
-  React.useEffect(() => {
-    if (initialSettings) {
-      setSettings((prev) => ({
-        ...prev,
-        ...initialSettings,
-        discord: initialSettings.discord || prev.discord || {
-          enabled: false,
-          webhookUrl: '',
-          channelName: '#tako-alerts',
-        },
-      }));
-    }
-  }, [initialSettings]);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setIsSaving(true);
-      await updateSettingsMutation.mutateAsync(settings);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleTestChannel = async (channel: 'email' | 'slack' | 'discord' | 'telegram') => {
-    try {
-      setTestingChannel(channel);
-      await sendTestMutation.mutateAsync(channel);
-    } finally {
-      setTestingChannel(null);
-    }
-  };
+  const plannedChannels = [
+    {
+      icon: Mail,
+      name: 'Email Alerts (SMTP)',
+      description:
+        'Deliver critical failure alerts, automated rollback notices, and node outage reports via your custom SMTP server.',
+      status: 'Planned',
+    },
+    {
+      icon: MessageSquare,
+      name: 'Discord Webhooks',
+      description:
+        'Post rich deployment status cards, container health warnings, and commit logs directly into your Discord channels.',
+      status: 'Planned',
+    },
+    {
+      icon: MessageSquare,
+      name: 'Slack Webhooks',
+      description:
+        'Stream real-time deployment status, error traces, and team notifications into designated Slack channels.',
+      status: 'Planned',
+    },
+    {
+      icon: Send,
+      name: 'Telegram Bot',
+      description:
+        'Receive instant mobile push notifications and emergency node alerts directly through a configured Telegram bot.',
+      status: 'Planned',
+    },
+  ];
 
   return (
-    <form onSubmit={handleSave} className="space-y-6">
-      {/* 1. Email (SMTP) Channel */}
+    <div className="space-y-6">
       <Card className="border-border bg-card p-6">
         <CardHeader className="px-0 pt-0 pb-4">
           <SettingsSectionHeader
-            icon={Mail}
-            title="Email Alerts (SMTP)"
-            description="Send critical alerts for node outages, failed deployments, and security incidents."
+            icon={Bell}
+            title="Notification Channels & Alerts"
+            description="Configure automated alerting for deployment events, node failures, and security incidents."
             action={
-              <div className="flex items-center gap-2">
-                {settings.email.enabled && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestChannel('email')}
-                    disabled={testingChannel === 'email'}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {testingChannel === 'email' ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <BellRing className="size-3.5" />
-                    )}
-                    Send Test
-                  </Button>
-                )}
-                <Switch
-                  checked={settings.email.enabled}
-                  onCheckedChange={(val) =>
-                    setSettings({
-                      ...settings,
-                      email: { ...settings.email, enabled: val },
-                    })
-                  }
-                />
-              </div>
+              <Badge variant="outline" className="gap-1.5 text-xs text-muted-foreground font-normal border-border">
+                <Clock className="size-3 text-muted-foreground" />
+                Coming Soon
+              </Badge>
             }
           />
         </CardHeader>
 
-        {settings.email.enabled && (
-          <CardContent className="px-0 pt-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-medium text-foreground">SMTP Server Host</Label>
-                <Input
-                  value={settings.email.smtpHost}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      email: { ...settings.email, smtpHost: e.target.value },
-                    })
-                  }
-                  placeholder="smtp.mailgun.org"
-                  className="font-mono text-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground">Port</Label>
-                <Input
-                  type="number"
-                  value={settings.email.smtpPort}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      email: { ...settings.email, smtpPort: Number(e.target.value) },
-                    })
-                  }
-                  className="font-mono text-sm"
-                />
-              </div>
+        <CardContent className="px-0 pt-2 space-y-6">
+          {/* Informational Hero Banner */}
+          <div className="rounded-xl border border-border bg-muted/20 p-5 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="flex size-2 rounded-full bg-primary/70 animate-pulse" />
+              <h4 className="text-sm font-semibold text-foreground">
+                Outbound Alert Adapters in Active Development
+              </h4>
             </div>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl">
+              Tako currently tracks all cluster events and deployment statuses in the local{' '}
+              <Link href="/audit-logs" className="text-primary hover:underline font-medium">
+                Audit Logs
+              </Link>{' '}
+              and live telemetry streams. Outbound delivery to external notification channels (SMTP, Slack, Discord, Telegram) is planned in our development roadmap.
+            </p>
+          </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Sender From Email</Label>
-              <Input
-                value={settings.email.fromEmail}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    email: { ...settings.email, fromEmail: e.target.value },
-                  })
-                }
-                placeholder="alerts@yourdomain.com"
-                className="max-w-md font-mono text-sm"
-              />
-            </div>
-          </CardContent>
-        )}
+          {/* Planned Channels Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {plannedChannels.map((channel) => {
+              const Icon = channel.icon;
+              return (
+                <div
+                  key={channel.name}
+                  className="flex flex-col justify-between p-4 rounded-xl border border-border bg-card hover:bg-muted/10 transition-colors space-y-3"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Icon className="size-4" />
+                        </div>
+                        <span className="text-sm font-medium text-foreground">{channel.name}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] font-mono font-normal">
+                        {channel.status}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {channel.description}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Roadmap Reference Footer */}
+          <div className="pt-2 flex items-center justify-between text-xs text-muted-foreground border-t border-border">
+            <span>Want to track upcoming notification adapters?</span>
+            <a
+              href="https://docs.gettako.dev/roadmap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-primary hover:underline font-medium"
+            >
+              <span>View Tako Roadmap</span>
+              <ExternalLink className="size-3" />
+            </a>
+          </div>
+        </CardContent>
       </Card>
-
-      {/* 2. Slack Webhook Channel */}
-      <Card className="border-border bg-card p-6">
-        <CardHeader className="px-0 pt-0 pb-4">
-          <SettingsSectionHeader
-            icon={MessageSquare}
-            title="Slack Webhook"
-            description="Stream deployments and health status notifications into a Slack channel."
-            action={
-              <div className="flex items-center gap-2">
-                {settings.slack.enabled && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestChannel('slack')}
-                    disabled={testingChannel === 'slack'}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {testingChannel === 'slack' ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <BellRing className="size-3.5" />
-                    )}
-                    Send Test
-                  </Button>
-                )}
-                <Switch
-                  checked={settings.slack.enabled}
-                  onCheckedChange={(val) =>
-                    setSettings({
-                      ...settings,
-                      slack: { ...settings.slack, enabled: val },
-                    })
-                  }
-                />
-              </div>
-            }
-          />
-        </CardHeader>
-
-        {settings.slack.enabled && (
-          <CardContent className="px-0 pt-4 space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Slack Incoming Webhook URL</Label>
-              <Input
-                value={settings.slack.webhookUrl}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    slack: { ...settings.slack, webhookUrl: e.target.value },
-                  })
-                }
-                placeholder="https://hooks.slack.com/services/..."
-                className="font-mono text-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Channel Name</Label>
-              <Input
-                value={settings.slack.channelName}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    slack: { ...settings.slack, channelName: e.target.value },
-                  })
-                }
-                placeholder="#infrastructure-alerts"
-                className="max-w-xs font-mono text-sm"
-              />
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* 3. Discord Webhook Channel */}
-      <Card className="border-border bg-card p-6">
-        <CardHeader className="px-0 pt-0 pb-4">
-          <SettingsSectionHeader
-            icon={MessageSquare}
-            title="Discord Webhook"
-            description="Post cluster events, failed health checks, and build notifications to a Discord channel."
-            action={
-              <div className="flex items-center gap-2">
-                {settings.discord?.enabled && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestChannel('discord')}
-                    disabled={testingChannel === 'discord'}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {testingChannel === 'discord' ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <BellRing className="size-3.5" />
-                    )}
-                    Send Test
-                  </Button>
-                )}
-                <Switch
-                  checked={settings.discord?.enabled ?? false}
-                  onCheckedChange={(val) =>
-                    setSettings({
-                      ...settings,
-                      discord: {
-                        enabled: val,
-                        webhookUrl: settings.discord?.webhookUrl || '',
-                        channelName: settings.discord?.channelName || '#tako-alerts',
-                      },
-                    })
-                  }
-                />
-              </div>
-            }
-          />
-        </CardHeader>
-
-        {settings.discord?.enabled && (
-          <CardContent className="px-0 pt-4 space-y-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Discord Webhook URL</Label>
-              <Input
-                value={settings.discord?.webhookUrl || ''}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    discord: {
-                      enabled: true,
-                      webhookUrl: e.target.value,
-                      channelName: settings.discord?.channelName || '#tako-alerts',
-                    },
-                  })
-                }
-                placeholder="https://discord.com/api/webhooks/..."
-                className="font-mono text-sm"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-foreground">Channel / Identifier</Label>
-              <Input
-                value={settings.discord?.channelName || '#tako-alerts'}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    discord: {
-                      enabled: true,
-                      webhookUrl: settings.discord?.webhookUrl || '',
-                      channelName: e.target.value,
-                    },
-                  })
-                }
-                placeholder="#tako-alerts"
-                className="max-w-xs font-mono text-sm"
-              />
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* 4. Telegram Bot Channel */}
-      <Card className="border-border bg-card p-6">
-        <CardHeader className="px-0 pt-0 pb-4">
-          <SettingsSectionHeader
-            icon={Send}
-            title="Telegram Bot"
-            description="Receive instant cluster heartbeat alerts via Telegram bot messages."
-            action={
-              <div className="flex items-center gap-2">
-                {settings.telegram.enabled && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleTestChannel('telegram')}
-                    disabled={testingChannel === 'telegram'}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {testingChannel === 'telegram' ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <BellRing className="size-3.5" />
-                    )}
-                    Send Test
-                  </Button>
-                )}
-                <Switch
-                  checked={settings.telegram.enabled}
-                  onCheckedChange={(val) =>
-                    setSettings({
-                      ...settings,
-                      telegram: { ...settings.telegram, enabled: val },
-                    })
-                  }
-                />
-              </div>
-            }
-          />
-        </CardHeader>
-
-        {settings.telegram.enabled && (
-          <CardContent className="px-0 pt-4 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground">Bot Token</Label>
-                <Input
-                  value={settings.telegram.botToken}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      telegram: { ...settings.telegram, botToken: e.target.value },
-                    })
-                  }
-                  placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-                  className="font-mono text-sm"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground">Target Chat ID</Label>
-                <Input
-                  value={settings.telegram.chatId}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      telegram: { ...settings.telegram, chatId: e.target.value },
-                    })
-                  }
-                  placeholder="-100123456789"
-                  className="font-mono text-sm"
-                />
-              </div>
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button
-          type="submit"
-          size="default"
-          disabled={isSaving}
-          className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="size-3.5" />
-              Save Notification Channels
-            </>
-          )}
-        </Button>
-      </div>
-    </form>
+    </div>
   );
 }

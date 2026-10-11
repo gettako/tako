@@ -52,7 +52,7 @@ export function validateDomain(input: string): { valid: boolean; error?: string 
   if (!DOMAIN_REGEX.test(domainToValidate)) {
     return {
       valid: false,
-      error: 'Invalid domain format. Please enter a valid FQDN (e.g. console.yourdomain.com or *.yourdomain.com)',
+      error: 'Invalid domain format. Please enter a valid FQDN (e.g. console.example.com or *.example.com)',
     };
   }
 

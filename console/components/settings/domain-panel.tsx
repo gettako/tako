@@ -269,7 +269,7 @@ export function DomainPanel() {
                   value={domain}
                   onChange={(e) => handleDomainChange(e.target.value)}
                   onBlur={() => setDomain(sanitizeDomain(domain))}
-                  placeholder="console.yourdomain.com"
+                  placeholder="console.example.com"
                   disabled={isSaving || isVerifying}
                   className={`font-mono text-sm ${validationError ? 'border-status-danger focus-visible:ring-status-danger' : ''}`}
                 />
