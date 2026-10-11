@@ -76,7 +76,7 @@ gettako/
 ├── agent/            # Node daemon in Go (Docker Engine SDK, outbound gRPC client)
 ├── api/              # OpenAPI 3.1 specification (openapi.yaml) & Protocol Buffers (proto/)
 ├── console/          # Next.js 16 dashboard (React 19, Tailwind CSS v4)
-├── deploy/           # Compose stacks (master/worker) and Traefik config
+├── deploy/           # Compose stacks (server/agent) and Traefik config
 ├── docs/             # Technical documentation source (Mintlify MDX)
 ├── install.sh        # Universal installer script for Master Server & Worker Agent
 └── server/           # Master orchestrator in Go (Chi REST/SSE, SQLite WAL, gRPC server)
