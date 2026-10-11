@@ -97,10 +97,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                 <span className="truncate font-semibold tracking-tight text-sidebar-foreground">
-                  Tako Cloud
+                  Tako
                 </span>
                 <span className="truncate text-xs text-muted-foreground font-mono">
-                  Self-Hosted PaaS
+                  codename // nautilus
                 </span>
               </div>
             </SidebarMenuButton>
@@ -120,7 +120,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
             <SidebarMenuButton
               size="sm"
-              tooltip="Cluster healthy (v0.4.2)"
+              tooltip="Cluster healthy (v0.1.0-beta)"
               className="text-xs text-muted-foreground hover:text-foreground cursor-default hover:bg-transparent group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0!"
             >
               <div className="flex size-4 shrink-0 items-center justify-center">
@@ -128,7 +128,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </div>
               <div className="flex flex-1 items-center justify-between group-data-[collapsible=icon]:hidden">
                 <span className="truncate">Cluster healthy</span>
-                <span className="font-mono text-[10px] text-muted-foreground/80">v0.4.2</span>
+                <span className="font-mono text-[10px] text-muted-foreground/80">v0.1.0-beta</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
