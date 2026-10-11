@@ -93,9 +93,6 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 		}
 	}
 
-	// Ensure swap_limit_mb column exists
-	_, _ = o.db.ExecContext(ctx, "ALTER TABLE services ADD COLUMN swap_limit_mb INTEGER NOT NULL DEFAULT 0;")
-
 	var existingSwap int64
 	_ = o.db.QueryRowContext(ctx, "SELECT swap_limit_mb FROM services WHERE id = ?", id).Scan(&existingSwap)
 

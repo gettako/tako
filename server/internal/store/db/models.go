@@ -37,13 +37,13 @@ type Deployment struct {
 	Branch        string       `json:"branch"`
 	Author        string       `json:"author"`
 	Status        string       `json:"status"`
+	Url           string       `json:"url"`
 	Steps         string       `json:"steps"`
 	Logs          string       `json:"logs"`
 	DurationMs    int64        `json:"duration_ms"`
 	StartedAt     time.Time    `json:"started_at"`
 	FinishedAt    sql.NullTime `json:"finished_at"`
 	CreatedAt     time.Time    `json:"created_at"`
-	Url           string       `json:"url"`
 }
 
 type Node struct {
@@ -97,30 +97,40 @@ type Project struct {
 }
 
 type Service struct {
-	ID               string    `json:"id"`
-	ProjectID        string    `json:"project_id"`
-	NodeID           string    `json:"node_id"`
-	Name             string    `json:"name"`
-	Slug             string    `json:"slug"`
-	Type             string    `json:"type"`
-	Status           string    `json:"status"`
-	Repository       string    `json:"repository"`
-	Branch           string    `json:"branch"`
-	CommitHash       string    `json:"commit_hash"`
-	Dockerfile       string    `json:"dockerfile"`
-	BuildCommand     string    `json:"build_command"`
-	ComposeFile      string    `json:"compose_file"`
-	Image            string    `json:"image"`
-	DatabaseType     string    `json:"database_type"`
-	DatabaseVersion  string    `json:"database_version"`
-	ConnectionString string    `json:"connection_string"`
-	Ports            string    `json:"ports"`
-	Replicas         int64     `json:"replicas"`
-	CpuLimit         float64   `json:"cpu_limit"`
-	MemoryLimitMb    int64     `json:"memory_limit_mb"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
-	PublishToHost    int64     `json:"publish_to_host"`
+	ID                  string    `json:"id"`
+	ProjectID           string    `json:"project_id"`
+	NodeID              string    `json:"node_id"`
+	Name                string    `json:"name"`
+	Slug                string    `json:"slug"`
+	Type                string    `json:"type"`
+	Status              string    `json:"status"`
+	Repository          string    `json:"repository"`
+	Branch              string    `json:"branch"`
+	CommitHash          string    `json:"commit_hash"`
+	Dockerfile          string    `json:"dockerfile"`
+	BuildCommand        string    `json:"build_command"`
+	ComposeFile         string    `json:"compose_file"`
+	Image               string    `json:"image"`
+	DatabaseType        string    `json:"database_type"`
+	DatabaseVersion     string    `json:"database_version"`
+	ConnectionString    string    `json:"connection_string"`
+	Ports               string    `json:"ports"`
+	Replicas            int64     `json:"replicas"`
+	CpuLimit            float64   `json:"cpu_limit"`
+	MemoryLimitMb       int64     `json:"memory_limit_mb"`
+	PublishToHost       int64     `json:"publish_to_host"`
+	SwapLimitMb         int64     `json:"swap_limit_mb"`
+	AutoScalingEnabled  int64     `json:"auto_scaling_enabled"`
+	MinReplicas         int64     `json:"min_replicas"`
+	MaxReplicas         int64     `json:"max_replicas"`
+	TargetCpuPercent    float64   `json:"target_cpu_percent"`
+	AutoRollbackEnabled int64     `json:"auto_rollback_enabled"`
+	AutoScalingMetric   string    `json:"auto_scaling_metric"`
+	TargetMemoryPercent float64   `json:"target_memory_percent"`
+	ScaleDownCpuPercent float64   `json:"scale_down_cpu_percent"`
+	CooldownSeconds     int64     `json:"cooldown_seconds"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 type ServiceDomain struct {

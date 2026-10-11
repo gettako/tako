@@ -76,6 +76,17 @@ CREATE TABLE IF NOT EXISTS services (
     replicas INTEGER NOT NULL DEFAULT 1,
     cpu_limit REAL NOT NULL DEFAULT 1.0,
     memory_limit_mb INTEGER NOT NULL DEFAULT 512,
+    publish_to_host INTEGER NOT NULL DEFAULT 1,
+    swap_limit_mb INTEGER NOT NULL DEFAULT 0,
+    auto_scaling_enabled INTEGER NOT NULL DEFAULT 0,
+    min_replicas INTEGER NOT NULL DEFAULT 1,
+    max_replicas INTEGER NOT NULL DEFAULT 5,
+    target_cpu_percent REAL NOT NULL DEFAULT 80.0,
+    auto_rollback_enabled INTEGER NOT NULL DEFAULT 1,
+    auto_scaling_metric TEXT NOT NULL DEFAULT 'cpu',
+    target_memory_percent REAL NOT NULL DEFAULT 80.0,
+    scale_down_cpu_percent REAL NOT NULL DEFAULT 25.0,
+    cooldown_seconds INTEGER NOT NULL DEFAULT 60,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(project_id, slug)
@@ -115,6 +126,7 @@ CREATE TABLE IF NOT EXISTS deployments (
     branch TEXT NOT NULL DEFAULT '',
     author TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'queued',
+    url TEXT NOT NULL DEFAULT '',
     steps TEXT NOT NULL DEFAULT '[]',
     logs TEXT NOT NULL DEFAULT '',
     duration_ms INTEGER NOT NULL DEFAULT 0,
@@ -138,6 +150,27 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Table: cluster_settings
+CREATE TABLE IF NOT EXISTS cluster_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table: node_metrics
+CREATE TABLE IF NOT EXISTS node_metrics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    node_id TEXT NOT NULL,
+    cpu_percent REAL NOT NULL DEFAULT 0.0,
+    memory_used_mb INTEGER NOT NULL DEFAULT 0,
+    memory_total_mb INTEGER NOT NULL DEFAULT 0,
+    disk_used_gb INTEGER NOT NULL DEFAULT 0,
+    disk_total_gb INTEGER NOT NULL DEFAULT 0,
+    network_rx_kbps REAL NOT NULL DEFAULT 0.0,
+    network_tx_kbps REAL NOT NULL DEFAULT 0.0,
+    recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_services_project_id ON services(project_id);
 CREATE INDEX IF NOT EXISTS idx_services_node_id ON services(node_id);
@@ -147,8 +180,12 @@ CREATE INDEX IF NOT EXISTS idx_deployments_service_id ON deployments(service_id)
 CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp ON audit_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_nodes_status ON nodes(status);
+CREATE INDEX IF NOT EXISTS idx_node_metrics_node_recorded ON node_metrics(node_id, recorded_at);
+CREATE INDEX IF NOT EXISTS idx_node_metrics_recorded_at ON node_metrics(recorded_at);
 
 -- +goose Down
+DROP TABLE IF EXISTS node_metrics;
+DROP TABLE IF EXISTS cluster_settings;
 DROP TABLE IF EXISTS audit_logs;
 DROP TABLE IF EXISTS deployments;
 DROP TABLE IF EXISTS service_env_vars;

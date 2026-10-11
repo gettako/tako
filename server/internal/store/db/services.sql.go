@@ -22,7 +22,7 @@ INSERT INTO services (
     ?, ?, ?, ?,
     ?, ?, ?, ?, ?,
     ?
-) RETURNING id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host
+) RETURNING id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, publish_to_host, swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_rollback_enabled, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, created_at, updated_at
 `
 
 type CreateServiceParams struct {
@@ -98,9 +98,19 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.Replicas,
 		&i.CpuLimit,
 		&i.MemoryLimitMb,
+		&i.PublishToHost,
+		&i.SwapLimitMb,
+		&i.AutoScalingEnabled,
+		&i.MinReplicas,
+		&i.MaxReplicas,
+		&i.TargetCpuPercent,
+		&i.AutoRollbackEnabled,
+		&i.AutoScalingMetric,
+		&i.TargetMemoryPercent,
+		&i.ScaleDownCpuPercent,
+		&i.CooldownSeconds,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PublishToHost,
 	)
 	return i, err
 }
@@ -215,7 +225,7 @@ func (q *Queries) DeleteServiceEnvVars(ctx context.Context, serviceID string) er
 }
 
 const getServiceByID = `-- name: GetServiceByID :one
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services WHERE id = ? LIMIT 1
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, publish_to_host, swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_rollback_enabled, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, created_at, updated_at FROM services WHERE id = ? LIMIT 1
 `
 
 func (q *Queries) GetServiceByID(ctx context.Context, id string) (Service, error) {
@@ -243,15 +253,25 @@ func (q *Queries) GetServiceByID(ctx context.Context, id string) (Service, error
 		&i.Replicas,
 		&i.CpuLimit,
 		&i.MemoryLimitMb,
+		&i.PublishToHost,
+		&i.SwapLimitMb,
+		&i.AutoScalingEnabled,
+		&i.MinReplicas,
+		&i.MaxReplicas,
+		&i.TargetCpuPercent,
+		&i.AutoRollbackEnabled,
+		&i.AutoScalingMetric,
+		&i.TargetMemoryPercent,
+		&i.ScaleDownCpuPercent,
+		&i.CooldownSeconds,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PublishToHost,
 	)
 	return i, err
 }
 
 const listAllServices = `-- name: ListAllServices :many
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services ORDER BY created_at DESC
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, publish_to_host, swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_rollback_enabled, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, created_at, updated_at FROM services ORDER BY created_at DESC
 `
 
 func (q *Queries) ListAllServices(ctx context.Context) ([]Service, error) {
@@ -285,9 +305,19 @@ func (q *Queries) ListAllServices(ctx context.Context) ([]Service, error) {
 			&i.Replicas,
 			&i.CpuLimit,
 			&i.MemoryLimitMb,
+			&i.PublishToHost,
+			&i.SwapLimitMb,
+			&i.AutoScalingEnabled,
+			&i.MinReplicas,
+			&i.MaxReplicas,
+			&i.TargetCpuPercent,
+			&i.AutoRollbackEnabled,
+			&i.AutoScalingMetric,
+			&i.TargetMemoryPercent,
+			&i.ScaleDownCpuPercent,
+			&i.CooldownSeconds,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PublishToHost,
 		); err != nil {
 			return nil, err
 		}
@@ -375,7 +405,7 @@ func (q *Queries) ListServiceEnvVars(ctx context.Context, serviceID string) ([]S
 }
 
 const listServicesByNode = `-- name: ListServicesByNode :many
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services WHERE node_id = ? ORDER BY created_at DESC
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, publish_to_host, swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_rollback_enabled, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, created_at, updated_at FROM services WHERE node_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListServicesByNode(ctx context.Context, nodeID string) ([]Service, error) {
@@ -409,9 +439,19 @@ func (q *Queries) ListServicesByNode(ctx context.Context, nodeID string) ([]Serv
 			&i.Replicas,
 			&i.CpuLimit,
 			&i.MemoryLimitMb,
+			&i.PublishToHost,
+			&i.SwapLimitMb,
+			&i.AutoScalingEnabled,
+			&i.MinReplicas,
+			&i.MaxReplicas,
+			&i.TargetCpuPercent,
+			&i.AutoRollbackEnabled,
+			&i.AutoScalingMetric,
+			&i.TargetMemoryPercent,
+			&i.ScaleDownCpuPercent,
+			&i.CooldownSeconds,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PublishToHost,
 		); err != nil {
 			return nil, err
 		}
@@ -427,7 +467,7 @@ func (q *Queries) ListServicesByNode(ctx context.Context, nodeID string) ([]Serv
 }
 
 const listServicesByProject = `-- name: ListServicesByProject :many
-SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, created_at, updated_at, publish_to_host FROM services WHERE project_id = ? ORDER BY created_at DESC
+SELECT id, project_id, node_id, name, slug, type, status, repository, branch, commit_hash, dockerfile, build_command, compose_file, image, database_type, database_version, connection_string, ports, replicas, cpu_limit, memory_limit_mb, publish_to_host, swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_rollback_enabled, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, created_at, updated_at FROM services WHERE project_id = ? ORDER BY created_at DESC
 `
 
 func (q *Queries) ListServicesByProject(ctx context.Context, projectID string) ([]Service, error) {
@@ -461,9 +501,19 @@ func (q *Queries) ListServicesByProject(ctx context.Context, projectID string) (
 			&i.Replicas,
 			&i.CpuLimit,
 			&i.MemoryLimitMb,
+			&i.PublishToHost,
+			&i.SwapLimitMb,
+			&i.AutoScalingEnabled,
+			&i.MinReplicas,
+			&i.MaxReplicas,
+			&i.TargetCpuPercent,
+			&i.AutoRollbackEnabled,
+			&i.AutoScalingMetric,
+			&i.TargetMemoryPercent,
+			&i.ScaleDownCpuPercent,
+			&i.CooldownSeconds,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PublishToHost,
 		); err != nil {
 			return nil, err
 		}
