@@ -97,7 +97,13 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				for _, line := range lines {
 					trimmed := strings.TrimSpace(line)
 					if trimmed != "" {
-						_, _ = fmt.Fprintf(w, "event: log\ndata: %s\n\n", trimmed)
+						chunk, _ := json.Marshal(map[string]any{
+							"deployment_id": id,
+							"step":          "Log",
+							"message":       trimmed,
+							"status":        dep.Status,
+						})
+						_, _ = fmt.Fprintf(w, "event: log\ndata: %s\n\n", chunk)
 					}
 				}
 				flusher.Flush()

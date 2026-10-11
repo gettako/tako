@@ -72,11 +72,40 @@ type SessionItem struct {
 	LastActive string `json:"lastActive"`
 }
 
+func extractAuthToken(r *http.Request) string {
+	if auth := r.Header.Get("Authorization"); auth != "" {
+		if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+			return strings.TrimSpace(auth[7:])
+		}
+		return strings.TrimSpace(auth)
+	}
+	if c, err := r.Cookie("tako_session"); err == nil && c.Value != "" {
+		return strings.TrimSpace(c.Value)
+	}
+	return ""
+}
+
+func resolveAuthUser(r *http.Request, orch *orchestrator.Orchestrator) (db.User, error) {
+	token := extractAuthToken(r)
+	if token != "" {
+		if sess, ok := orch.GetUserSession(token); ok {
+			if u, err := orch.Queries().GetUserByID(r.Context(), sess.UserID); err == nil {
+				return u, nil
+			}
+		}
+	}
+	users, err := orch.Queries().ListUsers(r.Context())
+	if err == nil && len(users) > 0 {
+		return orch.Queries().GetUserByID(r.Context(), users[0].ID)
+	}
+	return db.User{}, fmt.Errorf("unauthenticated")
+}
+
 func registerAuthRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/auth", func(r chi.Router) {
 		r.Post("/login", handleLogin(orch))
 		r.Post("/passkey/login", handlePasskeyLogin(orch))
-		r.Post("/logout", handleLogout())
+		r.Post("/logout", handleLogout(orch))
 		r.Get("/me", handleGetMe(orch))
 		r.Put("/profile", handleUpdateProfile(orch))
 		r.Put("/password", handleChangePassword(orch))
@@ -124,6 +153,7 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		token := "tako_tk_" + randomHexID(24)
+		orch.RegisterUserSession(token, user)
 
 		avatar := ""
 		if user.AvatarUrl.Valid {
@@ -151,8 +181,12 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	}
 }
 
-func handleLogout() http.HandlerFunc {
+func handleLogout(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		token := extractAuthToken(r)
+		if token != "" {
+			orch.RevokeUserSession(token)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -171,16 +205,15 @@ func is2FAEnabled(ctx context.Context, orch *orchestrator.Orchestrator) bool {
 
 func handleGetMe(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		users, err := orch.Queries().ListUsers(r.Context())
-		if err != nil || len(users) == 0 {
+		user, err := resolveAuthUser(r, orch)
+		if err != nil {
 			http.Error(w, `{"error":"No authenticated user"}`, http.StatusUnauthorized)
 			return
 		}
 
-		first := users[0]
 		avatar := ""
-		if first.AvatarUrl.Valid {
-			avatar = first.AvatarUrl.String
+		if user.AvatarUrl.Valid {
+			avatar = user.AvatarUrl.String
 		}
 
 		twoFactorEnabled := is2FAEnabled(r.Context(), orch)
@@ -190,13 +223,13 @@ func handleGetMe(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"authenticated": true,
 			"user": AuthUserResponse{
-				ID:               first.ID,
-				Name:             first.Name,
-				Email:            first.Email,
-				Role:             first.Role,
+				ID:               user.ID,
+				Name:             user.Name,
+				Email:            user.Email,
+				Role:             user.Role,
 				AvatarURL:        avatar,
 				TwoFactorEnabled: twoFactorEnabled,
-				CreatedAt:        first.CreatedAt.Format(time.RFC3339),
+				CreatedAt:        user.CreatedAt.Format(time.RFC3339),
 			},
 		})
 	}

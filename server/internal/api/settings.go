@@ -87,9 +87,9 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			for _, item := range list {
 				var parsed any
 				if err := json.Unmarshal([]byte(item.Value), &parsed); err == nil {
-					result[item.Key] = parsed
+					result[item.Key] = sanitizeSettingValue(item.Key, parsed)
 				} else {
-					result[item.Key] = item.Value
+					result[item.Key] = sanitizeSettingValue(item.Key, item.Value)
 				}
 			}
 
@@ -108,13 +108,15 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			var parsed any
 			if err := json.Unmarshal([]byte(setting.Value), &parsed); err == nil {
+				sanitized := sanitizeSettingValue(key, parsed)
 				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(parsed)
+				_ = json.NewEncoder(w).Encode(sanitized)
 				return
 			}
 
+			sanitized := sanitizeSettingValue(key, setting.Value)
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{"value": setting.Value})
+			_ = json.NewEncoder(w).Encode(map[string]any{"value": sanitized})
 		})
 
 		// PUT /api/v1/settings/{key}
@@ -138,6 +140,14 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 							return
 						}
 					}
+				}
+			}
+
+			// If existing setting exists, preserve secrets that were not changed (still masked)
+			if existing, err := orch.Queries().GetSetting(r.Context(), key); err == nil && existing.Value != "" {
+				var existingParsed any
+				if err := json.Unmarshal([]byte(existing.Value), &existingParsed); err == nil {
+					req.Value = restoreRedactedValues(req.Value, existingParsed)
 				}
 			}
 
@@ -373,5 +383,113 @@ func handleVerifyDomain(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
+	}
+}
+
+var sensitiveSettingKeys = map[string]bool{
+	"privatekey":            true,
+	"private_key":           true,
+	"clientsecret":          true,
+	"client_secret":         true,
+	"webhooksecret":         true,
+	"webhook_secret":        true,
+	"secretaccesskey":       true,
+	"secret_access_key":     true,
+	"cloudflareapitoken":    true,
+	"cloudflare_api_token":  true,
+	"bottoken":              true,
+	"bot_token":             true,
+	"recoverycodes":         true,
+	"recovery_codes":        true,
+	"secret":                true,
+	"password":              true,
+	"smtppassword":          true,
+	"smtp_password":         true,
+	"token":                 true,
+	"github_token":          true,
+	"github_webhook_secret": true,
+}
+
+func isSensitiveKey(k string) bool {
+	lk := strings.ToLower(strings.TrimSpace(k))
+	if sensitiveSettingKeys[lk] {
+		return true
+	}
+	if strings.HasSuffix(lk, "_secret") || strings.HasSuffix(lk, "_token") || strings.HasSuffix(lk, "_password") || strings.HasSuffix(lk, "_private_key") {
+		return true
+	}
+	return false
+}
+
+func sanitizeSettingValue(settingKey string, val any) any {
+	if isSensitiveKey(settingKey) {
+		if s, ok := val.(string); ok && s != "" {
+			return "••••••••"
+		}
+	}
+	switch v := val.(type) {
+	case map[string]any:
+		res := make(map[string]any, len(v))
+		for k, item := range v {
+			if isSensitiveKey(k) {
+				if _, isStr := item.(string); isStr && item != "" {
+					res[k] = "••••••••"
+					continue
+				} else if sl, isSlice := item.([]any); isSlice && len(sl) > 0 {
+					masked := make([]any, len(sl))
+					for i := range sl {
+						masked[i] = "••••••••"
+					}
+					res[k] = masked
+					continue
+				}
+			}
+			res[k] = sanitizeSettingValue(k, item)
+		}
+		return res
+	case []any:
+		res := make([]any, len(v))
+		for i, item := range v {
+			res[i] = sanitizeSettingValue(settingKey, item)
+		}
+		return res
+	default:
+		return val
+	}
+}
+
+func restoreRedactedValues(incoming, existing any) any {
+	switch in := incoming.(type) {
+	case string:
+		if in == "••••••••" {
+			if exStr, ok := existing.(string); ok {
+				return exStr
+			}
+		}
+		return in
+	case map[string]any:
+		exMap, _ := existing.(map[string]any)
+		res := make(map[string]any, len(in))
+		for k, v := range in {
+			if exMap != nil {
+				res[k] = restoreRedactedValues(v, exMap[k])
+			} else {
+				res[k] = v
+			}
+		}
+		return res
+	case []any:
+		exSlice, _ := existing.([]any)
+		res := make([]any, len(in))
+		for i, v := range in {
+			if exSlice != nil && i < len(exSlice) {
+				res[i] = restoreRedactedValues(v, exSlice[i])
+			} else {
+				res[i] = v
+			}
+		}
+		return res
+	default:
+		return incoming
 	}
 }

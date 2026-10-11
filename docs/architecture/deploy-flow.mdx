@@ -1,0 +1,136 @@
+---
+title: "Deploy Flow & Lifecycle"
+description: "Step-by-step walkthrough of application deployment from trigger to live zero-downtime cutover."
+---
+
+Deployments in Tako are orchestrated asynchronously using a decoupled event-driven pipeline between the Control Plane (`server`) and the target Node (`agent`).
+
+---
+
+## 1. End-to-End Deploy Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Developer / Webhook
+    participant Console as Tako Console (BFF)
+    participant Server as Master Server (Orchestrator)
+    participant Bus as EventBus (In-Memory)
+    participant Agent as Target Node Agent
+    participant Docker as Docker Engine Daemon
+    participant Traefik as Traefik Ingress Proxy
+
+    Dev->>Console: Click "Deploy" or Push to Git Branch
+    Console->>Server: POST /api/v1/services/{id}/deploy
+    Server->>Server: Create deployment record (status: queued)<br/>Generate preview domain & URL
+    Server->>Bus: Publish deployment.log (Step: Queued)
+    Server->>Agent: Send MasterTask_Deploy over StreamTasks gRPC
+    
+    rect rgb(240, 248, 255)
+        note over Agent,Docker: Phase 1: Build & Prepare Image
+        Agent->>Agent: Check local image cache for commit
+        alt Image not cached & Repository provided
+            Agent->>Agent: Git clone --depth 1 (branch/commit)
+            Agent->>Agent: Inspect Dockerfile (or auto-generate Node/Go/Alpine fallback)
+            Agent->>Docker: ImageBuild(tarStream)
+            loop Streaming Build Logs
+                Docker-->>Agent: Output chunk
+                Agent-->>Server: DeployLogChunk(Step: Build)
+                Server-->>Bus: Publish deployment.log
+                Bus-->>Console: Stream via SSE (/deployments/{id}/logs)
+            end
+        else Prebuilt Image provided
+            Agent->>Docker: ImagePull(targetImage)
+        end
+    end
+
+    rect rgb(255, 250, 240)
+        note over Agent,Traefik: Phase 2: Preview Routing & Container Startup
+        Agent->>Traefik: Write preview dynamic config (<name>-<commit8>.yml)
+        Agent->>Docker: Stop/remove existing container for same commit
+        Agent->>Docker: ContainerCreate(tako-app-<slug>-<commit8>)
+        Agent->>Docker: ContainerStart(containerId)
+    end
+
+    rect rgb(240, 255, 240)
+        note over Agent,Docker: Phase 3: Health Verification
+        loop 5 Iterations (up to 2 seconds)
+            Agent->>Docker: ContainerInspect(containerName)
+            Docker-->>Agent: inspect.State (Running, ExitCode, OOMKilled)
+        end
+    end
+
+    alt Container is Running & Healthy
+        rect rgb(245, 255, 250)
+            note over Agent,Traefik: Phase 4: Canonical Promotion & Traffic Cutover
+            Agent->>Traefik: Write canonical routing config (<name>.yml)
+            Traefik-->>Traefik: Hot-reload dynamic file (routes traffic to new container)
+            Agent->>Agent: Prune excess preview deployments (TAKO_PREVIEW_RETENTION)
+            Agent-->>Server: DeployLogChunk(Step: Live, Status: success)
+            Server->>Server: Update deployment (status: live)<br/>Update service (status: healthy)
+            Server-->>Bus: Publish deployment.log (Step: Live)
+        end
+    else Container Exited or Terminated by OOM
+        rect rgb(255, 240, 245)
+            note over Agent,Server: Phase 5: Failure Abort & Rollback
+            Agent->>Traefik: Remove preview config (<name>-<commit8>.yml)
+            Agent-->>Server: DeployLogChunk(Step: Error, isError: true)
+            Server->>Server: Update deployment (status: failed)<br/>Update service (status: error)
+            alt Auto-Rollback Enabled
+                Server->>Server: Locate last healthy deployment record
+                Server->>Server: Trigger RollbackDeployment(lastHealthy.ID)
+            end
+        end
+    end
+```
+
+---
+
+## 2. Step-by-Step Execution Phases
+
+### Phase 1: Triggering & Validation
+1. **Trigger Origin:** Deployments can be initiated via:
+   - **Manual Dashboard Click:** `POST /api/v1/services/{id}/deploy` via the Console.
+   - **GitHub Webhook Push:** `POST /api/webhooks/github` automatically matching the repository and branch.
+   - **Generic Webhook URL:** `POST /api/webhooks/deploy/{serviceId}?token=...`.
+2. **Metadata Generation:**
+   - The master server generates a unique deployment ID (`dep-<hex8>`).
+   - Generates a preview subdomain (e.g. `<serviceSlug>-<commit8>-<dashedIP>.sslip.io`).
+   - Inserts the deployment record into SQLite with `status = "queued"`.
+
+### Phase 2: Agent Task Dispatch
+1. The server identifies the target node session in memory (`o.agents[srv.NodeID]`).
+2. Constructs a `takov1.DeployRequest` containing:
+   - Git repository, branch, Dockerfile path, build command, target image name.
+   - Service container environment variables.
+   - Target port mappings and domain routing list.
+   - Resource limits (CPU limit, Memory limit MB, Swap limit MB).
+3. Transmits the task into the agent's active gRPC task stream channel.
+
+### Phase 3: Cloning & Building
+1. **Local Image Cache Check:** If the image for the specified commit was already built on this node, build is skipped.
+2. **Shallow Clone:** Executes `git clone --depth 1` into a temporary directory (`/tmp/tako-repo-*`).
+3. **Dockerfile Fallback Detection:**
+   - If `Dockerfile` exists: builds directly.
+   - If missing but `package.json` exists: automatically generates a standard Node.js 20 production container.
+   - If missing but `go.mod` exists: automatically generates a multi-stage Go 1.24 builder container.
+   - Otherwise: generates a minimal Alpine fallback.
+4. **Log Streaming:** Docker build progress is scanned line-by-line and streamed back to the server over gRPC as `DeployLogChunk` messages.
+
+### Phase 4: Container Launch & Resource Limits
+1. The agent stops and removes any existing container matching `tako-app-<serviceName>-<commit8>`.
+2. Attaches the container to the Docker bridge network `tako-network`.
+3. Injects environment variables and mounts persistent database volumes if the image is detected as PostgreSQL, MySQL, Redis, or MongoDB (`tako-data-<serviceName>`).
+4. Enforces hardware limits:
+   - `NanoCPUs = req.CpuLimit * 1e9`
+   - `Memory = req.MemoryLimitMb * 1024 * 1024`
+   - `MemorySwap = req.MemoryLimitMb * 1024 * 1024` (unless configured otherwise)
+
+### Phase 5: Health Check & Promotion
+1. **Health Verification Loop:** Inspects container state 5 times over ~2 seconds.
+   - If `State.Running == false` with non-zero exit code: fails immediately.
+   - If `State.OOMKilled == true`: fails with OOM diagnostic error.
+2. **Dynamic Traefik Promotion:**
+   - On success: writes the production canonical routing configuration to `/etc/tako/traefik/dynamic/<serviceName>.yml`.
+   - Traefik's internal inotify file watcher detects the file write and switches live ingress traffic to the new container hostname with zero dropped requests.
+3. **Retention Pruning:** Inspects local containers and removes older preview containers exceeding `TAKO_PREVIEW_RETENTION` (default: 2 preview versions).

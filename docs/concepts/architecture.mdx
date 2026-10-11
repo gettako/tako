@@ -103,3 +103,15 @@ Each managed server runs its own independent Traefik v3 container.
 - Listens on ports `80` and `443`.
 - Automatically solves Let's Encrypt ACME HTTP-01 challenges on port `80`.
 - Watches `/etc/traefik/dynamic/` for instant configuration updates without restarts.
+
+---
+
+## Deep-Dive Technical References
+
+For in-depth specifications, protocol contracts, and sequence diagrams, explore the technical architecture series:
+
+- [Architecture Overview & Topology](/architecture/overview)
+- [Component Breakdown & Packages](/architecture/components)
+- [Deploy Flow & Zero-Downtime Swaps](/architecture/deploy-flow)
+- [Agent Protocol & Multi-Server Model](/architecture/agent-protocol)
+- [Auth Model & Entity Relationships](/architecture/auth-and-permissions)

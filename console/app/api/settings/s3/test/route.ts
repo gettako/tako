@@ -17,6 +17,23 @@ function getSignatureKey(key: string, dateStamp: string, regionName: string, ser
   return kSigning;
 }
 
+function isRestrictedEndpoint(hostname: string): boolean {
+  const h = hostname.toLowerCase().trim();
+  if (h === 'localhost' || h.endsWith('.localhost')) return true;
+  if (h === 'metadata.google.internal') return true;
+  if (h === '169.254.169.254' || h.startsWith('169.254.')) return true;
+  if (h === '0.0.0.0' || h === '::1' || h === '[::1]') return true;
+  if (h.startsWith('127.')) return true;
+  if (h.startsWith('10.')) return true;
+  if (h.startsWith('192.168.')) return true;
+  const match172 = h.match(/^172\.(\d+)\./);
+  if (match172) {
+    const secondOctet = parseInt(match172[1], 10);
+    if (secondOctet >= 16 && secondOctet <= 31) return true;
+  }
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -49,6 +66,17 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json(
         { ok: false, latencyMs: 0, message: 'Invalid endpoint format. Must start with http:// or https://' },
+        { status: 400 }
+      );
+    }
+
+    if (isRestrictedEndpoint(parsedUrl.hostname) && process.env.ALLOW_PRIVATE_S3 !== 'true') {
+      return NextResponse.json(
+        {
+          ok: false,
+          latencyMs: 0,
+          message: 'Access to private, loopback, or cloud metadata endpoints is restricted for security reasons.',
+        },
         { status: 400 }
       );
     }

@@ -48,7 +48,19 @@ import {
   User,
   Settings,
   Key,
+  GitBranch,
+  Search,
+  FolderGit2,
+  Lock,
 } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
 import { toast } from 'sonner';
 
@@ -123,6 +135,30 @@ export function GitPanel() {
   const { data: githubApp } = useGitHubAppConfig();
   const { data: providers = [] } = useGitProviders();
   const { data: repos = [] } = useSyncedRepos();
+
+  const [searchQ, setSearchQ] = useState('');
+  const [selectedOrg, setSelectedOrg] = useState('all');
+
+  const orgs = useMemo(() => {
+    const set = new Set<string>();
+    repos.forEach((r) => {
+      const owner = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
+      if (owner) set.add(owner);
+    });
+    return Array.from(set);
+  }, [repos]);
+
+  const filteredRepos = useMemo(() => {
+    return repos.filter((r) => {
+      const owner = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
+      const matchOrg = selectedOrg === 'all' || owner.toLowerCase() === selectedOrg.toLowerCase();
+      const matchQuery =
+        !searchQ.trim() ||
+        r.name.toLowerCase().includes(searchQ.toLowerCase()) ||
+        r.fullName.toLowerCase().includes(searchQ.toLowerCase());
+      return matchOrg && matchQuery;
+    });
+  }, [repos, selectedOrg, searchQ]);
 
   const syncGitReposMutation = useSyncGitRepos();
   const disconnectGitHubAppMutation = useDisconnectGitHubApp();
@@ -543,6 +579,163 @@ export function GitPanel() {
                 <Plus className="size-3.5" />
                 Connect Provider
               </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Repositories ─────────────────────────────────────────────────── */}
+      <div>
+        <SettingsSectionHeader
+          icon={GitBranch}
+          title="Repositories"
+          description="Repositories authorized for Takō to clone, build, and deploy."
+          action={
+            <div className="flex items-center gap-2">
+              <div className="relative w-52">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
+                <Input
+                  placeholder="Search..."
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                  className="h-9 pl-8 text-xs font-mono bg-muted/20"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={isSyncing || !isGitHubConnected}
+                className="h-9 gap-1.5 text-xs"
+              >
+                {isSyncing ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCw className="size-3.5" />}
+                Sync
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Organization / Account Filter Pills */}
+        {isGitHubConnected && orgs.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-1">
+            <span className="text-[11px] text-muted-foreground font-medium mr-1">Filter by account:</span>
+            <Button
+              variant={selectedOrg === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSelectedOrg('all')}
+              className="h-7 text-xs px-2.5 rounded-full"
+            >
+              All ({repos.length})
+            </Button>
+            {orgs.map((org) => {
+              const count = repos.filter(
+                (r) => (r.account || (r.fullName ? r.fullName.split('/')[0] : '')).toLowerCase() === org.toLowerCase()
+              ).length;
+              return (
+                <Button
+                  key={org}
+                  variant={selectedOrg.toLowerCase() === org.toLowerCase() ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedOrg(org)}
+                  className="h-7 text-xs px-2.5 rounded-full gap-1.5"
+                >
+                  <Building2 className="size-3 opacity-70" />
+                  {org} ({count})
+                </Button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-4">
+          {filteredRepos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2.5 p-10 rounded-xl border border-dashed border-border text-center">
+              <FolderGit2 className="size-8 text-muted-foreground/50" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {searchQ || selectedOrg !== 'all' ? 'No matching repositories found' : 'No repositories synced'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {isGitHubConnected
+                    ? 'Install the GitHub App on your personal account or organizations to grant access.'
+                    : 'Connect a provider above first.'}
+                </p>
+              </div>
+              {isGitHubConnected && !searchQ && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(githubApp?.installUrl || `https://github.com/apps/${githubApp?.slug}/installations/new`, '_blank')}
+                  className="h-8 text-xs gap-1.5 mt-1"
+                >
+                  <Building2 className="size-3" />
+                  Install to an Organization / Account <ExternalLink className="size-3" />
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <Table>
+                <TableHeader className="bg-muted/40 border-b border-border">
+                  <TableRow className="h-10 hover:bg-transparent">
+                    <TableHead>Repository</TableHead>
+                    <TableHead className="w-40">Account / Org</TableHead>
+                    <TableHead className="w-28">Branch</TableHead>
+                    <TableHead className="w-28">Visibility</TableHead>
+                    <TableHead className="w-20 text-right">Link</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRepos.map((repo) => {
+                    const repoOwner = repo.account || (repo.fullName ? repo.fullName.split('/')[0] : '');
+                    return (
+                      <TableRow key={repo.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell>
+                          <div className="flex items-center gap-2 py-1">
+                            <GitHubIcon className="size-3.5 text-muted-foreground shrink-0" />
+                            <span className="font-mono text-sm font-medium text-foreground">{repo.name}</span>
+                            <span className="font-mono text-[11px] text-muted-foreground hidden sm:inline">
+                              ({repo.fullName})
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[11px] font-mono gap-1 text-muted-foreground bg-muted/30">
+                            <Building2 className="size-2.5" />
+                            {repoOwner}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted/60 border border-border text-foreground">
+                            {repo.defaultBranch}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {repo.private ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                              <Lock className="size-3" /> Private
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                              <Globe className="size-3" /> Public
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <a
+                            href={repo.htmlUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            View <ExternalLink className="size-3" />
+                          </a>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </div>

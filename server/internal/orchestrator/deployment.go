@@ -884,71 +884,51 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		}
 	}
 
-	// Fallback to simulation if no agent session connected (e.g. testing)
-	steps := []string{"Clone", "Build", "Push/Load image", "Deploy", "Health check", "Live"}
-
-	stepsState := []DeploymentStepJSON{
-		{Name: "Queued", Status: "success", StartedAt: time.Now().UTC().Format(time.RFC3339), FinishedAt: time.Now().UTC().Format(time.RFC3339)},
+	// No active agent session connected for this node
+	now := time.Now().UTC()
+	errMsg := fmt.Sprintf("[%s] Error: No active agent connected for node %s. Deployment failed.\n", now.Format("15:04:05"), srv.NodeID)
+	failedSteps := []DeploymentStepJSON{
+		{Name: "Queued", Status: "success", StartedAt: now.Format(time.RFC3339), FinishedAt: now.Format(time.RFC3339)},
+		{Name: "Deploy", Status: "failed", StartedAt: now.Format(time.RFC3339), FinishedAt: now.Format(time.RFC3339), Logs: []string{errMsg}},
 	}
-
-	for _, stepName := range steps {
-		time.Sleep(150 * time.Millisecond)
-
-		logMsg := fmt.Sprintf("[%s] [%s] Executed step successfully\n", time.Now().Format("15:04:05"), stepName)
-		status := "building"
-		if stepName == "Deploy" || stepName == "Health check" {
-			status = "deploying"
-		} else if stepName == "Live" {
-			status = "live"
-		}
-
-		stepsState = append(stepsState, DeploymentStepJSON{
-			Name:       stepName,
-			Status:     "success",
-			StartedAt:  time.Now().UTC().Format(time.RFC3339),
-			FinishedAt: time.Now().UTC().Format(time.RFC3339),
-		})
-		stepsBytes, _ := json.Marshal(stepsState)
-
-		_ = o.queries.AppendDeploymentLog(bgCtx, db.AppendDeploymentLogParams{
-			ID:     depID,
-			Logs:   logMsg,
-			Status: status,
-			Steps:  string(stepsBytes),
-		})
-
-		o.bus.Publish(events.Event{
-			Type: events.EventDeploymentLog,
-			Payload: map[string]any{
-				"deployment_id": depID,
-				"service_id":    srv.ID,
-				"step":          stepName,
-				"message":       logMsg,
-				"status":        status,
-			},
-		})
-	}
+	stepsBytes, _ := json.Marshal(failedSteps)
+	_ = o.queries.AppendDeploymentLog(bgCtx, db.AppendDeploymentLogParams{
+		ID:     depID,
+		Logs:   errMsg,
+		Status: "failed",
+		Steps:  string(stepsBytes),
+	})
 
 	curDep, err := o.queries.GetDeploymentByID(bgCtx, depID)
+	durationMs := int64(0)
 	if err == nil {
-		now := time.Now().UTC()
-		durationMs := now.Sub(curDep.CreatedAt).Milliseconds()
-		finalStepsBytes, _ := json.Marshal(stepsState)
-		_ = o.queries.UpdateDeploymentStatus(bgCtx, db.UpdateDeploymentStatusParams{
-			ID:         depID,
-			Status:     "live",
-			DurationMs: durationMs,
-			FinishedAt: sql.NullTime{Time: now, Valid: true},
-			Steps:      string(finalStepsBytes),
-			Logs:       curDep.Logs,
-			Url:        previewURL,
-		})
+		durationMs = now.Sub(curDep.CreatedAt).Milliseconds()
 	}
+	_ = o.queries.UpdateDeploymentStatus(bgCtx, db.UpdateDeploymentStatusParams{
+		ID:         depID,
+		Status:     "failed",
+		DurationMs: durationMs,
+		FinishedAt: sql.NullTime{Time: now, Valid: true},
+		Steps:      string(stepsBytes),
+		Logs:       errMsg,
+		Url:        previewURL,
+	})
 
-	// Mark service status as healthy
 	_ = o.queries.UpdateServiceStatus(bgCtx, db.UpdateServiceStatusParams{
 		ID:     srv.ID,
-		Status: "healthy",
+		Status: "error",
+	})
+
+	o.bus.Publish(events.Event{
+		Type: events.EventDeploymentLog,
+		Payload: map[string]any{
+			"deployment_id": depID,
+			"service_id":    srv.ID,
+			"step":          "Deploy",
+			"message":       errMsg,
+			"status":        "failed",
+			"is_error":      true,
+		},
 	})
 }
 

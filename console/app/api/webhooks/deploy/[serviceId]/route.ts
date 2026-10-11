@@ -43,25 +43,25 @@ export async function POST(
     }
   }
 
-  // If no webhook exists yet, auto-generate default so webhook works seamlessly
+  // 3. Verify webhook exists and is active
   if (!webhook) {
-    webhook = {
-      id: `wh-${serviceId}`,
-      serviceId,
-      name: 'Git Deployment Trigger',
-      url: `/api/webhooks/deploy/${serviceId}`,
-      secret: tokenFromHeader || `whsec_${Math.random().toString(36).substring(2, 15)}`,
-      events: ['push', 'tag', 'manual'],
-      active: true,
-      createdAt: new Date().toISOString(),
-    };
-    setSettingFallback(`webhook_${serviceId}`, webhook);
-    try {
-      await fetchServer(`/api/v1/settings/webhook_${serviceId}`, {
-        method: 'PUT',
-        body: JSON.stringify({ value: webhook }),
-      });
-    } catch {}
+    return NextResponse.json(
+      {
+        error: 'Webhook not configured for this service',
+        serviceId,
+      },
+      { status: 404 }
+    );
+  }
+
+  if (!webhook.active) {
+    return NextResponse.json(
+      {
+        error: 'Webhook is inactive',
+        serviceId,
+      },
+      { status: 403 }
+    );
   }
 
   // 3. Verify Token

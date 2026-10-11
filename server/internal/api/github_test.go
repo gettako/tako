@@ -3,6 +3,9 @@ package api_test
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -136,8 +139,20 @@ func TestGitHubAppAPI(t *testing.T) {
 
 	// 6. POST /api/v1/webhooks/github (Ping)
 	t.Run("Webhook Ping", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/github", bytes.NewReader([]byte(`{}`)))
+		setting, _ := orch.Queries().GetSetting(ctx, "github_app_config")
+		var cfg struct {
+			WebhookSecret string `json:"webhookSecret"`
+		}
+		_ = json.Unmarshal([]byte(setting.Value), &cfg)
+
+		pingBody := []byte(`{}`)
+		mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
+		mac.Write(pingBody)
+		sig := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/github", bytes.NewReader(pingBody))
 		req.Header.Set("X-GitHub-Event", "ping")
+		req.Header.Set("X-Hub-Signature-256", sig)
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 
@@ -153,6 +168,12 @@ func TestGitHubAppAPI(t *testing.T) {
 
 	// 7. POST /api/v1/webhooks/github (Push event triggers deploy)
 	t.Run("Webhook Push Trigger Deploy", func(t *testing.T) {
+		setting, _ := orch.Queries().GetSetting(ctx, "github_app_config")
+		var cfg struct {
+			WebhookSecret string `json:"webhookSecret"`
+		}
+		_ = json.Unmarshal([]byte(setting.Value), &cfg)
+
 		_, _ = orch.Queries().CreateProject(ctx, db.CreateProjectParams{
 			ID:          "prj-gh-test",
 			Name:        "GH Project",
@@ -174,7 +195,7 @@ func TestGitHubAppAPI(t *testing.T) {
 			t.Fatalf("failed to create service: %v", err)
 		}
 
-		pushBody := `{
+		pushBody := []byte(`{
 			"ref": "refs/heads/main",
 			"repository": {
 				"clone_url": "https://github.com/TakōAdmin/backend-api.git",
@@ -184,10 +205,15 @@ func TestGitHubAppAPI(t *testing.T) {
 				"id": "commit9876543210",
 				"message": "fix: update production api"
 			}
-		}`
+		}`)
 
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/github", bytes.NewReader([]byte(pushBody)))
+		mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
+		mac.Write(pushBody)
+		sig := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/github", bytes.NewReader(pushBody))
 		req.Header.Set("X-GitHub-Event", "push")
+		req.Header.Set("X-Hub-Signature-256", sig)
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 
@@ -223,4 +249,48 @@ func TestGitHubAppAPI(t *testing.T) {
 			t.Fatalf("expected connected false after disconnect, got %+v", res)
 		}
 	})
+
+	// 9. Webhook signature enforcement test
+	t.Run("Webhook Signature Enforcement", func(t *testing.T) {
+		secret := "my-webhook-secret"
+		_, _ = orch.Queries().SetSetting(ctx, db.SetSettingParams{
+			Key:   "github_webhook_secret",
+			Value: secret,
+		})
+
+		body := []byte(`{"zen":"hello"}`)
+		// Missing signature -> must be 401
+		reqUnsigned := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/github", bytes.NewReader(body))
+		reqUnsigned.Header.Set("X-GitHub-Event", "ping")
+		recUnsigned := httptest.NewRecorder()
+		router.ServeHTTP(recUnsigned, reqUnsigned)
+		if recUnsigned.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 for unsigned webhook, got %d", recUnsigned.Code)
+		}
+
+		// Invalid signature -> must be 401
+		reqBad := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/github", bytes.NewReader(body))
+		reqBad.Header.Set("X-GitHub-Event", "ping")
+		reqBad.Header.Set("X-Hub-Signature-256", "sha256=invalid")
+		recBad := httptest.NewRecorder()
+		router.ServeHTTP(recBad, reqBad)
+		if recBad.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 for bad signature, got %d", recBad.Code)
+		}
+
+		// Valid signature -> must be 200
+		mac := hmac.New(sha256.New, []byte(secret))
+		mac.Write(body)
+		validSig := "sha256=" + hex.EncodeToString(mac.Sum(nil))
+
+		reqValid := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/github", bytes.NewReader(body))
+		reqValid.Header.Set("X-GitHub-Event", "ping")
+		reqValid.Header.Set("X-Hub-Signature-256", validSig)
+		recValid := httptest.NewRecorder()
+		router.ServeHTTP(recValid, reqValid)
+		if recValid.Code != http.StatusOK {
+			t.Fatalf("expected 200 for valid signature, got %d: %s", recValid.Code, recValid.Body.String())
+		}
+	})
 }
+

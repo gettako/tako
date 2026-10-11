@@ -84,6 +84,14 @@ type ServiceTelemetryPoint struct {
 	DiskWriteBytes int64     `json:"diskWriteBytes"`
 }
 
+type UserSession struct {
+	Token     string
+	UserID    string
+	UserRole  string
+	CreatedAt time.Time
+	ExpiresAt time.Time
+}
+
 type Orchestrator struct {
 	db               *sql.DB
 	queries          *db.Queries
@@ -94,6 +102,8 @@ type Orchestrator struct {
 	telemetryMu      sync.RWMutex
 	latestTelemetry  map[string]ServiceTelemetryPoint
 	historyTelemetry map[string][]ServiceTelemetryPoint
+	sessionsMu       sync.RWMutex
+	sessions         map[string]UserSession
 }
 
 func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
@@ -105,7 +115,38 @@ func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 		agents:           make(map[string]*AgentSession),
 		latestTelemetry:  make(map[string]ServiceTelemetryPoint),
 		historyTelemetry: make(map[string][]ServiceTelemetryPoint),
+		sessions:         make(map[string]UserSession),
 	}
+}
+
+func (o *Orchestrator) RegisterUserSession(token string, user db.User) UserSession {
+	o.sessionsMu.Lock()
+	defer o.sessionsMu.Unlock()
+	sess := UserSession{
+		Token:     token,
+		UserID:    user.ID,
+		UserRole:  user.Role,
+		CreatedAt: time.Now().UTC(),
+		ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour),
+	}
+	o.sessions[token] = sess
+	return sess
+}
+
+func (o *Orchestrator) GetUserSession(token string) (UserSession, bool) {
+	o.sessionsMu.RLock()
+	defer o.sessionsMu.RUnlock()
+	sess, ok := o.sessions[token]
+	if !ok || time.Now().UTC().After(sess.ExpiresAt) {
+		return UserSession{}, false
+	}
+	return sess, true
+}
+
+func (o *Orchestrator) RevokeUserSession(token string) {
+	o.sessionsMu.Lock()
+	defer o.sessionsMu.Unlock()
+	delete(o.sessions, token)
 }
 
 func (o *Orchestrator) Queries() *db.Queries {
@@ -147,11 +188,6 @@ func (o *Orchestrator) GetAgentSession(nodeID string) *AgentSession {
 	defer o.agentsMu.RUnlock()
 	if sess, ok := o.agents[nodeID]; ok {
 		return sess
-	}
-	if len(o.agents) == 1 {
-		for _, s := range o.agents {
-			return s
-		}
 	}
 	return nil
 }
@@ -543,6 +579,7 @@ func (o *Orchestrator) StartLivenessWatcher(ctx context.Context, interval time.D
 				}
 
 				for _, node := range timedOutNodes {
+					o.UnregisterAgentSession(node.ID)
 					log.Printf("[orchestrator] node %s (%s) marked offline due to inactivity (>%ds)", node.ID, node.Name, timeoutSec)
 					o.bus.Publish(events.Event{
 						Type: events.EventNodeStatusChanged,

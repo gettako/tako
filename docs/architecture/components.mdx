@@ -1,0 +1,93 @@
+---
+title: "Component Breakdown"
+description: "Detailed analysis of Tako's console, server, agent, internal packages, and contracts."
+---
+
+Tako is structured as a monorepo containing three core binaries and supporting deployment specifications:
+
+```
+gettako/
+├── console/          # Next.js 16 Web Dashboard & BFF Proxy
+├── server/           # Go Control Plane Orchestrator & gRPC Master
+├── agent/            # Go Node Daemon running on managed hosts
+├── api/              # Protocol Buffers (proto/v1) & OpenAPI 3.1 Spec
+└── deploy/           # Docker Compose stacks, Traefik configurations, & Scripts
+```
+
+---
+
+## 1. Web Console (`/console`)
+
+The Console is the user-facing web dashboard built with modern React standards.
+
+### Technology Stack
+- **Framework:** Next.js 16 (App Router) with React 19.
+- **UI Architecture:** Headless `@base-ui/react` primitives styled with **Tailwind CSS v4** following the `base-vega` design language (electric indigo accents on clean white canvas / Better Stack obsidian dark mode).
+- **State & Caching:** `@tanstack/react-query` v5 for asynchronous server state synchronization with optimistic UI updates.
+- **Terminal & Logs:** `@xterm/xterm` v6 and `@xterm/addon-fit` for interactive container shells; `@tanstack/react-virtual` for high-throughput streaming deployment logs.
+
+### Backend-for-Frontend (BFF) Pattern
+Client-side browser code communicates with Next.js Route Handlers located under `app/api/*`.
+- **Session Protection:** Enforces `tako_session` cookie presence via `proxy.ts`.
+- **Server Communication:** The Next.js server proxies requests internally to the Go server (`http://server:8080`) using `fetchServer` in `lib/api-client.ts`.
+- **SSE Relaying:** Proxies Server-Sent Events from Go control plane to browser clients for real-time node metrics and deployment step progress.
+
+---
+
+## 2. Control Plane Server (`/server`)
+
+The Control Plane Server is the central orchestrator responsible for cluster metadata, project management, deployment state machines, and task dispatching.
+
+### Entrypoint & Lifecycle
+- **Binary:** Compiled from `server/cmd/server/main.go`.
+- **HTTP Server:** Runs a `go-chi/chi/v5` router on port `8080` (or `TAKO_HTTP_PORT`) serving REST APIs and SSE feeds.
+- **gRPC Server:** Runs a `google.golang.org/grpc` listener on port `50051` (or `TAKO_GRPC_PORT`) managing outbound agent connections.
+- **Graceful Shutdown:** Intercepts `SIGINT` and `SIGTERM` via `signal.NotifyContext`, shutting down HTTP listeners, gRPC streams, and closing SQLite handles cleanly.
+
+### Internal Packages Breakdown
+
+| Package | Path | Responsibility |
+| :--- | :--- | :--- |
+| `config` | `server/internal/config` | Loads environment variables (`TAKO_PORT`, `TAKO_GRPC_PORT`, `TAKO_DB_PATH`, `TAKO_AGENT_SECRET`) with production defaults. |
+| `store` | `server/internal/store` | Opens SQLite in WAL mode (`modernc.org/sqlite`), runs Goose migrations from `migrations/`, and seeds initial administrator records. |
+| `store/db` | `server/internal/store/db` | Type-safe Go database queries generated via `sqlc` from SQL definitions in `queries/`. |
+| `events` | `server/internal/events` | In-memory pub/sub `EventBus` for cluster events (`node.status_changed`, `deployment.log`, `node.metrics`). |
+| `orchestrator` | `server/internal/orchestrator` | Core orchestration logic: deployment state machine (`runDeploymentPipeline`), auto-scaler, liveness watcher, and agent session tracking. |
+| `grpc` | `server/internal/grpc` | gRPC service implementation for `AgentServiceServer` and `ContainerServiceServer`; token validation interceptors. |
+| `api` | `server/internal/api` | Chi HTTP handlers for projects, services, deployments, nodes, settings, GitHub webhooks, audit logs, and backup snapshots. |
+
+---
+
+## 3. Node Agent Daemon (`/agent`)
+
+The Agent is a lightweight daemon deployed on every managed node (both the primary master node and remote worker hosts).
+
+### Entrypoint & Lifecycle
+- **Binary:** Compiled from `agent/cmd/agent/main.go`.
+- **State Persistence:** Preserves assigned `NodeID` and assigned authentication token in `/data/agent.json` across container restarts.
+- **Client Dialer:** Establishes resilient outbound gRPC connection to Master with exponential backoff (`client.go`).
+- **Telemetry Loop:** Collects host CPU, memory, disk, network, and container statistics every 3 seconds via `gopsutil/v4` and Docker Engine SDK.
+
+### Internal Packages Breakdown
+
+| Package | Path | Responsibility |
+| :--- | :--- | :--- |
+| `client` | `agent/internal/client` | gRPC client wrapper with connection backoff, keepalive params, and Bearer token auth interceptors. |
+| `daemon` | `agent/internal/daemon` | Manages node lifecycle, periodic heartbeats, Docker event listeners, and incoming task dispatching (`handleTask`). |
+| `deploy` | `agent/internal/deploy` | Deployment pipeline execution (`executor.go`): shallow git clone, Dockerfile generation, image build, port allocation, and Traefik config updates. |
+| `docker` | `agent/internal/docker` | Direct wrapper around the official Docker Engine SDK (`/var/run/docker.sock`) for container lifecycle, execution, logs, and telemetry caching. |
+| `metrics` | `agent/internal/metrics` | Host-level hardware metrics collection using `shirou/gopsutil/v4`. |
+| `traefik` | `agent/internal/traefik` | Generates Traefik v3 dynamic YAML routing files (`WriteDynamicConfig`) and Docker container labels (`GenerateLabels`). |
+
+---
+
+## 4. API Contracts (`/api`)
+
+### Protocol Buffers (`api/proto/tako/v1`)
+Defines the bidirectional RPC contract between Master and Agent:
+- `agent.proto`: Node registration (`RegisterNode`), periodic telemetry (`Heartbeat`), and task streaming (`StreamTasks`).
+- `deployment.proto`: Deployment dispatches (`DeployRequest`), build log chunk streaming (`DeployLogChunk`).
+- `container.proto`: Interactive command execution (`ExecCommandRequest`), container control (`ContainerActionRequest`), and container log queries.
+
+### OpenAPI Specification (`api/openapi.yaml`)
+Complete OpenAPI 3.1 contract specifying all REST endpoints exposed by the Go Control Plane server.

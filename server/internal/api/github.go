@@ -821,15 +821,24 @@ func handleGitHubWebhook(w http.ResponseWriter, r *http.Request, orch *orchestra
 	}
 
 	// Verify signature if webhook secret is configured
+	webhookSecret := ""
 	setting, _ := orch.Queries().GetSetting(r.Context(), "github_app_config")
 	if setting.Value != "" {
 		var cfg GitHubAppConfig
-		if err := json.Unmarshal([]byte(setting.Value), &cfg); err == nil && cfg.WebhookSecret != "" {
-			sig := r.Header.Get("X-Hub-Signature-256")
-			if sig != "" && !verifySignature(cfg.WebhookSecret, body, sig) {
-				http.Error(w, "invalid signature", http.StatusUnauthorized)
-				return
-			}
+		if err := json.Unmarshal([]byte(setting.Value), &cfg); err == nil {
+			webhookSecret = cfg.WebhookSecret
+		}
+	}
+	if webhookSecret == "" {
+		if s, err := orch.Queries().GetSetting(r.Context(), "github_webhook_secret"); err == nil && s.Value != "" {
+			webhookSecret = s.Value
+		}
+	}
+	if webhookSecret != "" {
+		sig := r.Header.Get("X-Hub-Signature-256")
+		if sig == "" || !verifySignature(webhookSecret, body, sig) {
+			http.Error(w, "invalid or missing signature", http.StatusUnauthorized)
+			return
 		}
 	}
 

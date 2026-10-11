@@ -707,6 +707,10 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			targetContainer := "tako-app-" + srv.Slug
 			if cName := ws.Request().URL.Query().Get("container"); cName != "" {
+				if !isAllowedServiceContainer(srv.Slug, cName) {
+					_, _ = ws.Write([]byte("\r\n\x1b[31mError: container outside service scope\x1b[0m\r\n"))
+					return
+				}
 				targetContainer = cName
 			}
 
@@ -814,6 +818,10 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 			containerName := "tako-app-" + srv.Slug
 			if req.ContainerName != "" {
+				if !isAllowedServiceContainer(srv.Slug, req.ContainerName) {
+					RespondError(w, http.StatusForbidden, "container outside service scope")
+					return
+				}
 				containerName = req.ContainerName
 			}
 
@@ -1041,4 +1049,23 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 	})
 }
+
+func isAllowedServiceContainer(srvSlug, containerName string) bool {
+	cName := strings.TrimSpace(containerName)
+	if cName == "" {
+		return false
+	}
+	base := "tako-app-" + srvSlug
+	if cName == base || cName == srvSlug {
+		return true
+	}
+	if strings.HasPrefix(cName, base+"-") || strings.HasPrefix(cName, base+"_") {
+		return true
+	}
+	if strings.HasPrefix(cName, srvSlug+"-") || strings.HasPrefix(cName, srvSlug+"_") {
+		return true
+	}
+	return false
+}
+
 

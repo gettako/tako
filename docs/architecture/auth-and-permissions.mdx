@@ -1,0 +1,174 @@
+---
+title: "Auth Model & Data Hierarchy"
+description: "Authentication mechanisms, role-based authorization rules, and database entity relationships."
+---
+
+Tako uses a 2-role access control model coupled with a relational SQLite schema designed for high-density multi-service orchestration.
+
+---
+
+## 1. Data Model & Hierarchy Diagram
+
+The diagram below details the entity hierarchy from top-level Projects down to Services, Deployments, and infrastructure Nodes:
+
+```mermaid
+erDiagram
+    PROJECT ||--o{ SERVICE : "contains (1:N)"
+    NODE ||--o{ SERVICE : "hosts (1:N)"
+    SERVICE ||--o{ DEPLOYMENT : "generates (1:N)"
+    SERVICE ||--o{ SERVICE_DOMAIN : "routes (1:N)"
+    SERVICE ||--o{ SERVICE_ENV_VAR : "configures (1:N)"
+    USER ||--o{ AUDIT_LOG : "triggers (1:N)"
+
+    PROJECT {
+        string id PK
+        string name
+        string slug UK
+        string description
+        string environment "production | staging"
+        string status "healthy | degraded | error"
+        string tags "JSON string array"
+        datetime created_at
+        datetime updated_at
+    }
+
+    NODE {
+        string id PK
+        string name
+        string ip_address
+        string public_ip
+        string role "leader | worker"
+        string status "online | offline"
+        int cpu_total_cores
+        int memory_total_mb
+        float disk_total_gb
+        float cpu_percent
+        int memory_used_mb
+        float disk_used_gb
+        string docker_version
+        string os
+        string kernel_version
+        string uptime
+        datetime last_heartbeat
+        string enroll_token
+        datetime created_at
+    }
+
+    SERVICE {
+        string id PK
+        string project_id FK
+        string node_id FK
+        string name
+        string slug "UK within project"
+        string type "app | database"
+        string status "running | stopped | healthy | error"
+        string repository
+        string branch
+        string commit_hash
+        string dockerfile
+        string build_command
+        string image
+        string database_type
+        string database_version
+        string connection_string
+        string ports "JSON int array"
+        int replicas
+        int publish_to_host "0 or 1"
+        float cpu_limit
+        int memory_limit_mb
+        int swap_limit_mb
+        int auto_rollback_enabled "0 or 1"
+        int auto_scaling_enabled "0 or 1"
+        datetime created_at
+        datetime updated_at
+    }
+
+    SERVICE_DOMAIN {
+        string id PK
+        string service_id FK
+        string domain UK
+        int ssl "0 or 1"
+        int is_primary "0 or 1"
+        int port
+        string path
+        string certificate_type "letsencrypt | custom"
+        datetime created_at
+    }
+
+    SERVICE_ENV_VAR {
+        string id PK
+        string service_id FK
+        string key "UK with service_id"
+        string value
+        int is_secret "0 or 1"
+        datetime created_at
+        datetime updated_at
+    }
+
+    DEPLOYMENT {
+        string id PK
+        string service_id FK
+        string commit_hash
+        string commit_message
+        string branch
+        string author
+        string status "queued | building | deploying | live | failed"
+        string steps "JSON step array"
+        string logs
+        string url "Preview URL"
+        int duration_ms
+        datetime started_at
+        datetime finished_at
+        datetime created_at
+    }
+
+    USER {
+        string id PK
+        string name
+        string email UK
+        string password_hash "bcrypt"
+        string role "admin | member"
+        string avatar_url
+        datetime created_at
+        datetime updated_at
+    }
+
+    AUDIT_LOG {
+        string id PK
+        string actor_id
+        string actor_name
+        string actor_email
+        string action
+        string target_type
+        string target_id
+        string target_name
+        string metadata "JSON"
+        string ip_address
+        datetime timestamp
+    }
+```
+
+---
+
+## 2. Authentication & Authorization Model
+
+### Two-Role Multi-User System
+Tako distinguishes between two operational roles:
+
+| Role | Permissions & Capabilities |
+| :--- | :--- |
+| **`admin`** | Full cluster control: register/reboot/delete worker nodes, manage global cluster settings, rotate API tokens, create/delete users, assign user roles, and trigger backups. |
+| **`member`** | Application lifecycle control: create and edit projects, configure service environment variables, trigger deployments, inspect container logs, and view metrics. Restricted from altering node infrastructure or user roles. |
+
+### Credentials & Cryptography
+- **Password Storage:** Credentials are authenticated against standard **bcrypt** password hashes (`golang.org/x/crypto/bcrypt`).
+- **Initial Bootstrap:** On first startup, the control plane checks for existing users. If the user table is empty, it seeds an initial administrator account using `TAKO_INITIAL_ADMIN_EMAIL` and `TAKO_INITIAL_ADMIN_PASSWORD`.
+
+### Multi-Factor Authentication
+- **Time-Based One-Time Passwords (TOTP 2FA):** Configured via `/auth/2fa`.
+- **Passkeys (FIDO2 / WebAuthn):** Registered and managed via `/auth/passkeys`.
+
+### Session Architecture
+- The Next.js BFF sets HTTP-only cookies (`tako_session` and `tako_user`) configured with `SameSite=Lax` and `Path=/`.
+- Client sessions expire after 7 days (`maxAge: 604800`).
+- Session revoking and multi-device management are audited via `audit_logs`.

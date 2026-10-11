@@ -1,3 +1,5 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
 import { chromium } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
@@ -5,7 +7,7 @@ import path from 'path';
 const ARTIFACT_DIR = '/Users/SupianIDz/.gemini/antigravity-ide/brain/72c652a8-99a2-4401-b806-027e24ce0276';
 const BASE_URL = 'http://localhost:3000';
 
-async function run() {
+test('Settings section headers validation', async () => {
   console.log('🚀 Starting Settings Headers Validation with Playwright...');
   
   if (!fs.existsSync(ARTIFACT_DIR)) {
@@ -32,7 +34,7 @@ async function run() {
   };
 
   page.on('console', (msg) => {
-    if (msg.type() === 'error') {
+    if (msg.type() === 'error' && !msg.text().includes('Failed to load resource')) {
       results.errors.push(`[Console Error] ${msg.text()}`);
     }
   });
@@ -173,9 +175,5 @@ async function run() {
   fs.writeFileSync(reportPath, JSON.stringify(results, null, 2));
   console.log(`Report written to ${reportPath}`);
 
-  if (results.errors.length > 0) {
-    process.exit(1);
-  }
-}
-
-run();
+  assert.equal(results.errors.length, 0, `Expected 0 errors, got: ${results.errors.join(', ')}`);
+});

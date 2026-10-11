@@ -66,6 +66,17 @@
             ]
           },
           {
+            "group": "Architecture & Internals",
+            "icon": "cpu",
+            "pages": [
+              "architecture/overview",
+              "architecture/components",
+              "architecture/deploy-flow",
+              "architecture/agent-protocol",
+              "architecture/auth-and-permissions"
+            ]
+          },
+          {
             "group": "Guides",
             "icon": "compass",
             "pages": [

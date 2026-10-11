@@ -104,3 +104,89 @@ func TestSettingsAndMetricsAPI(t *testing.T) {
 		t.Errorf("expected Memory 4096, got %d", metricPoints[0].Memory)
 	}
 }
+
+func TestSettingsRedaction(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-secret")
+	router := NewRouter(db, orch)
+
+	// PUT setting with sensitive keys
+	payload, _ := json.Marshal(map[string]any{
+		"value": map[string]any{
+			"appId":         12345,
+			"clientId":      "client-xyz",
+			"clientSecret":  "super-secret-key",
+			"webhookSecret": "webhook-secret-val",
+			"privateKey":    "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA...",
+		},
+	})
+	reqPut := httptest.NewRequest(http.MethodPut, "/api/v1/settings/github_app_config", bytes.NewReader(payload))
+	reqPut.Header.Set("Content-Type", "application/json")
+	wPut := httptest.NewRecorder()
+	router.ServeHTTP(wPut, reqPut)
+	if wPut.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for PUT, got %d", wPut.Code)
+	}
+
+	// GET setting and verify redaction
+	reqGet := httptest.NewRequest(http.MethodGet, "/api/v1/settings/github_app_config", nil)
+	wGet := httptest.NewRecorder()
+	router.ServeHTTP(wGet, reqGet)
+	if wGet.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for GET, got %d", wGet.Code)
+	}
+
+	var data map[string]any
+	if err := json.Unmarshal(wGet.Body.Bytes(), &data); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	if data["clientSecret"] != "••••••••" {
+		t.Errorf("expected clientSecret to be masked, got %v", data["clientSecret"])
+	}
+	if data["webhookSecret"] != "••••••••" {
+		t.Errorf("expected webhookSecret to be masked, got %v", data["webhookSecret"])
+	}
+	if data["privateKey"] != "••••••••" {
+		t.Errorf("expected privateKey to be masked, got %v", data["privateKey"])
+	}
+	if data["clientId"] != "client-xyz" {
+		t.Errorf("expected clientId to remain visible, got %v", data["clientId"])
+	}
+
+	// Update with masked values preserved
+	data["clientId"] = "client-updated"
+	updatePayload, _ := json.Marshal(map[string]any{"value": data})
+	reqUpdate := httptest.NewRequest(http.MethodPut, "/api/v1/settings/github_app_config", bytes.NewReader(updatePayload))
+	reqUpdate.Header.Set("Content-Type", "application/json")
+	wUpdate := httptest.NewRecorder()
+	router.ServeHTTP(wUpdate, reqUpdate)
+	if wUpdate.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for update, got %d", wUpdate.Code)
+	}
+
+	// Verify DB still holds original secrets
+	dbSetting, err := orch.Queries().GetSetting(context.Background(), "github_app_config")
+	if err != nil {
+		t.Fatalf("GetSetting failed: %v", err)
+	}
+	var stored map[string]any
+	_ = json.Unmarshal([]byte(dbSetting.Value), &stored)
+	if stored["clientSecret"] != "super-secret-key" {
+		t.Errorf("expected clientSecret to be preserved in DB, got %v", stored["clientSecret"])
+	}
+	if stored["clientId"] != "client-updated" {
+		t.Errorf("expected clientId to be updated, got %v", stored["clientId"])
+	}
+}
+

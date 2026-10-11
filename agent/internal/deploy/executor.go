@@ -3,7 +3,6 @@ package deploy
 import (
 	"archive/tar"
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -644,6 +643,13 @@ func (e *Executor) handleGitBuild(
 	dockerfileName := req.GetDockerfile()
 	if dockerfileName == "" {
 		dockerfileName = "Dockerfile"
+	} else {
+		cleaned := filepath.Clean(dockerfileName)
+		if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
+			dockerfileName = "Dockerfile"
+		} else {
+			dockerfileName = cleaned
+		}
 	}
 
 	sendLog("Clone", fmt.Sprintf("Cloning repository %s (branch: %s)...", repoURL, branch), false)
@@ -661,7 +667,7 @@ func (e *Executor) handleGitBuild(
 	if branch != "" {
 		cloneArgs = append(cloneArgs, "--branch", branch)
 	}
-	cloneArgs = append(cloneArgs, repoURL, tmpDir)
+	cloneArgs = append(cloneArgs, "--", repoURL, tmpDir)
 
 	cmd := exec.CommandContext(ctx, "git", cloneArgs...)
 	out, err := cmd.CombinedOutput()
@@ -768,47 +774,54 @@ func (e *Executor) handleGitBuild(
 }
 
 func createTarArchive(srcDir string) (io.Reader, error) {
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
+	pr, pw := io.Pipe()
 
-	err := filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+	go func() {
+		tw := tar.NewWriter(pw)
+		err := filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() && info.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			relPath, err := filepath.Rel(srcDir, path)
+			if err != nil {
+				return err
+			}
+			if relPath == "." {
+				return nil
+			}
+			header, err := tar.FileInfoHeader(info, info.Name())
+			if err != nil {
+				return err
+			}
+			header.Name = filepath.ToSlash(relPath)
+			if err := tw.WriteHeader(header); err != nil {
+				return err
+			}
+			if !info.Mode().IsRegular() {
+				return nil
+			}
+			file, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+			_, err = io.Copy(tw, file)
+			return err
+		})
 		if err != nil {
-			return err
+			_ = tw.Close()
+			_ = pw.CloseWithError(err)
+			return
 		}
-		if info.IsDir() && info.Name() == ".git" {
-			return filepath.SkipDir
+		if err := tw.Close(); err != nil {
+			_ = pw.CloseWithError(err)
+			return
 		}
-		relPath, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
-		if relPath == "." {
-			return nil
-		}
-		header, err := tar.FileInfoHeader(info, info.Name())
-		if err != nil {
-			return err
-		}
-		header.Name = filepath.ToSlash(relPath)
-		if err := tw.WriteHeader(header); err != nil {
-			return err
-		}
-		if !info.Mode().IsRegular() {
-			return nil
-		}
-		file, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-		_, err = io.Copy(tw, file)
-		return err
-	})
-	if err != nil {
-		return nil, err
-	}
-	if err := tw.Close(); err != nil {
-		return nil, err
-	}
-	return &buf, nil
+		_ = pw.Close()
+	}()
+
+	return pr, nil
 }
