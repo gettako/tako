@@ -200,6 +200,9 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/{id}/traefik/files/{filename}", handleGetNodeTraefikFile(orch))
 		r.Put("/{id}/traefik/files/{filename}", handleSaveNodeTraefikFile(orch))
 		r.Delete("/{id}/traefik/files/{filename}", handleDeleteNodeTraefikFile(orch))
+
+		// Traefik access logs
+		r.Get("/{id}/traefik/access-logs", handleGetNodeTraefikAccessLogs(orch))
 	})
 }
 

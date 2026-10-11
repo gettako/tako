@@ -680,3 +680,93 @@ func TestNodeDeletion_WithWorkloadsAndForce(t *testing.T) {
 	}
 }
 
+func TestTraefikAccessLogsAPI(t *testing.T) {
+	memDB, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer memDB.Close()
+	if err := store.Migrate(memDB); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+	bus := events.NewBus()
+	orch := orchestrator.New(memDB, bus, "test-secret")
+	router := NewRouter(memDB, orch)
+	ctx := context.Background()
+
+	// 1. Create node & service
+	nodeID := "node-traefik-logs-01"
+	_, _ = orch.Queries().CreateNode(ctx, dbStore.CreateNodeParams{
+		ID:        nodeID,
+		Name:      "traefik-logger-node",
+		IpAddress: "127.0.0.1",
+		Role:      "leader",
+	})
+	prj, _ := orch.Queries().CreateProject(ctx, dbStore.CreateProjectParams{
+		ID:   "prj-logs",
+		Name: "Logs Project",
+		Slug: "logs-prj",
+	})
+	srv, _ := orch.Queries().CreateService(ctx, dbStore.CreateServiceParams{
+		ID:        "srv-log-test",
+		ProjectID: prj.ID,
+		NodeID:    nodeID,
+		Name:      "web-service",
+		Slug:      "web-service",
+		Status:    "healthy",
+		Ports:     "[80]",
+	})
+
+	// 2. GET /api/v1/nodes/{id}/traefik/access-logs
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/access-logs", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for node access logs, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var logs []TraefikAccessLogEntry
+	if err := json.Unmarshal(w.Body.Bytes(), &logs); err != nil {
+		t.Fatalf("failed to decode access logs: %v", err)
+	}
+	if len(logs) == 0 {
+		t.Fatalf("expected access log entries, got 0")
+	}
+
+	// 3. Status filter GET /api/v1/nodes/{id}/traefik/access-logs?status=2xx
+	reqFilter := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/"+nodeID+"/traefik/access-logs?status=2xx", nil)
+	wFilter := httptest.NewRecorder()
+	router.ServeHTTP(wFilter, reqFilter)
+
+	if wFilter.Code != http.StatusOK {
+		t.Fatalf("expected 200 for filtered logs, got %d", wFilter.Code)
+	}
+	var filteredLogs []TraefikAccessLogEntry
+	_ = json.Unmarshal(wFilter.Body.Bytes(), &filteredLogs)
+	for _, entry := range filteredLogs {
+		if entry.StatusCode < 200 || entry.StatusCode >= 300 {
+			t.Errorf("expected only 2xx status codes, got %d", entry.StatusCode)
+		}
+	}
+
+	// 4. GET /api/v1/services/{id}/access-logs
+	reqSrv := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srv.ID+"/access-logs", nil)
+	wSrv := httptest.NewRecorder()
+	router.ServeHTTP(wSrv, reqSrv)
+
+	if wSrv.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for service access logs, got %d: %s", wSrv.Code, wSrv.Body.String())
+	}
+	var srvLogs []TraefikAccessLogEntry
+	_ = json.Unmarshal(wSrv.Body.Bytes(), &srvLogs)
+	if len(srvLogs) == 0 {
+		t.Fatalf("expected service access logs, got 0")
+	}
+	for _, entry := range srvLogs {
+		if entry.ServiceName != srv.Slug {
+			t.Errorf("expected serviceName '%s', got '%s'", srv.Slug, entry.ServiceName)
+		}
+	}
+}
+

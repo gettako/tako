@@ -12,9 +12,10 @@ import { NodeMetricsCharts, NodeTimeRange } from '@/components/nodes/node-metric
 import { NodeServicesTable } from '@/components/nodes/node-services-table';
 import { NodeTraefikPanel } from '@/components/nodes/node-traefik-panel';
 import { NodeTraefikFiles } from '@/components/nodes/node-traefik-files';
+import { NodeTraefikAccessLogs } from '@/components/nodes/node-traefik-access-logs';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
-import { Activity, Sliders, FolderTree } from 'lucide-react';
+import { Activity, Sliders, FolderTree, Radio } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNodeEvents } from '@/hooks/use-node-events';
 
@@ -29,7 +30,7 @@ export default function NodeDetailPage({
   // Subscribe to live node events via SSE (metrics & status changes)
   useNodeEvents();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'traefik' | 'files'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'traefik' | 'files' | 'access-logs'>('overview');
   const [timeRange, setTimeRange] = useState<NodeTimeRange>('1h');
 
   const {
@@ -142,6 +143,22 @@ export default function NodeDetailPage({
               />
               <span>Routing Files & Editor</span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('access-logs')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-medium transition-colors select-none whitespace-nowrap active:not-aria-[haspopup]:translate-y-px cursor-pointer',
+                activeTab === 'access-logs'
+                  ? 'border-primary text-primary font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border/60'
+              )}
+            >
+              <Radio
+                className={cn('size-4 shrink-0', activeTab === 'access-logs' ? 'text-primary' : 'text-muted-foreground')}
+              />
+              <span>Ingress Access Logs</span>
+            </button>
           </nav>
         </div>
 
@@ -174,6 +191,13 @@ export default function NodeDetailPage({
         {activeTab === 'files' && (
           <div className="mt-2">
             <NodeTraefikFiles node={node} />
+          </div>
+        )}
+
+        {/* Tab 4: Real-time Ingress Access Logs */}
+        {activeTab === 'access-logs' && (
+          <div className="mt-2">
+            <NodeTraefikAccessLogs nodeId={node.id} />
           </div>
         )}
       </div>

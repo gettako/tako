@@ -4,6 +4,7 @@ import {
   NodeTraefikConfig,
   TraefikConfigFile,
   TraefikConfigFileContent,
+  TraefikAccessLogEntry,
 } from '@/lib/types';
 
 export async function getNodes(): Promise<Node[]> {
@@ -248,3 +249,22 @@ export async function deleteNodeTraefikFile(
   }
   return res.json();
 }
+
+export async function getNodeTraefikAccessLogs(
+  nodeId: string,
+  params?: { status?: string; method?: string; search?: string }
+): Promise<TraefikAccessLogEntry[]> {
+  const sp = new URLSearchParams();
+  if (params?.status) sp.set('status', params.status);
+  if (params?.method) sp.set('method', params.method);
+  if (params?.search) sp.set('search', params.search);
+  const q = sp.toString() ? `?${sp.toString()}` : '';
+  const res = await fetch(`/api/nodes/${nodeId}/traefik/access-logs${q}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to fetch Traefik access logs');
+  }
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+

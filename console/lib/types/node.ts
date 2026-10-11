@@ -60,3 +60,17 @@ export interface TraefikConfigFile {
 export interface TraefikConfigFileContent extends TraefikConfigFile {
   content: string;
 }
+
+export interface TraefikAccessLogEntry {
+  timestamp: string;
+  clientIp: string;
+  method: string;
+  path: string;
+  protocol: string;
+  statusCode: number;
+  durationMs: number;
+  routerName: string;
+  serviceName: string;
+  userAgent: string;
+}
+

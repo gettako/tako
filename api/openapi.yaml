@@ -424,6 +424,46 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/nodes/{id}/traefik/access-logs:
+    get:
+      summary: Node Traefik ingress access logs
+      description: Retrieves recent HTTP ingress access logs passing through the node Traefik proxy.
+      operationId: getNodeTraefikAccessLogs
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of Traefik access log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/events/nodes:
     get:
       summary: Node real-time SSE event stream
@@ -911,6 +951,46 @@ paths:
           description: Switching protocols to WebSocket
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/services/{id}/access-logs:
+    get:
+      summary: Service Traefik ingress access logs
+      description: Retrieves recent HTTP ingress access logs filtered for this specific service.
+      operationId: getServiceTraefikAccessLogs
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of Traefik access log entries for service
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/deployments:
     get:
       summary: List all deployments
@@ -1971,6 +2051,38 @@ components:
           schema:
             $ref: '#/components/schemas/SuccessResponse'
   schemas:
+    TraefikAccessLogEntry:
+      type: object
+      required:
+      - timestamp
+      - clientIp
+      - method
+      - path
+      - statusCode
+      - durationMs
+      - routerName
+      - serviceName
+      properties:
+        timestamp:
+          type: string
+        clientIp:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        protocol:
+          type: string
+        statusCode:
+          type: integer
+        durationMs:
+          type: number
+        routerName:
+          type: string
+        serviceName:
+          type: string
+        userAgent:
+          type: string
     SuccessResponse:
       type: object
       required:

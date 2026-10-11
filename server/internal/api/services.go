@@ -833,6 +833,9 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/{id}/env", handleListServiceEnvVars(orch))
 		r.Put("/{id}/env", handleUpdateServiceEnvVars(orch))
 
+		// Ingress access logs
+		r.Get("/{id}/access-logs", handleGetServiceTraefikAccessLogs(orch))
+
 		// GET /api/v1/services/{id}/deployments
 		r.Get("/{id}/deployments", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
