@@ -172,4 +172,3 @@ func TestAuditLogsIPAndAvatarRecording(t *testing.T) {
 		t.Errorf("expected action 'export_metrics', got '%s'", createdLog.Action)
 	}
 }
-

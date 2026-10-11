@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi/v5"
-	"golang.org/x/net/websocket"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store/db"
+	"github.com/go-chi/chi/v5"
+	"golang.org/x/net/websocket"
 )
 
 type CreateServiceRequest struct {
@@ -112,7 +112,57 @@ type ServiceResponse struct {
 	UpdatedAt           string                      `json:"updatedAt"`
 }
 
-func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVarResponse, extra ...any) ServiceResponse {
+type ServiceEnrichment struct {
+	DomainDetails       []ServiceDomainResponse
+	SwapMB              int64
+	Usage               *ServiceUsageResponse
+	AutoScaling         *ServiceAutoScalingResponse
+	AutoRollbackEnabled *bool
+}
+
+func extractAutoScaling(s db.Service) ServiceAutoScalingResponse {
+	asMetric := s.AutoScalingMetric
+	if asMetric == "" {
+		asMetric = "cpu"
+	}
+	minR := s.MinReplicas
+	if minR <= 0 {
+		minR = 1
+	}
+	maxR := s.MaxReplicas
+	if maxR <= 0 {
+		maxR = 5
+	}
+	targetCPU := s.TargetCpuPercent
+	if targetCPU <= 0 {
+		targetCPU = 80.0
+	}
+	targetMem := s.TargetMemoryPercent
+	if targetMem <= 0 {
+		targetMem = 80.0
+	}
+	scaleDownCPU := s.ScaleDownCpuPercent
+	if scaleDownCPU <= 0 {
+		scaleDownCPU = 25.0
+	}
+	cooldownSec := s.CooldownSeconds
+	if cooldownSec <= 0 {
+		cooldownSec = 60
+	}
+
+	return ServiceAutoScalingResponse{
+		Enabled:             s.AutoScalingEnabled == 1,
+		MinReplicas:         minR,
+		MaxReplicas:         maxR,
+		TargetCPUPercent:    targetCPU,
+		Metric:              asMetric,
+		TargetMemoryPercent: targetMem,
+		ScaleDownCPUPercent: scaleDownCPU,
+		CooldownSeconds:     cooldownSec,
+	}
+}
+
+func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVarResponse, enrichments ...ServiceEnrichment) ServiceResponse {
 	var ports []int32
 	_ = json.Unmarshal([]byte(s.Ports), &ports)
 	if ports == nil {
@@ -120,21 +170,28 @@ func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVa
 	}
 
 	var details []ServiceDomainResponse
-	var swapMb int64
+	swapMb := s.SwapLimitMb
 	var usage *ServiceUsageResponse
-	var autoScaling *ServiceAutoScalingResponse
-	var autoRollbackEnabled = true
-	for _, arg := range extra {
-		if d, ok := arg.([]ServiceDomainResponse); ok {
-			details = d
-		} else if sw, ok := arg.(int64); ok {
-			swapMb = sw
-		} else if u, ok := arg.(*ServiceUsageResponse); ok {
-			usage = u
-		} else if as, ok := arg.(*ServiceAutoScalingResponse); ok {
-			autoScaling = as
-		} else if ar, ok := arg.(bool); ok {
-			autoRollbackEnabled = ar
+	as := extractAutoScaling(s)
+	autoScaling := &as
+	autoRollbackEnabled := s.AutoRollbackEnabled != 0
+
+	if len(enrichments) > 0 {
+		e := enrichments[0]
+		if len(e.DomainDetails) > 0 {
+			details = e.DomainDetails
+		}
+		if e.SwapMB != 0 {
+			swapMb = e.SwapMB
+		}
+		if e.Usage != nil {
+			usage = e.Usage
+		}
+		if e.AutoScaling != nil {
+			autoScaling = e.AutoScaling
+		}
+		if e.AutoRollbackEnabled != nil {
+			autoRollbackEnabled = *e.AutoRollbackEnabled
 		}
 	}
 
@@ -186,15 +243,15 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			srv, err := orch.CreateService(r.Context(), orchestrator.CreateServiceParams{
-				ProjectID:       req.ProjectID,
-				NodeID:          req.NodeID,
-				Name:            req.Name,
-				Slug:            req.Slug,
-				Type:            req.Type,
-				Repository:      req.Repository,
-				Branch:          req.Branch,
-				Dockerfile:      req.Dockerfile,
-				Image:           req.Image,
+				ProjectID:        req.ProjectID,
+				NodeID:           req.NodeID,
+				Name:             req.Name,
+				Slug:             req.Slug,
+				Type:             req.Type,
+				Repository:       req.Repository,
+				Branch:           req.Branch,
+				Dockerfile:       req.Dockerfile,
+				Image:            req.Image,
 				Ports:            req.Ports,
 				Domains:          req.Domains,
 				EnvironmentVars:  req.EnvironmentVars,
@@ -246,53 +303,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 						IsSecret: ev.IsSecret == 1,
 					})
 				}
-				var swapMb int64
-				var asEnabled int64
-				var minR, maxR int64
-				var targetCPU, targetMem, scaleDownCPU float64
-				var cooldownSec int64
-				var asMetric string
-				var autoRollbackEnabled int64 = 1
-
-				_ = orch.DB().QueryRowContext(r.Context(),
-					"SELECT swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, auto_rollback_enabled FROM services WHERE id = ?",
-					s.ID,
-				).Scan(&swapMb, &asEnabled, &minR, &maxR, &targetCPU, &asMetric, &targetMem, &scaleDownCPU, &cooldownSec, &autoRollbackEnabled)
-
-				if asMetric == "" {
-					asMetric = "cpu"
-				}
-				if minR <= 0 {
-					minR = 1
-				}
-				if maxR <= 0 {
-					maxR = 5
-				}
-				if targetCPU <= 0 {
-					targetCPU = 80.0
-				}
-				if targetMem <= 0 {
-					targetMem = 80.0
-				}
-				if scaleDownCPU <= 0 {
-					scaleDownCPU = 25.0
-				}
-				if cooldownSec <= 0 {
-					cooldownSec = 60
-				}
-
-				asResp := &ServiceAutoScalingResponse{
-					Enabled:             asEnabled == 1,
-					MinReplicas:         minR,
-					MaxReplicas:         maxR,
-					TargetCPUPercent:    targetCPU,
-					Metric:              asMetric,
-					TargetMemoryPercent: targetMem,
-					ScaleDownCPUPercent: scaleDownCPU,
-					CooldownSeconds:     cooldownSec,
-				}
-
-				res = append(res, mapServiceToResponse(s, domains, envVars, swapMb, asResp, autoRollbackEnabled == 1))
+				res = append(res, mapServiceToResponse(s, domains, envVars))
 			}
 
 			RespondJSON(w, http.StatusOK, res)
@@ -339,51 +350,6 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				})
 			}
 
-			var swapMb int64
-			var asEnabled int64
-			var minR, maxR int64
-			var targetCPU, targetMem, scaleDownCPU float64
-			var cooldownSec int64
-			var asMetric string
-			var autoRollbackEnabled int64 = 1
-			_ = orch.DB().QueryRowContext(r.Context(),
-				"SELECT swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, auto_rollback_enabled FROM services WHERE id = ?",
-				srv.ID,
-			).Scan(&swapMb, &asEnabled, &minR, &maxR, &targetCPU, &asMetric, &targetMem, &scaleDownCPU, &cooldownSec, &autoRollbackEnabled)
-
-			if asMetric == "" {
-				asMetric = "cpu"
-			}
-			if targetMem <= 0 {
-				targetMem = 80.0
-			}
-			if scaleDownCPU <= 0 {
-				scaleDownCPU = 25.0
-			}
-			if cooldownSec <= 0 {
-				cooldownSec = 60
-			}
-
-			autoScaling := &ServiceAutoScalingResponse{
-				Enabled:             asEnabled == 1,
-				MinReplicas:         minR,
-				MaxReplicas:         maxR,
-				TargetCPUPercent:    targetCPU,
-				Metric:              asMetric,
-				TargetMemoryPercent: targetMem,
-				ScaleDownCPUPercent: scaleDownCPU,
-				CooldownSeconds:     cooldownSec,
-			}
-			if autoScaling.MinReplicas <= 0 {
-				autoScaling.MinReplicas = 1
-			}
-			if autoScaling.MaxReplicas <= 0 {
-				autoScaling.MaxReplicas = 5
-			}
-			if autoScaling.TargetCPUPercent <= 0 {
-				autoScaling.TargetCPUPercent = 80.0
-			}
-
 			var usage *ServiceUsageResponse
 			if pt, ok := orch.GetLatestServiceTelemetry(srv.ID, srv.Slug); ok {
 				usage = &ServiceUsageResponse{
@@ -403,7 +369,10 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domains, envVars, domainDetails, swapMb, usage, autoScaling, autoRollbackEnabled == 1))
+			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domains, envVars, ServiceEnrichment{
+				DomainDetails: domainDetails,
+				Usage:         usage,
+			}))
 		})
 
 		// DELETE /api/v1/services/{id}
@@ -619,52 +588,9 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			var finalSwapMb int64
-			var asEnabled int64
-			var minR, maxR int64
-			var targetCPU, targetMem, scaleDownCPU float64
-			var cooldownSec int64
-			var asMetric string
-			var autoRollbackEnabled int64 = 1
-			_ = orch.DB().QueryRowContext(r.Context(),
-				"SELECT swap_limit_mb, auto_scaling_enabled, min_replicas, max_replicas, target_cpu_percent, auto_scaling_metric, target_memory_percent, scale_down_cpu_percent, cooldown_seconds, auto_rollback_enabled FROM services WHERE id = ?",
-				srv.ID,
-			).Scan(&finalSwapMb, &asEnabled, &minR, &maxR, &targetCPU, &asMetric, &targetMem, &scaleDownCPU, &cooldownSec, &autoRollbackEnabled)
-
-			if asMetric == "" {
-				asMetric = "cpu"
-			}
-			if targetMem <= 0 {
-				targetMem = 80.0
-			}
-			if scaleDownCPU <= 0 {
-				scaleDownCPU = 25.0
-			}
-			if cooldownSec <= 0 {
-				cooldownSec = 60
-			}
-
-			autoScaling := &ServiceAutoScalingResponse{
-				Enabled:             asEnabled == 1,
-				MinReplicas:         minR,
-				MaxReplicas:         maxR,
-				TargetCPUPercent:    targetCPU,
-				Metric:              asMetric,
-				TargetMemoryPercent: targetMem,
-				ScaleDownCPUPercent: scaleDownCPU,
-				CooldownSeconds:     cooldownSec,
-			}
-			if autoScaling.MinReplicas <= 0 {
-				autoScaling.MinReplicas = 1
-			}
-			if autoScaling.MaxReplicas <= 0 {
-				autoScaling.MaxReplicas = 5
-			}
-			if autoScaling.TargetCPUPercent <= 0 {
-				autoScaling.TargetCPUPercent = 80.0
-			}
-
-			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domainStrings, envResponses, domainDetails, finalSwapMb, autoScaling, autoRollbackEnabled == 1))
+			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domainStrings, envResponses, ServiceEnrichment{
+				DomainDetails: domainDetails,
+			}))
 		})
 
 		// Domains
@@ -1067,5 +993,3 @@ func isAllowedServiceContainer(srvSlug, containerName string) bool {
 	}
 	return false
 }
-
-

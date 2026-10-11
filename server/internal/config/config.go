@@ -5,10 +5,10 @@ import (
 )
 
 type Config struct {
-	Port        string
-	GRPCPort    string
-	DBPath      string
-	Env         string
+	Port          string
+	GRPCPort      string
+	DBPath        string
+	Env           string
 	AgentSecret   string
 	AdminEmail    string
 	AdminPassword string

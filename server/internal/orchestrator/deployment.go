@@ -46,18 +46,18 @@ type CreateServiceParams struct {
 }
 
 type UpdateServiceParams struct {
-	Name               *string
-	Repository         *string
-	Branch             *string
-	CommitHash         *string
-	Dockerfile         *string
-	BuildCommand       *string
-	Image              *string
-	Replicas           *int64
-	PublishToHost      *bool
-	CPULimit           *float64
-	MemoryLimitMB      *int64
-	SwapLimitMB        *int64
+	Name                *string
+	Repository          *string
+	Branch              *string
+	CommitHash          *string
+	Dockerfile          *string
+	BuildCommand        *string
+	Image               *string
+	Replicas            *int64
+	PublishToHost       *bool
+	CPULimit            *float64
+	MemoryLimitMB       *int64
+	SwapLimitMB         *int64
 	AutoRollbackEnabled *bool
 	AutoScalingEnabled  *bool
 	AutoScalingMetric   *string
@@ -1056,4 +1056,3 @@ func buildPreviewURL(commitHash, depID, nodeIP string) (domain string, url strin
 	domain = fmt.Sprintf("%s-%s.sslip.io", commit8, dashedIP)
 	return domain, "http://" + domain
 }
-

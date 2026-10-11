@@ -22,7 +22,6 @@ func RespondError(w http.ResponseWriter, status int, message string) {
 	})
 }
 
-
 // RespondNoContent writes a 204 No Content status header.
 func RespondNoContent(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNoContent)

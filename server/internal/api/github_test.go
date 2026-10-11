@@ -293,4 +293,3 @@ func TestGitHubAppAPI(t *testing.T) {
 		}
 	})
 }
-

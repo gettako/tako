@@ -126,13 +126,13 @@ func TestFeature_NodeRegistrationAndHeartbeatState(t *testing.T) {
 
 	// 2. Send Heartbeat with Metrics
 	hbResp, err := orch.Heartbeat(ctx, &takov1.HeartbeatRequest{
-		NodeId:         nodeID,
-		CpuPercent:     45.2,
-		MemoryUsedMb:   8192,
-		DiskUsedGb:     120,
-		NetworkRxKbps:  1024.5,
-		NetworkTxKbps:  2048.0,
-		UptimeSeconds:  86400,
+		NodeId:        nodeID,
+		CpuPercent:    45.2,
+		MemoryUsedMb:  8192,
+		DiskUsedGb:    120,
+		NetworkRxKbps: 1024.5,
+		NetworkTxKbps: 2048.0,
+		UptimeSeconds: 86400,
 	})
 	if err != nil {
 		t.Fatalf("Heartbeat failed: %v", err)

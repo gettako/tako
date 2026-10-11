@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
+	"gettako.dev/tako/internal/orchestrator"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"gettako.dev/tako/internal/orchestrator"
 )
 
 type HealthResponse struct {

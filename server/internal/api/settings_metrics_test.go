@@ -69,14 +69,14 @@ func TestSettingsAndMetricsAPI(t *testing.T) {
 	}
 
 	_, err = orch.Heartbeat(context.Background(), &takov1.HeartbeatRequest{
-		NodeId:         regResp.NodeId,
-		CpuPercent:     35.5,
-		MemoryUsedMb:   4096,
-		DiskUsedGb:     120,
-		NetworkRxKbps:  250.0,
-		NetworkTxKbps:  500.0,
-		UptimeSeconds:  3600,
-		Timestamp:      1000,
+		NodeId:        regResp.NodeId,
+		CpuPercent:    35.5,
+		MemoryUsedMb:  4096,
+		DiskUsedGb:    120,
+		NetworkRxKbps: 250.0,
+		NetworkTxKbps: 500.0,
+		UptimeSeconds: 3600,
+		Timestamp:     1000,
 	})
 	if err != nil {
 		t.Fatalf("Heartbeat failed: %v", err)
@@ -189,4 +189,3 @@ func TestSettingsRedaction(t *testing.T) {
 		t.Errorf("expected clientId to be updated, got %v", stored["clientId"])
 	}
 }
-

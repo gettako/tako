@@ -7,29 +7,29 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"gettako.dev/tako/internal/events"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store/db"
+	"github.com/go-chi/chi/v5"
 )
 
 type NodeResponse struct {
-	ID            string             `json:"id"`
-	Name          string             `json:"name"`
-	IPAddress     string             `json:"ipAddress"`
-	PublicIP      string             `json:"publicIp,omitempty"`
-	Role          string             `json:"role"`
-	Status        string             `json:"status"`
-	CPUTotalCores int32              `json:"cpuTotalCores"`
-	MemoryTotalMB int64              `json:"memoryTotalMb"`
-	DiskTotalGB   float64            `json:"diskTotalGb"`
-	Usage         ResourceUsageJSON  `json:"usage"`
-	ServicesCount int                `json:"servicesCount"`
-	DockerVersion string             `json:"dockerVersion"`
-	OS            string             `json:"os"`
-	KernelVersion string             `json:"kernelVersion,omitempty"`
-	Uptime        string             `json:"uptime"`
-	LastHeartbeat string             `json:"lastHeartbeat,omitempty"`
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	IPAddress     string            `json:"ipAddress"`
+	PublicIP      string            `json:"publicIp,omitempty"`
+	Role          string            `json:"role"`
+	Status        string            `json:"status"`
+	CPUTotalCores int32             `json:"cpuTotalCores"`
+	MemoryTotalMB int64             `json:"memoryTotalMb"`
+	DiskTotalGB   float64           `json:"diskTotalGb"`
+	Usage         ResourceUsageJSON `json:"usage"`
+	ServicesCount int               `json:"servicesCount"`
+	DockerVersion string            `json:"dockerVersion"`
+	OS            string            `json:"os"`
+	KernelVersion string            `json:"kernelVersion,omitempty"`
+	Uptime        string            `json:"uptime"`
+	LastHeartbeat string            `json:"lastHeartbeat,omitempty"`
 }
 
 type ResourceUsageJSON struct {
@@ -315,5 +315,3 @@ func handleUpdateNodeAgent(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		})
 	}
 }
-
-

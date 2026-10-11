@@ -282,4 +282,3 @@ func TestUpdateProject(t *testing.T) {
 		t.Fatalf("expected project name 'Renamed Project', got %q", fetched.Name)
 	}
 }
-

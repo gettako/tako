@@ -998,4 +998,3 @@ func handleDeleteUser(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}
 }
-

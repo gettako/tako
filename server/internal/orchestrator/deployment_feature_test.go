@@ -70,14 +70,14 @@ func TestFeature_DeploymentHappyPathLifecycle(t *testing.T) {
 	// 3. Create Service without repository yet so auto-deploy doesn't trigger immediately
 	publishHost := true
 	srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
-		ProjectID: "proj-finance",
-		NodeID:    "worker-node-1",
-		Name:      "Payment Gateway",
-		Slug:      "payment-gateway",
-		Type:      "app",
-		Branch:    "main",
-		Ports:     []int32{8080},
-		Domains:   []string{"pay.mycorp.internal"},
+		ProjectID:     "proj-finance",
+		NodeID:        "worker-node-1",
+		Name:          "Payment Gateway",
+		Slug:          "payment-gateway",
+		Type:          "app",
+		Branch:        "main",
+		Ports:         []int32{8080},
+		Domains:       []string{"pay.mycorp.internal"},
 		PublishToHost: &publishHost,
 	})
 	if err != nil {

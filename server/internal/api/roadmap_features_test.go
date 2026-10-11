@@ -125,37 +125,37 @@ func TestOneClickDatabaseProvisioning(t *testing.T) {
 	})
 
 	tests := []struct {
-		dbType      string
-		versionTag  string
-		expectedImg string
+		dbType       string
+		versionTag   string
+		expectedImg  string
 		expectedPort int
 		checkConnStr string
 	}{
 		{
-			dbType:      "postgresql",
-			versionTag:  "16-alpine",
-			expectedImg: "postgres:16-alpine",
+			dbType:       "postgresql",
+			versionTag:   "16-alpine",
+			expectedImg:  "postgres:16-alpine",
 			expectedPort: 5432,
 			checkConnStr: "postgresql://tako:",
 		},
 		{
-			dbType:      "mysql",
-			versionTag:  "latest",
-			expectedImg: "mysql:latest",
+			dbType:       "mysql",
+			versionTag:   "latest",
+			expectedImg:  "mysql:latest",
 			expectedPort: 3306,
 			checkConnStr: "mysql://tako:",
 		},
 		{
-			dbType:      "redis",
-			versionTag:  "7-alpine",
-			expectedImg: "redis:7-alpine",
+			dbType:       "redis",
+			versionTag:   "7-alpine",
+			expectedImg:  "redis:7-alpine",
 			expectedPort: 6379,
 			checkConnStr: "redis://43.156.243.241:6379",
 		},
 		{
-			dbType:      "mongodb",
-			versionTag:  "latest",
-			expectedImg: "mongo:latest",
+			dbType:       "mongodb",
+			versionTag:   "latest",
+			expectedImg:  "mongo:latest",
 			expectedPort: 27017,
 			checkConnStr: "mongodb://tako:",
 		},

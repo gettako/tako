@@ -68,8 +68,8 @@ func TestFeature_AutoscalingScaleUpAndDownLifecycle(t *testing.T) {
 		CpuPercent: 50.0,
 		Containers: []*takov1.ContainerTelemetry{
 			{
-				ServiceId:   srv.ID,
-				CpuPercent:  90.0,
+				ServiceId:    srv.ID,
+				CpuPercent:   90.0,
 				MemoryUsedMb: 256,
 			},
 		},
@@ -119,8 +119,8 @@ func TestFeature_AutoscalingScaleUpAndDownLifecycle(t *testing.T) {
 		CpuPercent: 20.0,
 		Containers: []*takov1.ContainerTelemetry{
 			{
-				ServiceId:   srv.ID,
-				CpuPercent:  10.0,
+				ServiceId:    srv.ID,
+				CpuPercent:   10.0,
 				MemoryUsedMb: 128,
 			},
 		},

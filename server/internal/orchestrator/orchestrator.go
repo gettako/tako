@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"gettako.dev/tako/internal/events"
@@ -22,131 +21,41 @@ type Config struct {
 	LivenessTimeout   time.Duration
 }
 
-type AgentSession struct {
-	NodeID          string
-	TaskChan        chan *takov1.MasterTask
-	mu              sync.RWMutex
-	logCallbacks    map[string]func(chunk *takov1.DeployLogChunk)
-	resultCallbacks map[string]chan *takov1.AgentTaskResult
-}
-
-func (s *AgentSession) RegisterDeployLogCallback(taskID string, cb func(chunk *takov1.DeployLogChunk)) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.logCallbacks[taskID] = cb
-}
-
-func (s *AgentSession) UnregisterDeployLogCallback(taskID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.logCallbacks, taskID)
-}
-
-func (s *AgentSession) RegisterResultChan(taskID string, ch chan *takov1.AgentTaskResult) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.resultCallbacks[taskID] = ch
-}
-
-func (s *AgentSession) UnregisterResultChan(taskID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.resultCallbacks, taskID)
-}
-
-func (s *AgentSession) HandleResult(res *takov1.AgentTaskResult) {
-	taskID := res.GetTaskId()
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if chunk := res.GetDeployLog(); chunk != nil {
-		if cb, ok := s.logCallbacks[taskID]; ok {
-			cb(chunk)
-		}
-	}
-
-	if ch, ok := s.resultCallbacks[taskID]; ok {
-		select {
-		case ch <- res:
-		default:
-		}
-	}
-}
-
-type ServiceTelemetryPoint struct {
-	Timestamp      time.Time `json:"timestamp"`
-	CPUPercent     float64   `json:"cpuPercent"`
-	MemoryUsedMB   int64     `json:"memoryUsedMb"`
-	MemoryLimitMB  int64     `json:"memoryLimitMb"`
-	NetworkRxKBps  float64   `json:"networkRxKbps"`
-	NetworkTxKBps  float64   `json:"networkTxKbps"`
-	DiskReadBytes  int64     `json:"diskReadBytes"`
-	DiskWriteBytes int64     `json:"diskWriteBytes"`
-}
-
-type UserSession struct {
-	Token     string
-	UserID    string
-	UserRole  string
-	CreatedAt time.Time
-	ExpiresAt time.Time
-}
-
 type Orchestrator struct {
-	db               *sql.DB
-	queries          *db.Queries
-	bus              *events.Bus
-	enrollToken      string
-	agentsMu         sync.RWMutex
-	agents           map[string]*AgentSession
-	telemetryMu      sync.RWMutex
-	latestTelemetry  map[string]ServiceTelemetryPoint
-	historyTelemetry map[string][]ServiceTelemetryPoint
-	sessionsMu       sync.RWMutex
-	sessions         map[string]UserSession
+	db          *sql.DB
+	queries     *db.Queries
+	bus         *events.Bus
+	enrollToken string
+
+	sessions  *SessionStore
+	telemetry *TelemetryStore
+	agents    *AgentRegistry
+	retention *RetentionCleaner
 }
 
 func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 	return &Orchestrator{
-		db:               database,
-		queries:          db.New(database),
-		bus:              bus,
-		enrollToken:      enrollToken,
-		agents:           make(map[string]*AgentSession),
-		latestTelemetry:  make(map[string]ServiceTelemetryPoint),
-		historyTelemetry: make(map[string][]ServiceTelemetryPoint),
-		sessions:         make(map[string]UserSession),
+		db:          database,
+		queries:     db.New(database),
+		bus:         bus,
+		enrollToken: enrollToken,
+		sessions:    NewSessionStore(),
+		telemetry:   NewTelemetryStore(),
+		agents:      NewAgentRegistry(),
+		retention:   NewRetentionCleaner(database),
 	}
 }
 
 func (o *Orchestrator) RegisterUserSession(token string, user db.User) UserSession {
-	o.sessionsMu.Lock()
-	defer o.sessionsMu.Unlock()
-	sess := UserSession{
-		Token:     token,
-		UserID:    user.ID,
-		UserRole:  user.Role,
-		CreatedAt: time.Now().UTC(),
-		ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour),
-	}
-	o.sessions[token] = sess
-	return sess
+	return o.sessions.Register(token, user)
 }
 
 func (o *Orchestrator) GetUserSession(token string) (UserSession, bool) {
-	o.sessionsMu.RLock()
-	defer o.sessionsMu.RUnlock()
-	sess, ok := o.sessions[token]
-	if !ok || time.Now().UTC().After(sess.ExpiresAt) {
-		return UserSession{}, false
-	}
-	return sess, true
+	return o.sessions.Get(token)
 }
 
 func (o *Orchestrator) RevokeUserSession(token string) {
-	o.sessionsMu.Lock()
-	defer o.sessionsMu.Unlock()
-	delete(o.sessions, token)
+	o.sessions.Revoke(token)
 }
 
 func (o *Orchestrator) Queries() *db.Queries {
@@ -162,160 +71,27 @@ func (o *Orchestrator) Bus() *events.Bus {
 }
 
 func (o *Orchestrator) RegisterAgentSession(nodeID string, taskChan chan *takov1.MasterTask) *AgentSession {
-	o.agentsMu.Lock()
-	defer o.agentsMu.Unlock()
-
-	sess := &AgentSession{
-		NodeID:          nodeID,
-		TaskChan:        taskChan,
-		logCallbacks:    make(map[string]func(chunk *takov1.DeployLogChunk)),
-		resultCallbacks: make(map[string]chan *takov1.AgentTaskResult),
-	}
-	o.agents[nodeID] = sess
-	log.Printf("[orchestrator] registered agent task session for node: %s", nodeID)
-	return sess
+	return o.agents.Register(nodeID, taskChan)
 }
 
 func (o *Orchestrator) UnregisterAgentSession(nodeID string) {
-	o.agentsMu.Lock()
-	defer o.agentsMu.Unlock()
-	delete(o.agents, nodeID)
-	log.Printf("[orchestrator] unregistered agent task session for node: %s", nodeID)
+	o.agents.Unregister(nodeID)
 }
 
 func (o *Orchestrator) GetAgentSession(nodeID string) *AgentSession {
-	o.agentsMu.RLock()
-	defer o.agentsMu.RUnlock()
-	if sess, ok := o.agents[nodeID]; ok {
-		return sess
-	}
-	return nil
+	return o.agents.Get(nodeID)
 }
 
 func (o *Orchestrator) DispatchExec(ctx context.Context, nodeID, containerID, cmd string) (string, int, error) {
-	sess := o.GetAgentSession(nodeID)
-	if sess == nil {
-		return "", 1, fmt.Errorf("node agent not connected: %s", nodeID)
-	}
-
-	taskID := "exec-" + randomHex(8)
-	resCh := make(chan *takov1.AgentTaskResult, 1)
-	sess.RegisterResultChan(taskID, resCh)
-	defer sess.UnregisterResultChan(taskID)
-
-	select {
-	case sess.TaskChan <- &takov1.MasterTask{
-		TaskId: taskID,
-		NodeId: sess.NodeID,
-		Task: &takov1.MasterTask_Exec{
-			Exec: &takov1.ExecCommandRequest{
-				ContainerId: containerID,
-				Command:     cmd,
-			},
-		},
-	}:
-	case <-ctx.Done():
-		return "", 1, ctx.Err()
-	}
-
-	select {
-	case res := <-resCh:
-		execRes := res.GetExecResult()
-		if execRes == nil {
-			return "", 1, fmt.Errorf("invalid response from agent")
-		}
-		if execRes.Error != "" && execRes.Output == "" {
-			return "", int(execRes.ExitCode), fmt.Errorf("%s", execRes.Error)
-		}
-		return execRes.Output, int(execRes.ExitCode), nil
-	case <-time.After(30 * time.Second):
-		return "", 1, fmt.Errorf("exec timed out waiting for agent response")
-	case <-ctx.Done():
-		return "", 1, ctx.Err()
-	}
+	return o.agents.DispatchExec(ctx, nodeID, containerID, cmd)
 }
 
 func (o *Orchestrator) DispatchContainerLogs(ctx context.Context, nodeID, containerID string, tailLines int) (string, error) {
-	sess := o.GetAgentSession(nodeID)
-	if sess == nil {
-		return "", fmt.Errorf("node agent not connected: %s", nodeID)
-	}
-
-	taskID := "logs-" + randomHex(8)
-	resCh := make(chan *takov1.AgentTaskResult, 1)
-	sess.RegisterResultChan(taskID, resCh)
-	defer sess.UnregisterResultChan(taskID)
-
-	select {
-	case sess.TaskChan <- &takov1.MasterTask{
-		TaskId: taskID,
-		NodeId: sess.NodeID,
-		Task: &takov1.MasterTask_ContainerLogs{
-			ContainerLogs: &takov1.GetContainerLogsRequest{
-				ContainerId: containerID,
-				TailLines:   int32(tailLines),
-			},
-		},
-	}:
-	case <-ctx.Done():
-		return "", ctx.Err()
-	}
-
-	select {
-	case res := <-resCh:
-		logsRes := res.GetContainerLogsResult()
-		if logsRes == nil {
-			return "", fmt.Errorf("invalid response from agent")
-		}
-		if logsRes.Error != "" && logsRes.Logs == "" {
-			return "", fmt.Errorf("%s", logsRes.Error)
-		}
-		return logsRes.Logs, nil
-	case <-time.After(15 * time.Second):
-		return "", fmt.Errorf("logs timed out waiting for agent response")
-	case <-ctx.Done():
-		return "", ctx.Err()
-	}
+	return o.agents.DispatchContainerLogs(ctx, nodeID, containerID, tailLines)
 }
 
 func (o *Orchestrator) DispatchContainerAction(ctx context.Context, nodeID, containerID, action string) error {
-	sess := o.GetAgentSession(nodeID)
-	if sess == nil {
-		return fmt.Errorf("node agent not connected: %s", nodeID)
-	}
-
-	taskID := "action-" + randomHex(8)
-	resCh := make(chan *takov1.AgentTaskResult, 1)
-	sess.RegisterResultChan(taskID, resCh)
-	defer sess.UnregisterResultChan(taskID)
-
-	select {
-	case sess.TaskChan <- &takov1.MasterTask{
-		TaskId: taskID,
-		NodeId: sess.NodeID,
-		Task: &takov1.MasterTask_ContainerAction{
-			ContainerAction: &takov1.ContainerActionRequest{
-				ContainerId: containerID,
-				Action:      action,
-			},
-		},
-	}:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	select {
-	case res := <-resCh:
-		actRes := res.GetContainerActionResult()
-		if actRes != nil && !actRes.Success {
-			return fmt.Errorf("%s", actRes.Message)
-		}
-		return nil
-	case <-time.After(15 * time.Second):
-		return fmt.Errorf("container action timed out waiting for agent response")
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return o.agents.DispatchContainerAction(ctx, nodeID, containerID, action)
 }
 
 // GenerateEnrollToken creates a cryptographically random enrollment token.
@@ -466,42 +242,7 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 
 	// Process container-level real-time telemetry from agent
 	if len(req.GetContainers()) > 0 {
-		o.telemetryMu.Lock()
-		now := time.Now().UTC()
-		for _, c := range req.GetContainers() {
-			pt := ServiceTelemetryPoint{
-				Timestamp:      now,
-				CPUPercent:     c.GetCpuPercent(),
-				MemoryUsedMB:   c.GetMemoryUsedMb(),
-				MemoryLimitMB:  c.GetMemoryLimitMb(),
-				NetworkRxKBps:  c.GetNetworkRxKbps(),
-				NetworkTxKBps:  c.GetNetworkTxKbps(),
-				DiskReadBytes:  c.GetDiskReadBytes(),
-				DiskWriteBytes: c.GetDiskWriteBytes(),
-			}
-
-			keys := make(map[string]struct{})
-			if c.GetServiceId() != "" {
-				keys[c.GetServiceId()] = struct{}{}
-			}
-			if c.GetServiceSlug() != "" {
-				keys[c.GetServiceSlug()] = struct{}{}
-			}
-			if c.GetName() != "" {
-				keys[c.GetName()] = struct{}{}
-			}
-
-			for k := range keys {
-				o.latestTelemetry[k] = pt
-				hist := o.historyTelemetry[k]
-				hist = append(hist, pt)
-				if len(hist) > 120 {
-					hist = hist[len(hist)-120:]
-				}
-				o.historyTelemetry[k] = hist
-			}
-		}
-		o.telemetryMu.Unlock()
+		o.telemetry.RecordContainerSamples(req.GetContainers())
 	}
 
 	o.bus.Publish(events.Event{
@@ -525,32 +266,12 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 
 // GetLatestServiceTelemetry returns the most recently recorded telemetry sample for a service.
 func (o *Orchestrator) GetLatestServiceTelemetry(serviceID, serviceSlug string) (ServiceTelemetryPoint, bool) {
-	o.telemetryMu.RLock()
-	defer o.telemetryMu.RUnlock()
-	if pt, ok := o.latestTelemetry[serviceID]; ok {
-		return pt, true
-	}
-	if pt, ok := o.latestTelemetry[serviceSlug]; ok {
-		return pt, true
-	}
-	return ServiceTelemetryPoint{}, false
+	return o.telemetry.GetLatest(serviceID, serviceSlug)
 }
 
 // GetServiceTelemetryHistory returns historical recorded telemetry points for a service.
 func (o *Orchestrator) GetServiceTelemetryHistory(serviceID, serviceSlug string) []ServiceTelemetryPoint {
-	o.telemetryMu.RLock()
-	defer o.telemetryMu.RUnlock()
-	if hist, ok := o.historyTelemetry[serviceID]; ok && len(hist) > 0 {
-		res := make([]ServiceTelemetryPoint, len(hist))
-		copy(res, hist)
-		return res
-	}
-	if hist, ok := o.historyTelemetry[serviceSlug]; ok && len(hist) > 0 {
-		res := make([]ServiceTelemetryPoint, len(hist))
-		copy(res, hist)
-		return res
-	}
-	return nil
+	return o.telemetry.GetHistory(serviceID, serviceSlug)
 }
 
 // StartLivenessWatcher monitors inactive nodes and transitions them to 'offline' if timeout exceeds threshold.
@@ -597,50 +318,12 @@ func (o *Orchestrator) StartLivenessWatcher(ctx context.Context, interval time.D
 
 // StartRetentionCleaner periodically cleans up old non-live deployments and audit logs.
 func (o *Orchestrator) StartRetentionCleaner(ctx context.Context, interval time.Duration, retentionDays int) {
-	if interval <= 0 {
-		interval = 24 * time.Hour
-	}
-	if retentionDays <= 0 {
-		retentionDays = 90
-	}
-
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-
-		o.RunRetentionCleanup(ctx, retentionDays)
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				o.RunRetentionCleanup(ctx, retentionDays)
-			}
-		}
-	}()
+	o.retention.Start(ctx, interval, retentionDays)
 }
 
 // RunRetentionCleanup performs a single cleanup pass on deployments and audit logs older than retentionDays.
 func (o *Orchestrator) RunRetentionCleanup(ctx context.Context, retentionDays int) {
-	if retentionDays <= 0 {
-		retentionDays = 90
-	}
-	modifier := fmt.Sprintf("-%d days", retentionDays)
-
-	resDeployments, err := o.db.ExecContext(ctx, "DELETE FROM deployments WHERE status != 'live' AND created_at < datetime('now', ?)", modifier)
-	if err != nil {
-		log.Printf("[orchestrator] retention cleanup deployments error: %v", err)
-	} else if rows, _ := resDeployments.RowsAffected(); rows > 0 {
-		log.Printf("[orchestrator] pruned %d old non-live deployments (>%d days)", rows, retentionDays)
-	}
-
-	resAudit, err := o.db.ExecContext(ctx, "DELETE FROM audit_logs WHERE timestamp < datetime('now', ?)", modifier)
-	if err != nil {
-		log.Printf("[orchestrator] retention cleanup audit_logs error: %v", err)
-	} else if rows, _ := resAudit.RowsAffected(); rows > 0 {
-		log.Printf("[orchestrator] pruned %d old audit logs (>%d days)", rows, retentionDays)
-	}
+	o.retention.Prune(ctx, retentionDays)
 }
 
 func formatUptime(seconds int64) string {

@@ -30,9 +30,9 @@ type SystemUpdateRequest struct {
 }
 
 type SystemUpdateResponse struct {
-	Success            bool     `json:"success"`
-	Message            string   `json:"message"`
-	UpdatedComponents  []string `json:"updatedComponents"`
+	Success           bool     `json:"success"`
+	Message           string   `json:"message"`
+	UpdatedComponents []string `json:"updatedComponents"`
 }
 
 var (

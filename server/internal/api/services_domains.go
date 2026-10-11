@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store/db"
+	"github.com/go-chi/chi/v5"
 )
 
 func handleListServiceDomains(orch *orchestrator.Orchestrator) http.HandlerFunc {

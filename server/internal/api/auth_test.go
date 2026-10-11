@@ -384,5 +384,3 @@ func TestAuthRateLimit(t *testing.T) {
 	globalLoginTracker.reset("192.168.10.55:target@gettako.dev")
 	globalLoginTracker.reset("192.168.10.56:target@gettako.dev")
 }
-
-

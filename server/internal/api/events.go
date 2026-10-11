@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"gettako.dev/tako/internal/events"
 	"gettako.dev/tako/internal/orchestrator"
+	"github.com/go-chi/chi/v5"
 )
 
 func registerEventsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {

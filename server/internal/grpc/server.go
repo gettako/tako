@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-
 type ServerConfig struct {
 	AgentSecret  string
 	Orchestrator *orchestrator.Orchestrator

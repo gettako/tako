@@ -195,4 +195,3 @@ func TestOrchestratorRetentionCleanup(t *testing.T) {
 		t.Errorf("expected audit-recent to be retained, found count %d", countRecentAudit)
 	}
 }
-

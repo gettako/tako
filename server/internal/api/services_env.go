@@ -3,10 +3,10 @@ package api
 import (
 	"net/http"
 
-	"github.com/go-chi/chi/v5"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/security"
 	"gettako.dev/tako/internal/store/db"
+	"github.com/go-chi/chi/v5"
 )
 
 func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc {

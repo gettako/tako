@@ -219,4 +219,3 @@ func TestDomainSanitizationAndEdgeCases(t *testing.T) {
 		t.Fatalf("expected valid and dnsVerified for wildcard domain, got %+v", wildResp)
 	}
 }
-
