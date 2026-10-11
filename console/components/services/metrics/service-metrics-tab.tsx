@@ -45,6 +45,11 @@ import {
   TimeRange,
 } from '@/lib/queries';
 import { cn } from '@/lib/utils';
+import {
+  formatChartTick,
+  formatChartTooltip,
+  getTimeRangeConfig,
+} from '@/lib/utils/chart-time';
 
 export interface ServiceMetricsTabProps {
   service: Service;
@@ -122,33 +127,126 @@ export function ServiceMetricsTab({
   const processedMetrics = useMemo(() => {
     if (!rawMetrics.length) return [];
 
-    return rawMetrics.map((point) => {
-      let cpu = point.cpu;
-      let memory = point.memory;
+    const { durationMs, bucketCount, stepMs } = getTimeRangeConfig(timeRange);
+    let now = Date.now();
+    const lastPointTime = new Date(rawMetrics[rawMetrics.length - 1].timestamp).getTime();
+    if (!isNaN(lastPointTime) && lastPointTime > now) {
+      now = lastPointTime;
+    }
+    const startTime = now - durationMs;
+    const firstPointTime = new Date(rawMetrics[0].timestamp).getTime();
+    const rawSpan = lastPointTime - firstPointTime;
 
-      if (selectedReplica !== 'all' && point.replicaMetrics?.[selectedReplica]) {
-        cpu = point.replicaMetrics[selectedReplica].cpu;
-        memory = point.replicaMetrics[selectedReplica].memory;
+    if (rawSpan >= durationMs * 0.8) {
+      return rawMetrics.map((point) => {
+        let cpu = point.cpu;
+        let memory = point.memory;
+
+        if (selectedReplica !== 'all' && point.replicaMetrics?.[selectedReplica]) {
+          cpu = point.replicaMetrics[selectedReplica].cpu;
+          memory = point.replicaMetrics[selectedReplica].memory;
+        }
+
+        const memPct = Math.min(100, Math.round((memory / Math.max(1, memoryLimitMb)) * 100));
+
+        return {
+          ...point,
+          displayCpu: isServiceStopped ? 0 : cpu,
+          displayMemory: isServiceStopped ? 0 : memory,
+          displayMemoryPercent: isServiceStopped ? 0 : memPct,
+          displayRx: isServiceStopped ? 0 : point.networkRx,
+          displayTx: isServiceStopped ? 0 : point.networkTx,
+          displayDiskRead: isServiceStopped ? 0 : point.diskRead,
+          displayDiskWrite: isServiceStopped ? 0 : point.diskWrite,
+          time: formatChartTick(point.timestamp, timeRange),
+          tooltipTime: formatChartTooltip(point.timestamp, timeRange),
+        };
+      });
+    }
+
+    const buckets = [];
+    for (let i = 0; i <= bucketCount; i++) {
+      const bucketTime = startTime + i * stepMs;
+      const bucketWindowStart = bucketTime - stepMs / 2;
+      const bucketWindowEnd = bucketTime + stepMs / 2;
+
+      const matches = rawMetrics.filter((p) => {
+        const pt = new Date(p.timestamp).getTime();
+        return pt >= bucketWindowStart && pt < bucketWindowEnd;
+      });
+
+      let cpu = 0;
+      let memory = 0;
+      let rx = 0;
+      let tx = 0;
+      let dRead = 0;
+      let dWrite = 0;
+
+      if (matches.length > 0) {
+        const sumCpu = matches.reduce((acc, curr) => {
+          const val = selectedReplica !== 'all' && curr.replicaMetrics?.[selectedReplica]
+            ? curr.replicaMetrics[selectedReplica].cpu
+            : curr.cpu;
+          return acc + (Number(val) || 0);
+        }, 0);
+        cpu = Math.round(sumCpu / matches.length);
+
+        const sumMem = matches.reduce((acc, curr) => {
+          const val = selectedReplica !== 'all' && curr.replicaMetrics?.[selectedReplica]
+            ? curr.replicaMetrics[selectedReplica].memory
+            : curr.memory;
+          return acc + (Number(val) || 0);
+        }, 0);
+        memory = Math.round(sumMem / matches.length);
+
+        rx = Math.round(matches.reduce((acc, curr) => acc + (Number(curr.networkRx) || 0), 0) / matches.length);
+        tx = Math.round(matches.reduce((acc, curr) => acc + (Number(curr.networkTx) || 0), 0) / matches.length);
+        dRead = Math.round(matches.reduce((acc, curr) => acc + (Number(curr.diskRead) || 0), 0) / matches.length);
+        dWrite = Math.round(matches.reduce((acc, curr) => acc + (Number(curr.diskWrite) || 0), 0) / matches.length);
+      } else {
+        const earliestTime = firstPointTime;
+        if (bucketTime >= earliestTime - stepMs / 2) {
+          const prev = rawMetrics.filter((p) => new Date(p.timestamp).getTime() <= bucketTime).slice(-1)[0];
+          if (prev) {
+            cpu = selectedReplica !== 'all' && prev.replicaMetrics?.[selectedReplica]
+              ? prev.replicaMetrics[selectedReplica].cpu
+              : prev.cpu;
+            memory = selectedReplica !== 'all' && prev.replicaMetrics?.[selectedReplica]
+              ? prev.replicaMetrics[selectedReplica].memory
+              : prev.memory;
+            rx = prev.networkRx;
+            tx = prev.networkTx;
+            dRead = prev.diskRead;
+            dWrite = prev.diskWrite;
+          }
+        }
       }
 
       const memPct = Math.min(100, Math.round((memory / Math.max(1, memoryLimitMb)) * 100));
 
-      return {
-        ...point,
+      buckets.push({
+        timestamp: new Date(bucketTime).toISOString(),
+        cpu,
+        memory,
+        memoryPercent: memPct,
+        networkRx: rx,
+        networkTx: tx,
+        diskRead: dRead,
+        diskWrite: dWrite,
         displayCpu: isServiceStopped ? 0 : cpu,
         displayMemory: isServiceStopped ? 0 : memory,
         displayMemoryPercent: isServiceStopped ? 0 : memPct,
-        displayRx: isServiceStopped ? 0 : point.networkRx,
-        displayTx: isServiceStopped ? 0 : point.networkTx,
-        displayDiskRead: isServiceStopped ? 0 : point.diskRead,
-        displayDiskWrite: isServiceStopped ? 0 : point.diskWrite,
-        time: new Date(point.timestamp).toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-      };
-    });
-  }, [rawMetrics, selectedReplica, memoryLimitMb, isServiceStopped]);
+        displayRx: isServiceStopped ? 0 : rx,
+        displayTx: isServiceStopped ? 0 : tx,
+        displayDiskRead: isServiceStopped ? 0 : dRead,
+        displayDiskWrite: isServiceStopped ? 0 : dWrite,
+        time: formatChartTick(bucketTime, timeRange),
+        tooltipTime: formatChartTooltip(bucketTime, timeRange),
+      });
+    }
+
+    return buckets;
+  }, [rawMetrics, selectedReplica, memoryLimitMb, isServiceStopped, timeRange]);
 
   // Aggregate stats across time window
   const summaryStats = useMemo(() => {
@@ -546,6 +644,7 @@ export function ServiceMetricsTab({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  minTickGap={24}
                   tick={{ fontSize: 11, fill: 'currentColor' }}
                   className="text-muted-foreground font-mono"
                 />
@@ -571,6 +670,7 @@ export function ServiceMetricsTab({
                   content={
                     <ChartTooltipContent
                       className="font-mono text-xs"
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                       formatter={(val) => [`${val}%`, 'CPU Utilization']}
                     />
                   }
@@ -630,6 +730,7 @@ export function ServiceMetricsTab({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  minTickGap={24}
                   tick={{ fontSize: 11, fill: 'currentColor' }}
                   className="text-muted-foreground font-mono"
                 />
@@ -662,6 +763,7 @@ export function ServiceMetricsTab({
                   content={
                     <ChartTooltipContent
                       className="font-mono text-xs"
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                       formatter={(val, name, item) => [
                         `${val} MB (${item.payload.displayMemoryPercent}%)`,
                         'Memory Usage',
@@ -732,6 +834,7 @@ export function ServiceMetricsTab({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  minTickGap={24}
                   tick={{ fontSize: 11, fill: 'currentColor' }}
                   className="text-muted-foreground font-mono"
                 />
@@ -749,6 +852,7 @@ export function ServiceMetricsTab({
                   content={
                     <ChartTooltipContent
                       className="font-mono text-xs"
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                       formatter={(val, name) => [
                         `${val} KB/s`,
                         name === 'displayRx' ? 'Ingress (Rx)' : 'Egress (Tx)',
@@ -825,6 +929,7 @@ export function ServiceMetricsTab({
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
+                  minTickGap={24}
                   tick={{ fontSize: 11, fill: 'currentColor' }}
                   className="text-muted-foreground font-mono"
                 />
@@ -842,6 +947,7 @@ export function ServiceMetricsTab({
                   content={
                     <ChartTooltipContent
                       className="font-mono text-xs"
+                      labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                       formatter={(val, name) => [
                         `${val} IOPS`,
                         name === 'displayDiskRead' ? 'Storage Read' : 'Storage Write',

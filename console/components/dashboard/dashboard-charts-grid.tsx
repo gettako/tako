@@ -70,6 +70,7 @@ export function DashboardChartsGrid({
           colorVar="var(--chart-cpu)"
           unit="%"
           currentValue={latest.cpu}
+          timeRange={timeRange}
           icon={Cpu}
         />
 
@@ -82,6 +83,7 @@ export function DashboardChartsGrid({
           colorVar="var(--chart-ram)"
           unit="%"
           currentValue={latest.memory}
+          timeRange={timeRange}
           icon={Activity}
         />
 
@@ -94,6 +96,7 @@ export function DashboardChartsGrid({
           colorVar="var(--chart-network)"
           unit="KB/s"
           currentValue={latest.networkRx}
+          timeRange={timeRange}
           icon={Network}
         />
 
@@ -106,6 +109,7 @@ export function DashboardChartsGrid({
           colorVar="var(--chart-disk)"
           unit="%"
           currentValue={latest.disk}
+          timeRange={timeRange}
           icon={HardDrive}
         />
       </div>

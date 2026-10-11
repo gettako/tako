@@ -56,9 +56,24 @@ export async function getTimeSeriesMetrics(
   }
 
   await simulateDelay();
-  const count = timeRange === '1h' ? 12 : timeRange === '6h' ? 24 : 30;
+  const durationMap: Record<TimeRange, number> = {
+    '15m': 15 * 60 * 1000,
+    '1h': 60 * 60 * 1000,
+    '6h': 6 * 60 * 60 * 1000,
+    '24h': 24 * 60 * 60 * 1000,
+    '7d': 7 * 24 * 60 * 60 * 1000,
+  };
+  const countMap: Record<TimeRange, number> = {
+    '15m': 15,
+    '1h': 20,
+    '6h': 24,
+    '24h': 24,
+    '7d': 28,
+  };
+  const totalDuration = durationMap[timeRange] || 3600000;
+  const count = countMap[timeRange] || 20;
   const now = Date.now();
-  const stepMs = (timeRange === '1h' ? 3600000 : 86400000) / count;
+  const stepMs = totalDuration / count;
 
   const points: MetricPoint[] = [];
   for (let i = count; i >= 0; i--) {

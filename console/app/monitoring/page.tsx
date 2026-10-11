@@ -102,6 +102,7 @@ export default function MonitoringPage() {
               series={nodeSeries}
               metricKey="cpu"
               unit="%"
+              timeRange={timeRange}
             />
 
             <ClusterMetricChart
@@ -110,10 +111,11 @@ export default function MonitoringPage() {
               series={nodeSeries}
               metricKey="memory"
               unit="%"
+              timeRange={timeRange}
             />
 
             {/* Network Ingress/Egress & Disk Allocation Charts */}
-            <NetworkDiskCharts metrics={clusterMetrics} />
+            <NetworkDiskCharts metrics={clusterMetrics} timeRange={timeRange} />
 
             {/* Live Hardware Telemetry Breakdown Table */}
             <MonitoringNodesTable nodes={nodes} />

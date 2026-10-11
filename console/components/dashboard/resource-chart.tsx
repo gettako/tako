@@ -18,6 +18,10 @@ import {
 } from '@/components/ui/chart';
 import { MetricPoint } from '@/lib/queries';
 import { type LucideIcon } from 'lucide-react';
+import {
+  ChartTimeRange,
+  normalizeChartTimeSeries,
+} from '@/lib/utils/chart-time';
 
 export interface ResourceChartProps {
   title: string;
@@ -28,6 +32,7 @@ export interface ResourceChartProps {
   unit: string;
   currentValue: string | number;
   subtitle?: string;
+  timeRange?: ChartTimeRange;
   icon?: LucideIcon;
   averageValue?: string | number;
   peakValue?: string | number;
@@ -50,6 +55,7 @@ export function ResourceChart({
   unit,
   currentValue,
   subtitle,
+  timeRange = '1h',
   icon: Icon,
 }: ResourceChartProps) {
   const [mounted, setMounted] = useState(false);
@@ -67,10 +73,9 @@ export function ResourceChart({
     },
   };
 
-  const formattedData = data.map((d) => ({
-    ...d,
-    time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  }));
+  const formattedData = React.useMemo(() => {
+    return normalizeChartTimeSeries(data, timeRange, [dataKey]);
+  }, [data, timeRange, dataKey]);
 
   return (
     <ChartCard>
@@ -114,6 +119,7 @@ export function ResourceChart({
               tickLine={false}
               axisLine={false}
               tickMargin={8}
+              minTickGap={24}
               tick={{ fontSize: 11, fill: 'currentColor' }}
               className="text-muted-foreground font-mono"
             />
@@ -131,6 +137,7 @@ export function ResourceChart({
               content={
                 <ChartTooltipContent
                   className="font-mono text-xs"
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                   formatter={(val) => [`${val} ${unit}`, title]}
                 />
               }

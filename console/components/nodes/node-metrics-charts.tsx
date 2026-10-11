@@ -77,6 +77,7 @@ export function NodeMetricsCharts({
           colorVar="var(--chart-cpu)"
           unit="%"
           currentValue={latest.cpu}
+          timeRange={timeRange}
           icon={Cpu}
         />
 
@@ -89,6 +90,7 @@ export function NodeMetricsCharts({
           colorVar="var(--chart-ram)"
           unit="%"
           currentValue={latest.memory}
+          timeRange={timeRange}
           icon={Layers}
         />
 
@@ -101,6 +103,7 @@ export function NodeMetricsCharts({
           colorVar="var(--chart-disk)"
           unit="%"
           currentValue={latest.disk}
+          timeRange={timeRange}
           icon={HardDrive}
         />
 
@@ -113,6 +116,7 @@ export function NodeMetricsCharts({
           colorVar="var(--chart-network)"
           unit="KB/s"
           currentValue={latest.networkRx}
+          timeRange={timeRange}
           icon={Network}
         />
       </div>

@@ -18,12 +18,17 @@ import {
 } from '@/components/ui/chart';
 import { MetricPoint } from '@/lib/queries';
 import { ArrowDownLeft, ArrowUpRight, HardDrive, Network } from 'lucide-react';
+import {
+  ChartTimeRange,
+  normalizeChartTimeSeries,
+} from '@/lib/utils/chart-time';
 
 interface NetworkDiskChartsProps {
   metrics: MetricPoint[];
+  timeRange?: ChartTimeRange;
 }
 
-export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
+export function NetworkDiskCharts({ metrics, timeRange = '1h' }: NetworkDiskChartsProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -36,14 +41,9 @@ export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
     disk: 0,
   };
 
-  const formattedData = metrics.map((d) => ({
-    ...d,
-    time: new Date(d.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    }),
-    disk: d.disk ?? 0,
-  }));
+  const formattedData = React.useMemo(() => {
+    return normalizeChartTimeSeries(metrics, timeRange, ['networkRx', 'networkTx', 'disk']);
+  }, [metrics, timeRange]);
 
   const networkConfig = {
     networkRx: { label: 'Inbound (Rx)', color: 'var(--chart-network)' },
@@ -97,6 +97,7 @@ export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
+                minTickGap={24}
                 tick={{ fontSize: 11, fill: 'currentColor' }}
                 className="text-muted-foreground font-mono"
               />
@@ -114,6 +115,7 @@ export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
                 content={
                   <ChartTooltipContent
                     className="font-mono text-xs"
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                     formatter={(val, name) => [
                       `${val} KB/s`,
                       name === 'networkRx' ? 'Ingress (Rx)' : 'Egress (Tx)',
@@ -176,6 +178,7 @@ export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
+                minTickGap={24}
                 tick={{ fontSize: 11, fill: 'currentColor' }}
                 className="text-muted-foreground font-mono"
               />
@@ -194,6 +197,7 @@ export function NetworkDiskCharts({ metrics }: NetworkDiskChartsProps) {
                 content={
                   <ChartTooltipContent
                     className="font-mono text-xs"
+                    labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                     formatter={(val) => [`${val}%`, 'Storage Used']}
                   />
                 }

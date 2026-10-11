@@ -507,7 +507,7 @@ services:
     restart: unless-stopped
     ports:
       - "50051:50051"
-      - "127.0.0.1:8080:8080"
+      - "8080:8080"
     volumes:
       - ./data/sqlite:/data
       - /etc/tako/traefik:/etc/tako/traefik

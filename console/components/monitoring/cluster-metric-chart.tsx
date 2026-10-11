@@ -21,6 +21,12 @@ import { Cpu, Activity, type LucideIcon } from 'lucide-react';
 import { Node } from '@/lib/types';
 import { MetricPoint } from '@/lib/queries';
 import { cn } from '@/lib/utils';
+import {
+  ChartTimeRange,
+  getTimeRangeConfig,
+  formatChartTick,
+  formatChartTooltip,
+} from '@/lib/utils/chart-time';
 
 export interface NodeSeriesData {
   node: Node;
@@ -35,6 +41,7 @@ interface ClusterMetricChartProps {
   series: NodeSeriesData[];
   metricKey: 'cpu' | 'memory';
   unit: string;
+  timeRange?: ChartTimeRange;
   icon?: LucideIcon;
 }
 
@@ -44,6 +51,7 @@ export function ClusterMetricChart({
   series,
   metricKey,
   unit,
+  timeRange = '1h',
   icon,
 }: ClusterMetricChartProps) {
   const [mounted, setMounted] = useState(false);
@@ -69,29 +77,66 @@ export function ClusterMetricChart({
     }));
   };
 
-  // Build combined data array
-  const baseMetrics = series.find((s) => s.metrics && s.metrics.length > 0)?.metrics || [];
-  const chartData = baseMetrics.map((point, index) => {
+  // Build uniform time-bucketed data across the full selected time range
+  const { durationMs, bucketCount, stepMs } = getTimeRangeConfig(timeRange);
+
+  let now = Date.now();
+  series.forEach((s) => {
+    if (s.metrics && s.metrics.length > 0) {
+      const lastPointTime = new Date(s.metrics[s.metrics.length - 1].timestamp).getTime();
+      if (!isNaN(lastPointTime) && lastPointTime > now) {
+        now = lastPointTime;
+      }
+    }
+  });
+
+  const startTime = now - durationMs;
+  const chartData: Record<string, string | number>[] = [];
+
+  for (let i = 0; i <= bucketCount; i++) {
+    const bucketTime = startTime + i * stepMs;
+    const bucketWindowStart = bucketTime - stepMs / 2;
+    const bucketWindowEnd = bucketTime + stepMs / 2;
+
     const row: Record<string, string | number> = {
-      timestamp: point.timestamp,
-      time: new Date(point.timestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+      timestamp: new Date(bucketTime).toISOString(),
+      time: formatChartTick(bucketTime, timeRange),
+      tooltipTime: formatChartTooltip(bucketTime, timeRange),
     };
 
     series.forEach((s) => {
-      const p = s.metrics?.[index];
-      if (p) {
-        // If node is offline, show 0
-        row[s.node.id] = s.node.status === 'offline' ? 0 : (p[metricKey] ?? 0);
-      } else {
+      if (s.node.status === 'offline') {
         row[s.node.id] = 0;
+        return;
+      }
+
+      const nodeMetrics = s.metrics || [];
+      const matches = nodeMetrics.filter((p) => {
+        const pt = new Date(p.timestamp).getTime();
+        return pt >= bucketWindowStart && pt < bucketWindowEnd;
+      });
+
+      if (matches.length > 0) {
+        const sum = matches.reduce((acc, curr) => acc + (Number(curr[metricKey]) || 0), 0);
+        row[s.node.id] = Math.round((sum / matches.length) * 10) / 10;
+      } else {
+        const earliestTime = nodeMetrics.length > 0 ? new Date(nodeMetrics[0].timestamp).getTime() : 0;
+        if (bucketTime < earliestTime - stepMs / 2) {
+          // Node had not started recording metrics yet
+          row[s.node.id] = 0;
+        } else if (nodeMetrics.length > 0) {
+          const prev = nodeMetrics
+            .filter((p) => new Date(p.timestamp).getTime() <= bucketTime)
+            .slice(-1)[0];
+          row[s.node.id] = prev ? (prev[metricKey] ?? 0) : 0;
+        } else {
+          row[s.node.id] = 0;
+        }
       }
     });
 
-    return row;
-  });
+    chartData.push(row);
+  }
 
   const chartConfig: Record<string, { label: string; color: string }> = {};
   series.forEach((s) => {
@@ -145,6 +190,7 @@ export function ClusterMetricChart({
               tickLine={false}
               axisLine={false}
               tickMargin={8}
+              minTickGap={24}
               tick={{ fontSize: 11, fill: 'currentColor' }}
               className="text-muted-foreground font-mono"
             />
@@ -163,6 +209,7 @@ export function ClusterMetricChart({
               content={
                 <ChartTooltipContent
                   className="font-mono text-xs"
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.tooltipTime || ''}
                   formatter={(val, name) => {
                     const targetSeries = series.find((s) => s.node.id === name);
                     return [`${val} ${unit}`, targetSeries?.node.name || String(name)];

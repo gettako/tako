@@ -36,6 +36,8 @@ func registerMetricsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			// Map range to negative seconds for SQLite datetime('now', ? || ' seconds')
 			rangeSeconds := "-3600"
 			switch timeRange {
+			case "15m":
+				rangeSeconds = "-900"
 			case "6h":
 				rangeSeconds = "-21600"
 			case "24h":
