@@ -24,7 +24,7 @@ In addition to stateless web services, Tako provides native support for stateful
 
 ```mermaid
 flowchart TD
-    App["Application Container<br/>(tako-app-web)"] -->|Internal Bridge Network (tako-network)| DBContainer["Database Container<br/>(tako-app-postgres)"]
+    App["Application Container<br/>(tako-app-web)"] -->|"Internal Bridge Network (tako-network)"| DBContainer["Database Container<br/>(tako-app-postgres)"]
     
     subgraph HostStorage["Host Filesystem (/var/lib/docker/volumes)"]
         Volume["Docker Named Volume<br/>(tako-data-postgres)"]

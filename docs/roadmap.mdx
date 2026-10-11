@@ -52,8 +52,9 @@ Currently, operators configure DNS `A` records manually to point custom domains 
 
 ### 5. Additional Notification Channels
 
-Tako currently supports Discord and Telegram webhooks for deployment events and system alerts. Planned adapters include:
+Tako currently integrates natively with GitHub Webhooks for automated deployments and status checks. Planned outbound alert adapters include:
 
+- **Discord & Telegram:** Native bot notifications and webhook channels with rich deployment status summaries.
 - **Slack:** Structured Slack incoming webhooks with color-coded deployment status cards.
 - **Generic Webhook Dispatcher:** Configurable JSON HTTP POST payloads for integration with automation tools like n8n, Zapier, or internal incident management platforms.
 - **SMTP Email Notifications:** Standard email alerts for critical node health failures and automated rollbacks.

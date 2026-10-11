@@ -65,8 +65,8 @@ flowchart TD
     UserTraffic -->|HTTP/S :80, :443| TraefikA
     UserTraffic -->|HTTP/S :80, :443| TraefikB
 
-    AgentA -.->|Outbound gRPC :50051 (TLS Stream)| Server
-    AgentB -.->|Outbound gRPC :50051 (TLS Stream)| Server
+    AgentA -.->|"Outbound gRPC :50051 (TLS Stream)"| Server
+    AgentB -.->|"Outbound gRPC :50051 (TLS Stream)"| Server
 ```
 
 ---

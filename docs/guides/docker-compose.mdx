@@ -1,0 +1,112 @@
+---
+title: "Docker Compose Stacks"
+description: "Deploying multi-container architectures, internal networking, and persistent volumes with docker-compose.yml in Tako."
+---
+
+## Overview
+
+While single-container `Dockerfile` deployments are ideal for standard microservices, complex applications often require coordinating multiple interconnected processes (such as a web application, a background Redis queue worker, and a local PostgreSQL database).
+
+Tako supports deploying multi-container stacks directly from standard `docker-compose.yml` files stored in your Git repositories.
+
+---
+
+## Architecture of a Compose Stack in Tako
+
+```mermaid
+flowchart TD
+    Ingress["Traefik v3 Edge Proxy (:80, :443)"] -->|Routes Public Host Header| WebApp["Web Service Container<br/>(tako-compose-web:3000)"]
+    
+    subgraph ComposeNetwork["Internal Bridge Network (tako-network)"]
+        WebApp -->|Direct internal TCP| Cache["Redis Cache Container<br/>(:6379)"]
+        Worker["Background Queue Worker Container"] -->|Pulls jobs| Cache
+        WebApp -->|Internal connection| DB["Postgres Container<br/>(:5432)"]
+    end
+
+    subgraph PersistentStorage["Host Docker Named Volumes"]
+        DB -->|Mounted data| PGVol[("pgdata Volume")]
+        Cache -->|Mounted data| RedisVol[("redisdata Volume")]
+    end
+```
+
+---
+
+## Example `docker-compose.yml`
+
+Below is an example configuration for a full-stack Node.js application paired with Redis and PostgreSQL:
+
+```yaml
+version: "3.8"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://app_user:secretpassword@postgres:5432/app_production
+    ports:
+      - "3000"
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["npm", "run", "worker"]
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgres://app_user:secretpassword@postgres:5432/app_production
+    depends_on:
+      - redis
+      - postgres
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=app_user
+      - POSTGRES_PASSWORD=secretpassword
+      - POSTGRES_DB=app_production
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+  postgres_data:
+```
+
+---
+
+## Deploying a Compose Stack in Tako Console
+
+1. Navigate to **Projects** and click **Add Service**.
+2. Select **Docker Compose**.
+3. Provide your Git repository URL and branch.
+4. Set the **Compose File Path** (default: `docker-compose.yml`).
+5. Choose the **Primary Public Service**: Select which service container Traefik should route incoming public HTTP traffic to (e.g. `web`).
+6. Set the primary container port (e.g. `3000`).
+7. Click **Deploy Stack**.
+
+---
+
+## Networking & Inter-Service Communication
+
+In a Tako Compose stack:
+
+- **Service Name DNS:** Services within the same Compose stack resolve one another by their service key. For example, the `web` container connects to Redis via the hostname `redis:6379` and PostgreSQL via `postgres:5432`.
+- **Ingress Isolation:** Only the designated primary public service is exposed to Traefik edge routing. Backing datastores and queue workers remain safely isolated from external public HTTP traffic.
+- **Persistent Volume Safety:** Volumes declared in `volumes:` are persistent Docker named volumes. When deploying a new commit, Tako restarts the containers while preserving volume state intact.

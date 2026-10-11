@@ -49,27 +49,35 @@ The SQLite database backup contains cluster configuration, but **does not** cont
 
 ---
 
-## Step 1: Create a Live Database Snapshot
+## Automated Backups to S3 / Cloudflare R2 (Recommended)
 
-Because SQLite operates in Write-Ahead Logging (WAL) mode, copying the `.db` file directly while transactions are active can produce an inconsistent file if WAL frames are still pending. Use one of the two standard online backup methods:
+Tako includes native integration with S3-compatible object storage providers (AWS S3, Cloudflare R2, MinIO, Backblaze B2, DigitalOcean Spaces) directly within the web console:
 
-### Method A: Using SQLite `VACUUM INTO` (Recommended)
+### 1. Configure Storage in Settings
+1. Open the Tako Console, go to **Settings**, and select the **Backups & S3** tab.
+2. Fill in your bucket credentials:
+   - **S3 Endpoint:** e.g. `https://<account-id>.r2.cloudflarestorage.com` (or standard AWS S3 endpoint).
+   - **Region:** e.g. `auto` or `us-east-1`.
+   - **Bucket Name:** e.g. `tako-cluster-backups`.
+   - **Access Key ID & Secret Access Key:** Your IAM or API credentials.
+3. Click **Test S3 Connection** to verify permissions.
+4. Click **Save Settings**.
 
-Run a clean snapshot command through Docker:
+### 2. Manual & Scheduled Snapshots
+- **Create Immediate Snapshot:** In **Settings -> Backups**, click **Create Snapshot Now**. Tako executes an atomic SQLite checkpoint, compresses the database, and streams it to your bucket with SHA-256 integrity verification.
+- **Automated Daily Schedule:** Enable **Daily Automated Backup** to configure an automatic snapshot trigger every midnight UTC with configurable retention windows.
 
-```bash
-docker exec -t tako-server sqlite3 /data/tako.db \
-  "VACUUM INTO '/data/backup-$(date +%Y%m%d-%H%M%S).db';"
-```
+### 3. One-Click Snapshot Restore
+To restore your cluster from a previous snapshot:
+1. Open **Settings -> Backups** and view the list of available snapshots stored in your S3 bucket.
+2. Select the desired snapshot and click **Restore**.
+3. Confirm the prompt. The control plane safely hot-replaces the SQLite database and restarts services seamlessly.
 
-The resulting file in `/opt/tako/data/sqlite/` is a guaranteed consistent, defragmented point-in-time snapshot of the database.
+---
 
-### Method B: Using the `sqlite3` Backup Command
+## Manual CLI Database Snapshots
 
-```bash
-docker exec -t tako-server sqlite3 /data/tako.db \
-  ".backup '/data/backup-$(date +%Y%m%d-%H%M%S).db'"
-```
+If you prefer operating directly through host terminal access:
 
 ---
 
