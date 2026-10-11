@@ -1,140 +1,113 @@
 ---
-title: "Adding a Remote Server"
-description: "How to connect and provision a new remote Linux node using the Tako Agent."
+title: "Adding a Worker Server"
+description: "How to enroll remote worker servers, monitor cluster nodes, and scale container capacity."
 ---
 
-Tako supports managing multiple remote Linux servers from a single control plane. Services can be deployed to any connected server, allowing you to distribute workloads across cloud providers or private infrastructure.
+## Overview
 
-## Prerequisites
+Tako allows you to scale beyond a single master server by enrolling external Linux nodes into your cluster. Worker nodes run container workloads while maintaining a continuous outbound gRPC stream to the master server.
 
-Before adding a server, verify the target machine meets these conditions:
+Because worker nodes connect outbound over TLS, they can be located in any cloud provider (Hetzner, DigitalOcean, AWS, OVH) or on-premises environment without requiring direct network peering or open inbound SSH access.
 
-- **Operating System:** Clean Linux installation (Ubuntu 22.04+, Debian 12+, Rocky Linux 9+, or Alpine Linux).
-- **Docker Engine:** Docker 24.0 or newer with Docker Compose v2 installed.
-- **Inbound Ports:** Standard HTTP (`80`) and HTTPS (`443`) ports open to the public internet for application routing.
-- **Outbound Connectivity:** The server must be able to establish an outbound TCP connection to your Tako control plane on port `50051`.
-- **No Inbound Management Ports:** Remote servers do not need port 22 or any management ports open to the control plane.
+---
+
+## Node Enrollment Architecture
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Admin as Administrator
-    participant Console as Web Console
-    participant Server as Control Plane (:50051)
-    participant Worker as Remote Worker VPS
+    actor Admin as Operator
+    participant Console as Tako Console
+    participant Worker as Remote Worker Host
+    participant Agent as tako-agent Daemon
+    participant Master as Master Server (:50051)
 
-    Admin->>Console: Click "Add Server"
-    Console->>Server: Request one-time enrollment token
-    Server-->>Console: Return token (15m TTL)
-    Admin->>Worker: Run install-agent.sh with token
-    Worker->>Server: Outbound gRPC Enroll(token, specs)
-    Server-->>Worker: EnrollResponse(node_id, node_secret)
-    Worker->>Server: Open persistent StreamNodeSession
-    Server-->>Console: Push notification: Node worker-01 is online
+    Admin->>Console: Open Cluster Nodes -> Click "Add Node"
+    Console-->>Admin: Display Enrollment Command & Token
+    Admin->>Worker: Run curl installation command
+    Worker->>Agent: Launch tako-agent service
+    Agent->>Master: Outbound gRPC Handshake (RegisterNode with Token)
+    Master->>Master: Validate Token & Record Node Specs
+    Master-->>Agent: Handshake Confirmed
+    Master-->>Console: Node appears as "Online" (Live CPU/RAM telemetry)
 ```
 
 ---
 
-## Step-by-Step Instructions
+## Step 1: Retrieve the Enrollment Token
 
-### Step 1: Generate an Enrollment Token
+1. Log into the Tako Console.
+2. In the sidebar, navigate to **Nodes**.
+3. Click **Add Node** in the top right corner.
+4. Copy the pre-populated installation command, which includes your cluster's enrollment token.
 
-1. In the Tako web console, click **Servers** in the primary navigation.
-2. Click **Add Server**.
-3. Enter a descriptive label for the machine (for example, `worker-fra-01`).
-4. Click **Generate Token**.
-
-Tako will display a single-use enrollment token and a ready-to-run installation command. The token remains valid for 15 minutes.
-
-### Step 2: Run the Agent Installer
-
-Connect to your target remote server via SSH and run the installer:
+Alternatively, you can retrieve the cluster token directly from the master server terminal:
 
 ```bash
-curl -fsSL https://gettako.dev/install-agent.sh | \
-  TAKO_SERVER_URL="https://controlplane.yourdomain.com:50051" \
-  TAKO_ENROLLMENT_TOKEN="tok_sec_example123456789" \
-  bash
+grep TAKO_AGENT_SECRET /opt/tako/.env
 ```
-
-If you prefer to configure the agent manually with Docker Compose, create `/etc/tako/docker-compose.agent.yml`:
-
-```yaml
-services:
-  traefik:
-    image: traefik:v3.2
-    container_name: tako-traefik
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik.yaml:/etc/traefik/traefik.yaml:ro
-      - tako_traefik_dynamic:/etc/traefik/dynamic
-      - tako_traefik_acme:/etc/traefik/acme
-    networks:
-      - tako_network
-
-  agent:
-    image: ghcr.io/gettako/agent:latest
-    container_name: tako-agent
-    restart: unless-stopped
-    environment:
-      - TAKO_SERVER_URL=https://controlplane.yourdomain.com:50051
-      - TAKO_ENROLLMENT_TOKEN=tok_sec_example123456789
-      - TAKO_CONFIG_DIR=/etc/tako
-      - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/traefik/dynamic
-      - TAKO_TRAEFIK_ACME_PATH=/etc/traefik/acme/acme.json
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - tako_agent_data:/etc/tako
-      - tako_traefik_dynamic:/etc/traefik/dynamic
-      - tako_traefik_acme:/etc/traefik/acme:ro
-    networks:
-      - tako_network
-
-volumes:
-  tako_agent_data:
-  tako_traefik_dynamic:
-  tako_traefik_acme:
-
-networks:
-  tako_network:
-    name: tako_network
-```
-
-Run the stack:
-
-```bash
-docker compose -f /etc/tako/docker-compose.agent.yml up -d
-```
-
-### Step 3: Verify Node Health
-
-Within a few seconds of launching:
-1. The remote agent contacts the control plane, redeems the enrollment token, and saves its persistent credentials to `/etc/tako/agent.json`.
-2. The server card in your Tako dashboard transitions to **Online** with a green status indicator.
-3. Telemetry metrics will begin charting CPU, memory, and container count.
 
 ---
 
-## Server Management Operations
+## Step 2: Run the Agent Installer on the Worker Node
 
-### Running Manual Disk Pruning
-To clean up unused Docker image layers, stopped containers, and build cache on a specific node:
-1. Navigate to **Servers** and select the server node.
-2. In the top action bar, click **Prune Server**.
-3. Confirm the action. The agent will run a non-destructive prune operation while preserving the images associated with your latest successful deployments.
+Log into your remote worker server via SSH and execute the installer:
 
-### Editing Traefik Dynamic Configuration
-To add custom Traefik middlewares (such as basic auth or IP allowlists) to a specific server:
-1. Open the server detail page and click **Traefik Config**.
-2. Edit `/etc/traefik/dynamic/custom.yaml` directly in the editor.
-3. Click **Save & Reload**. Traefik applies your changes instantly without restarting the container.
+```bash
+curl -fsSL https://gettako.dev/install.sh | bash -s -- \
+  --agent \
+  --token "<YOUR_ENROLLMENT_TOKEN>" \
+  --master "<MASTER_PUBLIC_IP>:50051"
+```
 
-### Safely Removing a Server
-To decommission a server node:
-1. Before deleting a server, ensure that all services deployed to it have either been deleted or reassigned to a different server.
-2. In the server detail view, click **Delete Server**.
-3. If active services are still assigned to the server, Tako will reject the deletion and prompt you to move or remove those services first.
+### Installation Parameters
+
+- `--agent`: Tells `install.sh` to configure the system as a worker daemon rather than a master server.
+- `--token`: The cluster enrollment secret.
+- `--master`: The public IP or domain name and port (default: `50051`) of your master server.
+- `--dir` (optional): Installation directory on the worker node (default: `/opt/tako`).
+
+During installation, the script:
+1. Installs Docker Engine and Docker Compose if not already present.
+2. Creates the `/etc/tako/traefik/dynamic` dynamic directory.
+3. Launches the local Traefik edge proxy on ports 80 and 443.
+4. Starts the `tako-agent` daemon, which initiates the outbound gRPC connection to the master.
+
+---
+
+## Step 3: Verify Node Health & Metrics
+
+Once installed, return to the Tako Console:
+
+1. Open **Nodes** in the sidebar.
+2. Your new server will appear with an **Online** status badge.
+3. The node details page displays real-time telemetry:
+   - Operating system and Linux kernel release.
+   - Total physical CPU cores and live CPU utilization percentage.
+   - Total memory and real-time memory usage (MB).
+   - Root filesystem storage capacity and disk usage (GB).
+   - Network receive and transmit throughput (KB/s).
+
+---
+
+## Liveness Monitoring & Failure Recovery
+
+The master server runs a continuous background liveness watcher:
+
+- **Heartbeat Frequency:** The agent transmits host metrics every 3 seconds.
+- **Heartbeat Timeout:** If the master fails to receive a heartbeat for 15 seconds, the node status transitions to `offline`.
+- **Automatic Recovery:** If the node reboots or connectivity recovers, the agent automatically reconnects and returns to `online` status without manual operator intervention.
+
+---
+
+## Removing a Server Node
+
+To decommission a worker node:
+
+1. In the Tako Console, ensure no active services are currently assigned to the target node. Reassign any active workloads to another node first.
+2. Open **Nodes** and select the node.
+3. Click **Delete Node** in the node settings menu.
+4. On the worker server, stop and remove the agent stack:
+   ```bash
+   cd /opt/tako && docker compose down -v
+   ```

@@ -1,96 +1,115 @@
 ---
-title: "Architecture Overview"
-description: "High-level system topology, security boundaries, and infrastructure components of the Tako platform."
+title: "System Architecture"
+description: "Comprehensive overview of the Tako control plane, worker agents, edge proxy, and data flows."
 ---
 
-Tako is a self-hosted, multi-server deployment platform designed as an alternative to Dokploy and Coolify. Its primary architectural philosophy is **outbound-only agent orchestration**: remote worker nodes initiate outbound persistent gRPC connections over TLS to the central control plane, eliminating the need to expose inbound SSH ports (port 22) or Docker daemon sockets to the public internet.
+## Architectural Philosophy
+
+Tako is designed with clear architectural boundaries: a unified Go control plane, an embedded SQLite database, and decentralized worker agents that manage local Docker engines. Rather than using distributed consensus algorithms or running multiple background databases, Tako keeps state centralized in SQLite while distributing container execution to worker nodes.
 
 ---
 
-## 1. System Topology Diagram
-
-The diagram below illustrates the end-to-end architecture across the Master Node, Worker Nodes, the edge proxy layer, and developer entrypoints.
+## Detailed System Topology
 
 ```mermaid
-flowchart TB
-    subgraph Clients ["Clients & External Services"]
-        DevBrowser["Developer Browser / Console UI"]
-        GitHub["GitHub Webhooks / Apps"]
-        ExtDNS["Public DNS (A / AAAA records)"]
+flowchart TD
+    subgraph PublicInternet["Public Internet & Clients"]
+        Dev["Developer / Browser"]
+        GitWebhook["Git Webhook (GitHub / GitLab)"]
+        UserTraffic["End-User HTTP/S Traffic"]
     end
 
-    subgraph EdgeLayer ["Edge Ingress Layer (Traefik v3)"]
-        MasterTraefik["Master Traefik v3<br/>(:80, :443 TLS)<br/>- Automated Let's Encrypt<br/>- Dynamic file provider"]
-        WorkerTraefik["Worker Traefik v3<br/>(:80, :443 TLS)<br/>- Independent per-node ingress<br/>- Zero single-point-of-failure"]
+    subgraph MasterHost["Master Server (/opt/tako)"]
+        EdgeProxy["Traefik v3 Edge Proxy (:80, :443)"]
+        Console["Tako Console (Next.js 16)"]
+        Server["Tako Master Server (Go + Chi)"]
+        SQLite[("Embedded SQLite WAL<br/>AES-256-GCM Encrypted")]
+        EventBus["Internal Pub/Sub Event Bus"]
+        
+        EdgeProxy -->|Route: /api/*| Server
+        EdgeProxy -->|Route: /*| Console
+        Server --> SQLite
+        Server --> EventBus
     end
 
-    subgraph MasterNode ["Master Server Control Plane (/opt/tako)"]
-        direction TB
-        ConsoleContainer["Tako Console Container<br/>(Next.js 16 App Router :3000)<br/>- Base UI + Tailwind CSS v4<br/>- TanStack Query"]
-        ServerContainer["Tako Server Container<br/>(Go 1.24+ Binary :8080 REST / :50051 gRPC)<br/>- Chi Router & SSE Streams<br/>- In-Memory EventBus<br/>- Orchestrator Engine"]
-        SQLiteDB[("SQLite WAL Database<br/>- /data/tako.db<br/>- Projects, Nodes, Services,<br/>Deployments, Audit Logs")]
-        MasterTraefikDir["/etc/tako/traefik/dynamic<br/>- Live Router Configurations"]
+    subgraph WorkerHost1["Worker Server A"]
+        TraefikA["Traefik v3 Proxy (:80, :443)"]
+        DynamicDirA["Dynamic Config Dir (/etc/tako/traefik/dynamic)"]
+        AgentA["Tako Agent Daemon (Go)"]
+        DockerA["Docker Engine SDK (/var/run/docker.sock)"]
+        ContainersA["Workload Containers (App, DB)"]
 
-        ConsoleContainer -->|"Internal BFF rewrite /api/*"| ServerContainer
-        ServerContainer -->|"modernc.org/sqlite"| SQLiteDB
-        ServerContainer -->|"Atomic writes"| MasterTraefikDir
+        AgentA --> DockerA
+        AgentA -->|Atomic File Writes| DynamicDirA
+        DynamicDirA -.->|Watched by| TraefikA
+        DockerA --> ContainersA
+        TraefikA -->|Reverse Proxy| ContainersA
     end
 
-    subgraph LocalNode ["Local Worker Daemon (Master Node)"]
-        LocalAgent["Tako Agent Daemon<br/>- Outbound gRPC (:50051)<br/>- Metrics Collector"]
-        LocalDocker["Docker Engine Daemon<br/>(/var/run/docker.sock)"]
-        LocalApps["User App Containers<br/>(tako-network bridge)"]
+    subgraph WorkerHost2["Worker Server B"]
+        TraefikB["Traefik v3 Proxy (:80, :443)"]
+        DynamicDirB["Dynamic Config Dir (/etc/tako/traefik/dynamic)"]
+        AgentB["Tako Agent Daemon (Go)"]
+        DockerB["Docker Engine SDK (/var/run/docker.sock)"]
+        ContainersB["Workload Containers (App)"]
 
-        LocalAgent -->|"Docker Go SDK"| LocalDocker
-        LocalDocker --> LocalApps
+        AgentB --> DockerB
+        AgentB -->|Atomic File Writes| DynamicDirB
+        DynamicDirB -.->|Watched by| TraefikB
+        DockerB --> ContainersB
+        TraefikB -->|Reverse Proxy| ContainersB
     end
 
-    subgraph RemoteNode ["Remote Worker Node N"]
-        direction TB
-        WorkerAgent["Tako Agent Daemon<br/>- Outbound gRPC (:50051)<br/>- Reconnect Backoff<br/>- Deployment Executor"]
-        WorkerDocker["Docker Engine Daemon<br/>(/var/run/docker.sock)"]
-        WorkerApps["User App Containers<br/>(tako-network bridge)"]
-        WorkerTraefikDir["/etc/tako/traefik/dynamic<br/>- Generated YAML Routers"]
+    Dev -->|HTTPS :443| EdgeProxy
+    GitWebhook -->|POST /api/v1/github/webhook| EdgeProxy
+    UserTraffic -->|HTTP/S :80, :443| TraefikA
+    UserTraffic -->|HTTP/S :80, :443| TraefikB
 
-        WorkerAgent -->|"Docker Go SDK"| WorkerDocker
-        WorkerAgent -->|"Atomic file writes"| WorkerTraefikDir
-        WorkerDocker --> WorkerApps
-    end
-
-    %% Network flows
-    DevBrowser -->|"HTTPS :443"| MasterTraefik
-    GitHub -->|"POST /api/webhooks/*"| MasterTraefik
-    MasterTraefik -->|"Reverse proxy :3000"| ConsoleContainer
-    MasterTraefik -->|"User apps on master"| LocalApps
-
-    ExtDNS -.->|"Points to Worker IP"| WorkerTraefik
-    WorkerTraefik -->|"Routes HTTP/HTTPS"| WorkerApps
-
-    LocalAgent -.->|"gRPC :50051"| ServerContainer
-    WorkerAgent -.->|"Outbound gRPC TLS :50051"| ServerContainer
+    AgentA -.->|Outbound gRPC :50051 (TLS Stream)| Server
+    AgentB -.->|Outbound gRPC :50051 (TLS Stream)| Server
 ```
 
 ---
 
-## 2. Core Architectural Principles
+## Core Components
 
-### 1. Outbound-Only Node Communication
-Worker nodes connect **outbound** to the master server via gRPC (`:50051`). Remote nodes require no inbound ports open other than public HTTP (`80`) and HTTPS (`443`) for application traffic.
-- No SSH keys or SSH tunnels are managed by the control plane.
-- Worker nodes can sit behind NAT, firewalls, or dynamic IP connections.
-- The control plane streams deployment tasks and management commands over an established bidirectional stream (`StreamTasks`).
+### 1. Tako Master Server (`tako-server`)
 
-### 2. Embedded Control Plane Persistence
-The master server uses an embedded **SQLite database running in WAL mode** (`modernc.org/sqlite`).
-- Zero external database dependencies (no PostgreSQL or MySQL container required to run Tako itself).
-- Sub-50MB idle memory footprint for the entire control plane binary.
-- Atomic schema migrations managed with Goose.
+The master server is written in Go and acts as the central orchestrator and API gateway:
 
-### 3. Decentralized Edge Routing
-Instead of centralizing all traffic through a single ingress choke point:
-- Each server (master and workers) runs its own dedicated **Traefik v3** instance.
-- User application DNS records (`A` and `AAAA`) point directly to the server where the container is deployed.
-- Container failures or network issues on one node never degrade ingress routing on other nodes.
+- **HTTP REST & Server-Sent Events (SSE):** Built on the Chi router (`github.com/go-chi/chi/v5`). Provides REST endpoints under `/api/v1` and real-time SSE event channels (`/api/v1/events`) for streaming deployment logs and cluster telemetry to web clients.
+- **gRPC Control Server:** Listens on port `50051`. Maintains long-lived, multiplexed HTTP/2 streams with enrolled worker nodes. Dispatches deployment tasks, collects host metrics, and streams terminal logs.
+- **Background Orchestrators:**
+  - *Liveness Watcher:* Scans registered nodes every 5 seconds. If a node fails to report a heartbeat within 15 seconds, its state transitions to `offline`.
+  - *Autoscaler Loop:* Evaluates CPU and memory consumption every 15 seconds to adjust service replica counts between defined thresholds.
+  - *Retention Cleaner:* Runs daily to purge old deployment logs, temporary files, and historical metric records past the configured retention window (default: 90 days).
 
-### 4. Direct Docker Engine Integration
-Both master and worker nodes interact with Docker Engine via the official **Docker Go SDK** through the UNIX socket (`/var/run/docker.sock`). Containers are attached to an isolated bridge network (`tako-network`) by default.
+### 2. Embedded Database (`SQLite WAL`)
+
+Tako avoids running an external database engine:
+
+- **Write-Ahead Logging (WAL):** SQLite operates in WAL mode with `PRAGMA foreign_keys = ON;` and `PRAGMA busy_timeout = 5000;`. Concurrent read requests run simultaneously without locking writers.
+- **Credential Encryption:** Sensitive values (such as environment secrets and Git tokens) are encrypted with AES-256-GCM before being committed to disk.
+- **Zero Configuration Backup:** Creating a complete cluster backup is as straightforward as executing SQLite online backup commands or copying the single `.db` file.
+
+### 3. Tako Console (`tako-console`)
+
+The web dashboard is a Next.js 16 application with React 19 and Tailwind CSS v4:
+
+- **Headless UI Primitives:** Built with `@base-ui/react` and styled according to the `base-vega` design preset.
+- **Real-Time Telemetry:** Connects to the master server via Server-Sent Events (SSE) to render live deployment logs, terminal sessions, and cluster charts without polling.
+
+### 4. Tako Worker Agent (`tako-agent`)
+
+The worker daemon runs on every server that executes user containers:
+
+- **Outbound gRPC Client:** Connects outbound to the master server using a pre-shared enrollment token. The connection carries deployment tasks, container action signals, and metric telemetry.
+- **Docker Engine SDK Integration:** Communicates directly with the Docker daemon unix socket (`/var/run/docker.sock`) using official Go Docker client libraries.
+- **Dynamic Traefik Configuration:** Manages routing by writing atomic YAML files directly into `/etc/tako/traefik/dynamic`.
+
+### 5. Edge Proxy (`Traefik v3`)
+
+Every node running web workloads includes a local Traefik v3 instance:
+
+- **File Provider:** Traefik monitors `/etc/tako/traefik/dynamic` using filesystem notifications (`inotify`) to hot-reload routing rules with zero downtime.
+- **Automated TLS (Let's Encrypt):** Validates HTTP-01 ACME challenges and manages TLS certificates automatically.

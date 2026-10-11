@@ -1,128 +1,120 @@
 ---
-title: "Agent Protocol & Multi-Server Model"
-description: "gRPC specifications, enrollment handshakes, bidirectional task streaming, and reconnect resilience."
+title: "Agent Protocol & gRPC Streaming"
+description: "Detailed specification of the outbound gRPC protocol, multiplexed task streaming, and node telemetry in Tako."
 ---
 
-Tako's multi-server architecture is governed by a lightweight **outbound-only agent communication model**. The Master server never attempts to connect into worker nodes; instead, all remote worker daemons establish and maintain long-lived outbound gRPC connections to the Master.
+## Overview
+
+Worker nodes in Tako communicate with the master server via an outbound gRPC stream over HTTP/2. Rather than exposing an inbound HTTP server or requiring root SSH keys on worker hosts, the `tako-agent` daemon initiates all network connections outbound to the master on port `50051`.
 
 ---
 
-## 1. Agent-Server Handshake & Lifecycle Diagram
+## gRPC Communication Flow
 
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Agent as Worker Node Agent
-    participant Master as Master Server (gRPC :50051)
-    participant DB as SQLite WAL DB
-    participant Bus as EventBus
+    participant Agent as Worker Agent (tako-agent)
+    participant Master as Master Server (tako-server :50051)
+    participant DB as SQLite Database
 
-    Note over Agent: Agent starts on remote host
-    Agent->>Agent: Load state from /data/agent.json (if exists)
+    Note over Agent,Master: 1. Node Enrollment Handshake
+    Agent->>Master: RegisterNode(node_id, enroll_token, host_specs)
+    Master->>DB: Verify enroll_token & INSERT/UPDATE node
+    Master-->>Agent: RegisterNodeResponse(auth_token, status: registered)
 
-    alt Initial Enrollment / Node Registration
-        Agent->>Master: RegisterNode(RegisterNodeRequest)<br/>Metadata: EnrollToken, Hardware Specs, NodeName
-        Master->>Master: Validate EnrollToken against server secret
-        Master->>DB: Insert or Update Node record (status: online)
-        Master->>Bus: Publish node.status_changed (online)
-        Master-->>Agent: RegisterNodeResponse(NodeId, AuthToken)
-        Agent->>Agent: Save NodeId & AuthToken to /data/agent.json
+    Note over Agent,Master: 2. Bidirectional Task Stream Established
+    Agent->>Master: StreamTasks(stream AgentTaskResult)
+    Master-->>Agent: StreamTasks(stream MasterTask)
+
+    Note over Agent,Master: 3. Telemetry Heartbeat Loop (every 3s)
+    loop Periodic Telemetry
+        Agent->>Master: Heartbeat(cpu_percent, mem_mb, disk_gb, container_metrics)
+        Master->>DB: Record node_metrics snapshot
+        Master-->>Agent: HeartbeatResponse(acknowledged: true)
     end
 
-    rect rgb(240, 248, 255)
-        note over Agent,Master: Task Stream Establishment
-        Agent->>Master: StreamTasks() [Bidirectional Stream]<br/>Header: Authorization: Bearer <AuthToken>
-        Agent->>Master: Send initial handshake: AgentTaskResult(TaskId: "handshake", NodeId)
-        Master->>Master: Register AgentSession(NodeId, taskChan) in memory
+    Note over Agent,Master: 4. Deployment Dispatch & Log Streaming
+    Master->>Agent: MasterTask(DeployRequest)
+    loop Pipeline Execution
+        Agent->>Master: AgentTaskResult(DeployLogChunk)
     end
-
-    par Periodic Heartbeat Loop (every 3s)
-        loop Every 3 seconds
-            Agent->>Agent: Collect host & container telemetry (gopsutil + Docker)
-            Agent->>Master: Heartbeat(HeartbeatRequest)<br/>CPU%, RAM, Disk, Net Rx/Tx, Container telemetry
-            Master->>DB: UpdateNodeHeartbeat(NodeId, metrics)
-            Master->>Bus: Publish node.metrics
-            Master-->>Agent: HeartbeatResponse(acknowledged: true)
-        end
-    and Bidirectional Task Execution
-        Master->>Agent: Send MasterTask (Deploy, Exec, ContainerLogs, ContainerAction)
-        Agent->>Agent: Execute requested task via Docker SDK
-        loop Streaming Progress
-            Agent-->>Master: Send AgentTaskResult (DeployLog, ExecResult, Logs, ActionResponse)
-        end
-    and Liveness Supervision
-        loop Master Liveness Watcher (every 5s)
-            Master->>DB: MarkInactiveNodesOffline(timeout: 15s)
-            alt Node has missed heartbeats > 15s
-                Master->>DB: Update node status = 'offline'
-                Master->>Bus: Publish node.status_changed (offline)
-            end
-        end
-    end
-
-    alt Stream Interrupted (Network Blip / Master Restart)
-        Note over Agent,Master: Connection Interruption & Reconnection
-        Master-->>Agent: Stream closed / context canceled
-        Master->>Master: UnregisterAgentSession(NodeId)
-        Agent->>Agent: Exponential backoff (100ms -> 5s max delay)
-        Agent->>Master: Re-dial & re-establish StreamTasks()
-        Agent->>Master: Send greeting AgentTaskResult(TaskId: "handshake")
-        Master->>Master: Re-register AgentSession(NodeId, taskChan)
-    end
+    Agent->>Master: AgentTaskResult(status: live, success: true)
 ```
 
 ---
 
-## 2. Protocol Buffers Service Definitions
+## Protocol Buffer Interface (`tako.v1.AgentService`)
 
-The communication protocol is formalized in `api/proto/tako/v1/agent.proto`:
+The core communication contract is defined in `api/proto/tako/v1/agent.proto`:
 
-### `AgentService`
 ```protobuf
 service AgentService {
-  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
-  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
-  rpc StreamTasks(stream AgentTaskResult) returns (stream MasterTask);
+  // Registers a new node or reconnects an existing node with an enrollment token
+  rpc RegisterNode (RegisterNodeRequest) returns (RegisterNodeResponse);
+
+  // Periodic heartbeat carrying host CPU, memory, disk, network, and per-container metrics
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+
+  // Bidirectional multiplexed stream for dispatching commands and streaming responses
+  rpc StreamTasks (stream AgentTaskResult) returns (stream MasterTask);
 }
 ```
 
-### Handshake & Enrollment (`RegisterNode`)
-1. **Initial Registration:** The agent provides:
-   - `node_id` & `name`: Unique node identifier and human-readable hostname.
-   - `ip_address` & `public_ip`: Local private network IP and public egress IP.
-   - `cpu_total_cores`, `memory_total_mb`, `disk_total_gb`: Discovered physical host capacity.
-   - `docker_version`, `os`, `kernel_version`: System diagnostic metadata.
-   - `enroll_token`: Master enrollment secret token.
-2. **Persistence:** The master responds with an assigned `node_id` and `auth_token` (`tako-agent-<node_id>`), which the agent writes to `/data/agent.json`. Subsequent restarts reuse this identity.
+---
 
-### Bidirectional Task Stream (`StreamTasks`)
-Tasks and their results flow across a persistent HTTP/2 bidirectional stream:
-- **MasterTask Types:**
-  - `MasterTask_Deploy`: Instructs the agent to clone, build, and deploy an application revision.
-  - `MasterTask_Exec`: Requests command execution inside a running container.
-  - `MasterTask_ContainerAction`: Requests container actions (`start`, `stop`, `restart`, `remove`, `reboot-node`).
-  - `MasterTask_ContainerLogs`: Retrieves tail lines of container stdout/stderr.
-- **AgentTaskResult Types:**
-  - `AgentTaskResult_DeployLog`: Streams deployment step messages and build log chunks.
-  - `AgentTaskResult_ExecResult`: Delivers command output and exit code.
-  - `AgentTaskResult_ContainerLogs`: Delivers historical log text.
-  - `AgentTaskResult_ContainerActionResult`: Confirms action execution.
+## 1. Node Registration Handshake
+
+When a worker node starts:
+
+1. The agent inspects its local state file (`/data/agent.json`). If uninitialized, it generates a unique `node_id` and collects host hardware telemetry:
+   - Operating system and kernel version (from `/etc/os-release` and `uname`).
+   - Total physical CPU cores and memory capacity.
+   - Total storage capacity on the root filesystem.
+   - Installed Docker Engine daemon version.
+2. The agent issues a `RegisterNode` RPC call to the master server, including the cluster enrollment token (`TAKO_AGENT_SECRET`).
+3. The master validates the enrollment token against the cluster settings stored in SQLite. If valid, the node record is created or updated to `online`, and a scoped session authentication token is returned.
 
 ---
 
-## 3. Resilience & Reconnect Policies
+## 2. Multiplexed Bidirectional Task Stream (`StreamTasks`)
 
-### gRPC Client Keepalive & Backoff
-Configured in `agent/internal/client/client.go`:
-- **Keepalive Ping:** Client sends HTTP/2 PING frames every 30 seconds with a 5-second timeout (`keepalive.ClientParameters`).
-- **Reconnect Backoff:**
-  - `BaseDelay`: 100 milliseconds.
-  - `Multiplier`: 1.6x exponential increase.
-  - `Jitter`: 20% randomization to prevent thundering herd reconnection storms.
-  - `MaxDelay`: 5 seconds.
+Once registered, the agent calls `StreamTasks` to open a continuous, bidirectional HTTP/2 stream:
 
-### Server-Side Liveness Watcher
-Configured in `server/internal/orchestrator/orchestrator.go`:
-- Runs in a background goroutine checking the database every 5 seconds.
-- Any node that has not recorded a heartbeat within 15 seconds is marked `status = 'offline'` via `MarkInactiveNodesOffline`.
-- The EventBus notifies active console dashboards immediately over Server-Sent Events.
+### Master-to-Agent Dispatches (`MasterTask`)
+
+The master server transmits structured tasks to the worker agent over the stream:
+
+- **`DeployRequest`:** Instructs the agent to clone a repository, build a container image, configure Traefik routes, execute health checks, and manage cutover.
+- **`ExecCommandRequest`:** Dispatches interactive or one-off commands into running application containers (used by the Console web terminal).
+- **`ContainerLogsRequest`:** Requests real-time stdout/stderr log streams for a specific container.
+- **`ContainerActionRequest`:** Dispatches lifecycle signals (`start`, `stop`, `restart`, `kill`).
+- **`CancelTaskRequest`:** Aborts an in-flight deployment pipeline immediately.
+
+### Agent-to-Master Results (`AgentTaskResult`)
+
+The agent streams progress and command output back to the master in real time:
+
+- **`DeployLogChunk`:** Carries step names (`Clone`, `Build`, `Deploy`, `Health check`), timestamped log messages, and error indicators. The master forwards these chunks to the internal event bus, which broadcasts them to connected browsers via Server-Sent Events (SSE).
+- **`ExecCommandResponse`:** Returns terminal output bytes and command exit codes.
+- **`ContainerLogsResponse`:** Returns streamed log lines from the Docker daemon.
+
+---
+
+## 3. Host & Container Telemetry Heartbeats (`Heartbeat`)
+
+Every 3 seconds, the agent samples system performance counters and transmits a `HeartbeatRequest`:
+
+- **Host Telemetry:** CPU utilization percentage, used memory in megabytes, used disk space in gigabytes, and network input/output rates (KB/s).
+- **Per-Container Telemetry (`ContainerTelemetry`):** For each running container tagged with Tako labels, the agent samples container CPU percent, memory usage against configured limits, and network throughput.
+- **Retention & Historical Graphs:** The master server writes these snapshots to the `node_metrics` table in SQLite, which powers the live graphs in the Tako Console.
+
+---
+
+## Fault Tolerance & Reconnection
+
+If network connectivity between a worker node and the master server drops:
+
+1. **Autonomous Operation:** Deployed containers and the local Traefik proxy continue running undisturbed on the worker node. Active user traffic is not affected by control plane disconnections.
+2. **Exponential Backoff:** The agent enters a reconnection loop with exponential backoff (starting at 1 second and capping at 30 seconds).
+3. **Liveness Detection:** The master server marks the node as `offline` if no heartbeat is received within 15 seconds. When the agent reconnects, the node status is automatically restored to `online`.

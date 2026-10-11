@@ -1,68 +1,109 @@
 ---
 title: "Limitations & Non-Goals"
-description: "Explicit constraints, intentional non-goals, and architectural boundaries in Tako."
+description: "Explicit constraints, intentional non-goals, and operational boundaries in Tako."
 ---
 
-Tako is built with deliberate boundaries. Knowing what a system will not do is as important as knowing what it can do. The constraints listed below are architectural decisions made to keep the system maintainable, lightweight, and reliable for solo operators and small teams.
+## Understanding Architectural Boundaries
 
-## 1. No multi-tenant organizations or granular RBAC
+A well-architected system is defined as much by what it chooses not to do as by what it implements. Tako is intentionally scoped for solo developers, small engineering teams, and homelab operators who want low platform overhead.
 
-Tako supports team collaboration across a **single, flat workspace**. Authenticated users are assigned one of two roles:
+The boundaries detailed below are deliberate architectural choices rather than temporary omissions.
 
-- `admin`: Full administrative control over servers, settings, invitations, and projects.
-- `member`: Project and deployment operations without access to server nodes or user management.
+---
 
-The following organizational capabilities are explicit non-goals:
+## 1. Single Flat Workspace (No Multi-Tenancy or Custom RBAC)
 
-- **No multi-tenancy:** You cannot create isolated tenant organizations or separate company workspaces within a single Tako installation.
-- **No custom permission matrices:** There is no granular Role-Based Access Control (RBAC) permitting per-project or per-environment access rules.
-- **Single-cluster ownership:** Every invited user shares the same operational cluster.
+Tako operates on a single flat workspace model. Authenticated accounts are assigned one of two predefined roles:
 
-If your organization requires multi-tenancy or complex enterprise permission hierarchies, Tako is not the right tool.
+- **Admin:** Complete access to cluster nodes, system settings, user invitations, and all projects.
+- **Member:** Can deploy services, view logs, and configure environment variables, but cannot enroll servers or invite other users.
 
-## 2. No billing, metering, or usage invoicing
+Tako intentionally does not include:
+- Multi-tenant tenant isolation for running separate client organizations on a single installation.
+- Granular Role-Based Access Control (RBAC) matrices (such as per-project or per-environment permissions).
+- Single Sign-On (SSO) SAML integration.
 
-Tako contains no billing infrastructure:
+Organizations requiring isolated multi-tenancy or complex departmental permission structures should choose an enterprise platform.
 
-- No Stripe, Lemon Squeezy, or Paddle integrations.
-- No usage-based customer invoicing or credit tracking.
-- No rate-limiting quotas tied to commercial subscription tiers.
+---
 
-Tako is designed for deploying your own applications, not for running a public hosting reseller service.
+## 2. No Commercial Billing or Reseller Metering
 
-## 3. No one-click application marketplace
+Tako is designed for hosting your own infrastructure, not for selling hosting services to external customers. As a result:
 
-Tako does not maintain a catalog of 200+ third-party open-source applications (such as WordPress, Nextcloud, or Ghost installers).
+- There is no billing integration (Stripe, Lemon Squeezy, Paddle).
+- There is no usage metering, credit deduction, or quota invoicing.
+- There are no rate-limiting tiers tied to subscription plans.
 
-- Tako provides curated infrastructure templates for client-server databases (PostgreSQL, MySQL, Redis).
-- Application workloads must be defined by you using a `Dockerfile` or a `docker-compose.yml` configuration.
-- Eliminating third-party template catalogs prevents maintenance debt caused by broken upstream configurations and deprecated image tags.
+---
 
-## 4. Dockerfile and Compose builds only (No Nixpacks or Buildpacks)
+## 3. Explicit Dockerfile & Compose Builds (No Nixpacks or Buildpacks)
 
-All source code builds in Tako require a valid `Dockerfile` in the repository root or specified subpath.
+All source code builds in Tako require an explicit `Dockerfile` or `docker-compose.yml` file in the repository root or a specified path.
 
-- **No Nixpacks:** Tako does not attempt to automatically guess application dependencies or build environments using Nix.
-- **No Cloud Native Buildpacks (CNB):** Buildpacks introduce substantial dependency overhead, slower image construction, and obscure build failures.
-- **Explicit configuration:** A standard `Dockerfile` provides transparent, reproducible, and portable container builds that run identically on your local workstation and on your production servers.
+- **No Nixpacks:** Tako does not attempt to inspect source code and guess language runtimes, package managers, or start commands.
+- **No Cloud Native Buildpacks (CNB):** Buildpacks add image layering complexity, larger final image sizes, and opaque build failures.
+- **Explicit configuration:** Using a standard `Dockerfile` ensures reproducible builds that behave identically on local developer machines and production nodes.
 
-## 5. Standard Docker Engine only (No Kubernetes or Swarm)
+---
 
-Tako runs on standard Docker Engine (version 24.0 or newer) on Linux hosts.
+## 4. No 200+ Third-Party Application Catalog
+
+Tako does not include an extensive community app store containing hundreds of third-party apps (such as WordPress, Nextcloud, or Ghost).
+
+- Tako provides curated infrastructure templates for relational and in-memory databases (PostgreSQL, MySQL, Redis, MongoDB).
+- Application workloads are deployed from your own Dockerfiles or Compose files.
+- Avoiding third-party application catalogs prevents maintenance overhead caused by deprecated upstream image tags and breaking configuration changes.
+
+---
+
+## 5. Direct Docker Engine Scheduling (No Kubernetes or Swarm)
+
+Tako schedules containers directly onto local Docker Engine instances (Docker 24.0 or newer).
 
 - **No Kubernetes:** Tako does not interact with Kubernetes APIs, Helm charts, or CRDs.
-- **No Docker Swarm:** Tako does not schedule services across an overlay swarm network. Each service is explicitly assigned to a specific target server managed by its local agent.
-- **Single-node container scheduling:** If a server experiences hardware failure, its containers do not automatically reschedule to another server. Failover must be handled via DNS or manual reassignment.
+- **No Docker Swarm:** Tako does not configure overlay network meshes (VXLAN) across worker nodes.
+- **Static service assignment:** Each service is explicitly assigned to a designated server node. If that host encounters a physical hardware failure, containers do not automatically reschedule to another node. Failover must be handled via DNS or manual reassignment.
 
-For a detailed comparison of these architectural trade-offs, see [When to Choose What](/why-tako#when-to-choose-what).
+---
 
-## 6. Embedded SQLite database engine
+## 6. Embedded SQLite Database Engine
 
-The Tako control plane stores metadata in a local SQLite database using Write-Ahead Logging (WAL) and AES-256-GCM encryption.
+The control plane stores relational records in an embedded SQLite database using Write-Ahead Logging (WAL) and AES-256-GCM encryption for credentials.
 
-- **No external database cluster:** The control plane does not support clustering against an external PostgreSQL or CockroachDB cluster.
-- **Single-writer model:** SQLite handles concurrent reads with minimal latency, but serializes writes. This architecture is optimal for personal and small-team deployments, but is not designed for thousands of concurrent control plane API mutations per second.
+- **No external database cluster:** Tako does not connect to external PostgreSQL or CockroachDB clusters.
+- **Single-writer serialization:** SQLite handles high-concurrency reads with microsecond latency, but serializes write transactions. While ideal for personal projects and small teams, it is not architected for hundreds of concurrent control plane API mutations per second.
 
-## 7. Linux-based host requirement
+---
 
-The Tako Control Plane and Node Agent require a Linux operating system (Ubuntu, Debian, Rocky Linux, AlmaLinux, or Alpine) with systemd or OpenRC, access to the Docker unix socket `/var/run/docker.sock`, and network access to pull base container images. Windows Server and native macOS daemons are not supported for production deployments.
+## 7. Linux Host Requirement
+
+Both the Tako Master Server and the Tako Worker Agent require a Linux operating system (such as Ubuntu, Debian, Rocky Linux, AlmaLinux, or Alpine) with:
+- Systemd or OpenRC process management.
+- Access to the Docker daemon unix socket (`/var/run/docker.sock`).
+- Network access to pull base container images.
+
+Windows Server and native macOS daemons are not supported for production node deployments.
+
+---
+
+## Boundary Summary
+
+```mermaid
+flowchart TD
+    subgraph Supported["Supported Core Scope"]
+        A["Explicit Dockerfile & Compose Deployments"]
+        B["Curated Databases (PostgreSQL, MySQL, Redis, Mongo)"]
+        C["Outbound-Only gRPC Node Orchestration"]
+        D["Traefik v3 Dynamic Edge Routing & Auto TLS"]
+        E["Single Flat Team Workspace (Admin / Member)"]
+    end
+
+    subgraph NonGoals["Explicit Non-Goals"]
+        X1["Multi-Tenant Isolation & Granular RBAC"]
+        X2["Nixpacks / Automatic Runtime Guessing"]
+        X3["200+ Third-Party App Store Catalog"]
+        X4["Kubernetes / Cross-Node Pod Rescheduling"]
+        X5["Billing, Metering & Reseller Invoicing"]
+    end
+```

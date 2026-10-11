@@ -42,11 +42,12 @@
             "pages": [
               "introduction",
               "why-tako",
-              "limitations"
+              "limitations",
+              "roadmap"
             ]
           },
           {
-            "group": "Quickstart",
+            "group": "Getting Started",
             "icon": "rocket",
             "pages": [
               "quickstart/installation",
@@ -54,54 +55,41 @@
             ]
           },
           {
-            "group": "Core Concepts",
-            "icon": "layers",
-            "pages": [
-              "concepts/architecture",
-              "concepts/projects-and-services",
-              "concepts/servers-and-agents",
-              "concepts/deployments",
-              "concepts/domains-and-ssl",
-              "concepts/tech-stack"
-            ]
-          },
-          {
-            "group": "Architecture & Internals",
+            "group": "Architecture & Workflow",
             "icon": "cpu",
             "pages": [
               "architecture/overview",
-              "architecture/components",
-              "architecture/deploy-flow",
+              "architecture/deployment-lifecycle",
               "architecture/agent-protocol",
-              "architecture/auth-and-permissions"
+              "architecture/reverse-proxy"
             ]
           },
           {
-            "group": "Guides",
+            "group": "Guides & How-tos",
             "icon": "compass",
             "pages": [
+              "guides/deploying-apps",
               "guides/adding-a-server",
-              "guides/connecting-github",
+              "guides/domains-and-ssl",
               "guides/environment-variables",
-              "guides/rollback",
-              "guides/auxiliary-services",
               "guides/databases",
-              "guides/team-collaboration"
+              "guides/rollback",
+              "guides/backup"
             ]
           },
           {
-            "group": "Self-Hosting",
-            "icon": "server",
+            "group": "Ecosystem & Comparisons",
+            "icon": "scale",
             "pages": [
-              "self-hosting/requirements",
-              "self-hosting/backup"
+              "comparisons/coolify-and-dokploy"
             ]
           },
           {
-            "group": "Project",
-            "icon": "flag",
+            "group": "Reference",
+            "icon": "terminal",
             "pages": [
-              "roadmap"
+              "reference/configuration",
+              "reference/cli"
             ]
           }
         ]

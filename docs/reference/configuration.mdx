@@ -1,0 +1,75 @@
+---
+title: "Configuration Reference"
+description: "Complete reference for Tako Master and Worker Agent environment variables and configuration files."
+---
+
+## Master Server Configuration
+
+The Tako Master Server (`tako-server`) is configured via environment variables. In standard production deployments, these are stored in `/opt/tako/.env` with `0600` permissions.
+
+### Server Network & Runtime
+
+| Environment Variable | Default | Description |
+| :--- | :--- | :--- |
+| **`TAKO_PORT`** | `8080` | Internal HTTP port for the Chi REST API and SSE event bus. |
+| **`TAKO_GRPC_PORT`** | `50051` | Port for the gRPC control plane listening for worker agent connections. |
+| **`TAKO_ENV`** | `production` | Environment mode (`production` or `development`). |
+| **`TAKO_PUBLIC_IP`** | Host Public IP | Public IPv4 address used to generate canonical `sslip.io` preview domains. |
+| **`TAKO_PRIVATE_IP`** | Host Private IP | Internal private IP for local node-to-node routing. |
+
+### Database & Security
+
+| Environment Variable | Default | Description |
+| :--- | :--- | :--- |
+| **`TAKO_DB_PATH`** | `/data/tako.db` | Filesystem path to the SQLite database file on the master container. |
+| **`TAKO_AUTH_SECRET`** | [Required] | 32-character master key used to encrypt and decrypt secrets via AES-256-GCM. |
+| **`TAKO_AGENT_SECRET`** | [Required] | Pre-shared enrollment token required by worker nodes to register via gRPC. |
+| **`TAKO_ADMIN_EMAIL`** | `admin@gettako.dev` | Initial administrator email seeded on first database creation. |
+| **`TAKO_ADMIN_PASSWORD`** | [Generated] | Initial administrator password seeded on first database creation. |
+
+---
+
+## Worker Agent Configuration
+
+The Tako Agent daemon (`tako-agent`) runs on every node executing user containers.
+
+### Agent Network & Master Connection
+
+| Environment Variable | Default | Description |
+| :--- | :--- | :--- |
+| **`TAKO_MASTER_URL`** | `127.0.0.1:50051` | Hostname and port of the master server gRPC endpoint. |
+| **`TAKO_ENROLL_TOKEN`** | [Required] | Enrollment token matching the master's `TAKO_AGENT_SECRET`. |
+| **`TAKO_NODE_ID`** | [Generated] | Unique identifier for this node (stored in state file). |
+| **`TAKO_NODE_NAME`** | Hostname | Human-readable node label displayed in the console. |
+| **`TAKO_NODE_ROLE`** | `worker` | Node role (`leader` on master node, `worker` on remote hosts). |
+| **`TAKO_PUBLIC_IP`** | Host Public IP | Public IP used for routing custom domains to this worker. |
+
+### Telemetry & Storage
+
+| Environment Variable | Default | Description |
+| :--- | :--- | :--- |
+| **`TAKO_STATE_FILE`** | `/data/agent.json` | Path where local agent state, certificates, and ID are persisted. |
+| **`TAKO_METRICS_INTERVAL`**| `3s` | Sampling interval for host and container CPU, RAM, disk, and network stats. |
+| **`TAKO_TRAEFIK_DYNAMIC_DIR`**| `/etc/tako/traefik/dynamic` | Directory where the agent writes atomic Traefik `.yml` routing files. |
+| **`TAKO_PREVIEW_RETENTION`** | `2` | Number of historical preview containers retained per service before automatic pruning. |
+
+---
+
+## Web Console Configuration
+
+The Tako Console (`tako-console`) runs as a Next.js service:
+
+| Environment Variable | Default | Description |
+| :--- | :--- | :--- |
+| **`TAKO_SERVER_URL`** | `http://tako-server:8080` | Internal HTTP address of the master API server. |
+| **`NEXT_PUBLIC_TAKO_SERVER_URL`** | `https://<PUBLIC_IP>` | Public URL where client browsers connect for SSE event streams. |
+
+---
+
+## Traefik Reverse Proxy Configuration
+
+| Configuration Path | Purpose |
+| :--- | :--- |
+| **`/etc/tako/traefik/traefik.yml`** | Static Traefik configuration defining entrypoints (80, 443), ACME resolvers, and log levels. |
+| **`/etc/tako/traefik/acme.json`** | Secure storage file for Let's Encrypt certificates (requires `chmod 600`). |
+| **`/etc/tako/traefik/dynamic/`** | Dynamic configuration directory watched by Traefik for atomic service routing updates. |
