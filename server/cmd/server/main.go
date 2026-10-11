@@ -49,6 +49,8 @@ func main() {
 	orch.StartAutoScaler(ctx, 15*time.Second)
 	orch.StartRetentionCleaner(ctx, 24*time.Hour, 90)
 	api.StartBackupScheduler(ctx, orch, 1*time.Minute)
+	cronScheduler := orchestrator.NewCronScheduler(orch)
+	cronScheduler.StartScheduler(ctx, 15*time.Second)
 
 	router := api.NewRouter(db, orch)
 
