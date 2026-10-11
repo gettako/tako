@@ -19,11 +19,11 @@ TAKO_REPO="${TAKO_REPO:-https://github.com/gettako/tako.git}"
 TAKO_BRANCH="${TAKO_BRANCH:-main}"
 TAKO_DIR="${TAKO_DIR:-/opt/tako}"
 IS_AGENT=0
-if [[ "${0:-}" =~ agent ]]; then
+if [[ "${TAKO_MODE:-}" == "agent" || "${0:-}" =~ agent ]]; then
   IS_AGENT=1
 fi
-AGENT_TOKEN="${TAKO_AGENT_TOKEN:-}"
-MASTER_URL="${TAKO_MASTER_URL:-}"
+AGENT_TOKEN="${TAKO_AGENT_TOKEN:-${TAKO_ENROLLMENT_TOKEN:-${TAKO_TOKEN:-}}}"
+MASTER_URL="${TAKO_MASTER_URL:-${TAKO_SERVER_URL:-${TAKO_MASTER:-}}}"
 ADMIN_EMAIL="${TAKO_EMAIL:-}"
 ADMIN_PASSWORD="${TAKO_PASSWORD:-}"
 
