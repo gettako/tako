@@ -35,6 +35,11 @@ func (o *Orchestrator) StartAutoScaler(ctx context.Context, interval time.Durati
 	}()
 }
 
+// EvaluateAutoScaling evaluates auto-scaling rules for all active services.
+func (o *Orchestrator) EvaluateAutoScaling(ctx context.Context) {
+	o.evaluateAutoScaling(ctx)
+}
+
 func (o *Orchestrator) evaluateAutoScaling(ctx context.Context) {
 	rows, err := o.db.QueryContext(ctx, `
 		SELECT id, name, slug, replicas, auto_scaling_enabled, min_replicas, max_replicas,
