@@ -7,13 +7,21 @@ WORKDIR /src
 
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copy proto and agent source
+# Copy proto and go dependency files for caching
 COPY api/proto/ /src/api/proto/
-COPY agent/ /src/agent/
+COPY agent/go.mod agent/go.sum* /src/agent/
 
 ENV GOWORK=off
 WORKDIR /src/agent
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/tako-agent ./cmd/agent
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# Copy full agent source
+COPY agent/ /src/agent/
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/tako-agent ./cmd/agent
 
 FROM alpine:3.20 AS runner
 

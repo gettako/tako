@@ -7,13 +7,21 @@ WORKDIR /src
 
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copy proto and server source
+# Copy proto and go dependency files for caching
 COPY api/proto/ /src/api/proto/
-COPY server/ /src/server/
+COPY server/go.mod server/go.sum* /src/server/
 
 ENV GOWORK=off
 WORKDIR /src/server
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/tako-server ./cmd/server
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+# Copy full server source
+COPY server/ /src/server/
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /bin/tako-server ./cmd/server
 
 FROM alpine:3.20 AS runner
 
