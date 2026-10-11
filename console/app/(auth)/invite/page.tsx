@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 function InviteAcceptForm() {
@@ -103,53 +102,49 @@ function InviteAcceptForm() {
 
   if (isLoading) {
     return (
-      <Card className="p-8 text-center space-y-4">
+      <div className="py-12 text-center space-y-4">
         <Loader2 className="size-8 text-primary animate-spin mx-auto" />
         <p className="text-sm text-muted-foreground">Verifying invitation link...</p>
-      </Card>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card className="border-border bg-card p-6 space-y-4">
-        <CardHeader className="px-0 pt-0 pb-2">
-          <div className="size-10 rounded-full bg-status-danger/10 text-status-danger flex items-center justify-center mb-2">
-            <AlertCircle className="size-5" />
-          </div>
-          <CardTitle className="text-lg font-bold">Invitation Error</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground mt-1">
+      <div className="space-y-6 text-center">
+        <div className="size-10 rounded-full bg-status-danger/10 text-status-danger flex items-center justify-center mx-auto mb-1">
+          <AlertCircle className="size-5" />
+        </div>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">Invitation Error</h1>
+          <p className="text-sm text-balance text-muted-foreground">
             {error}
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="px-0 pt-2">
-          <Button
-            variant="outline"
-            className="w-full text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
-            render={<Link href="/login" />}
-          >
-            <span>Back to Sign In</span>
-          </Button>
-        </CardFooter>
-      </Card>
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+          render={<Link href="/login" />}
+        >
+          <span>Back to Sign In</span>
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card className="border-border bg-card p-6">
-      <CardHeader className="px-0 pt-0 pb-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-xl font-bold">Complete Setup</CardTitle>
-            <Badge variant="outline" className="font-mono text-xs uppercase bg-primary/10 text-primary border-primary/30">
-              {inviteData?.role || 'member'}
-            </Badge>
-          </div>
-          <CardDescription className="text-xs text-muted-foreground">
-            Accept invitation for <span className="font-semibold text-foreground font-mono">{inviteData?.email}</span>
-          </CardDescription>
+    <div className="space-y-6">
+      <div className="flex flex-col items-center gap-1.5 text-center">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-sans">Complete Setup</h1>
+          <Badge variant="outline" className="font-mono text-[10px] tracking-wider uppercase bg-primary/10 text-primary border-primary/30">
+            {inviteData?.role || 'member'}
+          </Badge>
         </div>
-      </CardHeader>
+        <p className="text-sm text-balance text-muted-foreground">
+          Accept invitation for <span className="font-semibold text-foreground font-mono">{inviteData?.email}</span>
+        </p>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 pt-1">
         {formError && (
@@ -228,7 +223,7 @@ function InviteAcceptForm() {
           )}
         </Button>
       </form>
-    </Card>
+    </div>
   );
 }
 
@@ -310,10 +305,10 @@ export default function InviteAcceptPage() {
           <div className="w-full max-w-sm">
             <Suspense
               fallback={
-                <Card className="p-8 text-center space-y-4">
+                <div className="py-12 text-center space-y-4">
                   <Loader2 className="size-8 text-primary animate-spin mx-auto" />
                   <p className="text-sm text-muted-foreground">Loading invitation...</p>
-                </Card>
+                </div>
               }
             >
               <InviteAcceptForm />

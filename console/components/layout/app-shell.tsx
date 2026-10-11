@@ -13,6 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isAuthPage =
     pathname === '/login' ||
     pathname.startsWith('/login/') ||
+    pathname === '/invite' ||
     pathname.startsWith('/invite/') ||
     pathname === '/onboarding';
 

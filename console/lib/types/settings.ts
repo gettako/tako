@@ -34,6 +34,7 @@ export interface UserInvite {
   email: string;
   role: UserRole;
   token: string;
+  inviteCode?: string;
   expiresAt: string;
   createdAt: string;
 }

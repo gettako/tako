@@ -17,14 +17,16 @@ export function proxy(req: NextRequest) {
 
   const session = req.cookies.get('tako_session');
   const isLoginPage = pathname === '/login' || pathname.startsWith('/login/');
+  const isInvitePage = pathname === '/invite' || pathname.startsWith('/invite/');
+  const isPublicAuthPage = isLoginPage || isInvitePage;
 
   // If already logged in, redirect away from /login to dashboard
   if (session?.value && isLoginPage) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  // If not logged in, redirect to /login
-  if (!session?.value && !isLoginPage) {
+  // If not logged in and accessing protected route, redirect to /login
+  if (!session?.value && !isPublicAuthPage) {
     const loginUrl = new URL('/login', req.url);
     return NextResponse.redirect(loginUrl);
   }

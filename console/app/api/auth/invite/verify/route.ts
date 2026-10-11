@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchServer } from '@/lib/api-client';
+import { getSettingFallback } from '@/app/api/settings/store';
 import { UserInvite } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -16,10 +17,19 @@ export async function GET(req: NextRequest) {
       const data = await fetchServer<{ value: UserInvite[] } | UserInvite[]>('/api/v1/settings/user_invites');
       invites = Array.isArray(data) ? data : data?.value || [];
     } catch {
-      invites = [];
+      // Backend offline or unreachable
     }
 
-    const invite = invites.find((i) => i.token === token);
+    if (invites.length === 0) {
+      const fallback = getSettingFallback('user_invites');
+      if (Array.isArray(fallback)) {
+        invites = fallback as UserInvite[];
+      }
+    }
+
+    const invite = invites.find(
+      (i) => (i.inviteCode && i.inviteCode === token) || i.token === token
+    );
     if (!invite) {
       return NextResponse.json({ error: 'Invitation not found or has already been accepted.' }, { status: 404 });
     }

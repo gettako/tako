@@ -48,6 +48,15 @@ function persistToDisk() {
 }
 
 export function getSettingFallback(key: string): unknown {
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      const raw = fs.readFileSync(CACHE_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        memoryStore = { ...defaultSettings, ...parsed };
+      }
+    }
+  } catch {}
   return memoryStore[key] ?? null;
 }
 

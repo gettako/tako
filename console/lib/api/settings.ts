@@ -192,17 +192,22 @@ export async function deactivateUser(userId: string): Promise<void> {
 export async function getUserInvites(): Promise<UserInvite[]> {
   const remote = await fetchSettingFromBFF<UserInvite[]>('user_invites', []);
   if (Array.isArray(remote)) {
-    invites = remote;
+    invites = remote.map((i) => ({
+      ...i,
+      token: (i.inviteCode && i.inviteCode.length > 0) ? i.inviteCode : i.token,
+    }));
   }
   return [...invites];
 }
 
 export async function createUserInvite(email: string, role: UserRole, expiryDays: number = 7): Promise<UserInvite> {
+  const rawToken = `takoinv_${Math.random().toString(36).substring(2, 12)}`;
   const newInvite: UserInvite = {
     id: `inv-${Date.now()}`,
     email,
     role,
-    token: `takoinv_${Math.random().toString(36).substring(2, 12)}`,
+    token: rawToken,
+    inviteCode: rawToken,
     expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * expiryDays).toISOString(),
     createdAt: new Date().toISOString(),
   };

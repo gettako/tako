@@ -422,6 +422,9 @@ func isSensitiveKey(k string) bool {
 }
 
 func sanitizeSettingValue(settingKey string, val any) any {
+	if settingKey == "user_invites" {
+		return val
+	}
 	if isSensitiveKey(settingKey) {
 		if s, ok := val.(string); ok && s != "" {
 			return "••••••••"

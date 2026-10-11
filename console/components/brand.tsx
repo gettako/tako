@@ -18,12 +18,12 @@ export function BrandMark({ className }: { className?: string }) {
 export function BrandLockup({ className }: { className?: string }) {
   return (
     <Image
-      src="/logo.svg"
+      src="/images/logo.svg"
       alt="tako"
       width={150}
       height={50}
       unoptimized
-      className={className ??"h-10 w-auto"}
+      className={className ?? "h-10 w-auto"}
     />
   )
 }
