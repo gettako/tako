@@ -2145,6 +2145,108 @@ paths:
           description: Operation succeeded
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/registries:
+    get:
+      summary: List container image registries
+      description: Retrieves all configured private container image registry credentials with masked passwords.
+      operationId: listRegistries
+      tags:
+      - Registries
+      responses:
+        '200':
+          description: List of registries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Registry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create container image registry
+      description: Configures credentials for pulling images from a private Docker or OCI registry.
+      operationId: createRegistry
+      tags:
+      - Registries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - serverUrl
+              - username
+              - password
+              properties:
+                name:
+                  type: string
+                serverUrl:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: Registry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registry'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/registries/{id}:
+    get:
+      summary: Get registry by ID
+      description: Retrieves a specific container registry configuration.
+      operationId: getRegistry
+      tags:
+      - Registries
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Registry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete registry
+      description: Removes private registry credentials from the cluster.
+      operationId: deleteRegistry
+      tags:
+      - Registries
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Registry deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 components:
   securitySchemes:
     cookieAuth:
@@ -2226,6 +2328,31 @@ components:
           schema:
             $ref: '#/components/schemas/SuccessResponse'
   schemas:
+    Registry:
+      type: object
+      required:
+      - id
+      - name
+      - serverUrl
+      - username
+      - password
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        serverUrl:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
     TraefikAccessLogEntry:
       type: object
       required:

@@ -109,7 +109,12 @@ func (e *Executor) ExecuteDeployWithCallback(
 		sendLog("Push/Load image", fmt.Sprintf("Image %s ready for deployment", targetImage), false)
 	} else if e.dockerCli != nil && req.GetImage() != "" {
 		sendLog("Push/Load image", fmt.Sprintf("Pulling image %s...", targetImage), false)
-		reader, err := e.dockerCli.RawClient().ImagePull(ctx, targetImage, image.PullOptions{})
+		pullOpts := image.PullOptions{}
+		if auth := req.GetEnvVars()["_TAKO_REGISTRY_AUTH"]; auth != "" {
+			pullOpts.RegistryAuth = auth
+			sendLog("Push/Load image", "Authenticating with private image registry...", false)
+		}
+		reader, err := e.dockerCli.RawClient().ImagePull(ctx, targetImage, pullOpts)
 		if err == nil {
 			_, _ = io.Copy(io.Discard, reader)
 			_ = reader.Close()
@@ -204,9 +209,12 @@ func (e *Executor) ExecuteDeployWithCallback(
 		_ = e.dockerCli.RawClient().ContainerStop(ctx, containerName, container.StopOptions{})
 		_ = e.dockerCli.RawClient().ContainerRemove(ctx, containerName, container.RemoveOptions{Force: true})
 
-		// Convert env vars map to slice
+		// Convert env vars map to slice (skip internal Tako orchestrator signals)
 		envList := make([]string, 0, len(req.GetEnvVars()))
 		for k, v := range req.GetEnvVars() {
+			if strings.HasPrefix(k, "_TAKO_") {
+				continue
+			}
 			envList = append(envList, fmt.Sprintf("%s=%s", k, v))
 		}
 

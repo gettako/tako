@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -43,6 +44,7 @@ type CreateServiceParams struct {
 	DatabaseType     string
 	DatabaseVersion  string
 	ConnectionString string
+	RegistryID       string
 }
 
 type UpdateServiceParams struct {
@@ -459,6 +461,10 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 		})
 	}
 
+	if p.RegistryID != "" {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET registry_id = ? WHERE id = ?", p.RegistryID, serviceID)
+	}
+
 	_, _ = o.RecordAudit(ctx, AuditLogInput{
 		Action:     "create_service",
 		TargetType: "service",
@@ -789,6 +795,18 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		}
 		if srv.MaintenanceMode == 1 {
 			envMap["TAKO_MAINTENANCE_MODE"] = "true"
+		}
+		if srv.RegistryID != "" {
+			if reg, err := o.queries.GetRegistryByID(bgCtx, srv.RegistryID); err == nil {
+				authConfig := map[string]string{
+					"username":      reg.Username,
+					"password":      reg.Password,
+					"serveraddress": reg.ServerUrl,
+				}
+				if authBytes, err := json.Marshal(authConfig); err == nil {
+					envMap["_TAKO_REGISTRY_AUTH"] = base64.StdEncoding.EncodeToString(authBytes)
+				}
+			}
 		}
 
 		deployReq := &takov1.DeployRequest{

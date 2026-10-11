@@ -6,11 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings, Network, ShieldCheck, RotateCcw, ShieldAlert } from 'lucide-react';
+import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings, Network, ShieldCheck, RotateCcw, ShieldAlert, Boxes, Box } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { SectionHeader } from '@/components/ui/section-header';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { listRegistries } from '@/lib/api/registries';
+import { Registry } from '@/lib/types/registry';
 
 interface GeneralSettingsSectionProps {
   service: Service;
@@ -24,12 +26,19 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
   const [dockerfile, setDockerfile] = useState(service.dockerfile || 'Dockerfile');
   const [buildCommand, setBuildCommand] = useState(service.buildCommand || '');
   const [repository, setRepository] = useState(service.repository || '');
+  const [image, setImage] = useState(service.image || '');
+  const [registryId, setRegistryId] = useState(service.registryId || '');
+  const [registries, setRegistries] = useState<Registry[]>([]);
   const [publishToHost, setPublishToHost] = useState(service.publishToHost !== undefined ? service.publishToHost : true);
   const [autoRollbackEnabled, setAutoRollbackEnabled] = useState(
     service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true
   );
   const [maintenanceMode, setMaintenanceMode] = useState(Boolean(service.maintenanceMode));
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    listRegistries().then(setRegistries).catch(() => {});
+  }, []);
 
   const isDirty =
     name !== service.name ||
@@ -38,6 +47,8 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     dockerfile !== (service.dockerfile || 'Dockerfile') ||
     buildCommand !== (service.buildCommand || '') ||
     repository !== (service.repository || '') ||
+    image !== (service.image || '') ||
+    registryId !== (service.registryId || '') ||
     publishToHost !== (service.publishToHost !== undefined ? service.publishToHost : true) ||
     autoRollbackEnabled !== (service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true) ||
     maintenanceMode !== Boolean(service.maintenanceMode);
@@ -50,6 +61,8 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
       setDockerfile(service.dockerfile || 'Dockerfile');
       setBuildCommand(service.buildCommand || '');
       setRepository(service.repository || '');
+      setImage(service.image || '');
+      setRegistryId(service.registryId || '');
       setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
       setAutoRollbackEnabled(service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
       setMaintenanceMode(Boolean(service.maintenanceMode));
@@ -63,6 +76,8 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     setDockerfile(service.dockerfile || 'Dockerfile');
     setBuildCommand(service.buildCommand || '');
     setRepository(service.repository || '');
+    setImage(service.image || '');
+    setRegistryId(service.registryId || '');
     setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
     setAutoRollbackEnabled(service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
     setMaintenanceMode(Boolean(service.maintenanceMode));
@@ -84,6 +99,8 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
         dockerfile: dockerfile.trim(),
         buildCommand: buildCommand.trim(),
         repository: repository.trim() || undefined,
+        image: image.trim() || undefined,
+        registryId: registryId || '',
         publishToHost,
         autoRollbackEnabled,
         maintenanceMode,
@@ -256,6 +273,63 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
                 onCheckedChange={setMaintenanceMode}
                 disabled={isSaving}
               />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Docker Image & Registry Configuration */}
+      {!isDatabase && (
+        <Card className="border-border bg-card p-6">
+          <CardHeader className="px-0 pt-0 pb-4">
+            <SectionHeader
+              icon={Boxes}
+              title="Docker Image & Registry Authentication"
+              description="Deploy a prebuilt image directly or configure credentials to pull from a private Docker or OCI registry."
+            />
+          </CardHeader>
+
+          <CardContent className="px-0 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="service-image" className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <Box className="size-3.5 text-muted-foreground" />
+                Container Image
+              </Label>
+              <Input
+                id="service-image"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
+                placeholder="e.g. ghcr.io/org/private-app:latest or redis:7-alpine"
+                className="font-mono text-sm"
+                disabled={isSaving}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Leave empty to build from repository Dockerfile, or specify an image to pull directly from a registry.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="service-registry" className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                <Boxes className="size-3.5 text-muted-foreground" />
+                Private Registry Credentials
+              </Label>
+              <select
+                id="service-registry"
+                value={registryId}
+                onChange={(e) => setRegistryId(e.target.value)}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={isSaving}
+              >
+                <option value="">None (Public Docker Hub / No Auth)</option>
+                {registries.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.serverUrl}) - {r.username}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                Configured registry credentials used by the agent during deployment to pull private images. Manage credentials under Cluster Settings.
+              </p>
             </div>
           </CardContent>
         </Card>

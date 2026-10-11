@@ -11,6 +11,7 @@ import { GitPanel } from '@/components/settings/git-panel';
 import { BackupsPanel } from '@/components/settings/backups-panel';
 import { DomainPanel } from '@/components/settings/domain-panel';
 import { NotificationsPanel } from '@/components/settings/notifications-panel';
+import { RegistriesPanel } from '@/components/settings/registries-panel';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<GlobalSettingsSection>('overview');
@@ -52,6 +53,7 @@ export default function SettingsPage() {
         <div className="flex-1 w-full min-w-0">
           {activeSection === 'overview' && <OverviewPanel />}
           {activeSection === 'users' && <UsersPanel />}
+          {activeSection === 'registries' && <RegistriesPanel />}
           {activeSection === 'buckets' && <BucketsPanel />}
           {activeSection === 'git' && <GitPanel />}
           {activeSection === 'backups' && <BackupsPanel />}

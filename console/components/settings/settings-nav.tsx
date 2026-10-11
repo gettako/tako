@@ -10,12 +10,14 @@ import {
   Globe,
   Bell,
   LayoutDashboard,
+  Boxes,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type GlobalSettingsSection =
   | 'overview'
   | 'users'
+  | 'registries'
   | 'buckets'
   | 'git'
   | 'backups'
@@ -48,6 +50,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Team & RBAC',
     description: 'Members, roles, and invite links',
     icon: Users,
+  },
+  {
+    id: 'registries',
+    label: 'Docker Registries',
+    description: 'Private registry credentials (ghcr, Docker Hub)',
+    icon: Boxes,
   },
   {
     id: 'buckets',

@@ -33,6 +33,7 @@ type CreateServiceRequest struct {
 	DatabaseType     string            `json:"databaseType,omitempty"`
 	DatabaseVersion  string            `json:"databaseVersion,omitempty"`
 	ConnectionString string            `json:"connectionString,omitempty"`
+	RegistryID       string            `json:"registryId,omitempty"`
 }
 
 type ServiceLimitsResponse struct {
@@ -277,6 +278,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				DatabaseType:     req.DatabaseType,
 				DatabaseVersion:  req.DatabaseVersion,
 				ConnectionString: req.ConnectionString,
+				RegistryID:       req.RegistryID,
 			})
 			if err != nil {
 				RespondError(w, http.StatusInternalServerError, err.Error())
