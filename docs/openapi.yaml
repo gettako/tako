@@ -213,6 +213,26 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/nodes/{id}/update:
+    post:
+      summary: Update worker node agent
+      description: Dispatches an agent self-update instruction to pull the latest image and restart the agent.
+      operationId: updateNodeAgent
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Operation succeeded
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/nodes/{id}/traefik:
     get:
       summary: Get node Traefik configuration
@@ -1571,6 +1591,39 @@ paths:
       responses:
         '200':
           description: Domain DNS check results
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/system/version:
+    get:
+      summary: Get Tako system version and update status
+      description: Returns current running version, latest GitHub release version, and update availability status.
+      operationId: getSystemVersion
+      tags:
+      - System
+      responses:
+        '200':
+          description: Version information retrieved successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/system/update:
+    post:
+      summary: Trigger one-click update
+      description: Initiates a background rolling update for control plane containers and worker node agents.
+      operationId: triggerSystemUpdate
+      tags:
+      - System
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target:
+                  type: string
+                  example: all
+      responses:
+        '200':
+          description: Update process initiated
         '401':
           $ref: '#/components/responses/UnauthorizedError'
   /api/v1/metrics:
