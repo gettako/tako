@@ -355,7 +355,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
       - /etc/tako/traefik/acme.json:/acme.json
     networks:
       - tako-network
