@@ -1,0 +1,85 @@
+name: Bug Report
+description: File a bug report or unexpected behavior in Takō
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue! Please search existing issues first to avoid duplicates.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of Takō is experiencing the issue?
+      options:
+        - Console (Web UI / Next.js)
+        - Server (Master Node / Go REST & gRPC API)
+        - Agent (Worker Node Telemetry & Orchestration)
+        - Installer / Deploy Script (install.sh / deploy.sh)
+        - Documentation (docs)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the bug.
+      placeholder: E.g., Selecting the 24-hour timeline in monitoring does not expand the X-axis across the full 24-hour range...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Detailed steps to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Observe error '....'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+      placeholder: E.g., The chart timeline should span from 24 hours ago up to the current timestamp.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment & Versions
+      description: Operating system, Docker version, Takō version, and browser info.
+      value: |
+        - OS: [e.g. Ubuntu 24.04 / macOS 15.0]
+        - Docker Version: [e.g. Docker 26.1.0]
+        - Takō Version: [e.g. v0.4.2]
+        - Browser (if UI issue): [e.g. Chrome 129]
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs / Error Output
+      description: Please copy and paste any relevant logs, terminal output, or browser console errors.
+      render: shell
+      placeholder: Paste output from `docker logs tako-server` or browser console errors here
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have verified that no duplicate issue already exists.
+          required: true
+        - label: I have provided relevant logs and environment details.
+          required: true

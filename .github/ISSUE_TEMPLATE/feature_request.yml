@@ -1,0 +1,55 @@
+name: Feature Request
+description: Suggest an idea or feature enhancement for Takō
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting an enhancement to improve Takō!
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Target Component
+      description: Which component would be affected by this feature?
+      options:
+        - Console (Web UI / Next.js)
+        - Server (Master Node / Go REST & gRPC API)
+        - Agent (Worker Node Telemetry & Orchestration)
+        - CLI / Installer Scripts
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement / Use Case
+      description: Is your feature request related to a problem or specific workflow bottleneck?
+      placeholder: E.g., Currently, tracking replica performance across multiple regions requires manual inspection...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe how you envision this feature working.
+      placeholder: Outline your proposed implementation, workflow, or user experience...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or workarounds you have considered?
+      placeholder: E.g., Custom shell scripts, external Prometheus exporters, etc.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or design mockups here.

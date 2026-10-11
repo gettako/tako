@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Takō Cloud Documentation
+    url: https://gettako.dev
+    about: Read guides, architecture overviews, and cluster deployment instructions.
+  - name: Community Discussions
+    url: https://github.com/gettako/tako/discussions
+    about: Ask questions, share feedback, and discuss ideas with the community.
