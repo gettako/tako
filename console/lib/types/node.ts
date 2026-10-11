@@ -74,3 +74,20 @@ export interface TraefikAccessLogEntry {
   userAgent: string;
 }
 
+export interface NodeRetentionPolicy {
+  nodeId: string;
+  keepImageVersions: number;
+  autoPruneThresholdPercent: number;
+  pruneBuildCache: boolean;
+  updatedAt?: string;
+}
+
+export interface NodePruneResult {
+  success: boolean;
+  spaceReclaimedBytes: number;
+  spaceReclaimedMb: number;
+  imagesDeleted: number;
+  buildCacheDeletedBytes: number;
+  message?: string;
+}
+

@@ -464,6 +464,143 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/nodes/{id}/retention:
+    get:
+      summary: Get node image retention policy
+      description: Retrieves the Docker image retention and auto-prune policy for this node.
+      operationId: getNodeRetentionPolicy
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Node retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodeId:
+                    type: string
+                  keepImageVersions:
+                    type: integer
+                  autoPruneThresholdPercent:
+                    type: number
+                  pruneBuildCache:
+                    type: boolean
+                  updatedAt:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update node image retention policy
+      description: Updates the Docker image retention and automated disk pruning threshold.
+      operationId: updateNodeRetentionPolicy
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keepImageVersions:
+                  type: integer
+                  example: 3
+                autoPruneThresholdPercent:
+                  type: number
+                  example: 85
+                pruneBuildCache:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Updated retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodeId:
+                    type: string
+                  keepImageVersions:
+                    type: integer
+                  autoPruneThresholdPercent:
+                    type: number
+                  pruneBuildCache:
+                    type: boolean
+                  updatedAt:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/nodes/{id}/prune:
+    post:
+      summary: Prune Docker images and build cache on node
+      description: Triggers immediate on-demand disk cleanup for unused Docker images, stopped containers, and build cache layers.
+      operationId: pruneNodeDisk
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                all:
+                  type: boolean
+                  example: false
+                pruneBuildCache:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Reclaimed disk space summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  spaceReclaimedBytes:
+                    type: integer
+                  spaceReclaimedMb:
+                    type: number
+                  imagesDeleted:
+                    type: integer
+                  buildCacheDeletedBytes:
+                    type: integer
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/events/nodes:
     get:
       summary: Node real-time SSE event stream

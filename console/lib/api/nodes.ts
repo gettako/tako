@@ -5,6 +5,8 @@ import {
   TraefikConfigFile,
   TraefikConfigFileContent,
   TraefikAccessLogEntry,
+  NodeRetentionPolicy,
+  NodePruneResult,
 } from '@/lib/types';
 
 export async function getNodes(): Promise<Node[]> {
@@ -266,5 +268,47 @@ export async function getNodeTraefikAccessLogs(
   }
   const data = await res.json();
   return Array.isArray(data) ? data : [];
+}
+
+/* --- Node Image Retention Policy & Disk Pruning --- */
+export async function getNodeRetentionPolicy(nodeId: string): Promise<NodeRetentionPolicy> {
+  const res = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}/retention`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to fetch node retention policy');
+  }
+  return res.json();
+}
+
+export async function updateNodeRetentionPolicy(
+  nodeId: string,
+  policy: Partial<NodeRetentionPolicy>
+): Promise<NodeRetentionPolicy> {
+  const res = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}/retention`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(policy),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to update retention policy');
+  }
+  return res.json();
+}
+
+export async function pruneNodeDisk(
+  nodeId: string,
+  options?: { all?: boolean; pruneBuildCache?: boolean }
+): Promise<NodePruneResult> {
+  const res = await fetch(`/api/nodes/${encodeURIComponent(nodeId)}/prune`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options || {}),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to prune node disk');
+  }
+  return res.json();
 }
 

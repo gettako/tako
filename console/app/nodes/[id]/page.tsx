@@ -13,6 +13,7 @@ import { NodeServicesTable } from '@/components/nodes/node-services-table';
 import { NodeTraefikPanel } from '@/components/nodes/node-traefik-panel';
 import { NodeTraefikFiles } from '@/components/nodes/node-traefik-files';
 import { NodeTraefikAccessLogs } from '@/components/nodes/node-traefik-access-logs';
+import { NodeRetentionCard } from '@/components/nodes/node-retention-card';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { ErrorState } from '@/components/ui/error-state';
 import { Activity, Sliders, FolderTree, Radio } from 'lucide-react';
@@ -177,6 +178,8 @@ export default function NodeDetailPage({
               projects={projects}
               nodeName={node.name}
             />
+
+            <NodeRetentionCard nodeId={node.id} />
           </div>
         )}
 

@@ -203,6 +203,11 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 
 		// Traefik access logs
 		r.Get("/{id}/traefik/access-logs", handleGetNodeTraefikAccessLogs(orch))
+
+		// Image retention policy & disk cleanup
+		r.Get("/{id}/retention", handleGetNodeRetention(orch))
+		r.Put("/{id}/retention", handleUpdateNodeRetention(orch))
+		r.Post("/{id}/prune", handlePruneNodeDisk(orch))
 	})
 }
 
