@@ -109,6 +109,15 @@ export async function rebootNode(id: string): Promise<{ success: boolean; messag
   return res.json();
 }
 
+export async function updateNodeAgent(id: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`/api/nodes/${id}/update`, { method: 'POST' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to update node agent');
+  }
+  return res.json();
+}
+
 export async function updateNodeStatus(id: string, status: NodeStatus): Promise<Node> {
   const node = await getNodeById(id);
   if (!node) throw new Error('Node not found');

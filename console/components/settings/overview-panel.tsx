@@ -20,7 +20,18 @@ import {
   Clock,
   Sparkles,
   Database,
+  RefreshCw,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import {
   useNodes,
   useProjects,
@@ -28,6 +39,8 @@ import {
   useDomainSettings,
   useS3Buckets,
   useBackupSchedule,
+  useSystemVersion,
+  useSystemUpdate,
 } from '@/lib/queries';
 
 export function OverviewPanel() {
@@ -37,6 +50,18 @@ export function OverviewPanel() {
   const { data: domainSettings } = useDomainSettings();
   const { data: buckets = [] } = useS3Buckets();
   const { data: backupSchedule } = useBackupSchedule();
+  const {
+    data: versionInfo,
+    isFetching: isVersionFetching,
+    refetch: refetchVersion,
+  } = useSystemVersion();
+
+  const [updateModalOpen, setUpdateModalOpen] = React.useState(false);
+  const systemUpdateMutation = useSystemUpdate({
+    onSuccess: () => {
+      setUpdateModalOpen(false);
+    },
+  });
 
   // Real Computed Cluster Metrics
   const onlineNodes = nodes.filter((n) => n.status === 'online');
@@ -123,6 +148,57 @@ export function OverviewPanel() {
               <span className="text-[11px] text-muted-foreground block truncate">
                 {leaderNode?.uptime || 'Active uptime'}
               </span>
+            </div>
+          </div>
+
+          {/* System Version & Auto-Update Control */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border bg-card/60">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">
+                  Tako Version: <span className="font-mono text-primary font-bold">{versionInfo?.currentVersion || 'v1.0.0'}</span>
+                </span>
+                {versionInfo?.updateAvailable ? (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[11px] gap-1 font-mono">
+                    <Sparkles className="size-3" />
+                    Update Available: {versionInfo.latestVersion}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-status-success/10 text-status-success border-status-success/30 text-[11px] gap-1 font-mono">
+                    <CheckCircle2 className="size-3" />
+                    Up to date
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {versionInfo?.updateAvailable
+                  ? versionInfo.releaseNotes || `New release ${versionInfo.latestVersion} is available with performance and security improvements.`
+                  : 'Your control plane and orchestrator core are operating on the latest release.'}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchVersion()}
+                disabled={isVersionFetching}
+                className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+                title="Check for newest releases on GitHub"
+              >
+                <RefreshCw className={`size-3.5 ${isVersionFetching ? 'animate-spin text-primary' : ''}`} />
+                <span>{isVersionFetching ? 'Checking...' : 'Check Updates'}</span>
+              </Button>
+
+              <Button
+                variant={versionInfo?.updateAvailable ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setUpdateModalOpen(true)}
+                className="text-xs h-8 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+              >
+                <Sparkles className="size-3.5" />
+                <span>{versionInfo?.updateAvailable ? 'Update Now' : 'Update Tako'}</span>
+              </Button>
             </div>
           </div>
 
@@ -342,6 +418,74 @@ export function OverviewPanel() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Update Tako Confirmation Dialog */}
+      <Dialog open={updateModalOpen} onOpenChange={setUpdateModalOpen}>
+        <DialogContent className="sm:max-w-[460px] text-foreground font-sans">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="size-4 text-primary shrink-0" />
+              <span>Update Tako Platform</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1 leading-relaxed">
+              Initiate an automated rolling update across the Tako control plane and all connected worker agents.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 rounded-lg border border-border bg-muted/30 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] text-muted-foreground block font-medium">Current Version</span>
+                <span className="text-xs font-mono font-semibold text-foreground">{versionInfo?.currentVersion || 'v1.0.0'}</span>
+              </div>
+              <span className="text-muted-foreground text-xs font-mono">→</span>
+              <div className="text-right">
+                <span className="text-[11px] text-muted-foreground block font-medium">Target Version</span>
+                <span className="text-xs font-mono font-semibold text-primary">{versionInfo?.latestVersion || 'latest'}</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground space-y-1.5 leading-relaxed">
+              <p className="font-semibold text-xs flex items-center gap-1.5 text-primary">
+                <ShieldCheck className="size-3.5 shrink-0" />
+                Zero-Downtime Rolling Update
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Container images will be refreshed via GitHub Container Registry. Database schemas are migrated safely on launch, and user apps continue serving traffic.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={systemUpdateMutation.isPending}
+              onClick={() => setUpdateModalOpen(false)}
+              className="text-xs h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled={systemUpdateMutation.isPending}
+              onClick={() => systemUpdateMutation.mutate('all')}
+              className="text-xs h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+            >
+              {systemUpdateMutation.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-3.5" />
+              )}
+              <span>{systemUpdateMutation.isPending ? 'Updating...' : 'Start Update'}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

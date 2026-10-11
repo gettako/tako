@@ -34,6 +34,8 @@ import {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
+  getSystemVersion,
+  triggerSystemUpdate,
 } from '@/lib/api/settings';
 import {
   getGitHubAppConfig,
@@ -60,6 +62,7 @@ import {
   ClusterBackupSnapshot,
   NotificationSettings,
   Notification,
+  SystemVersionInfo,
 } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -527,3 +530,28 @@ export function useMarkAllNotificationsAsRead() {
     },
   });
 }
+
+export function useSystemVersion() {
+  return useQuery<SystemVersionInfo>({
+    queryKey: settingsKeys.systemVersion(),
+    queryFn: getSystemVersion,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useSystemUpdate(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ success: boolean; message: string }, Error, string | undefined>({
+    mutationFn: (target) => triggerSystemUpdate(target),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: settingsKeys.systemVersion() });
+      toast.success(data.message || 'System update sequence initiated');
+      options?.onSuccess?.();
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to trigger system update');
+    },
+  });
+}
+

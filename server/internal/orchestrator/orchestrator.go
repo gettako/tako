@@ -595,6 +595,54 @@ func (o *Orchestrator) StartLivenessWatcher(ctx context.Context, interval time.D
 	}()
 }
 
+// StartRetentionCleaner periodically cleans up old non-live deployments and audit logs.
+func (o *Orchestrator) StartRetentionCleaner(ctx context.Context, interval time.Duration, retentionDays int) {
+	if interval <= 0 {
+		interval = 24 * time.Hour
+	}
+	if retentionDays <= 0 {
+		retentionDays = 90
+	}
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		o.RunRetentionCleanup(ctx, retentionDays)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				o.RunRetentionCleanup(ctx, retentionDays)
+			}
+		}
+	}()
+}
+
+// RunRetentionCleanup performs a single cleanup pass on deployments and audit logs older than retentionDays.
+func (o *Orchestrator) RunRetentionCleanup(ctx context.Context, retentionDays int) {
+	if retentionDays <= 0 {
+		retentionDays = 90
+	}
+	modifier := fmt.Sprintf("-%d days", retentionDays)
+
+	resDeployments, err := o.db.ExecContext(ctx, "DELETE FROM deployments WHERE status != 'live' AND created_at < datetime('now', ?)", modifier)
+	if err != nil {
+		log.Printf("[orchestrator] retention cleanup deployments error: %v", err)
+	} else if rows, _ := resDeployments.RowsAffected(); rows > 0 {
+		log.Printf("[orchestrator] pruned %d old non-live deployments (>%d days)", rows, retentionDays)
+	}
+
+	resAudit, err := o.db.ExecContext(ctx, "DELETE FROM audit_logs WHERE timestamp < datetime('now', ?)", modifier)
+	if err != nil {
+		log.Printf("[orchestrator] retention cleanup audit_logs error: %v", err)
+	} else if rows, _ := resAudit.RowsAffected(); rows > 0 {
+		log.Printf("[orchestrator] pruned %d old audit logs (>%d days)", rows, retentionDays)
+	}
+}
+
 func formatUptime(seconds int64) string {
 	if seconds <= 0 {
 		return "0s"

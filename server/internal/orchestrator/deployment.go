@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gettako.dev/tako/internal/events"
+	"gettako.dev/tako/internal/security"
 	"gettako.dev/tako/internal/store/db"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
@@ -573,7 +574,8 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		envDB, _ := o.queries.ListServiceEnvVars(bgCtx, srv.ID)
 		envMap := make(map[string]string)
 		for _, ev := range envDB {
-			envMap[ev.Key] = ev.Value
+			decrypted, _ := security.Decrypt(ev.Value)
+			envMap[ev.Key] = decrypted
 		}
 		if _, hasRetention := envMap["TAKO_PREVIEW_RETENTION"]; !hasRetention {
 			if setting, err := o.queries.GetSetting(bgCtx, "preview_retention"); err == nil && setting.Value != "" {

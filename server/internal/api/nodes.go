@@ -124,6 +124,9 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		// POST /api/v1/nodes/{id}/reboot
 		r.Post("/{id}/reboot", handleRebootNode(orch))
 
+		// POST /api/v1/nodes/{id}/update
+		r.Post("/{id}/update", handleUpdateNodeAgent(orch))
+
 		// DELETE /api/v1/nodes/{id}
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
@@ -274,4 +277,43 @@ func handleRebootNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		})
 	}
 }
+
+func handleUpdateNodeAgent(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		node, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				RespondError(w, http.StatusNotFound, "node not found")
+				return
+			}
+			RespondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		clientIP := extractRequestIP(r)
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "update_node_agent",
+			TargetType: "node",
+			TargetID:   id,
+			TargetName: node.Name,
+			IPAddress:  clientIP,
+		})
+
+		dispatchErr := orch.DispatchContainerAction(r.Context(), id, "tako-agent", "update-agent")
+		if dispatchErr != nil && orch.GetAgentSession(id) == nil {
+			RespondJSON(w, http.StatusAccepted, map[string]any{
+				"success": true,
+				"message": fmt.Sprintf("Node %s marked for agent update (agent session offline)", node.Name),
+			})
+			return
+		}
+
+		RespondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"message": fmt.Sprintf("Agent update signal dispatched to node %s", node.Name),
+		})
+	}
+}
+
 

@@ -321,4 +321,68 @@ func TestUserManagementAndPermissions(t *testing.T) {
 	}
 }
 
+func TestAuthRateLimit(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	if err := store.SeedDefaultAdmin(context.Background(), db, "target@gettako.dev", "correct-pwd"); err != nil {
+		t.Fatalf("SeedDefaultAdmin failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-secret")
+	router := NewRouter(db, orch)
+
+	loginPayload, _ := json.Marshal(LoginRequest{
+		Email:    "target@gettako.dev",
+		Password: "wrong-password",
+	})
+
+	// Trigger 10 failed login attempts
+	for i := 0; i < 10; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginPayload))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = "192.168.10.55:12345"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d: expected 401 Unauthorized, got %d", i+1, w.Code)
+		}
+	}
+
+	// 11th attempt should trigger 429 Too Many Requests
+	blockedReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginPayload))
+	blockedReq.Header.Set("Content-Type", "application/json")
+	blockedReq.RemoteAddr = "192.168.10.55:12345"
+	blockedW := httptest.NewRecorder()
+	router.ServeHTTP(blockedW, blockedReq)
+
+	if blockedW.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 Too Many Requests, got %d: %s", blockedW.Code, blockedW.Body.String())
+	}
+
+	// Another IP should not be blocked
+	otherIPReq := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(loginPayload))
+	otherIPReq.Header.Set("Content-Type", "application/json")
+	otherIPReq.RemoteAddr = "192.168.10.56:12345"
+	otherIPW := httptest.NewRecorder()
+	router.ServeHTTP(otherIPW, otherIPReq)
+
+	if otherIPW.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for distinct IP, got %d", otherIPW.Code)
+	}
+
+	// Reset for test cleanup
+	globalLoginTracker.reset("192.168.10.55:target@gettako.dev")
+	globalLoginTracker.reset("192.168.10.56:target@gettako.dev")
+}
+
 

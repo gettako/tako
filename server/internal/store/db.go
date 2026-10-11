@@ -47,5 +47,15 @@ func OpenDB(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	// Apply critical concurrency and integrity pragmas
+	_, _ = db.Exec(`
+		PRAGMA busy_timeout = 5000;
+		PRAGMA foreign_keys = ON;
+		PRAGMA synchronous = NORMAL;
+	`)
+	if path != ":memory:" {
+		_, _ = db.Exec("PRAGMA journal_mode = WAL;")
+	}
+
 	return db, nil
 }

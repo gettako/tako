@@ -7,6 +7,7 @@ import {
   getNodeById,
   updateNode,
   rebootNode,
+  updateNodeAgent,
   createNodeEnrollToken,
   getNodeTraefikConfig,
   updateNodeTraefikConfig,
@@ -82,6 +83,24 @@ export function useRebootNode(options?: { onSuccess?: () => void }) {
     },
     onError: (err) => {
       toast.error(err.message || 'Failed to reboot node');
+    },
+  });
+}
+
+export function useUpdateNodeAgent(options?: { onSuccess?: () => void }) {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ success: boolean; message: string }, Error, string>({
+    mutationFn: (nodeId) => updateNodeAgent(nodeId),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: nodeKeys.all });
+      toast.success('Agent update initiated', {
+        description: data.message || 'Agent update sequence underway.',
+      });
+      options?.onSuccess?.();
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to update agent');
     },
   });
 }

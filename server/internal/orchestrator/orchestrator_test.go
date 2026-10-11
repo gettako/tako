@@ -103,3 +103,96 @@ func TestOrchestratorRegistrationHeartbeatAndLiveness(t *testing.T) {
 		t.Errorf("expected node status offline in DB, got %s", node.Status)
 	}
 }
+
+func TestOrchestratorRetentionCleanup(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "orch_retention_test.db")
+
+	database, err := store.OpenDB(dbPath)
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer database.Close()
+
+	if err := store.Migrate(database); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(database, bus, "test-master-token")
+	ctx := context.Background()
+
+	// 1. Seed node, project and service
+	_, err = database.ExecContext(ctx, `
+		INSERT INTO nodes (id, name, status, role, ip_address) VALUES ('node-1', 'Node 1', 'online', 'worker', '10.0.0.1');
+		INSERT INTO projects (id, name, slug) VALUES ('proj-1', 'Project 1', 'proj-1');
+		INSERT INTO services (id, project_id, node_id, name, slug, type) VALUES ('svc-1', 'proj-1', 'node-1', 'Service 1', 'svc-1', 'app');
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert test project/service: %v", err)
+	}
+
+	// 2. Insert deployments:
+	// - old failed deployment (100 days ago) -> should be deleted
+	// - old live deployment (100 days ago)   -> should NOT be deleted (live status protected)
+	// - recent failed deployment (now)       -> should NOT be deleted (< 90 days)
+	_, err = database.ExecContext(ctx, `
+		INSERT INTO deployments (id, service_id, status, created_at)
+		VALUES ('dep-old-failed', 'svc-1', 'failed', datetime('now', '-100 days'));
+
+		INSERT INTO deployments (id, service_id, status, created_at)
+		VALUES ('dep-old-live', 'svc-1', 'live', datetime('now', '-100 days'));
+
+		INSERT INTO deployments (id, service_id, status, created_at)
+		VALUES ('dep-recent-failed', 'svc-1', 'failed', datetime('now', '-5 days'));
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert test deployments: %v", err)
+	}
+
+	// 3. Insert audit logs:
+	// - old audit log (100 days ago) -> should be deleted
+	// - recent audit log (now)       -> should be kept
+	_, err = database.ExecContext(ctx, `
+		INSERT INTO audit_logs (id, actor_id, actor_name, actor_email, action, target_type, target_id, target_name, timestamp)
+		VALUES ('audit-old', 'u1', 'Admin', 'admin@gettako.dev', 'deploy', 'service', 'svc-1', 'Service 1', datetime('now', '-100 days'));
+
+		INSERT INTO audit_logs (id, actor_id, actor_name, actor_email, action, target_type, target_id, target_name, timestamp)
+		VALUES ('audit-recent', 'u1', 'Admin', 'admin@gettako.dev', 'deploy', 'service', 'svc-1', 'Service 1', datetime('now', '-2 days'));
+	`)
+	if err != nil {
+		t.Fatalf("failed to insert test audit logs: %v", err)
+	}
+
+	// Run retention cleanup for 90 days
+	orch.RunRetentionCleanup(ctx, 90)
+
+	// Verify deployments
+	var countOldFailed, countOldLive, countRecentFailed int
+	_ = database.QueryRowContext(ctx, "SELECT COUNT(*) FROM deployments WHERE id = 'dep-old-failed'").Scan(&countOldFailed)
+	_ = database.QueryRowContext(ctx, "SELECT COUNT(*) FROM deployments WHERE id = 'dep-old-live'").Scan(&countOldLive)
+	_ = database.QueryRowContext(ctx, "SELECT COUNT(*) FROM deployments WHERE id = 'dep-recent-failed'").Scan(&countRecentFailed)
+
+	if countOldFailed != 0 {
+		t.Errorf("expected dep-old-failed to be deleted, found count %d", countOldFailed)
+	}
+	if countOldLive != 1 {
+		t.Errorf("expected dep-old-live to be retained, found count %d", countOldLive)
+	}
+	if countRecentFailed != 1 {
+		t.Errorf("expected dep-recent-failed to be retained, found count %d", countRecentFailed)
+	}
+
+	// Verify audit logs
+	var countOldAudit, countRecentAudit int
+	_ = database.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_logs WHERE id = 'audit-old'").Scan(&countOldAudit)
+	_ = database.QueryRowContext(ctx, "SELECT COUNT(*) FROM audit_logs WHERE id = 'audit-recent'").Scan(&countRecentAudit)
+
+	if countOldAudit != 0 {
+		t.Errorf("expected audit-old to be deleted, found count %d", countOldAudit)
+	}
+	if countRecentAudit != 1 {
+		t.Errorf("expected audit-recent to be retained, found count %d", countRecentAudit)
+	}
+}
+

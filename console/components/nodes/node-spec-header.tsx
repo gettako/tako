@@ -24,11 +24,13 @@ import {
   Loader2,
   Power,
   AlertTriangle,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import { FieldError } from '@/components/ui/field';
 import { parseApiError } from '@/lib/form-errors';
 import { toast } from 'sonner';
-import { useUpdateNode, useRebootNode } from '@/lib/queries';
+import { useUpdateNode, useRebootNode, useUpdateNodeAgent } from '@/lib/queries';
 
 interface NodeSpecHeaderProps {
   node: Node;
@@ -138,6 +140,14 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
     },
   });
 
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const updateAgentMutation = useUpdateNodeAgent({
+    onSuccess: () => {
+      setUpdateDialogOpen(false);
+      if (onRefresh) onRefresh();
+    },
+  });
+
   const handleRefreshClick = () => {
     if (onRefresh) {
       setIsRefreshing(true);
@@ -193,6 +203,16 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
               <span>Refresh</span>
             </Button>
           )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setUpdateDialogOpen(true)}
+            className="text-xs gap-1.5 h-9 text-primary hover:text-primary border-border hover:border-primary/40 hover:bg-primary/5 active:not-aria-[haspopup]:translate-y-px"
+          >
+            <Sparkles className="size-3.5" />
+            <span>Update Agent</span>
+          </Button>
 
           <Button
             variant="outline"
@@ -457,6 +477,61 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
                 <Power className="size-3.5" />
               )}
               <span>{rebootMutation.isPending ? 'Rebooting...' : 'Reboot Now'}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Node Agent Confirmation Dialog */}
+      <Dialog open={updateDialogOpen} onOpenChange={setUpdateDialogOpen}>
+        <DialogContent className="sm:max-w-[440px] text-foreground font-sans">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary text-base">
+              <Sparkles className="size-4 shrink-0" />
+              <span>Update Node Agent</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1 leading-relaxed">
+              Pull the latest Tako Agent container image and restart the agent process on <strong className="text-foreground">{node.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs">
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-foreground space-y-1.5 leading-relaxed">
+              <p className="font-semibold text-xs flex items-center gap-1.5 text-primary">
+                <CheckCircle2 className="size-3.5 shrink-0" />
+                Zero Workload Downtime
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Only the Tako monitoring and deployment agent is refreshed. Deployed apps and databases on this node will continue running without interruption.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={updateAgentMutation.isPending}
+              onClick={() => setUpdateDialogOpen(false)}
+              className="text-sm h-9 active:not-aria-[haspopup]:translate-y-px"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              disabled={updateAgentMutation.isPending}
+              onClick={() => updateAgentMutation.mutate(node.id)}
+              className="text-sm h-9 gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+            >
+              {updateAgentMutation.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="size-3.5" />
+              )}
+              <span>{updateAgentMutation.isPending ? 'Updating...' : 'Update Agent'}</span>
             </Button>
           </DialogFooter>
         </DialogContent>

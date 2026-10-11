@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -13,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"gettako.dev/tako/agent/internal/client"
 	"gettako.dev/tako/agent/internal/deploy"
 	"gettako.dev/tako/agent/internal/docker"
@@ -173,10 +176,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return fmt.Errorf("initial registration failed: %w", err)
 	}
 
-	// Start docker events watcher & background telemetry poller if docker is present
+	// Start docker events watcher, background telemetry poller & periodic pruner if docker is present
 	if d.dockerCli != nil {
 		go d.watchDockerEvents(ctx)
 		go d.pollTelemetry(ctx)
+		go d.startPeriodicPruner(ctx)
 	}
 
 	// Start bi-directional task streaming loop with master
@@ -423,6 +427,25 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 			return
 		}
 
+		if action == "update-agent" {
+			_ = stream.Send(&takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_ContainerActionResult{
+					ContainerActionResult: &takov1.ContainerActionResponse{
+						Success: true,
+						Message: "agent update scheduled",
+					},
+				},
+			})
+
+			go func() {
+				time.Sleep(1 * time.Second)
+				d.executeAgentUpdate()
+			}()
+			return
+		}
+
 		var err error
 		if d.dockerCli != nil {
 			err = d.dockerCli.ContainerAction(ctx, containerID, action)
@@ -510,3 +533,76 @@ func (d *Daemon) executeHostReboot() {
 		return
 	}
 }
+
+func (d *Daemon) executeAgentUpdate() {
+	log.Printf("[tako-agent] executing agent update sequence...")
+
+	// 1. Docker socket container update
+	if d.dockerCli != nil {
+		targetImage := os.Getenv("TAKO_AGENT_IMAGE")
+		if targetImage == "" {
+			targetImage = "ghcr.io/gettako/tako-agent:latest"
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		log.Printf("[tako-agent] pulling newest agent image: %s...", targetImage)
+		reader, err := d.dockerCli.RawClient().ImagePull(ctx, targetImage, image.PullOptions{})
+		if err == nil {
+			_, _ = io.Copy(io.Discard, reader)
+			_ = reader.Close()
+		}
+
+		updateCmd := `(docker pull ghcr.io/gettako/tako-agent:latest || true); (docker compose -f /opt/tako/docker-compose.yml up -d agent 2>/dev/null || docker restart tako-agent || true)`
+		_ = exec.Command("sh", "-c", updateCmd).Run()
+	}
+
+	// 2. Direct systemd / standalone fallback
+	if _, err := exec.LookPath("systemctl"); err == nil {
+		_ = exec.Command("systemctl", "restart", "tako-agent").Run()
+	}
+}
+
+// startPeriodicPruner periodically cleans up dangling Docker images to reclaim disk space.
+func (d *Daemon) startPeriodicPruner(ctx context.Context) {
+	pruneInterval := 12 * time.Hour
+	if intervalStr := os.Getenv("TAKO_DOCKER_PRUNE_INTERVAL"); intervalStr != "" {
+		if parsed, err := time.ParseDuration(intervalStr); err == nil && parsed > 0 {
+			pruneInterval = parsed
+		}
+	}
+
+	ticker := time.NewTicker(pruneInterval)
+	defer ticker.Stop()
+
+	log.Printf("[tako-agent] starting periodic Docker prune worker (interval: %v)", pruneInterval)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			d.PruneDanglingImages(ctx)
+		}
+	}
+}
+
+// PruneDanglingImages cleans up dangling docker images.
+func (d *Daemon) PruneDanglingImages(ctx context.Context) {
+	if d.dockerCli == nil {
+		return
+	}
+	pruneFilters := filters.NewArgs()
+	pruneFilters.Add("dangling", "true")
+	report, err := d.dockerCli.RawClient().ImagesPrune(ctx, pruneFilters)
+	if err != nil {
+		log.Printf("[tako-agent] docker images prune failed: %v", err)
+		return
+	}
+	if report.SpaceReclaimed > 0 || len(report.ImagesDeleted) > 0 {
+		log.Printf("[tako-agent] docker images prune completed: reclaimed %d bytes (%d images removed)",
+			report.SpaceReclaimed, len(report.ImagesDeleted))
+	}
+}
+

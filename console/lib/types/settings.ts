@@ -193,3 +193,13 @@ export interface GitHubAppConfig {
   updatedAt: string;
 }
 
+export interface SystemVersionInfo {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+  releaseUrl?: string;
+  releaseNotes?: string;
+  checkedAt?: string;
+}
+
+

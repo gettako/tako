@@ -57,6 +57,7 @@ export const settingsKeys = {
   gitProviders: () => ['git-providers'] as const,
   syncedRepos: () => ['synced-repos'] as const,
   githubApp: () => ['github-app'] as const,
+  systemVersion: () => [...settingsKeys.all, 'system_version'] as const,
 };
 
 export const userKeys = {

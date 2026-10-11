@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +16,67 @@ import (
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store/db"
 )
+
+type loginAttemptTracker struct {
+	mu          sync.Mutex
+	attempts    map[string][]time.Time
+	maxAttempts int
+	window      time.Duration
+}
+
+var globalLoginTracker = newLoginAttemptTracker(10, 15*time.Minute)
+
+func newLoginAttemptTracker(maxAttempts int, window time.Duration) *loginAttemptTracker {
+	return &loginAttemptTracker{
+		attempts:    make(map[string][]time.Time),
+		maxAttempts: maxAttempts,
+		window:      window,
+	}
+}
+
+func (t *loginAttemptTracker) isBlocked(key string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+
+	var valid []time.Time
+	for _, ts := range t.attempts[key] {
+		if ts.After(cutoff) {
+			valid = append(valid, ts)
+		}
+	}
+	if len(valid) == 0 {
+		delete(t.attempts, key)
+		return false
+	}
+	t.attempts[key] = valid
+	return len(valid) >= t.maxAttempts
+}
+
+func (t *loginAttemptTracker) recordFailure(key string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-t.window)
+
+	var valid []time.Time
+	for _, ts := range t.attempts[key] {
+		if ts.After(cutoff) {
+			valid = append(valid, ts)
+		}
+	}
+	valid = append(valid, now)
+	t.attempts[key] = valid
+}
+
+func (t *loginAttemptTracker) reset(key string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.attempts, key)
+}
 
 type LoginRequest struct {
 	Email    string `json:"email"`
@@ -137,8 +199,18 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
+		clientIP := extractRequestIP(r)
+		rateLimitKey := clientIP + ":" + strings.ToLower(req.Email)
+		if globalLoginTracker.isBlocked(rateLimitKey) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Too many failed login attempts. Please try again later."})
+			return
+		}
+
 		user, err := orch.Queries().GetUserByEmail(r.Context(), req.Email)
 		if err != nil {
+			globalLoginTracker.recordFailure(rateLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid email or password"})
@@ -146,11 +218,14 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+			globalLoginTracker.recordFailure(rateLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid email or password"})
 			return
 		}
+
+		globalLoginTracker.reset(rateLimitKey)
 
 		token := "tako_tk_" + randomHexID(24)
 		orch.RegisterUserSession(token, user)
@@ -490,12 +565,22 @@ func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
+		clientIP := extractRequestIP(r)
+		rateLimitKey := clientIP + ":passkey:" + req.CredentialID
+		if globalLoginTracker.isBlocked(rateLimitKey) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Too many failed login attempts. Please try again later."})
+			return
+		}
+
 		passkeys := []PasskeyItem{}
 		if s, err := orch.Queries().GetSetting(r.Context(), "user_passkeys"); err == nil {
 			_ = json.Unmarshal([]byte(s.Value), &passkeys)
 		}
 
 		if len(passkeys) == 0 {
+			globalLoginTracker.recordFailure(rateLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "No registered passkey found"})
@@ -511,6 +596,7 @@ func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		if matchedIndex == -1 {
+			globalLoginTracker.recordFailure(rateLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid passkey or passkey not registered"})
@@ -528,11 +614,14 @@ func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		users, err := orch.Queries().ListUsers(r.Context())
 		if err != nil || len(users) == 0 {
+			globalLoginTracker.recordFailure(rateLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "User not found"})
 			return
 		}
+
+		globalLoginTracker.reset(rateLimitKey)
 
 		targetUser := users[0]
 		avatar := ""
@@ -542,6 +631,9 @@ func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		twoFactorEnabled := is2FAEnabled(r.Context(), orch)
 		token := "tako_tk_" + randomHexID(24)
+		if fullUser, err := orch.Queries().GetUserByID(r.Context(), targetUser.ID); err == nil {
+			orch.RegisterUserSession(token, fullUser)
+		}
 
 		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 			Action:     "login_passkey",

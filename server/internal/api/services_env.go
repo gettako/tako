@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"gettako.dev/tako/internal/orchestrator"
+	"gettako.dev/tako/internal/security"
 	"gettako.dev/tako/internal/store/db"
 )
 
@@ -19,10 +20,11 @@ func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 
 		res := make([]ServiceEnvVarResponse, 0, len(envDB))
 		for _, ev := range envDB {
+			decrypted, _ := security.Decrypt(ev.Value)
 			res = append(res, ServiceEnvVarResponse{
 				ID:       ev.ID,
 				Key:      ev.Key,
-				Value:    ev.Value,
+				Value:    decrypted,
 				IsSecret: ev.IsSecret == 1,
 			})
 		}
@@ -59,21 +61,25 @@ func handleUpdateServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFun
 				continue
 			}
 			isSec := int64(0)
+			valToStore := v.Value
 			if v.IsSecret {
 				isSec = 1
+				if enc, err := security.Encrypt(v.Value); err == nil {
+					valToStore = enc
+				}
 			}
 			ev, err := orch.Queries().CreateServiceEnvVar(r.Context(), db.CreateServiceEnvVarParams{
 				ID:        "env-" + randomHexID(8),
 				ServiceID: id,
 				Key:       v.Key,
-				Value:     v.Value,
+				Value:     valToStore,
 				IsSecret:  isSec,
 			})
 			if err == nil {
 				res = append(res, ServiceEnvVarResponse{
 					ID:       ev.ID,
 					Key:      ev.Key,
-					Value:    ev.Value,
+					Value:    v.Value,
 					IsSecret: ev.IsSecret == 1,
 				})
 			}

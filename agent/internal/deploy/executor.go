@@ -325,8 +325,8 @@ func (e *Executor) ExecuteDeployWithCallback(
 	if e.dockerCli != nil {
 		healthy := false
 		var lastInspectErr error
-		for i := 0; i < 5; i++ {
-			time.Sleep(time.Duration(100+i*150) * time.Millisecond)
+		for i := 0; i < 8; i++ {
+			time.Sleep(time.Duration(150+i*150) * time.Millisecond)
 			inspect, err := e.dockerCli.RawClient().ContainerInspect(ctx, containerName)
 			if err != nil {
 				lastInspectErr = err
@@ -346,8 +346,28 @@ func (e *Executor) ExecuteDeployWithCallback(
 					sendLog("Health check", errMsg, true)
 					return fmt.Errorf("container terminated by OOM killer")
 				}
-				if inspect.State.Running {
+				if inspect.State.Health != nil {
+					switch inspect.State.Health.Status {
+					case "unhealthy":
+						_ = os.Remove(filepath.Join(dynamicDir, fmt.Sprintf("%s-%s.yml", serviceName, commit8)))
+						errMsg := "Health check FAILED: container reported unhealthy status"
+						sendLog("Health check", errMsg, true)
+						return fmt.Errorf("container reported unhealthy status")
+					case "healthy":
+						healthy = true
+					case "starting":
+						// Container healthcheck is still warming up; wait for next probe
+					default:
+						if inspect.State.Running {
+							healthy = true
+						}
+					}
+				} else if inspect.State.Running {
 					healthy = true
+				}
+
+				if healthy {
+					break
 				}
 			}
 		}
@@ -370,6 +390,9 @@ func (e *Executor) ExecuteDeployWithCallback(
 				}
 				_ = traefik.WriteDynamicConfig(dynamicDir, canonicalCfg)
 				sendLog("Deploy", fmt.Sprintf("Canonical domain routing updated to %s", containerName), false)
+
+				// Allow Traefik dynamic file provider to converge before terminating old containers
+				time.Sleep(1 * time.Second)
 			}
 		}
 	} else {
@@ -492,7 +515,8 @@ func (e *Executor) pruneOldDeployments(
 			}
 		}
 
-		_ = e.dockerCli.RawClient().ContainerStop(ctx, c.ID, container.StopOptions{})
+		stopTimeout := 10
+		_ = e.dockerCli.RawClient().ContainerStop(ctx, c.ID, container.StopOptions{Timeout: &stopTimeout})
 		_ = e.dockerCli.RawClient().ContainerRemove(ctx, c.ID, container.RemoveOptions{Force: true})
 
 		if commitPrefix != "" {

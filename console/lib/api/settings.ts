@@ -27,6 +27,7 @@ import {
   DomainVerificationResult,
   NotificationSettings,
   Notification,
+  SystemVersionInfo,
 } from '@/lib/types';
 import { getUserAvatarUrl } from '@/lib/avatar';
 import { sanitizeDomain } from '@/lib/utils/domain-validator';
@@ -717,3 +718,42 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   notifications = notifications.map((n) => ({ ...n, read: true }));
   await saveSettingToBFF('cluster_notifications', notifications);
 }
+
+export async function getSystemVersion(): Promise<SystemVersionInfo> {
+  if (typeof window !== 'undefined') {
+    try {
+      const res = await fetch('/api/system/version');
+      if (res.ok) {
+        return (await res.json()) as SystemVersionInfo;
+      }
+    } catch {}
+  }
+  return {
+    currentVersion: 'v1.0.0',
+    latestVersion: 'v1.0.0',
+    updateAvailable: false,
+    releaseUrl: 'https://github.com/gettako/tako/releases',
+    releaseNotes: 'Running the current release.',
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+export async function triggerSystemUpdate(target = 'all'): Promise<{ success: boolean; message: string }> {
+  if (typeof window !== 'undefined') {
+    const res = await fetch('/api/system/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to trigger system update');
+    }
+    return (await res.json()) as { success: boolean; message: string };
+  }
+  return {
+    success: true,
+    message: 'Update sequence started successfully.',
+  };
+}
+

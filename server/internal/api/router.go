@@ -106,6 +106,7 @@ func NewRouter(db *sql.DB, orch *orchestrator.Orchestrator) http.Handler {
 			registerMetricsRoutes(r, orch)
 			registerGitHubRoutes(r, orch)
 			registerBackupRoutes(r, orch)
+			registerSystemRoutes(r, orch)
 		}
 	})
 
