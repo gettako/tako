@@ -769,6 +769,28 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		})
 		defer sess.UnregisterDeployLogCallback(depID)
 
+		if srv.HealthCheckPath != "" {
+			envMap["TAKO_HEALTHCHECK_PATH"] = srv.HealthCheckPath
+			if srv.HealthCheckPort > 0 {
+				envMap["TAKO_HEALTHCHECK_PORT"] = fmt.Sprintf("%d", srv.HealthCheckPort)
+			}
+			if srv.HealthCheckInterval > 0 {
+				envMap["TAKO_HEALTHCHECK_INTERVAL"] = fmt.Sprintf("%d", srv.HealthCheckInterval)
+			}
+			if srv.HealthCheckTimeout > 0 {
+				envMap["TAKO_HEALTHCHECK_TIMEOUT"] = fmt.Sprintf("%d", srv.HealthCheckTimeout)
+			}
+			if srv.HealthCheckRetries > 0 {
+				envMap["TAKO_HEALTHCHECK_RETRIES"] = fmt.Sprintf("%d", srv.HealthCheckRetries)
+			}
+			if srv.HealthCheckInitialDelay > 0 {
+				envMap["TAKO_HEALTHCHECK_INITIAL_DELAY"] = fmt.Sprintf("%d", srv.HealthCheckInitialDelay)
+			}
+		}
+		if srv.MaintenanceMode == 1 {
+			envMap["TAKO_MAINTENANCE_MODE"] = "true"
+		}
+
 		deployReq := &takov1.DeployRequest{
 			DeploymentId:  depID,
 			ServiceId:     srv.ID,

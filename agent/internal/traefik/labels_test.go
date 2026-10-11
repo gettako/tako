@@ -114,4 +114,26 @@ func TestGenerateLabels(t *testing.T) {
 			t.Errorf("expected query /maintenance, got %s", labels["traefik.http.middlewares.shop-app-maintenance.errors.query"])
 		}
 	})
+
+	t.Run("Configurable Health Check Probe Labels", func(t *testing.T) {
+		labels := traefik.GenerateLabels(traefik.RouteConfig{
+			ServiceName:         "api-probe-test",
+			Domains:             []string{"probe.example.com"},
+			TargetPort:          3000,
+			EnableTLS:           false,
+			HealthCheckPath:     "/api/healthz",
+			HealthCheckInterval: 10,
+			HealthCheckTimeout:  3,
+		})
+
+		if labels["traefik.http.services.api-probe-test.loadbalancer.healthcheck.path"] != "/api/healthz" {
+			t.Errorf("expected health check path /api/healthz, got %s", labels["traefik.http.services.api-probe-test.loadbalancer.healthcheck.path"])
+		}
+		if labels["traefik.http.services.api-probe-test.loadbalancer.healthcheck.interval"] != "10s" {
+			t.Errorf("expected interval 10s, got %s", labels["traefik.http.services.api-probe-test.loadbalancer.healthcheck.interval"])
+		}
+		if labels["traefik.http.services.api-probe-test.loadbalancer.healthcheck.timeout"] != "3s" {
+			t.Errorf("expected timeout 3s, got %s", labels["traefik.http.services.api-probe-test.loadbalancer.healthcheck.timeout"])
+		}
+	})
 }

@@ -119,7 +119,22 @@ func WriteDynamicConfig(dir string, cfg RouteConfig) error {
 	// Service backend — MUST use the actual Docker container hostname
 	b.WriteString("  services:\n")
 	b.WriteString(fmt.Sprintf("    %s:\n", configName))
-	b.WriteString("      loadBalancer:\n        servers:\n")
+	b.WriteString("      loadBalancer:\n")
+	if cfg.HealthCheckPath != "" {
+		interval := cfg.HealthCheckInterval
+		if interval <= 0 {
+			interval = 15
+		}
+		timeout := cfg.HealthCheckTimeout
+		if timeout <= 0 {
+			timeout = 5
+		}
+		b.WriteString("        healthCheck:\n")
+		b.WriteString(fmt.Sprintf("          path: \"%s\"\n", cfg.HealthCheckPath))
+		b.WriteString(fmt.Sprintf("          interval: \"%ds\"\n", interval))
+		b.WriteString(fmt.Sprintf("          timeout: \"%ds\"\n", timeout))
+	}
+	b.WriteString("        servers:\n")
 	b.WriteString(fmt.Sprintf("          - url: \"http://%s:%d\"\n", containerHost, cfg.TargetPort))
 
 	filePath := filepath.Join(dir, fmt.Sprintf("%s.yml", configName))

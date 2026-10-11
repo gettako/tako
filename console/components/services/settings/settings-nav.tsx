@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Sliders, Cpu, Clock, Webhook, AlertTriangle } from 'lucide-react';
-import { cn } from 'cn';
+import { Sliders, Cpu, HeartPulse, Clock, Webhook, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-export type SettingsSection = 'general' | 'resources' | 'cron' | 'webhooks' | 'danger';
+export type SettingsSection = 'general' | 'resources' | 'healthcheck' | 'cron' | 'webhooks' | 'danger';
 
 interface SettingsNavProps {
   activeSection: SettingsSection;
@@ -33,6 +33,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Resource Limits',
     description: 'CPU, memory, and swap quotas',
     icon: Cpu,
+  },
+  {
+    id: 'healthcheck',
+    label: 'Health Check Probes',
+    description: 'HTTP & TCP container probes, interval, and retries',
+    icon: HeartPulse,
   },
   {
     id: 'cron',

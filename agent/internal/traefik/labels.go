@@ -16,11 +16,14 @@ type RouteConfig struct {
 	TargetPort    int
 	EnableTLS     bool
 	ForceHTTPS    bool
-	CertResolver  string
-	Network       string
-	Middlewares     []string
-	PathPrefix      string
-	MaintenanceMode bool
+	CertResolver        string
+	Network             string
+	Middlewares         []string
+	PathPrefix          string
+	MaintenanceMode     bool
+	HealthCheckPath     string
+	HealthCheckInterval int
+	HealthCheckTimeout  int
 }
 
 // SanitizeName cleans up service name for Traefik router/service identifiers.
@@ -99,6 +102,21 @@ func GenerateLabels(cfg RouteConfig) map[string]string {
 	// 1-Click Maintenance Mode error middleware
 	if cfg.MaintenanceMode {
 		AddMaintenanceMiddleware(labels, routerName)
+	}
+
+	// Configurable Traefik Load Balancer Health Check Probe
+	if cfg.HealthCheckPath != "" {
+		labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.healthcheck.path", routerName)] = cfg.HealthCheckPath
+		interval := cfg.HealthCheckInterval
+		if interval <= 0 {
+			interval = 15
+		}
+		labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.healthcheck.interval", routerName)] = fmt.Sprintf("%ds", interval)
+		timeout := cfg.HealthCheckTimeout
+		if timeout <= 0 {
+			timeout = 5
+		}
+		labels[fmt.Sprintf("traefik.http.services.%s.loadbalancer.healthcheck.timeout", routerName)] = fmt.Sprintf("%ds", timeout)
 	}
 
 	return labels

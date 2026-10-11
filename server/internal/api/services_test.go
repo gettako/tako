@@ -923,3 +923,87 @@ func TestServiceMaintenanceMode(t *testing.T) {
 		}
 	})
 }
+
+func TestServiceHealthCheckProbes(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := context.Background()
+
+	_, _ = orch.Queries().CreateProject(ctx, db.CreateProjectParams{
+		ID:          "prj-probe",
+		Name:        "Probe Prj",
+		Slug:        "probe-prj",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+	_, _ = orch.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+		NodeId:      "node-probe",
+		Name:        "Probe Node",
+		EnrollToken: "probe-token",
+	})
+
+	srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
+		ProjectID: "prj-probe",
+		NodeID:    "node-probe",
+		Name:      "Probe App",
+		Slug:      "probe-app",
+		Type:      "app",
+	})
+	if err != nil {
+		t.Fatalf("failed to create service: %v", err)
+	}
+
+	t.Run("Configure Health Check Probes via PATCH", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"healthCheckPath":         "/healthz",
+			"healthCheckPort":         8080,
+			"healthCheckInterval":     10,
+			"healthCheckTimeout":      4,
+			"healthCheckRetries":      5,
+			"healthCheckInitialDelay": 8,
+		}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/services/"+srv.ID, bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d (body: %s)", rec.Code, rec.Body.String())
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if res.HealthCheckPath != "/healthz" {
+			t.Errorf("expected healthCheckPath /healthz, got %s", res.HealthCheckPath)
+		}
+		if res.HealthCheckPort != 8080 {
+			t.Errorf("expected healthCheckPort 8080, got %d", res.HealthCheckPort)
+		}
+		if res.HealthCheckInterval != 10 {
+			t.Errorf("expected healthCheckInterval 10, got %d", res.HealthCheckInterval)
+		}
+		if res.HealthCheckTimeout != 4 {
+			t.Errorf("expected healthCheckTimeout 4, got %d", res.HealthCheckTimeout)
+		}
+		if res.HealthCheckRetries != 5 {
+			t.Errorf("expected healthCheckRetries 5, got %d", res.HealthCheckRetries)
+		}
+		if res.HealthCheckInitialDelay != 8 {
+			t.Errorf("expected healthCheckInitialDelay 8, got %d", res.HealthCheckInitialDelay)
+		}
+	})
+
+	t.Run("Verify Health Check Probes Persisted via GET", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srv.ID, nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if res.HealthCheckPath != "/healthz" || res.HealthCheckInterval != 10 || res.HealthCheckRetries != 5 {
+			t.Fatalf("health check probes not persisted properly: %+v", res)
+		}
+	})
+}

@@ -250,6 +250,38 @@ func (e *Executor) ExecuteDeployWithCallback(
 			binds = append(binds, fmt.Sprintf("tako-data-%s:/data/db", serviceName))
 		}
 
+		var healthConfig *container.HealthConfig
+		if healthPath := req.GetEnvVars()["TAKO_HEALTHCHECK_PATH"]; healthPath != "" {
+			interval := 15 * time.Second
+			if v, err := strconv.Atoi(req.GetEnvVars()["TAKO_HEALTHCHECK_INTERVAL"]); err == nil && v > 0 {
+				interval = time.Duration(v) * time.Second
+			}
+			timeout := 5 * time.Second
+			if v, err := strconv.Atoi(req.GetEnvVars()["TAKO_HEALTHCHECK_TIMEOUT"]); err == nil && v > 0 {
+				timeout = time.Duration(v) * time.Second
+			}
+			retries := 3
+			if v, err := strconv.Atoi(req.GetEnvVars()["TAKO_HEALTHCHECK_RETRIES"]); err == nil && v > 0 {
+				retries = v
+			}
+			startPeriod := 5 * time.Second
+			if v, err := strconv.Atoi(req.GetEnvVars()["TAKO_HEALTHCHECK_INITIAL_DELAY"]); err == nil && v > 0 {
+				startPeriod = time.Duration(v) * time.Second
+			}
+			checkPort := targetPort
+			if v, err := strconv.Atoi(req.GetEnvVars()["TAKO_HEALTHCHECK_PORT"]); err == nil && v > 0 {
+				checkPort = v
+			}
+			healthConfig = &container.HealthConfig{
+				Test:        []string{"CMD-SHELL", fmt.Sprintf("wget -q -O - http://127.0.0.1:%d%s > /dev/null || curl -f http://127.0.0.1:%d%s > /dev/null || exit 1", checkPort, healthPath, checkPort, healthPath)},
+				Interval:    interval,
+				Timeout:     timeout,
+				Retries:     retries,
+				StartPeriod: startPeriod,
+			}
+			sendLog("Deploy", fmt.Sprintf("Configured Docker health probe: GET http://127.0.0.1:%d%s (every %v, retries %d)", checkPort, healthPath, interval, retries), false)
+		}
+
 		resp, err := e.dockerCli.RawClient().ContainerCreate(
 			ctx,
 			&container.Config{
@@ -257,6 +289,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 				Env:          envList,
 				Labels:       traefikLabels,
 				ExposedPorts: exposedPorts,
+				Healthcheck:  healthConfig,
 			},
 			&container.HostConfig{
 				RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},
@@ -285,6 +318,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 						Env:          envList,
 						Labels:       traefikLabels,
 						ExposedPorts: exposedPorts,
+						Healthcheck:  healthConfig,
 					},
 					&container.HostConfig{
 						RestartPolicy: container.RestartPolicy{Name: "unless-stopped"},

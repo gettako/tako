@@ -6,6 +6,7 @@ import { useCronJobs } from '@/lib/queries';
 import { SettingsNav, SettingsSection } from './settings-nav';
 import { GeneralSettingsSection } from './general-settings-section';
 import { ResourceLimitsSection } from './resource-limits-section';
+import { HealthCheckSection } from './health-check-section';
 import { CronJobsSection } from './cron-jobs-section';
 import { WebhookSection } from './webhook-section';
 import { DangerZoneSection } from './danger-zone-section';
@@ -54,6 +55,13 @@ export function ServiceSettingsTab({
             service={service}
             onUpdate={onUpdateService}
             onRestart={onRestartService}
+          />
+        )}
+
+        {activeSection === 'healthcheck' && (
+          <HealthCheckSection
+            service={service}
+            onUpdate={onUpdateService}
           />
         )}
 
