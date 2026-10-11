@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings, Network, ShieldCheck, RotateCcw } from 'lucide-react';
+import { GitBranch, GitCommit, FolderGit2, Terminal, FileCode2, Save, Undo2, Loader2, Database, Settings, Network, ShieldCheck, RotateCcw, ShieldAlert } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { SectionHeader } from '@/components/ui/section-header';
 import { cn } from '@/lib/utils';
@@ -28,6 +28,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
   const [autoRollbackEnabled, setAutoRollbackEnabled] = useState(
     service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true
   );
+  const [maintenanceMode, setMaintenanceMode] = useState(Boolean(service.maintenanceMode));
   const [isSaving, setIsSaving] = useState(false);
 
   const isDirty =
@@ -38,7 +39,8 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     buildCommand !== (service.buildCommand || '') ||
     repository !== (service.repository || '') ||
     publishToHost !== (service.publishToHost !== undefined ? service.publishToHost : true) ||
-    autoRollbackEnabled !== (service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
+    autoRollbackEnabled !== (service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true) ||
+    maintenanceMode !== Boolean(service.maintenanceMode);
 
   useEffect(() => {
     if (!isDirty) {
@@ -50,6 +52,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
       setRepository(service.repository || '');
       setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
       setAutoRollbackEnabled(service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
+      setMaintenanceMode(Boolean(service.maintenanceMode));
     }
   }, [service, isDirty]);
 
@@ -62,6 +65,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
     setRepository(service.repository || '');
     setPublishToHost(service.publishToHost !== undefined ? service.publishToHost : true);
     setAutoRollbackEnabled(service.autoRollbackEnabled !== undefined ? service.autoRollbackEnabled : true);
+    setMaintenanceMode(Boolean(service.maintenanceMode));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -82,6 +86,7 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
         repository: repository.trim() || undefined,
         publishToHost,
         autoRollbackEnabled,
+        maintenanceMode,
       });
       toast.success('General settings saved successfully');
     } catch (err: unknown) {
@@ -207,6 +212,54 @@ export function GeneralSettingsSection({ service, onUpdate }: GeneralSettingsSec
           </div>
         </CardContent>
       </Card>
+
+      {/* 1-Click Maintenance Mode (Traefik 503) */}
+      {!isDatabase && (
+        <Card className={cn(
+          'p-6 transition-colors',
+          maintenanceMode
+            ? 'border-amber-500/40 bg-amber-500/5'
+            : 'border-border bg-card'
+        )}>
+          <CardHeader className="px-0 pt-0 pb-4">
+            <SectionHeader
+              icon={ShieldAlert}
+              title="1-Click Maintenance Mode (Traefik Ingress 503)"
+              description="Intercept public requests with HTTP 503 Service Unavailable during migrations or updates."
+            />
+          </CardHeader>
+
+          <CardContent className="px-0">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1 pr-4">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="maintenance-mode" className="text-sm font-semibold text-foreground cursor-pointer flex items-center gap-1.5">
+                    <ShieldAlert className={cn('size-4', maintenanceMode ? 'text-amber-500' : 'text-muted-foreground')} />
+                    Enable Maintenance Mode
+                  </Label>
+                  <span className={cn(
+                    'text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold',
+                    maintenanceMode
+                      ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40'
+                      : 'bg-muted text-muted-foreground'
+                  )}>
+                    {maintenanceMode ? 'Active (HTTP 503 Serving)' : 'Disabled (Normal Traffic)'}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground max-w-xl leading-relaxed">
+                  When enabled, Traefik immediately serves a customized HTTP 503 Service Unavailable maintenance page, preventing customer data corruption or broken UI experiences while schema migrations run.
+                </p>
+              </div>
+              <Switch
+                id="maintenance-mode"
+                checked={maintenanceMode}
+                onCheckedChange={setMaintenanceMode}
+                disabled={isSaving}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Build & Repository Settings for App / Compose */}
       {!isDatabase && (

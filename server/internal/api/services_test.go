@@ -832,3 +832,94 @@ func TestServiceActionsAndLimits(t *testing.T) {
 		}
 	})
 }
+
+func TestServiceMaintenanceMode(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := context.Background()
+
+	_, _ = orch.Queries().CreateProject(ctx, db.CreateProjectParams{
+		ID:          "prj-maint",
+		Name:        "Maintenance Prj",
+		Slug:        "maint-prj",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+	_, _ = orch.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+		NodeId:      "node-maint",
+		Name:        "Maint Node",
+		EnrollToken: "maint-token",
+	})
+
+	srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
+		ProjectID: "prj-maint",
+		NodeID:    "node-maint",
+		Name:      "Maint App",
+		Slug:      "maint-app",
+		Type:      "app",
+	})
+	if err != nil {
+		t.Fatalf("failed to create service: %v", err)
+	}
+
+	t.Run("Default Maintenance Mode is False", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srv.ID, nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if res.MaintenanceMode {
+			t.Fatalf("expected maintenanceMode to be false by default")
+		}
+	})
+
+	t.Run("1-Click Toggle Maintenance Mode ON", func(t *testing.T) {
+		payload := map[string]interface{}{"enabled": true}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/services/"+srv.ID+"/maintenance", bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if !res.MaintenanceMode {
+			t.Fatalf("expected maintenanceMode to be true after toggle")
+		}
+	})
+
+	t.Run("Verify Maintenance Mode is Persisted via GET", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srv.ID, nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if !res.MaintenanceMode {
+			t.Fatalf("expected maintenanceMode to be true on GET")
+		}
+	})
+
+	t.Run("Toggle Maintenance Mode OFF", func(t *testing.T) {
+		payload := map[string]interface{}{"enabled": false}
+		data, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/services/"+srv.ID+"/maintenance", bytes.NewReader(data))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		}
+		var res api.ServiceResponse
+		_ = json.NewDecoder(rec.Body).Decode(&res)
+		if res.MaintenanceMode {
+			t.Fatalf("expected maintenanceMode to be false after disabling")
+		}
+	})
+}

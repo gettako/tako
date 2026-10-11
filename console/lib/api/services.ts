@@ -52,6 +52,19 @@ export function normalizeService(s: Record<string, unknown>): Service {
         : s.auto_rollback_enabled !== undefined
         ? Boolean(s.auto_rollback_enabled)
         : true,
+    maintenanceMode:
+      s.maintenanceMode !== undefined
+        ? Boolean(s.maintenanceMode)
+        : s.maintenance_mode !== undefined
+        ? Boolean(s.maintenance_mode)
+        : false,
+    healthCheckPath: (s.healthCheckPath as string) || (s.health_check_path as string) || undefined,
+    healthCheckPort: s.healthCheckPort !== undefined ? Number(s.healthCheckPort) : s.health_check_port !== undefined ? Number(s.health_check_port) : undefined,
+    healthCheckInterval: s.healthCheckInterval !== undefined ? Number(s.healthCheckInterval) : s.health_check_interval !== undefined ? Number(s.health_check_interval) : undefined,
+    healthCheckTimeout: s.healthCheckTimeout !== undefined ? Number(s.healthCheckTimeout) : s.health_check_timeout !== undefined ? Number(s.health_check_timeout) : undefined,
+    healthCheckRetries: s.healthCheckRetries !== undefined ? Number(s.healthCheckRetries) : s.health_check_retries !== undefined ? Number(s.health_check_retries) : undefined,
+    healthCheckInitialDelay: s.healthCheckInitialDelay !== undefined ? Number(s.healthCheckInitialDelay) : s.health_check_initial_delay !== undefined ? Number(s.health_check_initial_delay) : undefined,
+    registryId: (s.registryId as string) || (s.registry_id as string) || undefined,
     autoScaling: s.autoScaling as Service['autoScaling'] | undefined,
     ports: Array.isArray(s.ports) ? (s.ports as number[]) : [80],
     domains,
@@ -163,6 +176,23 @@ export async function updateServiceStatus(
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || `Failed to update service status (HTTP ${res.status})`);
+  }
+  const s = await res.json();
+  return normalizeService(s);
+}
+
+export async function toggleServiceMaintenanceMode(
+  id: string,
+  enabled: boolean
+): Promise<Service> {
+  const res = await fetch(`/api/services/${encodeURIComponent(id)}/maintenance`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Failed to toggle maintenance mode (HTTP ${res.status})`);
   }
   const s = await res.json();
   return normalizeService(s);

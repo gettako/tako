@@ -91,4 +91,27 @@ func TestGenerateLabels(t *testing.T) {
 			t.Errorf("expected service hello-app-55d94782, got %s", labels["traefik.http.services.hello-app-55d94782.loadbalancer.server.port"])
 		}
 	})
+
+	t.Run("Maintenance Mode Error Middleware Attached", func(t *testing.T) {
+		labels := traefik.GenerateLabels(traefik.RouteConfig{
+			ServiceName:     "shop-app",
+			Domains:         []string{"shop.example.com"},
+			TargetPort:      80,
+			EnableTLS:       true,
+			MaintenanceMode: true,
+		})
+
+		if labels["traefik.http.routers.shop-app.middlewares"] != "shop-app-maintenance" {
+			t.Errorf("expected middleware shop-app-maintenance, got %s", labels["traefik.http.routers.shop-app.middlewares"])
+		}
+		if labels["traefik.http.middlewares.shop-app-maintenance.errors.status"] != "500-599" {
+			t.Errorf("expected status 500-599, got %s", labels["traefik.http.middlewares.shop-app-maintenance.errors.status"])
+		}
+		if labels["traefik.http.middlewares.shop-app-maintenance.errors.service"] != "tako-maintenance" {
+			t.Errorf("expected service tako-maintenance, got %s", labels["traefik.http.middlewares.shop-app-maintenance.errors.service"])
+		}
+		if labels["traefik.http.middlewares.shop-app-maintenance.errors.query"] != "/maintenance" {
+			t.Errorf("expected query /maintenance, got %s", labels["traefik.http.middlewares.shop-app-maintenance.errors.query"])
+		}
+	})
 }

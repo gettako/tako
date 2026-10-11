@@ -991,6 +991,44 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/maintenance:
+    post:
+      summary: Toggle service maintenance mode
+      description: Enables or disables 1-click maintenance mode with Traefik 503 error middleware.
+      operationId: toggleServiceMaintenanceMode
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - enabled
+              properties:
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Updated service object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/deployments:
     get:
       summary: List all deployments

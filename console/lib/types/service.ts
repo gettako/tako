@@ -51,6 +51,16 @@ export interface Service {
   
   // Deployment Safety
   autoRollbackEnabled?: boolean;
+  maintenanceMode?: boolean;
+
+  // Health Check Probes
+  healthCheckPath?: string;
+  healthCheckPort?: number;
+  healthCheckInterval?: number;
+  healthCheckTimeout?: number;
+  healthCheckRetries?: number;
+  healthCheckInitialDelay?: number;
+  registryId?: string;
 
   // Auto Scaling & Limits
   autoScaling?: {
@@ -88,6 +98,14 @@ export interface CreateServiceInput {
   publishToHost?: boolean;
   limits?: Partial<ResourceLimit>;
   autoRollbackEnabled?: boolean;
+  maintenanceMode?: boolean;
+  healthCheckPath?: string;
+  healthCheckPort?: number;
+  healthCheckInterval?: number;
+  healthCheckTimeout?: number;
+  healthCheckRetries?: number;
+  healthCheckInitialDelay?: number;
+  registryId?: string;
   autoScaling?: {
     enabled: boolean;
     minReplicas: number;
@@ -111,6 +129,14 @@ export interface UpdateServiceInput {
   image?: string;
   publishToHost?: boolean;
   autoRollbackEnabled?: boolean;
+  maintenanceMode?: boolean;
+  healthCheckPath?: string;
+  healthCheckPort?: number;
+  healthCheckInterval?: number;
+  healthCheckTimeout?: number;
+  healthCheckRetries?: number;
+  healthCheckInitialDelay?: number;
+  registryId?: string;
   limits?: Partial<ResourceLimit>;
   replicas?: number;
   autoScaling?: {

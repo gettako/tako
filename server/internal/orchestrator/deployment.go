@@ -46,27 +46,35 @@ type CreateServiceParams struct {
 }
 
 type UpdateServiceParams struct {
-	Name                *string
-	Repository          *string
-	Branch              *string
-	CommitHash          *string
-	Dockerfile          *string
-	BuildCommand        *string
-	Image               *string
-	Replicas            *int64
-	PublishToHost       *bool
-	CPULimit            *float64
-	MemoryLimitMB       *int64
-	SwapLimitMB         *int64
-	AutoRollbackEnabled *bool
-	AutoScalingEnabled  *bool
-	AutoScalingMetric   *string
-	TargetMemoryPercent *float64
-	ScaleDownCPUPercent *float64
-	CooldownSeconds     *int64
-	MinReplicas         *int64
-	MaxReplicas         *int64
-	TargetCPUPercent    *float64
+	Name                    *string
+	Repository              *string
+	Branch                  *string
+	CommitHash              *string
+	Dockerfile              *string
+	BuildCommand            *string
+	Image                   *string
+	Replicas                *int64
+	PublishToHost           *bool
+	CPULimit                *float64
+	MemoryLimitMB           *int64
+	SwapLimitMB             *int64
+	AutoRollbackEnabled     *bool
+	AutoScalingEnabled      *bool
+	AutoScalingMetric       *string
+	TargetMemoryPercent     *float64
+	ScaleDownCPUPercent     *float64
+	CooldownSeconds         *int64
+	MinReplicas             *int64
+	MaxReplicas             *int64
+	TargetCPUPercent        *float64
+	MaintenanceMode         *bool
+	HealthCheckPath         *string
+	HealthCheckPort         *int32
+	HealthCheckInterval     *int32
+	HealthCheckTimeout      *int32
+	HealthCheckRetries      *int32
+	HealthCheckInitialDelay *int32
+	RegistryID              *string
 }
 
 func fallbackVal[T comparable](ptr *T, fallback T) T {
@@ -169,6 +177,34 @@ func (o *Orchestrator) UpdateService(ctx context.Context, id string, p UpdateSer
 	}
 	if p.TargetCPUPercent != nil {
 		_, _ = o.db.ExecContext(ctx, "UPDATE services SET target_cpu_percent = ? WHERE id = ?", *p.TargetCPUPercent, id)
+	}
+	if p.MaintenanceMode != nil {
+		mVal := int64(0)
+		if *p.MaintenanceMode {
+			mVal = 1
+		}
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET maintenance_mode = ? WHERE id = ?", mVal, id)
+	}
+	if p.HealthCheckPath != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET health_check_path = ? WHERE id = ?", *p.HealthCheckPath, id)
+	}
+	if p.HealthCheckPort != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET health_check_port = ? WHERE id = ?", *p.HealthCheckPort, id)
+	}
+	if p.HealthCheckInterval != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET health_check_interval = ? WHERE id = ?", *p.HealthCheckInterval, id)
+	}
+	if p.HealthCheckTimeout != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET health_check_timeout = ? WHERE id = ?", *p.HealthCheckTimeout, id)
+	}
+	if p.HealthCheckRetries != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET health_check_retries = ? WHERE id = ?", *p.HealthCheckRetries, id)
+	}
+	if p.HealthCheckInitialDelay != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET health_check_initial_delay = ? WHERE id = ?", *p.HealthCheckInitialDelay, id)
+	}
+	if p.RegistryID != nil {
+		_, _ = o.db.ExecContext(ctx, "UPDATE services SET registry_id = ? WHERE id = ?", *p.RegistryID, id)
 	}
 
 	updated, err := o.queries.GetServiceByID(ctx, id)

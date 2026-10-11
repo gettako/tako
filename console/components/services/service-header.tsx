@@ -16,11 +16,13 @@ import {
   CheckCircle2,
   Play,
   Copy,
+  ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { Service, Deployment } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { toggleServiceMaintenanceMode } from '@/lib/api/services';
 
 export interface ServiceHeaderProps {
   service: Service;
@@ -33,6 +35,7 @@ export interface ServiceHeaderProps {
   onRestart?: () => void;
   onStop?: () => void;
   onStart?: () => void;
+  onToggleMaintenance?: (enabled: boolean) => Promise<void>;
 }
 
 export function ServiceHeader({
@@ -46,8 +49,30 @@ export function ServiceHeader({
   onRestart,
   onStop,
   onStart,
+  onToggleMaintenance,
 }: ServiceHeaderProps) {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [isTogglingMaintenance, setIsTogglingMaintenance] = useState(false);
+
+  const handleToggleMaintenance = async () => {
+    const nextState = !service.maintenanceMode;
+    try {
+      setIsTogglingMaintenance(true);
+      if (onToggleMaintenance) {
+        await onToggleMaintenance(nextState);
+      } else {
+        await toggleServiceMaintenanceMode(service.id, nextState);
+      }
+      setActionMessage(nextState ? 'Maintenance mode enabled (HTTP 503)' : 'Maintenance mode disabled');
+      setTimeout(() => setActionMessage(null), 3500);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to toggle maintenance mode';
+      setActionMessage(`Error: ${msg}`);
+      setTimeout(() => setActionMessage(null), 3500);
+    } finally {
+      setIsTogglingMaintenance(false);
+    }
+  };
 
   const primaryDomain = service.domains.find((d) => d.primary) || service.domains[0];
   const isStopped = service.status === 'stopped';
@@ -119,6 +144,28 @@ export function ServiceHeader({
         <div className="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/20 px-3.5 py-2 text-xs font-medium text-primary animate-in fade-in-0 duration-200">
           <CheckCircle2 className="size-4 shrink-0 text-primary" />
           <span>{actionMessage}</span>
+        </div>
+      )}
+
+      {/* Maintenance Mode Alert Banner */}
+      {service.maintenanceMode && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg bg-amber-500/10 border border-amber-500/30 p-3.5 text-xs text-amber-700 dark:text-amber-300 animate-in fade-in-0 duration-200">
+          <div className="flex items-center gap-2.5">
+            <ShieldAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <span className="font-semibold">Maintenance Mode Active:</span>
+              {' '}Traefik Ingress is currently routing all traffic to an HTTP 503 Service Unavailable page.
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isTogglingMaintenance}
+            onClick={handleToggleMaintenance}
+            className="border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 shrink-0 self-start sm:self-auto h-7 text-xs font-medium cursor-pointer"
+          >
+            Turn Off Maintenance
+          </Button>
         </div>
       )}
 
@@ -242,6 +289,23 @@ export function ServiceHeader({
               >
                 <RefreshCw className="size-3.5" />
                 <span>Rebuild</span>
+              </Button>
+
+              <Button
+                variant={service.maintenanceMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={handleToggleMaintenance}
+                disabled={isTogglingMaintenance}
+                className={cn(
+                  'gap-1.5 text-sm h-9 cursor-pointer transition-all',
+                  service.maintenanceMode
+                    ? 'bg-amber-600 hover:bg-amber-700 text-white font-medium border-amber-600 shadow-xs'
+                    : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/30'
+                )}
+                title={service.maintenanceMode ? 'Disable maintenance mode' : 'Enable 1-click maintenance mode'}
+              >
+                <ShieldAlert className={cn('size-3.5', service.maintenanceMode && 'animate-pulse')} />
+                <span>{service.maintenanceMode ? 'Maintenance ON' : 'Maintenance'}</span>
               </Button>
             </>
           )}

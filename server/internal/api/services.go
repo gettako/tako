@@ -107,11 +107,19 @@ type ServiceResponse struct {
 	AutoRollbackEnabled bool                        `json:"autoRollbackEnabled"`
 	Replicas            int64                       `json:"replicas"`
 	Limits              ServiceLimitsResponse       `json:"limits"`
-	Usage               *ServiceUsageResponse       `json:"usage,omitempty"`
-	AutoScaling         *ServiceAutoScalingResponse `json:"autoScaling,omitempty"`
-	EnvVars             []ServiceEnvVarResponse     `json:"envVars,omitempty"`
-	CreatedAt           string                      `json:"createdAt"`
-	UpdatedAt           string                      `json:"updatedAt"`
+	Usage                   *ServiceUsageResponse       `json:"usage,omitempty"`
+	AutoScaling             *ServiceAutoScalingResponse `json:"autoScaling,omitempty"`
+	EnvVars                 []ServiceEnvVarResponse     `json:"envVars,omitempty"`
+	MaintenanceMode         bool                        `json:"maintenanceMode"`
+	HealthCheckPath         string                      `json:"healthCheckPath,omitempty"`
+	HealthCheckPort         int32                       `json:"healthCheckPort,omitempty"`
+	HealthCheckInterval     int32                       `json:"healthCheckInterval,omitempty"`
+	HealthCheckTimeout      int32                       `json:"healthCheckTimeout,omitempty"`
+	HealthCheckRetries      int32                       `json:"healthCheckRetries,omitempty"`
+	HealthCheckInitialDelay int32                       `json:"healthCheckInitialDelay,omitempty"`
+	RegistryID              string                      `json:"registryId,omitempty"`
+	CreatedAt               string                      `json:"createdAt"`
+	UpdatedAt               string                      `json:"updatedAt"`
 }
 
 type ServiceEnrichment struct {
@@ -226,11 +234,19 @@ func mapServiceToResponse(s db.Service, domains []string, envVars []ServiceEnvVa
 			MemoryMB: s.MemoryLimitMb,
 			SwapMB:   swapMb,
 		},
-		Usage:       usage,
-		AutoScaling: autoScaling,
-		EnvVars:     envVars,
-		CreatedAt:   s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt:   s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Usage:                   usage,
+		AutoScaling:             autoScaling,
+		EnvVars:                 envVars,
+		MaintenanceMode:         s.MaintenanceMode != 0,
+		HealthCheckPath:         s.HealthCheckPath,
+		HealthCheckPort:         int32(s.HealthCheckPort),
+		HealthCheckInterval:     int32(s.HealthCheckInterval),
+		HealthCheckTimeout:      int32(s.HealthCheckTimeout),
+		HealthCheckRetries:      int32(s.HealthCheckRetries),
+		HealthCheckInitialDelay: int32(s.HealthCheckInitialDelay),
+		RegistryID:              s.RegistryID,
+		CreatedAt:               s.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:               s.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 
@@ -473,6 +489,14 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					ScaleDownCPUPercent *float64 `json:"scaleDownCpuPercent"`
 					CooldownSeconds     *int64   `json:"cooldownSeconds"`
 				} `json:"autoScaling"`
+				MaintenanceMode         *bool   `json:"maintenanceMode"`
+				HealthCheckPath         *string `json:"healthCheckPath"`
+				HealthCheckPort         *int32  `json:"healthCheckPort"`
+				HealthCheckInterval     *int32  `json:"healthCheckInterval"`
+				HealthCheckTimeout      *int32  `json:"healthCheckTimeout"`
+				HealthCheckRetries      *int32  `json:"healthCheckRetries"`
+				HealthCheckInitialDelay *int32  `json:"healthCheckInitialDelay"`
+				RegistryID              *string `json:"registryId"`
 			}
 			if err := DecodeJSON(r, &req); err != nil {
 				RespondError(w, http.StatusBadRequest, "invalid request body")
@@ -509,31 +533,41 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			hasConfigUpdate := req.Name != nil || req.Repository != nil || req.Branch != nil ||
 				req.CommitHash != nil || req.Dockerfile != nil || req.BuildCommand != nil ||
 				req.Image != nil || req.Replicas != nil || req.PublishToHost != nil || cpuPtr != nil || memPtr != nil || swapPtr != nil ||
-				req.AutoScaling != nil || req.AutoRollbackEnabled != nil
+				req.AutoScaling != nil || req.AutoRollbackEnabled != nil || req.MaintenanceMode != nil ||
+				req.HealthCheckPath != nil || req.HealthCheckPort != nil || req.HealthCheckInterval != nil ||
+				req.HealthCheckTimeout != nil || req.HealthCheckRetries != nil || req.HealthCheckInitialDelay != nil || req.RegistryID != nil
 
 			if hasConfigUpdate {
 				updated, updateErr := orch.UpdateService(r.Context(), id, orchestrator.UpdateServiceParams{
-					Name:                req.Name,
-					Repository:          req.Repository,
-					Branch:              req.Branch,
-					CommitHash:          req.CommitHash,
-					Dockerfile:          req.Dockerfile,
-					BuildCommand:        req.BuildCommand,
-					Image:               req.Image,
-					Replicas:            req.Replicas,
-					PublishToHost:       req.PublishToHost,
-					CPULimit:            cpuPtr,
-					MemoryLimitMB:       memPtr,
-					SwapLimitMB:         swapPtr,
-					AutoRollbackEnabled: req.AutoRollbackEnabled,
-					AutoScalingEnabled:  asEnabledPtr,
-					AutoScalingMetric:   asMetricPtr,
-					TargetMemoryPercent: targetMemPtr,
-					ScaleDownCPUPercent: scaleDownCPUPtr,
-					CooldownSeconds:     cooldownPtr,
-					MinReplicas:         minRPtr,
-					MaxReplicas:         maxRPtr,
-					TargetCPUPercent:    targetCPUPtr,
+					Name:                    req.Name,
+					Repository:              req.Repository,
+					Branch:                  req.Branch,
+					CommitHash:              req.CommitHash,
+					Dockerfile:              req.Dockerfile,
+					BuildCommand:            req.BuildCommand,
+					Image:                   req.Image,
+					Replicas:                req.Replicas,
+					PublishToHost:           req.PublishToHost,
+					CPULimit:                cpuPtr,
+					MemoryLimitMB:           memPtr,
+					SwapLimitMB:             swapPtr,
+					AutoRollbackEnabled:     req.AutoRollbackEnabled,
+					AutoScalingEnabled:      asEnabledPtr,
+					AutoScalingMetric:       asMetricPtr,
+					TargetMemoryPercent:     targetMemPtr,
+					ScaleDownCPUPercent:     scaleDownCPUPtr,
+					CooldownSeconds:         cooldownPtr,
+					MinReplicas:             minRPtr,
+					MaxReplicas:             maxRPtr,
+					TargetCPUPercent:        targetCPUPtr,
+					MaintenanceMode:         req.MaintenanceMode,
+					HealthCheckPath:         req.HealthCheckPath,
+					HealthCheckPort:         req.HealthCheckPort,
+					HealthCheckInterval:     req.HealthCheckInterval,
+					HealthCheckTimeout:      req.HealthCheckTimeout,
+					HealthCheckRetries:      req.HealthCheckRetries,
+					HealthCheckInitialDelay: req.HealthCheckInitialDelay,
+					RegistryID:              req.RegistryID,
 				})
 				if updateErr != nil {
 					RespondError(w, http.StatusInternalServerError, updateErr.Error())
@@ -622,6 +656,31 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domainStrings, envResponses, ServiceEnrichment{
 				DomainDetails: domainDetails,
 			}))
+		})
+
+		// POST /api/v1/services/{id}/maintenance
+		r.Post("/{id}/maintenance", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			var req struct {
+				Enabled bool `json:"enabled"`
+			}
+			if err := DecodeJSON(r, &req); err != nil {
+				RespondError(w, http.StatusBadRequest, "invalid request body")
+				return
+			}
+			updated, err := orch.UpdateService(r.Context(), id, orchestrator.UpdateServiceParams{
+				MaintenanceMode: &req.Enabled,
+			})
+			if err != nil {
+				RespondError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+			domainsDB, _ := orch.Queries().ListServiceDomains(r.Context(), updated.ID)
+			domains := make([]string, 0, len(domainsDB))
+			for _, d := range domainsDB {
+				domains = append(domains, d.Domain)
+			}
+			RespondJSON(w, http.StatusOK, mapServiceToResponse(*updated, domains, nil))
 		})
 
 		// Domains

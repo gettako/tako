@@ -18,8 +18,9 @@ type RouteConfig struct {
 	ForceHTTPS    bool
 	CertResolver  string
 	Network       string
-	Middlewares   []string
-	PathPrefix    string
+	Middlewares     []string
+	PathPrefix      string
+	MaintenanceMode bool
 }
 
 // SanitizeName cleans up service name for Traefik router/service identifiers.
@@ -95,7 +96,23 @@ func GenerateLabels(cfg RouteConfig) map[string]string {
 		labels[fmt.Sprintf("traefik.http.routers.%s.middlewares", routerName)] = strings.Join(cfg.Middlewares, ",")
 	}
 
+	// 1-Click Maintenance Mode error middleware
+	if cfg.MaintenanceMode {
+		AddMaintenanceMiddleware(labels, routerName)
+	}
+
 	return labels
+}
+
+// AddMaintenanceMiddleware adds Traefik error middleware routing HTTP errors/maintenance to /maintenance.
+func AddMaintenanceMiddleware(labels map[string]string, serviceName string) {
+	name := SanitizeName(serviceName)
+	mwName := fmt.Sprintf("%s-maintenance", name)
+	labels[fmt.Sprintf("traefik.http.middlewares.%s.errors.status", mwName)] = "500-599"
+	labels[fmt.Sprintf("traefik.http.middlewares.%s.errors.service", mwName)] = "tako-maintenance"
+	labels[fmt.Sprintf("traefik.http.middlewares.%s.errors.query", mwName)] = "/maintenance"
+
+	appendMiddleware(labels, name, mwName)
 }
 
 // AddRateLimitMiddleware adds a rate limiting middleware definition and attaches it to the router.
