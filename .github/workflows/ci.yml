@@ -1,0 +1,123 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-openapi:
+    name: Validate OpenAPI Specification & Docs Sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: server/go.sum
+
+      - name: Validate All Server Endpoints Documented
+        run: |
+          cd server
+          go test -v -count=1 -run TestAllServerEndpointsDocumentedInOpenAPI ./internal/api/...
+
+      - name: Lint OpenAPI 3.1 Specification
+        run: |
+          npx -y @redocly/cli lint api/openapi.yaml
+
+      - name: Verify Docs Synchronization
+        run: |
+          cmp -s api/openapi.yaml docs/api-reference/openapi.yaml || (echo "Error: docs/api-reference/openapi.yaml is out of sync with api/openapi.yaml" && exit 1)
+          cmp -s api/openapi.yaml docs/openapi.yaml || (echo "Error: docs/openapi.yaml is out of sync with api/openapi.yaml" && exit 1)
+
+  test-go:
+    name: Go Tests & Race Detector (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        module: [server, agent]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+
+      - name: Run Tests with Race Detector
+        run: |
+          cd ${{ matrix.module }}
+          go test -v -race -count=1 ./...
+
+  test-console:
+    name: Next.js Console Typecheck & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: |
+          cd console
+          bun install --frozen-lockfile
+
+      - name: Run Typecheck
+        run: |
+          cd console
+          bun run typecheck
+
+      - name: Verify Production Next.js Build
+        run: |
+          cd console
+          bun run build
+
+  verify-docker-builds:
+    name: Verify Docker Container Builds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Server Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: server/Dockerfile
+          push: false
+          tags: tako-server:local
+
+      - name: Build Agent Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: agent/Dockerfile
+          push: false
+          tags: tako-agent:local
+
+      - name: Build Console Container
+        uses: docker/build-push-action@v5
+        with:
+          context: console
+          file: console/Dockerfile
+          push: false
+          tags: tako-console:local

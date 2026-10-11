@@ -1,21 +1,30 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Tako PaaS Universal Installer Script
+# Tako PaaS Universal Installer Script (Git Clone & Local Build)
 # https://gettako.dev
 #
 # Usage:
-#   Master Node:  curl -fsSL https://gettako.dev/install.sh | bash
-#   Worker Node:  curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent
+#   Master Node:
+#     curl -fsSL https://gettako.dev/install.sh | bash
+#     # Atau jika clone manual:
+#     ./install.sh
+#
+#   Worker Node:
+#     curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent --token <TOKEN> --master <MASTER_IP:50051>
 # ==============================================================================
 
 set -euo pipefail
 
-TAKO_VERSION="latest"
+TAKO_REPO="${TAKO_REPO:-https://github.com/gettako/tako.git}"
+TAKO_BRANCH="${TAKO_BRANCH:-main}"
 TAKO_DIR="${TAKO_DIR:-/opt/tako}"
 IS_AGENT=0
 AGENT_TOKEN="${TAKO_AGENT_TOKEN:-}"
+MASTER_URL="${TAKO_MASTER_URL:-}"
+ADMIN_EMAIL="${TAKO_EMAIL:-}"
+ADMIN_PASSWORD="${TAKO_PASSWORD:-}"
 
-# Parse arguments
+# Parse command line flags
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --agent|-a)
@@ -26,8 +35,28 @@ while [[ $# -gt 0 ]]; do
       AGENT_TOKEN="$2"
       shift 2
       ;;
-    --version|-v)
-      TAKO_VERSION="$2"
+    --master|-m)
+      MASTER_URL="$2"
+      shift 2
+      ;;
+    --branch|-b)
+      TAKO_BRANCH="$2"
+      shift 2
+      ;;
+    --repo|-r)
+      TAKO_REPO="$2"
+      shift 2
+      ;;
+    --dir|-d)
+      TAKO_DIR="$2"
+      shift 2
+      ;;
+    --email|-e)
+      ADMIN_EMAIL="$2"
+      shift 2
+      ;;
+    --password|-p)
+      ADMIN_PASSWORD="$2"
       shift 2
       ;;
     *)
@@ -41,6 +70,7 @@ BOLD='\033[1m'
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
@@ -51,12 +81,13 @@ echo "   | |/ _\` | |/ / _ \\"
 echo "   | | (_| |   < (_) |"
 echo "   |_|\\__,_|_|\\_\\___/ "
 echo -e "${NC}"
-echo -e "${BOLD}Tako PaaS Installer (${TAKO_VERSION})${NC}"
+echo -e "${BOLD}Tako PaaS Installer (Source Clone & Local Build)${NC}"
+echo "Branch: ${TAKO_BRANCH} | Target Directory: ${TAKO_DIR}"
 echo "--------------------------------------------------"
 
 # 1. Root & OS Verification
 if [[ $EUID -ne 0 ]]; then
-  echo -e "${RED}[ERROR] This installer must be run as root (or via sudo).${NC}"
+  echo -e "${RED}[ERROR] Installer ini harus dijalankan sebagai root (atau via sudo).${NC}"
   exit 1
 fi
 
@@ -64,35 +95,58 @@ OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
 
 case "$ARCH" in
-  x86_64)  ARCH="amd64" ;;
+  x86_64) ARCH="amd64" ;;
   aarch64|arm64) ARCH="arm64" ;;
   *)
-    echo -e "${RED}[ERROR] Unsupported architecture: $ARCH${NC}"
+    echo -e "${RED}[ERROR] Arsitektur tidak didukung: $ARCH${NC}"
     exit 1
     ;;
 esac
 
-echo -e "${GREEN}✓ Host detected:${NC} OS=$OS, Arch=$ARCH"
+echo -e "${GREEN}✓ Host terdeteksi:${NC} OS=$OS, Arch=$ARCH"
 
-# 2. Docker Check & Auto-Installation
+# 2. Git Check & Auto-Installation
+if ! command -v git &> /dev/null; then
+  echo -e "${YELLOW}Git tidak ditemukan. Memasang git...${NC}"
+  if command -v apt-get &> /dev/null; then
+    apt-get update -qq && apt-get install -y -qq git
+  elif command -v yum &> /dev/null; then
+    yum install -y git
+  elif command -v dnf &> /dev/null; then
+    dnf install -y git
+  elif command -v pacman &> /dev/null; then
+    pacman -Sy --noconfirm git
+  elif command -v apk &> /dev/null; then
+    apk add --no-cache git
+  else
+    echo -e "${RED}[ERROR] Silakan pasang git terlebih dahulu di sistem Anda.${NC}"
+    exit 1
+  fi
+  echo -e "${GREEN}✓ Git berhasil dipasang.${NC}"
+else
+  echo -e "${GREEN}✓ Git sudah terpasang.${NC}"
+fi
+
+# 3. Docker Check & Auto-Installation
 if ! command -v docker &> /dev/null; then
-  echo -e "${YELLOW}Docker not found. Installing Docker engine...${NC}"
+  echo -e "${YELLOW}Docker tidak ditemukan. Memasang Docker engine...${NC}"
   curl -fsSL https://get.docker.com | sh
   if command -v systemctl &> /dev/null; then
     systemctl enable --now docker
   fi
-  echo -e "${GREEN}✓ Docker successfully installed.${NC}"
+  echo -e "${GREEN}✓ Docker engine berhasil dipasang.${NC}"
 else
-  echo -e "${GREEN}✓ Docker is already installed.${NC}"
+  echo -e "${GREEN}✓ Docker engine sudah terpasang.${NC}"
 fi
 
 # Ensure docker compose plugin is available
 if ! docker compose version &> /dev/null; then
-  echo -e "${RED}[ERROR] Docker Compose v2 plugin is required.${NC}"
+  echo -e "${RED}[ERROR] Docker Compose v2 plugin wajib tersedia.${NC}"
   exit 1
 fi
+echo -e "${GREEN}✓ Docker Compose v2 terverifikasi.${NC}"
 
-# 3. Detect Host IPs (Public & Private)
+# 4. Detect Host IPs (Public & Private)
 detect_public_ip() {
   local ip=""
   if [[ -n "${TAKO_PUBLIC_IP:-}" ]]; then
@@ -121,12 +175,10 @@ detect_private_ip() {
     echo "$TAKO_PRIVATE_IP"
     return
   fi
-  # 1. Best source: outbound interface IP via ip route
   ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}') || true
   if [[ -z "$ip" ]]; then
     ip=$(ip -4 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src") print $(i+1)}') || true
   fi
-  # 2. Interface inspection fallback: filter loopback, docker bridge (172.16-31.x, 10.0.0.x docker0)
   if [[ -z "$ip" ]]; then
     for cand in $(hostname -I 2>/dev/null); do
       if [[ ! "$cand" =~ ^127\. ]] && [[ ! "$cand" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] && [[ ! "$cand" =~ ^10\.0\.0\. ]]; then
@@ -144,7 +196,17 @@ detect_private_ip() {
 PUBLIC_IP="$(detect_public_ip)"
 PRIVATE_IP="$(detect_private_ip)"
 
-# 4. Interactive Reader via /dev/tty
+# Cryptographically Secure Random String Generator
+generate_random_secret() {
+  local len="${1:-32}"
+  if command -v openssl &>/dev/null; then
+    openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c "$len"
+  else
+    head -c 64 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c "$len"
+  fi
+}
+
+# Interactive Helpers
 prompt_input() {
   local prompt_text="$1"
   local default_val="$2"
@@ -169,7 +231,7 @@ prompt_secret() {
   local input=""
 
   if [[ -t 0 ]] || [[ -c /dev/tty ]]; then
-    echo -en "${BOLD}${prompt_text} [hidden]: ${NC}" > /dev/tty
+    echo -en "${BOLD}${prompt_text}: ${NC}" > /dev/tty
     read -rs input < /dev/tty || true
     echo "" > /dev/tty
   fi
@@ -180,10 +242,26 @@ prompt_secret() {
   eval "$var_name=\"$input\""
 }
 
+# 5. Setup Source Code Directory (Clone or Reuse Existing Working Directory)
 mkdir -p "${TAKO_DIR}/data"
 mkdir -p /etc/tako/traefik/dynamic
 
-# Write default Traefik config to physical host /etc/tako/traefik/traefik.yml
+if [[ -f "./server/Dockerfile" ]] && [[ -f "./console/Dockerfile" ]]; then
+  TAKO_SRC_DIR="$(pwd)"
+  echo -e "${GREEN}✓ Menggunakan direktori repositori lokal saat ini:${NC} ${TAKO_SRC_DIR}"
+else
+  TAKO_SRC_DIR="${TAKO_DIR}/src"
+  if [[ ! -d "${TAKO_SRC_DIR}/.git" ]]; then
+    echo -e "${YELLOW}Meng-clone repositori Tako (${TAKO_REPO} @ ${TAKO_BRANCH})...${NC}"
+    mkdir -p "${TAKO_DIR}"
+    git clone --depth 1 -b "${TAKO_BRANCH}" "${TAKO_REPO}" "${TAKO_SRC_DIR}"
+  else
+    echo -e "${YELLOW}Memperbarui source code repositori di ${TAKO_SRC_DIR}...${NC}"
+    (cd "${TAKO_SRC_DIR}" && git fetch origin "${TAKO_BRANCH}" && git reset --hard "origin/${TAKO_BRANCH}")
+  fi
+fi
+
+# Write Traefik baseline config
 cat << 'EOF' > /etc/tako/traefik/traefik.yml
 global:
   checkNewVersion: false
@@ -219,36 +297,48 @@ EOF
 touch /etc/tako/traefik/acme.json
 chmod 600 /etc/tako/traefik/acme.json
 
-# Create network if not exists
+# Create docker network if not exists
 docker network inspect tako-network >/dev/null 2>&1 || docker network create --driver bridge tako-network
 
 # ==============================================================================
 # MODE: WORKER AGENT
 # ==============================================================================
 if [[ $IS_AGENT -eq 1 ]]; then
-  echo -e "\n${BOLD}=== Configuring Tako Worker Node ===${NC}\n"
+  echo -e "\n${BOLD}=== Konfigurasi Tako Worker Node ===${NC}\n"
 
-  MASTER_URL="${TAKO_MASTER_URL:-}"
-  AGENT_TOKEN="${AGENT_TOKEN:-${TAKO_AGENT_TOKEN:-}}"
   NODE_NAME="${TAKO_NODE_NAME:-$(hostname)}"
   NODE_IP="${TAKO_PUBLIC_IP:-$PUBLIC_IP}"
   NODE_PRIVATE_IP="${TAKO_PRIVATE_IP:-$PRIVATE_IP}"
 
   if [[ -z "$MASTER_URL" ]]; then
-    prompt_input "Enter Master gRPC URL (<master-ip>:50051)" "${PUBLIC_IP}:50051" MASTER_URL
+    prompt_input "Masukkan Master gRPC URL (<master-ip>:50051)" "${PUBLIC_IP}:50051" MASTER_URL
   fi
 
   if [[ -z "$AGENT_TOKEN" ]]; then
-    prompt_secret "Enter Agent Enrollment Token" "master-enroll-token" AGENT_TOKEN
+    prompt_secret "Masukkan Enrollment Token dari Master Server" "" AGENT_TOKEN
+    if [[ -z "$AGENT_TOKEN" ]]; then
+      echo -e "${RED}[ERROR] Enrollment Token wajib diisi untuk worker node.${NC}"
+      exit 1
+    fi
   fi
 
   if [[ -z "${TAKO_PUBLIC_IP:-}" ]]; then
-    prompt_input "Enter Node Public IP" "$NODE_IP" NODE_IP
+    prompt_input "Masukkan Node Public IP" "$NODE_IP" NODE_IP
   fi
 
   if [[ -z "${TAKO_PRIVATE_IP:-}" ]]; then
-    prompt_input "Enter Node Private IP" "$NODE_PRIVATE_IP" NODE_PRIVATE_IP
+    prompt_input "Masukkan Node Private IP" "$NODE_PRIVATE_IP" NODE_PRIVATE_IP
   fi
+
+  # Simpan konfigurasi worker
+  cat << EOF > "${TAKO_DIR}/.env"
+TAKO_MASTER_URL=${MASTER_URL}
+TAKO_AGENT_TOKEN=${AGENT_TOKEN}
+TAKO_NODE_NAME=${NODE_NAME}
+TAKO_PUBLIC_IP=${NODE_IP}
+TAKO_PRIVATE_IP=${NODE_PRIVATE_IP}
+EOF
+  chmod 600 "${TAKO_DIR}/.env"
 
   cat << EOF > "${TAKO_DIR}/docker-compose.yml"
 services:
@@ -262,24 +352,30 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - /etc/tako/traefik/acme.json:/acme.json
     networks:
       - tako-network
 
   agent:
-    image: ghcr.io/gettako/tako-agent:latest
+    build:
+      context: ${TAKO_SRC_DIR}
+      dockerfile: agent/Dockerfile
+    image: tako-agent:local
     container_name: tako-agent
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/os-release:/etc/os-release:ro
       - /etc/tako/traefik/dynamic:/etc/tako/traefik/dynamic
       - ./data/agent:/data
       - /proc/sysrq-trigger:/host-sysrq-trigger
     environment:
       - TAKO_SERVER_ADDR=${MASTER_URL}
+      - TAKO_MASTER_URL=${MASTER_URL}
       - TAKO_ENROLL_TOKEN=${AGENT_TOKEN}
       - TAKO_NODE_NAME=${NODE_NAME}
+      - TAKO_NODE_ROLE=worker
       - TAKO_PUBLIC_IP=${NODE_IP}
       - TAKO_IP_ADDRESS=${NODE_PRIVATE_IP}
       - TAKO_METRICS_INTERVAL=3s
@@ -292,40 +388,87 @@ networks:
     external: true
 EOF
 
-  echo -e "\n${YELLOW}Starting Tako Worker containers...${NC}"
+  echo -e "\n${YELLOW}Membangun container Tako Agent dari source code...${NC}"
+  (cd "${TAKO_DIR}" && docker compose build)
+
+  echo -e "\n${YELLOW}Menjalankan Tako Worker Agent...${NC}"
   (cd "${TAKO_DIR}" && docker compose up -d)
 
-  echo -e "\n${GREEN}${BOLD}✓ Tako Worker Agent successfully started!${NC}"
-  echo "Node '${NODE_NAME}' connected to Master at ${MASTER_URL}."
-  echo "Your worker node is now reporting metrics and ready for deployments."
+  # Pasang tako CLI wrapper
+  cat << EOF > /usr/local/bin/tako
+#!/usr/bin/env bash
+set -e
+TAKO_DIR="${TAKO_DIR}"
+ACTION="\${1:-status}"
+case "\$ACTION" in
+  status)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" ps
+    ;;
+  logs)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" logs -f "\${@:2}"
+    ;;
+  restart)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" restart "\${@:2}"
+    ;;
+  stop)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" stop "\${@:2}"
+    ;;
+  start)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" start "\${@:2}"
+    ;;
+  update)
+    echo "Pulling latest code changes..."
+    if [[ -d "\${TAKO_DIR}/src/.git" ]]; then
+      (cd "\${TAKO_DIR}/src" && git pull)
+    fi
+    (cd "\${TAKO_DIR}" && docker compose build agent && docker compose up -d agent)
+    echo "Tako Agent updated successfully!"
+    ;;
+  *)
+    echo "Usage: tako {status|logs|restart|stop|start|update}"
+    exit 1
+    ;;
+esac
+EOF
+  chmod +x /usr/local/bin/tako
+
+  echo -e "\n--------------------------------------------------"
+  echo -e "${GREEN}${BOLD}✓ Tako Worker Agent berhasil terpasang!${NC}"
+  echo -e "--------------------------------------------------"
+  echo -e "Node Name        : ${BOLD}${NODE_NAME}${NC}"
+  echo -e "Terkoneksi ke    : ${BOLD}${MASTER_URL}${NC}"
+  echo -e "CLI Management   : ${BOLD}tako status | tako logs | tako update${NC}"
+  echo -e "--------------------------------------------------"
   exit 0
 fi
 
 # ==============================================================================
 # MODE: MASTER SERVER
 # ==============================================================================
-echo -e "\n${BOLD}=== Configuring Tako Master Server ===${NC}\n"
+echo -e "\n${BOLD}=== Konfigurasi Tako Master Server ===${NC}\n"
 
-ADMIN_EMAIL="${TAKO_EMAIL:-}"
-ADMIN_PASSWORD="${TAKO_PASSWORD:-}"
-AUTH_SECRET="${TAKO_AUTH_SECRET:-$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)}"
+# Security Hardening: Generate Strong Default Secrets
+AUTH_SECRET="${TAKO_AUTH_SECRET:-$(generate_random_secret 32)}"
+ENROLL_TOKEN="${TAKO_AGENT_TOKEN:-$(generate_random_secret 32)}"
+DEFAULT_ADMIN_PASS="$(generate_random_secret 16)"
+
 SERVER_IP="${TAKO_PUBLIC_IP:-$PUBLIC_IP}"
 SERVER_PRIVATE_IP="${TAKO_PRIVATE_IP:-$PRIVATE_IP}"
 
 if [[ -z "$ADMIN_EMAIL" ]]; then
-  prompt_input "Enter Admin Email" "admin@gettako.dev" ADMIN_EMAIL
+  prompt_input "Masukkan Email Admin" "admin@gettako.dev" ADMIN_EMAIL
 fi
 
 if [[ -z "$ADMIN_PASSWORD" ]]; then
-  prompt_secret "Enter Admin Password" "admin123456" ADMIN_PASSWORD
+  prompt_secret "Masukkan Password Admin (Tekan Enter untuk gunakan password acak yang aman)" "$DEFAULT_ADMIN_PASS" ADMIN_PASSWORD
 fi
 
 if [[ -z "${TAKO_PUBLIC_IP:-}" ]]; then
-  prompt_input "Enter Server Public IP" "$SERVER_IP" SERVER_IP
+  prompt_input "Masukkan Server Public IP" "$SERVER_IP" SERVER_IP
 fi
 
 if [[ -z "${TAKO_PRIVATE_IP:-}" ]]; then
-  prompt_input "Enter Server Private IP" "$SERVER_PRIVATE_IP" SERVER_PRIVATE_IP
+  prompt_input "Masukkan Server Private IP" "$SERVER_PRIVATE_IP" SERVER_PRIVATE_IP
 fi
 
 # Write dynamic Tako Console routing config for Traefik
@@ -355,6 +498,17 @@ http:
           - url: "http://tako-console:3000"
 EOF
 
+# Simpan kredensial & environment ke file .env dengan izin akses 600
+cat << EOF > "${TAKO_DIR}/.env"
+TAKO_AUTH_SECRET=${AUTH_SECRET}
+TAKO_AGENT_SECRET=${ENROLL_TOKEN}
+TAKO_INITIAL_ADMIN_EMAIL=${ADMIN_EMAIL}
+TAKO_INITIAL_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+TAKO_PUBLIC_IP=${SERVER_IP}
+TAKO_PRIVATE_IP=${SERVER_PRIVATE_IP}
+EOF
+chmod 600 "${TAKO_DIR}/.env"
+
 cat << EOF > "${TAKO_DIR}/docker-compose.yml"
 services:
   traefik:
@@ -376,7 +530,10 @@ services:
       - tako-network
 
   server:
-    image: ghcr.io/gettako/tako-server:latest
+    build:
+      context: ${TAKO_SRC_DIR}
+      dockerfile: server/Dockerfile
+    image: tako-server:local
     container_name: tako-server
     restart: unless-stopped
     ports:
@@ -392,13 +549,16 @@ services:
       - TAKO_AUTH_SECRET=${AUTH_SECRET}
       - TAKO_INITIAL_ADMIN_EMAIL=${ADMIN_EMAIL}
       - TAKO_INITIAL_ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - TAKO_AGENT_SECRET=local-master-token
+      - TAKO_AGENT_SECRET=${ENROLL_TOKEN}
       - TAKO_NODE_NAME=tako-master-01
     networks:
       - tako-network
 
   console:
-    image: ghcr.io/gettako/tako-console:latest
+    build:
+      context: ${TAKO_SRC_DIR}/console
+      dockerfile: Dockerfile
+    image: tako-console:local
     container_name: tako-console
     restart: unless-stopped
     ports:
@@ -412,7 +572,10 @@ services:
       - tako-network
 
   agent:
-    image: ghcr.io/gettako/tako-agent:latest
+    build:
+      context: ${TAKO_SRC_DIR}
+      dockerfile: agent/Dockerfile
+    image: tako-agent:local
     container_name: tako-agent
     restart: unless-stopped
     volumes:
@@ -424,7 +587,7 @@ services:
     environment:
       - TAKO_SERVER_ADDR=tako-server:50051
       - TAKO_MASTER_URL=tako-server:50051
-      - TAKO_ENROLL_TOKEN=local-master-token
+      - TAKO_ENROLL_TOKEN=${ENROLL_TOKEN}
       - TAKO_NODE_ID=tako-master-01
       - TAKO_NODE_NAME=tako-master-01
       - TAKO_NODE_ROLE=leader
@@ -443,17 +606,65 @@ networks:
     external: true
 EOF
 
-echo -e "\n${YELLOW}Starting Tako Master stack (4 containers)...${NC}"
+echo -e "\n${YELLOW}Membangun container Tako Master dari source code lokal...${NC}"
+(cd "${TAKO_DIR}" && docker compose build)
+
+echo -e "\n${YELLOW}Menjalankan Tako Master stack...${NC}"
 (cd "${TAKO_DIR}" && docker compose up -d)
 
-echo -e "\n--------------------------------------------------"
-echo -e "${GREEN}${BOLD}✓ Tako Master successfully deployed!${NC}"
-echo -e "--------------------------------------------------"
-echo -e "Console Dashboard : ${BOLD}http://${PUBLIC_IP}:3000${NC}"
+# Pasang tako CLI wrapper ke sistem host
+cat << EOF > /usr/local/bin/tako
+#!/usr/bin/env bash
+set -e
+TAKO_DIR="${TAKO_DIR}"
+ACTION="\${1:-status}"
+case "\$ACTION" in
+  status)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" ps
+    ;;
+  logs)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" logs -f "\${@:2}"
+    ;;
+  restart)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" restart "\${@:2}"
+    ;;
+  stop)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" stop "\${@:2}"
+    ;;
+  start)
+    docker compose -f "\${TAKO_DIR}/docker-compose.yml" start "\${@:2}"
+    ;;
+  update)
+    echo "Pulling latest code changes..."
+    if [[ -d "\${TAKO_DIR}/src/.git" ]]; then
+      (cd "\${TAKO_DIR}/src" && git pull)
+    fi
+    echo "Rebuilding and restarting Tako containers..."
+    (cd "\${TAKO_DIR}" && docker compose build && docker compose up -d)
+    echo "Tako updated successfully!"
+    ;;
+  *)
+    echo "Usage: tako {status|logs|restart|stop|start|update}"
+    exit 1
+    ;;
+esac
+EOF
+chmod +x /usr/local/bin/tako
+
+echo -e "\n=================================================="
+echo -e "${GREEN}${BOLD}✓ Tako Master Berhasil Terpasang dari Source!${NC}"
+echo -e "=================================================="
+echo -e "Console Dashboard : ${BOLD}http://${SERVER_IP}:3000${NC}"
 echo -e "Admin Email       : ${BOLD}${ADMIN_EMAIL}${NC}"
-echo -e "Master gRPC Port  : ${BOLD}50051${NC}"
-echo -e "App Ingress Ports : ${BOLD}80 / 443${NC} (Managed by Traefik)"
-echo ""
-echo -e "To add worker nodes, run on your worker server:"
-echo -e "  ${BOLD}curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent${NC}"
-echo "--------------------------------------------------"
+echo -e "Admin Password    : ${YELLOW}${BOLD}${ADMIN_PASSWORD}${NC}  ${RED}(Simpan password ini!)${NC}"
+echo -e "Enrollment Token  : ${CYAN}${BOLD}${ENROLL_TOKEN}${NC}"
+echo -e "Credentials File  : ${BOLD}${TAKO_DIR}/.env (chmod 600)${NC}"
+echo -e "--------------------------------------------------"
+echo -e "CLI Management:"
+echo -e "  ${BOLD}tako status${NC}  - Cek status container"
+echo -e "  ${BOLD}tako logs${NC}    - Pantau logs realtime"
+echo -e "  ${BOLD}tako update${NC}  - Git pull & rebuild terbaru otomatis"
+echo -e "--------------------------------------------------"
+echo -e "Untuk menambahkan Worker Node, jalankan perintah ini di worker server:"
+echo -e "  ${BOLD}curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent --token '${ENROLL_TOKEN}' --master '${SERVER_IP}:50051'${NC}"
+echo -e "=================================================="

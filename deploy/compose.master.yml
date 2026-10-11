@@ -22,7 +22,7 @@ services:
     build:
       context: ..
       dockerfile: server/Dockerfile
-    image: ghcr.io/gettako/tako-server:latest
+    image: tako-server:local
     container_name: tako-server
     restart: unless-stopped
     ports:
@@ -47,7 +47,7 @@ services:
     build:
       context: ../console
       dockerfile: Dockerfile
-    image: ghcr.io/gettako/tako-console:latest
+    image: tako-console:local
     container_name: tako-console
     restart: unless-stopped
     ports:
@@ -64,7 +64,7 @@ services:
     build:
       context: ..
       dockerfile: agent/Dockerfile
-    image: ghcr.io/gettako/tako-agent:latest
+    image: tako-agent:local
     container_name: tako-agent
     restart: unless-stopped
     volumes:

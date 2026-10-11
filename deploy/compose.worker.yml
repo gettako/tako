@@ -18,7 +18,10 @@ services:
       - tako-network
 
   agent:
-    image: ghcr.io/gettako/tako-agent:latest
+    build:
+      context: ..
+      dockerfile: agent/Dockerfile
+    image: tako-agent:local
     container_name: tako-agent
     restart: unless-stopped
     volumes:
