@@ -82,8 +82,12 @@ export function GlobalCommandPalette() {
       className="max-w-[calc(100%-2rem)] sm:max-w-2xl md:max-w-3xl bg-background border border-border p-0 overflow-hidden"
     >
       <Command className="bg-transparent border-0">
-        <CommandInput placeholder="Type a command or search console..." className="h-13 text-base sm:text-sm" />
-        <CommandList className="max-h-[440px] p-2">
+        <CommandInput
+          placeholder="Type a command or search console..."
+          className="h-13 text-base sm:text-sm"
+          wrapperClassName="p-1.5 pb-2.5"
+        />
+        <CommandList className="max-h-[440px] px-2 pb-2 pt-1">
           <CommandEmpty className="py-8 text-center text-sm text-muted-foreground">
             No matching resources or commands found.
           </CommandEmpty>
