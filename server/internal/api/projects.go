@@ -58,13 +58,24 @@ func mapProjectToResponse(p db.Project, servicesCount, healthyServicesCount int)
 		tags = []string{}
 	}
 
+	status := p.Status
+	if servicesCount > 0 {
+		if healthyServicesCount == 0 {
+			status = "unhealthy"
+		} else if healthyServicesCount < servicesCount {
+			status = "degraded"
+		} else {
+			status = "healthy"
+		}
+	}
+
 	return ProjectResponse{
 		ID:                   p.ID,
 		Name:                 p.Name,
 		Slug:                 p.Slug,
 		Description:          p.Description,
 		Environment:          p.Environment,
-		Status:               p.Status,
+		Status:               status,
 		Tags:                 tags,
 		CreatedAt:            p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:            p.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
@@ -82,13 +93,22 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			// Pre-compute service counts per project in O(N)
+			// Pre-compute service counts per project and account for offline nodes
 			allServices, _ := orch.Queries().ListAllServices(r.Context())
+			nodes, _ := orch.Queries().ListNodes(r.Context())
+			nodeOfflineMap := make(map[string]bool, len(nodes))
+			for _, n := range nodes {
+				if n.Status == "offline" {
+					nodeOfflineMap[n.ID] = true
+				}
+			}
+
 			servicesCountMap := make(map[string]int)
 			healthyCountMap := make(map[string]int)
 			for _, s := range allServices {
 				servicesCountMap[s.ProjectID]++
-				if s.Status == "running" || s.Status == "healthy" {
+				isHostOffline := nodeOfflineMap[s.NodeID]
+				if (s.Status == "running" || s.Status == "healthy") && !isHostOffline {
 					healthyCountMap[s.ProjectID]++
 				}
 			}
@@ -164,7 +184,8 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			services, _ := orch.Queries().ListServicesByProject(r.Context(), p.ID)
 			healthyCount := 0
 			for _, s := range services {
-				if s.Status == "running" || s.Status == "healthy" {
+				node, _ := orch.Queries().GetNodeByID(r.Context(), s.NodeID)
+				if (s.Status == "running" || s.Status == "healthy") && node.Status != "offline" {
 					healthyCount++
 				}
 			}
@@ -246,7 +267,8 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			services, _ := orch.Queries().ListServicesByProject(r.Context(), updated.ID)
 			healthyCount := 0
 			for _, s := range services {
-				if s.Status == "running" || s.Status == "healthy" {
+				node, _ := orch.Queries().GetNodeByID(r.Context(), s.NodeID)
+				if (s.Status == "running" || s.Status == "healthy") && node.Status != "offline" {
 					healthyCount++
 				}
 			}

@@ -544,3 +544,100 @@ func (q *Queries) UpdateServiceStatus(ctx context.Context, arg UpdateServiceStat
 	_, err := q.db.ExecContext(ctx, updateServiceStatus, arg.Status, arg.ID)
 	return err
 }
+
+const markServicesUnhealthyByNode = `-- name: MarkServicesUnhealthyByNode :many
+UPDATE services SET
+    status = 'unhealthy',
+    updated_at = CURRENT_TIMESTAMP
+WHERE node_id = ? AND status != 'stopped'
+RETURNING id, project_id, node_id, name, slug, status
+`
+
+type MarkServicesUnhealthyByNodeRow struct {
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	NodeID    string `json:"nodeId"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	Status    string `json:"status"`
+}
+
+func (q *Queries) MarkServicesUnhealthyByNode(ctx context.Context, nodeID string) ([]MarkServicesUnhealthyByNodeRow, error) {
+	rows, err := q.db.QueryContext(ctx, markServicesUnhealthyByNode, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MarkServicesUnhealthyByNodeRow{}
+	for rows.Next() {
+		var i MarkServicesUnhealthyByNodeRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.NodeID,
+			&i.Name,
+			&i.Slug,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markServicesUnhealthyForOfflineNodes = `-- name: MarkServicesUnhealthyForOfflineNodes :many
+UPDATE services SET
+    status = 'unhealthy',
+    updated_at = CURRENT_TIMESTAMP
+WHERE status != 'stopped'
+  AND status != 'unhealthy'
+  AND node_id IN (SELECT id FROM nodes WHERE status = 'offline')
+RETURNING id, project_id, node_id, name, slug, status
+`
+
+type MarkServicesUnhealthyForOfflineNodesRow struct {
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	NodeID    string `json:"nodeId"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	Status    string `json:"status"`
+}
+
+func (q *Queries) MarkServicesUnhealthyForOfflineNodes(ctx context.Context) ([]MarkServicesUnhealthyForOfflineNodesRow, error) {
+	rows, err := q.db.QueryContext(ctx, markServicesUnhealthyForOfflineNodes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MarkServicesUnhealthyForOfflineNodesRow{}
+	for rows.Next() {
+		var i MarkServicesUnhealthyForOfflineNodesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectID,
+			&i.NodeID,
+			&i.Name,
+			&i.Slug,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+

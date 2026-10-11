@@ -13,8 +13,10 @@ import {
   TableCell,
 } from '@/components/ui/table';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { Server, Boxes, Copy, Check } from 'lucide-react';
+import { Server, Boxes, Copy, Check, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { EditNodeDialog } from './edit-node-dialog';
+import { DeleteNodeDialog } from './delete-node-dialog';
 
 interface NodesTableProps {
   nodes: Node[];
@@ -23,6 +25,8 @@ interface NodesTableProps {
 export function NodesTable({ nodes }: NodesTableProps) {
   const router = useRouter();
   const [copiedIp, setCopiedIp] = useState<string | null>(null);
+  const [editingNode, setEditingNode] = useState<Node | null>(null);
+  const [deletingNode, setDeletingNode] = useState<Node | null>(null);
 
   const handleCopyIp = (ip: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -39,19 +43,21 @@ export function NodesTable({ nodes }: NodesTableProps) {
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <Table>
-        <TableHeader className="bg-muted/40 border-b border-border">
-          <TableRow className="h-10 hover:bg-transparent">
-            <TableHead className="w-[22%] min-w-[180px]">Node Hostname</TableHead>
-            <TableHead className="w-[10%] min-w-[90px]">Status</TableHead>
-            <TableHead className="w-[15%] min-w-[130px]">Network / IP</TableHead>
-            <TableHead className="w-[14%] min-w-[125px]">CPU Utilization</TableHead>
-            <TableHead className="w-[14%] min-w-[130px]">Memory (RAM)</TableHead>
-            <TableHead className="w-[14%] min-w-[130px]">Disk Storage</TableHead>
-            <TableHead className="text-right w-[11%] min-w-[100px]">Workloads</TableHead>
-          </TableRow>
-        </TableHeader>
+    <>
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <Table>
+          <TableHeader className="bg-muted/40 border-b border-border">
+            <TableRow className="h-10 hover:bg-transparent">
+              <TableHead className="w-[20%] min-w-[170px]">Node Hostname</TableHead>
+              <TableHead className="w-[10%] min-w-[85px]">Status</TableHead>
+              <TableHead className="w-[14%] min-w-[125px]">Network / IP</TableHead>
+              <TableHead className="w-[13%] min-w-[120px]">CPU Utilization</TableHead>
+              <TableHead className="w-[13%] min-w-[120px]">Memory (RAM)</TableHead>
+              <TableHead className="w-[13%] min-w-[120px]">Disk Storage</TableHead>
+              <TableHead className="text-center w-[7%] min-w-[65px]">Workloads</TableHead>
+              <TableHead className="text-right w-[10%] min-w-[90px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
 
         <TableBody className="divide-y divide-border/40">
           {nodes.map((node) => {
@@ -224,13 +230,45 @@ export function NodesTable({ nodes }: NodesTableProps) {
                   </div>
                 </TableCell>
 
-                {/* 6. Workloads */}
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0 font-mono">
-                      <Boxes className="size-3 text-muted-foreground" />
-                      <span>{node.servicesCount}</span>
-                    </span>
+                {/* 7. Workloads */}
+                <TableCell className="text-center">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/70 text-[11px] font-medium text-foreground shrink-0 font-mono">
+                    <Boxes className="size-3 text-muted-foreground" />
+                    <span>{node.servicesCount}</span>
+                  </span>
+                </TableCell>
+
+                {/* 8. Actions: Direct Edit and Delete buttons */}
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      id={`edit-node-${node.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingNode(node);
+                      }}
+                      className="size-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+                      title="Edit Node"
+                      aria-label={`Edit ${node.name}`}
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      id={`delete-node-${node.id}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeletingNode(node);
+                      }}
+                      className="size-8 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-status-danger hover:bg-status-danger/10 transition-colors cursor-pointer active:not-aria-[haspopup]:translate-y-px"
+                      title="Delete Node"
+                      aria-label={`Delete ${node.name}`}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -239,5 +277,24 @@ export function NodesTable({ nodes }: NodesTableProps) {
         </TableBody>
       </Table>
     </div>
+
+    {/* Edit Node Specifications Dialog */}
+    <EditNodeDialog
+      node={editingNode}
+      open={!!editingNode}
+      onOpenChange={(open) => {
+        if (!open) setEditingNode(null);
+      }}
+    />
+
+    {/* Delete Node Confirmation Dialog */}
+    <DeleteNodeDialog
+      node={deletingNode}
+      open={!!deletingNode}
+      onOpenChange={(open) => {
+        if (!open) setDeletingNode(null);
+      }}
+    />
+  </>
   );
 }

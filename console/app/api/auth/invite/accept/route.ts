@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Call Go backend to set credentials and register session (with fallback)
-    let result: {
+    let result!: {
       token: string;
       user: { id: string; name: string; email: string; role: string; avatarUrl?: string; twoFactorEnabled?: boolean; createdAt?: string };
     };

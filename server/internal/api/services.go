@@ -286,8 +286,23 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
+			nodes, _ := orch.Queries().ListNodes(r.Context())
+			nodeMap := make(map[string]db.Node, len(nodes))
+			for _, n := range nodes {
+				nodeMap[n.ID] = n
+			}
+
 			res := make([]ServiceResponse, 0, len(services))
 			for _, s := range services {
+				node, hasNode := nodeMap[s.NodeID]
+				nodeName := ""
+				if hasNode {
+					nodeName = node.Name
+					if node.Status == "offline" && s.Status != "stopped" {
+						s.Status = "unhealthy"
+					}
+				}
+
 				domainsDB, _ := orch.Queries().ListServiceDomains(r.Context(), s.ID)
 				domains := make([]string, 0, len(domainsDB))
 				for _, d := range domainsDB {
@@ -303,7 +318,11 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 						IsSecret: ev.IsSecret == 1,
 					})
 				}
-				res = append(res, mapServiceToResponse(s, domains, envVars))
+				sResp := mapServiceToResponse(s, domains, envVars)
+				if nodeName != "" {
+					sResp.NodeName = nodeName
+				}
+				res = append(res, sResp)
 			}
 
 			RespondJSON(w, http.StatusOK, res)
@@ -320,6 +339,11 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
+			}
+
+			node, _ := orch.Queries().GetNodeByID(r.Context(), srv.NodeID)
+			if node.Status == "offline" && srv.Status != "stopped" {
+				srv.Status = "unhealthy"
 			}
 
 			domainsDB, _ := orch.Queries().ListServiceDomains(r.Context(), srv.ID)
@@ -351,7 +375,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			var usage *ServiceUsageResponse
-			if pt, ok := orch.GetLatestServiceTelemetry(srv.ID, srv.Slug); ok {
+			if pt, ok := orch.GetLatestServiceTelemetry(srv.ID, srv.Slug); ok && node.Status != "offline" {
 				usage = &ServiceUsageResponse{
 					CPUPercent:    pt.CPUPercent,
 					MemoryUsedMB:  pt.MemoryUsedMB,
@@ -359,7 +383,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					NetworkRxKBps: pt.NetworkRxKBps,
 					NetworkTxKBps: pt.NetworkTxKBps,
 				}
-			} else if srv.Status == "live" || srv.Status == "healthy" {
+			} else if (srv.Status == "live" || srv.Status == "healthy") && node.Status != "offline" {
 				usage = &ServiceUsageResponse{
 					CPUPercent:    1.2,
 					MemoryUsedMB:  srv.MemoryLimitMb / 8,
@@ -369,10 +393,15 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			RespondJSON(w, http.StatusOK, mapServiceToResponse(srv, domains, envVars, ServiceEnrichment{
+			sResp := mapServiceToResponse(srv, domains, envVars, ServiceEnrichment{
 				DomainDetails: domainDetails,
 				Usage:         usage,
-			}))
+			})
+			if node.Name != "" {
+				sResp.NodeName = node.Name
+			}
+
+			RespondJSON(w, http.StatusOK, sResp)
 		})
 
 		// DELETE /api/v1/services/{id}

@@ -38,12 +38,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const result = await fetchServer(`/api/v1/nodes/${id}`, { method: 'DELETE' });
+    const { searchParams } = new URL(req.url);
+    const force = searchParams.get('force');
+    const query = force ? `?force=${force}` : '';
+    const result = await fetchServer(`/api/v1/nodes/${id}${query}`, { method: 'DELETE' });
     return NextResponse.json(result);
   } catch (err: unknown) {
     if (err instanceof APIError) {

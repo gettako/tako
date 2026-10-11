@@ -100,6 +100,21 @@ export async function updateNode(
   return res.json();
 }
 
+export async function deleteNode(
+  id: string,
+  force: boolean = false
+): Promise<{ success: boolean }> {
+  const query = force ? '?force=true' : '';
+  const res = await fetch(`/api/nodes/${id}${query}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to delete node');
+  }
+  return res.json();
+}
+
 export async function rebootNode(id: string): Promise<{ success: boolean; message: string }> {
   const res = await fetch(`/api/nodes/${id}/reboot`, { method: 'POST' });
   if (!res.ok) {

@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useRouter } from 'next/navigation';
 import {
   Clock,
   RotateCw,
@@ -26,11 +27,13 @@ import {
   AlertTriangle,
   Sparkles,
   CheckCircle2,
+  Trash2,
 } from 'lucide-react';
 import { FieldError } from '@/components/ui/field';
 import { parseApiError } from '@/lib/form-errors';
 import { toast } from 'sonner';
 import { useUpdateNode, useRebootNode, useUpdateNodeAgent } from '@/lib/queries';
+import { DeleteNodeDialog } from './delete-node-dialog';
 
 interface NodeSpecHeaderProps {
   node: Node;
@@ -84,10 +87,12 @@ export function formatUptime(uptime: string | number | undefined | null): string
 }
 
 export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
+  const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Edit Node Dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editName, setEditName] = useState(node.name);
   const [editPrivateIp, setEditPrivateIp] = useState(node.ipAddress);
   const [editPublicIp, setEditPublicIp] = useState(node.publicIp || '');
@@ -222,6 +227,16 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
           >
             <Power className="size-3.5" />
             <span>Reboot Node</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteDialogOpen(true)}
+            className="text-xs gap-1.5 h-9 text-status-danger hover:text-status-danger border-border hover:border-status-danger/40 hover:bg-status-danger/5 active:not-aria-[haspopup]:translate-y-px"
+          >
+            <Trash2 className="size-3.5" />
+            <span>Delete Node</span>
           </Button>
         </div>
       </div>
@@ -536,6 +551,13 @@ export function NodeSpecHeader({ node, onRefresh }: NodeSpecHeaderProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteNodeDialog
+        node={node}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onSuccess={() => router.push('/nodes')}
+      />
     </div>
   );
 }

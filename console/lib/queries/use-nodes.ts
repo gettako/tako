@@ -6,6 +6,7 @@ import {
   getNodes,
   getNodeById,
   updateNode,
+  deleteNode,
   rebootNode,
   updateNodeAgent,
   createNodeEnrollToken,
@@ -64,6 +65,31 @@ export function useUpdateNode(options?: {
         options.onError(err);
       } else {
         toast.error(err.message || 'Failed to update node');
+      }
+    },
+  });
+}
+
+export function useDeleteNode(options?: {
+  onSuccess?: () => void;
+  onError?: (err: Error) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ success: boolean }, Error, { id: string; force?: boolean }>({
+    mutationFn: ({ id, force }) => deleteNode(id, force),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: nodeKeys.all });
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast.success('Node deleted successfully');
+      options?.onSuccess?.();
+    },
+    onError: (err) => {
+      if (options?.onError) {
+        options.onError(err);
+      } else {
+        toast.error(err.message || 'Failed to delete node');
       }
     },
   });

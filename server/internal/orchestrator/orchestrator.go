@@ -310,6 +310,44 @@ func (o *Orchestrator) StartLivenessWatcher(ctx context.Context, interval time.D
 							"name":    node.Name,
 						},
 					})
+
+					// Mark all active services hosted on this node as unhealthy
+					impacted, err := o.queries.MarkServicesUnhealthyByNode(ctx, node.ID)
+					if err == nil {
+						for _, srv := range impacted {
+							log.Printf("[orchestrator] service %s (%s) marked unhealthy because host node %s went offline", srv.Name, srv.ID, node.ID)
+							o.bus.Publish(events.Event{
+								Type: events.EventServiceUpdated,
+								Payload: map[string]any{
+									"service_id": srv.ID,
+									"project_id": srv.ProjectID,
+									"node_id":    node.ID,
+									"name":       srv.Name,
+									"slug":       srv.Slug,
+									"status":     "unhealthy",
+								},
+							})
+						}
+					}
+				}
+
+				// Reconcile any services on already offline nodes (e.g. at startup or after external state changes)
+				impactedOffline, err := o.queries.MarkServicesUnhealthyForOfflineNodes(ctx)
+				if err == nil && len(impactedOffline) > 0 {
+					for _, srv := range impactedOffline {
+						log.Printf("[orchestrator] service %s (%s) reconciled to unhealthy because host node %s is offline", srv.Name, srv.ID, srv.NodeID)
+						o.bus.Publish(events.Event{
+							Type: events.EventServiceUpdated,
+							Payload: map[string]any{
+								"service_id": srv.ID,
+								"project_id": srv.ProjectID,
+								"node_id":    srv.NodeID,
+								"name":       srv.Name,
+								"slug":       srv.Slug,
+								"status":     "unhealthy",
+							},
+						})
+					}
 				}
 			}
 		}

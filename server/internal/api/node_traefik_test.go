@@ -3,7 +3,9 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -458,3 +460,223 @@ func TestRebootNodeEndpoint(t *testing.T) {
 		t.Errorf("expected reboot_node audit log entry")
 	}
 }
+
+func TestNodeOffline_ServicesImpact(t *testing.T) {
+	memDB, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer memDB.Close()
+	if err := store.Migrate(memDB); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+	bus := events.NewBus()
+	orch := orchestrator.New(memDB, bus, "test-secret")
+	router := NewRouter(memDB, orch)
+	ctx := context.Background()
+
+	// 1. Create a node
+	nodeID := "node-vps-test"
+	_, err = orch.Queries().CreateNode(ctx, dbStore.CreateNodeParams{
+		ID:             nodeID,
+		Name:           "vps-worker-01",
+		IpAddress:      "10.0.0.99",
+		PublicIp:       "54.12.34.56",
+		Role:           "worker",
+		CpuTotalCores:  4,
+		MemoryTotalMb:  8192,
+		DiskTotalGb:    100,
+		DockerVersion:  "24.0.5",
+		Os:             "Ubuntu 22.04",
+		KernelVersion:  "5.15.0",
+		EnrollToken:    "token-123",
+	})
+	if err != nil {
+		t.Fatalf("CreateNode failed: %v", err)
+	}
+
+	// Set node status to online initially
+	_ = orch.Queries().UpdateNodeStatus(ctx, dbStore.UpdateNodeStatusParams{
+		ID:     nodeID,
+		Status: "online",
+	})
+
+	// 2. Create a project
+	prj, err := orch.Queries().CreateProject(ctx, dbStore.CreateProjectParams{
+		ID:          "prj-vps-test",
+		Name:        "VPS App",
+		Slug:        "vps-app",
+		Description: "Testing VPS offline",
+		Environment: "production",
+		Status:      "healthy",
+		Tags:        "[]",
+	})
+	if err != nil {
+		t.Fatalf("CreateProject failed: %v", err)
+	}
+
+	// 3. Create a service hosted on this node
+	srvID := "srv-vps-test"
+	_, err = orch.Queries().CreateService(ctx, dbStore.CreateServiceParams{
+		ID:            srvID,
+		ProjectID:     prj.ID,
+		NodeID:        nodeID,
+		Name:          "web-api",
+		Slug:          "web-api",
+		Type:          "app",
+		Status:        "healthy",
+		Repository:    "github.com/test/repo",
+		Branch:        "main",
+		Dockerfile:    "Dockerfile",
+		Ports:         "[]",
+		Replicas:      1,
+		CpuLimit:      1.0,
+		MemoryLimitMb: 512,
+		PublishToHost: 1,
+	})
+	if err != nil {
+		t.Fatalf("CreateService failed: %v", err)
+	}
+
+	// Verify service is initially healthy
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srvID, nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	var sResp ServiceResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &sResp)
+	if sResp.Status != "healthy" {
+		t.Errorf("expected initial status healthy, got %s", sResp.Status)
+	}
+
+	// 4. VPS is deleted / goes offline!
+	_ = orch.Queries().UpdateNodeStatus(ctx, dbStore.UpdateNodeStatusParams{
+		ID:     nodeID,
+		Status: "offline",
+	})
+	_, err = orch.Queries().MarkServicesUnhealthyByNode(ctx, nodeID)
+	if err != nil {
+		t.Fatalf("MarkServicesUnhealthyByNode failed: %v", err)
+	}
+
+	// 5. Query GET /api/v1/services/{id} -> MUST be unhealthy, not healthy!
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/services/"+srvID, nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &sResp)
+	if sResp.Status != "unhealthy" {
+		t.Errorf("expected service status 'unhealthy' after node went offline, got '%s'", sResp.Status)
+	}
+	if sResp.NodeName != "vps-worker-01" {
+		t.Errorf("expected nodeName 'vps-worker-01', got '%s'", sResp.NodeName)
+	}
+
+	// 6. Query GET /api/v1/services -> list must also report service as unhealthy!
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/services", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	var listResp []ServiceResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &listResp)
+	var foundSrv *ServiceResponse
+	for _, s := range listResp {
+		if s.ID == srvID {
+			foundSrv = &s
+			break
+		}
+	}
+	if foundSrv == nil || foundSrv.Status != "unhealthy" {
+		t.Errorf("expected service in list to be 'unhealthy', got %+v", foundSrv)
+	}
+
+	// 7. Query GET /api/v1/projects/{id} -> Project should be unhealthy with 0 healthy services
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+prj.ID, nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	var pResp ProjectResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &pResp)
+	if pResp.HealthyServicesCount != 0 {
+		t.Errorf("expected 0 healthy services, got %d", pResp.HealthyServicesCount)
+	}
+	if pResp.Status != "unhealthy" {
+		t.Errorf("expected project status 'unhealthy', got '%s'", pResp.Status)
+	}
+}
+
+func TestNodeDeletion_WithWorkloadsAndForce(t *testing.T) {
+	memDB, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer memDB.Close()
+	if err := store.Migrate(memDB); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+	bus := events.NewBus()
+	orch := orchestrator.New(memDB, bus, "test-secret")
+	router := NewRouter(memDB, orch)
+	ctx := context.Background()
+
+	// 1. Create node
+	nodeID := "node-del-test"
+	_, err = orch.Queries().CreateNode(ctx, dbStore.CreateNodeParams{
+		ID:             nodeID,
+		Name:           "node-to-delete",
+		IpAddress:      "10.0.0.77",
+		Role:           "worker",
+		CpuTotalCores:  2,
+		MemoryTotalMb:  4096,
+		DiskTotalGb:    50,
+	})
+	if err != nil {
+		t.Fatalf("CreateNode failed: %v", err)
+	}
+
+	// 2. Create project & service on this node
+	prj, _ := orch.Queries().CreateProject(ctx, dbStore.CreateProjectParams{
+		ID:          "prj-del-test",
+		Name:        "Prj Del",
+		Slug:        "prj-del",
+	})
+	srvID := "srv-del-test"
+	_, _ = orch.Queries().CreateService(ctx, dbStore.CreateServiceParams{
+		ID:        srvID,
+		ProjectID: prj.ID,
+		NodeID:    nodeID,
+		Name:      "web-del",
+		Slug:      "web-del",
+	})
+
+	// 3. Attempt DELETE without force -> should be rejected with 400
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/nodes/"+nodeID, nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request when deleting node with active services, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// 4. Attempt DELETE with force=true -> should succeed with 200
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/nodes/"+nodeID+"?force=true", nil)
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for force delete node, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// 5. Verify node no longer exists
+	_, err = orch.Queries().GetNodeByID(ctx, nodeID)
+	if !errors.Is(err, sql.ErrNoRows) {
+		t.Errorf("expected node to be deleted, got err: %v", err)
+	}
+
+	// 6. Verify service was cleaned up
+	_, err = orch.Queries().GetServiceByID(ctx, srvID)
+	if !errors.Is(err, sql.ErrNoRows) {
+		t.Errorf("expected orphaned service to be cleaned up, got err: %v", err)
+	}
+}
+

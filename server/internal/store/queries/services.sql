@@ -59,3 +59,20 @@ INSERT INTO service_env_vars (
 
 -- name: DeleteServiceEnvVars :exec
 DELETE FROM service_env_vars WHERE service_id = ?;
+
+-- name: MarkServicesUnhealthyByNode :many
+UPDATE services SET
+    status = 'unhealthy',
+    updated_at = CURRENT_TIMESTAMP
+WHERE node_id = ? AND status != 'stopped'
+RETURNING id, project_id, node_id, name, slug, status;
+
+-- name: MarkServicesUnhealthyForOfflineNodes :many
+UPDATE services SET
+    status = 'unhealthy',
+    updated_at = CURRENT_TIMESTAMP
+WHERE status != 'stopped'
+  AND status != 'unhealthy'
+  AND node_id IN (SELECT id FROM nodes WHERE status = 'offline')
+RETURNING id, project_id, node_id, name, slug, status;
+

@@ -130,10 +130,58 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		// DELETE /api/v1/nodes/{id}
 		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
+			node, err := orch.Queries().GetNodeByID(r.Context(), id)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					RespondError(w, http.StatusNotFound, "node not found")
+					return
+				}
+				RespondError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			services, _ := orch.Queries().ListServicesByNode(r.Context(), id)
+			force := r.URL.Query().Get("force") == "true"
+			if len(services) > 0 && !force {
+				RespondError(w, http.StatusBadRequest, fmt.Sprintf("cannot delete node %s: %d service(s) are currently assigned to this node; remove services first or delete with force=true", node.Name, len(services)))
+				return
+			}
+
+			// If forced, delete assigned services and cascade to their children
+			if force && len(services) > 0 {
+				for _, s := range services {
+					_ = orch.Queries().DeleteService(r.Context(), s.ID)
+				}
+			}
+
+			// Unregister any active session for this node
+			orch.UnregisterAgentSession(id)
+
 			if err := orch.Queries().DeleteNode(r.Context(), id); err != nil {
 				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
+
+			clientIP := r.RemoteAddr
+			if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+				clientIP = strings.Split(xff, ",")[0]
+			}
+			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+				Action:     "delete_node",
+				TargetType: "node",
+				TargetID:   id,
+				TargetName: node.Name,
+				IPAddress:  clientIP,
+			})
+
+			orch.Bus().Publish(events.Event{
+				Type: events.EventNodeStatusChanged,
+				Payload: map[string]any{
+					"node_id": id,
+					"name":    node.Name,
+					"status":  "deleted",
+				},
+			})
 
 			RespondJSON(w, http.StatusOK, map[string]bool{"success": true})
 		})
@@ -254,6 +302,7 @@ func handleRebootNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			ID:     id,
 			Status: "offline",
 		})
+		_, _ = orch.Queries().MarkServicesUnhealthyByNode(r.Context(), id)
 		orch.Bus().Publish(events.Event{
 			Type: events.EventNodeStatusChanged,
 			Payload: map[string]any{

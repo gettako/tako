@@ -50,6 +50,8 @@ type Querier interface {
 	ListSettings(ctx context.Context) ([]ClusterSetting, error)
 	ListUsers(ctx context.Context) ([]ListUsersRow, error)
 	MarkInactiveNodesOffline(ctx context.Context, dollar_1 sql.NullString) ([]MarkInactiveNodesOfflineRow, error)
+	MarkServicesUnhealthyByNode(ctx context.Context, nodeID string) ([]MarkServicesUnhealthyByNodeRow, error)
+	MarkServicesUnhealthyForOfflineNodes(ctx context.Context) ([]MarkServicesUnhealthyForOfflineNodesRow, error)
 	RecordNodeMetric(ctx context.Context, arg RecordNodeMetricParams) (NodeMetric, error)
 	SetSetting(ctx context.Context, arg SetSettingParams) (ClusterSetting, error)
 	UpdateDeploymentStatus(ctx context.Context, arg UpdateDeploymentStatusParams) error
