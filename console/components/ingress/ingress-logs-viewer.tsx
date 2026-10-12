@@ -1,41 +1,39 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Globe,
   Radio,
   RefreshCw,
   Search,
-  Filter,
   Server,
   Box,
   Clock,
   Download,
-  Pause,
-  Play,
   Copy,
   Check,
   Eye,
   AlertCircle,
   CheckCircle2,
+  RotateCcw,
   SlidersHorizontal,
-  ChevronDown,
-  Layers,
-  ArrowUpDown,
+  X,
   FileCode,
   FileSpreadsheet,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 import {
   Select,
   SelectContent,
@@ -43,54 +41,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { StatCard } from '@/components/ui/stat-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { IngressLogDetailSheet } from './ingress-log-detail-sheet';
 import { useIngressAccessLogs } from '@/lib/queries/use-ingress';
 import { useNodes, useServices } from '@/lib/queries';
 import { TraefikAccessLogEntry } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-json';
+
+type StatusTab = 'all' | '2xx' | '3xx' | '4xx' | '5xx';
 
 export function IngressLogsViewer() {
   const [selectedNode, setSelectedNode] = useState<string>('all');
   const [selectedService, setSelectedService] = useState<string>('all');
   const [selectedMethod, setSelectedMethod] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<StatusTab>('all');
   const [search, setSearch] = useState<string>('');
   const [isLive, setIsLive] = useState<boolean>(true);
   const [pollInterval, setPollInterval] = useState<number>(3000);
-  const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const [selectedLog, setSelectedLog] = useState<TraefikAccessLogEntry | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-
-  // Formatted & highlighted JSON for modal
-  const formattedRawJson = useMemo(() => {
-    if (!selectedLog) return '';
-    if (selectedLog.rawJson) {
-      try {
-        return JSON.stringify(JSON.parse(selectedLog.rawJson), null, 2);
-      } catch {
-        return selectedLog.rawJson;
-      }
-    }
-    return JSON.stringify(selectedLog, null, 2);
-  }, [selectedLog]);
-
-  const highlightedJson = useMemo(() => {
-    if (!formattedRawJson) return '';
-    try {
-      if (Prism.languages.json) {
-        return Prism.highlight(formattedRawJson, Prism.languages.json, 'json');
-      }
-    } catch {
-      // Fallback to plain text
-    }
-    return formattedRawJson;
-  }, [formattedRawJson]);
-
-  const jsonLineCount = useMemo(() => {
-    return formattedRawJson ? formattedRawJson.split('\n').length : 0;
-  }, [formattedRawJson]);
 
   // Queries
   const { data: nodes = [] } = useNodes();
@@ -108,7 +86,7 @@ export function IngressLogsViewer() {
 
   const nodeOptions = useMemo(
     () => [
-      { value: 'all', label: 'All Nodes (Global Cluster)' },
+      { value: 'all', label: 'All Cluster Nodes' },
       ...nodes.map((node) => ({
         value: node.id,
         label: `${node.name} (${node.ipAddress || node.publicIp || 'node'})`,
@@ -146,12 +124,12 @@ export function IngressLogsViewer() {
     () => ({
       nodeId: selectedNode === 'all' ? undefined : selectedNode,
       serviceId: selectedService === 'all' ? undefined : selectedService,
-      status: selectedStatus === 'all' ? undefined : selectedStatus,
+      status: selectedStatusTab === 'all' ? undefined : selectedStatusTab,
       method: selectedMethod === 'all' ? undefined : selectedMethod,
       search: search.trim() || undefined,
       limit: 150,
     }),
-    [selectedNode, selectedService, selectedStatus, selectedMethod, search]
+    [selectedNode, selectedService, selectedStatusTab, selectedMethod, search]
   );
 
   const {
@@ -163,45 +141,52 @@ export function IngressLogsViewer() {
     refetchInterval: isLive ? pollInterval : false,
   });
 
-  // Calculate high-level real-time metrics
+  // Real-time calculated metrics
   const stats = useMemo(() => {
     const total = logs.length;
     if (total === 0) {
-      return { total: 0, errorRate: 0, avgDuration: 0, status2xx: 0, status5xx: 0 };
+      return { total: 0, errorRate: 0, successRate: 100, avgDuration: 0, status2xx: 0, status3xx: 0, status4xx: 0, status5xx: 0 };
     }
-    const errors = logs.filter((l) => l.statusCode >= 400).length;
-    const status5xx = logs.filter((l) => l.statusCode >= 500).length;
     const status2xx = logs.filter((l) => l.statusCode >= 200 && l.statusCode < 300).length;
+    const status3xx = logs.filter((l) => l.statusCode >= 300 && l.statusCode < 400).length;
+    const status4xx = logs.filter((l) => l.statusCode >= 400 && l.statusCode < 500).length;
+    const status5xx = logs.filter((l) => l.statusCode >= 500).length;
+    const errors = status4xx + status5xx;
     const totalDuration = logs.reduce((acc, curr) => acc + (curr.durationMs || 0), 0);
     const avgDuration = total > 0 ? (totalDuration / total).toFixed(1) : '0';
     const errorRate = total > 0 ? ((errors / total) * 100).toFixed(1) : '0';
+    const successRate = total > 0 ? ((status2xx / total) * 100).toFixed(1) : '100';
 
     return {
       total,
       errorRate: Number(errorRate),
+      successRate: Number(successRate),
       avgDuration: Number(avgDuration),
       status2xx,
+      status3xx,
+      status4xx,
       status5xx,
     };
   }, [logs]);
 
-  const handleCopyText = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(id);
-    toast.success('Copied to clipboard');
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
+  const hasActiveFilters =
+    selectedNode !== 'all' ||
+    selectedService !== 'all' ||
+    selectedMethod !== 'all' ||
+    selectedStatusTab !== 'all' ||
+    search.trim() !== '';
 
   const handleResetFilters = () => {
     setSelectedNode('all');
     setSelectedService('all');
     setSelectedMethod('all');
-    setSelectedStatus('all');
+    setSelectedStatusTab('all');
     setSearch('');
     toast.info('Filters reset to default');
   };
 
   const handleExportJSON = () => {
+    if (logs.length === 0) return;
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(logs, null, 2));
     const dl = document.createElement('a');
     dl.setAttribute('href', dataStr);
@@ -209,7 +194,7 @@ export function IngressLogsViewer() {
     document.body.appendChild(dl);
     dl.click();
     dl.remove();
-    toast.success(`Exported ${logs.length} ingress access log entries (JSON)`);
+    toast.success(`Exported ${logs.length} ingress log records (JSON)`);
   };
 
   const handleExportCSV = () => {
@@ -234,33 +219,33 @@ export function IngressLogsViewer() {
     document.body.appendChild(dl);
     dl.click();
     dl.remove();
-    toast.success(`Exported ${logs.length} ingress access log entries (CSV)`);
+    toast.success(`Exported ${logs.length} ingress log records (CSV)`);
   };
 
   const getStatusBadge = (code: number) => {
     if (code >= 200 && code < 300) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-500/20 dark:border-emerald-500/30">
           {code}
         </span>
       );
     }
     if (code >= 300 && code < 400) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-blue-500/10 text-blue-700 dark:bg-[#98A4F7]/15 dark:text-[#98A4F7] border border-blue-500/20 dark:border-[#98A4F7]/30">
           {code}
         </span>
       );
     }
     if (code >= 400 && code < 500) {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-amber-500/10 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border border-amber-500/20 dark:border-amber-500/25">
           {code}
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-mono font-medium bg-red-500/10 text-red-700 dark:bg-[#FF5A6A]/15 dark:text-[#FF5A6A] border border-red-500/20 dark:border-[#FF5A6A]/30">
         {code}
       </span>
     );
@@ -269,110 +254,100 @@ export function IngressLogsViewer() {
   const getMethodBadge = (method: string) => {
     const m = (method || 'GET').toUpperCase();
     const colors: Record<string, string> = {
-      GET: 'text-blue-400 bg-blue-500/10 border-blue-500/25',
-      POST: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25',
-      PUT: 'text-amber-400 bg-amber-500/10 border-amber-500/25',
-      PATCH: 'text-purple-400 bg-purple-500/10 border-purple-500/25',
-      DELETE: 'text-rose-400 bg-rose-500/10 border-rose-500/25',
-      OPTIONS: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/25',
-      HEAD: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/25',
+      GET: 'text-blue-600 dark:text-[#98A4F7] border-blue-500/30 bg-blue-500/10',
+      POST: 'text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
+      PUT: 'text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10',
+      PATCH: 'text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10',
+      DELETE: 'text-red-600 dark:text-[#FF5A6A] border-red-500/30 bg-red-500/10',
+      OPTIONS: 'text-muted-foreground border-border bg-muted/40',
+      HEAD: 'text-muted-foreground border-border bg-muted/40',
     };
     return (
-      <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border', colors[m] || 'text-muted-foreground bg-muted/40 border-border')}>
+      <span
+        className={cn(
+          'inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-mono font-semibold border',
+          colors[m] || 'text-muted-foreground border-border bg-muted/40'
+        )}
+      >
         {m}
       </span>
     );
   };
 
   return (
-    <div className="space-y-5">
-      {/* Real-time Ingress Metrics Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="border-border bg-card/60 backdrop-blur-xs p-3">
-          <div className="text-xs text-muted-foreground flex items-center justify-between">
-            <span>Total Requests</span>
-            <Globe className="size-3.5 text-primary" />
-          </div>
-          <div className="text-2xl font-bold font-mono mt-1 text-foreground">
-            {stats.total.toLocaleString()}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Buffer: last {logs.length} entries
-          </div>
-        </Card>
+    <div className="flex flex-col gap-6">
+      {/* 1. Real-time Ingress Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <StatCard
+          title="Total Requests"
+          value={stats.total.toLocaleString()}
+          subtext={`Buffer: last ${logs.length} captured entries`}
+          icon={Globe}
+        />
 
-        <Card className="border-border bg-card/60 backdrop-blur-xs p-3">
-          <div className="text-xs text-muted-foreground flex items-center justify-between">
-            <span>Error Rate</span>
-            <AlertCircle className={cn('size-3.5', stats.errorRate > 5 ? 'text-rose-500' : 'text-emerald-500')} />
-          </div>
-          <div className={cn('text-2xl font-bold font-mono mt-1', stats.errorRate > 5 ? 'text-rose-500' : 'text-foreground')}>
-            {stats.errorRate}%
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            {stats.status5xx} server errors (5xx)
-          </div>
-        </Card>
+        <StatCard
+          title="Success Rate"
+          value={`${stats.successRate}%`}
+          subtext={`${stats.status2xx} OK responses (2xx)`}
+          icon={CheckCircle2}
+          statusAccent="healthy"
+        />
 
-        <Card className="border-border bg-card/60 backdrop-blur-xs p-3">
-          <div className="text-xs text-muted-foreground flex items-center justify-between">
-            <span>Avg Ingress Latency</span>
-            <Clock className="size-3.5 text-blue-400" />
-          </div>
-          <div className="text-2xl font-bold font-mono mt-1 text-foreground">
-            {stats.avgDuration} <span className="text-xs text-muted-foreground font-sans font-normal">ms</span>
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            Reverse-proxy duration
-          </div>
-        </Card>
+        <StatCard
+          title="Error Rate"
+          value={`${stats.errorRate}%`}
+          subtext={`${stats.status5xx} server errors (5xx)`}
+          icon={AlertCircle}
+          statusAccent={stats.errorRate > 5 ? 'error' : undefined}
+        />
 
-        <Card className="border-border bg-card/60 backdrop-blur-xs p-3">
-          <div className="text-xs text-muted-foreground flex items-center justify-between">
-            <span>Scope Filter</span>
-            <Layers className="size-3.5 text-primary" />
-          </div>
-          <div className="text-base font-semibold truncate mt-1 text-foreground">
-            {selectedNode === 'all' ? 'All Nodes' : nodes.find((n) => n.id === selectedNode)?.name || selectedNode}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-            {selectedService === 'all' ? 'All Services' : services.find((s) => s.id === selectedService)?.name || selectedService}
-          </div>
-        </Card>
+        <StatCard
+          title="Avg Latency"
+          value={`${stats.avgDuration} ms`}
+          subtext="Edge proxy dispatch time"
+          icon={Clock}
+        />
       </div>
 
-      {/* Main Controls Card */}
-      <Card className="border-border bg-card p-4 space-y-4">
-        {/* Top Control Bar: Streaming Status & Actions */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-border/80">
-          <div className="flex items-center gap-2 flex-wrap">
+      {/* 2. Unified Streaming & Filter Card */}
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-5 flex flex-col gap-4">
+        {/* Top Control Bar: Streaming Status, Rate & Global Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {/* Live Streaming Toggle */}
             <Button
-              variant="outline"
+              variant={isLive ? 'outline' : 'secondary'}
               size="sm"
               onClick={() => setIsLive(!isLive)}
               className={cn(
-                'h-8 text-xs gap-1.5 border-border font-medium transition-all',
-                isLive ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400' : 'text-muted-foreground'
+                'h-9 text-xs gap-2 font-medium active:not-aria-[haspopup]:translate-y-px cursor-pointer',
+                isLive
+                  ? 'border-status-success/40 bg-status-success/10 text-status-success hover:bg-status-success/15'
+                  : 'text-muted-foreground'
               )}
             >
-              <Radio className={cn('size-3.5', isLive ? 'animate-pulse text-emerald-400' : 'text-muted-foreground')} />
-              <span>{isLive ? 'LIVE STREAMING' : 'STREAM PAUSED'}</span>
+              <span
+                className={cn(
+                  'size-2 rounded-full',
+                  isLive ? 'bg-status-success animate-pulse' : 'bg-muted-foreground'
+                )}
+              />
+              <span>{isLive ? 'Live Stream Active' : 'Stream Paused'}</span>
             </Button>
 
             {/* Polling Interval Select */}
             <div className="flex items-center gap-1.5">
-              <span className="text-xs text-muted-foreground font-medium shrink-0">Rate:</span>
+              <span className="text-xs text-muted-foreground font-medium shrink-0">Poll:</span>
               <Select
                 value={String(pollInterval)}
                 onValueChange={(val) => {
                   if (val) setPollInterval(Number(val));
                 }}
-                items={rateOptions}
                 disabled={!isLive}
+                items={rateOptions}
               >
-                <SelectTrigger size="sm" className="h-8 w-32 text-xs bg-muted/30 border-border">
-                  <SelectValue placeholder="Rate">
+                <SelectTrigger size="sm" className="h-9 w-32 text-xs bg-card border-border cursor-pointer">
+                  <SelectValue placeholder="Poll Interval">
                     {(val) => rateOptions.find((r) => r.value === val)?.label || `${val}ms`}
                   </SelectValue>
                 </SelectTrigger>
@@ -392,74 +367,144 @@ export function IngressLogsViewer() {
               size="sm"
               onClick={() => refetch()}
               disabled={isFetching}
-              className="h-8 text-xs gap-1.5 border-border"
-              title="Manual Refresh"
+              className="h-9 text-xs gap-1.5 border-border active:not-aria-[haspopup]:translate-y-px cursor-pointer"
+              title="Refresh ingress logs"
             >
               <RefreshCw className={cn('size-3.5', isFetching && 'animate-spin')} />
               <span>Refresh</span>
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Export Actions */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportJSON}
-              disabled={logs.length === 0}
-              className="h-8 text-xs gap-1.5 border-border"
-            >
-              <FileCode className="size-3.5" />
-              <span>JSON</span>
-            </Button>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {/* Export Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={logs.length === 0}
+                    className="h-9 text-xs gap-1.5 border-border active:not-aria-[haspopup]:translate-y-px cursor-pointer"
+                  >
+                    <Download className="size-3.5" />
+                    <span>Export</span>
+                    <ChevronDown className="size-3 opacity-60" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={handleExportJSON} className="gap-2 text-xs cursor-pointer">
+                  <FileCode className="size-3.5 text-muted-foreground" />
+                  <span>Export as JSON</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV} className="gap-2 text-xs cursor-pointer">
+                  <FileSpreadsheet className="size-3.5 text-muted-foreground" />
+                  <span>Export as CSV</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportCSV}
-              disabled={logs.length === 0}
-              className="h-8 text-xs gap-1.5 border-border"
-            >
-              <FileSpreadsheet className="size-3.5" />
-              <span>CSV</span>
-            </Button>
-
-            {(selectedNode !== 'all' || selectedService !== 'all' || selectedMethod !== 'all' || selectedStatus !== 'all' || search) && (
+            {/* Reset Filters Action */}
+            {hasActiveFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleResetFilters}
-                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                className="h-9 text-xs gap-1.5 text-muted-foreground hover:text-foreground active:not-aria-[haspopup]:translate-y-px cursor-pointer"
               >
-                Reset Filters
+                <RotateCcw className="size-3.5" />
+                <span>Reset</span>
               </Button>
             )}
           </div>
         </div>
 
+        {/* Status Tabs Bar (Base Vega specification via Tabs) */}
+        <div className="overflow-x-auto pb-1 scrollbar-none">
+          <Tabs
+            value={selectedStatusTab}
+            onValueChange={(val) => setSelectedStatusTab(val as StatusTab)}
+            className="w-full"
+          >
+            <TabsList className="h-9 p-1 bg-muted/60 dark:bg-muted/30 border border-border rounded-lg gap-1 min-w-max justify-start">
+              {[
+                { id: 'all', label: 'All Requests', count: logs.length },
+                { id: '2xx', label: '2xx Success', count: stats.status2xx },
+                { id: '3xx', label: '3xx Redirect', count: stats.status3xx },
+                { id: '4xx', label: '4xx Client Error', count: stats.status4xx },
+                { id: '5xx', label: '5xx Server Error', count: stats.status5xx },
+              ].map((tab) => {
+                const isSelected = selectedStatusTab === tab.id;
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className={cn(
+                      'h-7 px-3 text-xs font-medium rounded-md gap-1.5 transition-all select-none cursor-pointer',
+                      'active:not-aria-[haspopup]:translate-y-px',
+                      'data-active:bg-background data-active:text-foreground data-active:border data-active:border-border',
+                      'dark:data-active:bg-card dark:data-active:text-foreground dark:data-active:border-border'
+                    )}
+                  >
+                    <span>{tab.label}</span>
+                    <span
+                      className={cn(
+                        'ml-1 text-[10px] font-mono font-medium px-1.5 py-0.2 rounded-full transition-colors',
+                        isSelected
+                          ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-[#98A4F7]'
+                          : 'bg-muted-foreground/15 text-muted-foreground'
+                      )}
+                    >
+                      {tab.count}
+                    </span>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
+        </div>
+
         {/* Filter Controls Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-1">
+          {/* Search Box */}
+          <div className="lg:col-span-5 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search request path, client IP, host, router..."
+              className="pl-9 pr-8 text-xs sm:text-sm h-9 bg-card border-border rounded-md placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50 font-mono"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-sm transition-colors cursor-pointer"
+                aria-label="Clear search"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+
           {/* Node Filter */}
           <div className="lg:col-span-3">
-            <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
-              Filter by Node
-            </label>
             <Select
               value={selectedNode}
               onValueChange={(val) => setSelectedNode(val ?? 'all')}
               items={nodeOptions}
             >
-              <SelectTrigger size="sm" className="h-8 text-xs bg-muted/40 border-border">
-                <div className="flex items-center gap-1.5 truncate">
+              <SelectTrigger size="sm" className="h-9 text-xs sm:text-sm bg-card border-border cursor-pointer">
+                <div className="flex items-center gap-2 truncate">
                   <Server className="size-3.5 text-muted-foreground shrink-0" />
-                  <SelectValue placeholder="All Nodes">
+                  <SelectValue placeholder="All Cluster Nodes">
                     {(val) => nodeOptions.find((n) => n.value === val)?.label || 'All Nodes'}
                   </SelectValue>
                 </div>
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false} align="start" className="w-(--anchor-width) max-h-60">
                 {nodeOptions.map((node) => (
-                  <SelectItem key={node.value} value={node.value}>
+                  <SelectItem key={node.value} value={node.value} className="text-xs">
                     {node.label}
                   </SelectItem>
                 ))}
@@ -468,17 +513,14 @@ export function IngressLogsViewer() {
           </div>
 
           {/* Service Filter */}
-          <div className="lg:col-span-3">
-            <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
-              Filter by Service
-            </label>
+          <div className="lg:col-span-2">
             <Select
               value={selectedService}
               onValueChange={(val) => setSelectedService(val ?? 'all')}
               items={serviceOptions}
             >
-              <SelectTrigger size="sm" className="h-8 text-xs bg-muted/40 border-border">
-                <div className="flex items-center gap-1.5 truncate">
+              <SelectTrigger size="sm" className="h-9 text-xs sm:text-sm bg-card border-border cursor-pointer">
+                <div className="flex items-center gap-2 truncate">
                   <Box className="size-3.5 text-muted-foreground shrink-0" />
                   <SelectValue placeholder="All Services">
                     {(val) => serviceOptions.find((s) => s.value === val)?.label || 'All Services'}
@@ -487,7 +529,7 @@ export function IngressLogsViewer() {
               </SelectTrigger>
               <SelectContent alignItemWithTrigger={false} align="start" className="w-(--anchor-width) max-h-60">
                 {serviceOptions.map((service) => (
-                  <SelectItem key={service.value} value={service.value}>
+                  <SelectItem key={service.value} value={service.value} className="text-xs">
                     {service.label}
                   </SelectItem>
                 ))}
@@ -497,15 +539,12 @@ export function IngressLogsViewer() {
 
           {/* Method Filter */}
           <div className="lg:col-span-2">
-            <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
-              HTTP Method
-            </label>
             <Select
               value={selectedMethod}
               onValueChange={(val) => setSelectedMethod(val ?? 'all')}
               items={methodOptions}
             >
-              <SelectTrigger size="sm" className="h-8 text-xs bg-muted/40 border-border font-mono">
+              <SelectTrigger size="sm" className="h-9 text-xs sm:text-sm bg-card border-border cursor-pointer font-mono">
                 <SelectValue placeholder="All Methods">
                   {(val) => methodOptions.find((m) => m.value === val)?.label || 'All Methods'}
                 </SelectValue>
@@ -519,382 +558,182 @@ export function IngressLogsViewer() {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Search Box */}
-          <div className="lg:col-span-4">
-            <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
-              Search Request Path / IP / Host / Router
-            </label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="e.g. /api/v1/auth, 192.168, secure@file..."
-                className="h-8 pl-8 text-xs font-mono border-border bg-muted/40"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* HTTP Status Chips */}
-        <div className="flex items-center gap-2 pt-1 flex-wrap">
-          <span className="text-xs text-muted-foreground font-medium mr-1 flex items-center gap-1">
-            <Filter className="size-3 text-primary" /> Status:
-          </span>
-          <div className="inline-flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-xs select-none">
-            {[
-              { id: 'all', label: 'All Statuses' },
-              { id: '2xx', label: '2xx (OK)' },
-              { id: '3xx', label: '3xx (Redirect)' },
-              { id: '4xx', label: '4xx (Client Error)' },
-              { id: '5xx', label: '5xx (Server Error)' },
-            ].map((chip) => (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={() => setSelectedStatus(chip.id)}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer',
-                  selectedStatus === chip.id
-                    ? 'bg-background text-foreground shadow-xs font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="ml-auto text-xs text-muted-foreground">
-            Showing <strong className="text-foreground font-mono">{logs.length}</strong> access entries
-          </div>
-        </div>
-      </Card>
-
-      {/* Access Logs Stream Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-muted/40 border-b border-border text-muted-foreground font-sans">
-              <tr>
-                <th className="py-2.5 px-3 font-medium whitespace-nowrap">TIMESTAMP</th>
-                <th className="py-2.5 px-3 font-medium whitespace-nowrap">NODE</th>
-                <th className="py-2.5 px-3 font-medium whitespace-nowrap">METHOD</th>
-                <th className="py-2.5 px-3 font-medium whitespace-nowrap">STATUS</th>
-                <th className="py-2.5 px-3 font-medium">HOST / PATH</th>
-                <th className="py-2.5 px-3 font-medium">SERVICE / ROUTER</th>
-                <th className="py-2.5 px-3 font-medium whitespace-nowrap">CLIENT IP</th>
-                <th className="py-2.5 px-3 font-medium whitespace-nowrap">DURATION</th>
-                <th className="py-2.5 px-3 font-medium text-right">DETAILS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {isLoading && logs.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-16 text-center text-muted-foreground font-sans text-sm">
-                    <RefreshCw className="size-5 animate-spin mx-auto mb-2 text-primary" />
-                    Connecting to Traefik ingress stream...
-                  </td>
-                </tr>
-              ) : logs.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-16 text-center text-muted-foreground font-sans text-sm">
-                    <Globe className="size-8 mx-auto mb-2 text-muted-foreground/40" />
-                    <p className="font-medium text-foreground">No Traefik ingress logs found</p>
-                    <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                      No reverse-proxy requests matched the current filter criteria (Node: {selectedNode}, Service: {selectedService}, Status: {selectedStatus}).
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleResetFilters}
-                      className="mt-3 text-xs"
-                    >
-                      Clear Filters
-                    </Button>
-                  </td>
-                </tr>
-              ) : (
-                logs.map((log, idx) => (
-                  <tr
-                    key={`${log.timestamp}-${idx}-${log.clientIp}`}
-                    onClick={() => setSelectedLog(log)}
-                    className="hover:bg-muted/20 transition-colors cursor-pointer group"
-                  >
-                    {/* Timestamp */}
-                    <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleTimeString(undefined, {
-                        hour12: false,
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                      })}
-                    </td>
-
-                    {/* Node */}
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-muted/60 text-muted-foreground border border-border/80">
-                        <Server className="size-2.5" />
-                        <span className="truncate max-w-[90px]">{log.nodeName || log.nodeId || 'master'}</span>
-                      </span>
-                    </td>
-
-                    {/* Method */}
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {getMethodBadge(log.method)}
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      {getStatusBadge(log.statusCode)}
-                    </td>
-
-                    {/* Host & Path */}
-                    <td className="py-2 px-3 max-w-[280px]">
-                      <div className="flex flex-col truncate">
-                        {log.host && (
-                          <span className="text-[10px] text-muted-foreground font-sans truncate">
-                            {log.host}
-                          </span>
-                        )}
-                        <span className="text-foreground font-semibold truncate" title={log.path}>
-                          {log.path}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Service & Router */}
-                    <td className="py-2 px-3 max-w-[200px]">
-                      <div className="flex flex-col truncate">
-                        <span className="text-foreground font-medium truncate" title={log.serviceName}>
-                          {log.serviceName || '—'}
-                        </span>
-                        <span className="text-[10px] text-primary/80 truncate" title={log.routerName}>
-                          {log.routerName}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Client IP */}
-                    <td className="py-2 px-3 text-muted-foreground whitespace-nowrap">
-                      {log.clientIp}
-                    </td>
-
-                    {/* Duration */}
-                    <td className="py-2 px-3 whitespace-nowrap">
-                      <span
-                        className={cn(
-                          'font-mono',
-                          log.durationMs > 200
-                            ? 'text-rose-400 font-semibold'
-                            : log.durationMs > 50
-                            ? 'text-amber-400'
-                            : 'text-muted-foreground'
-                        )}
-                      >
-                        {log.durationMs.toFixed(1)}ms
-                      </span>
-                    </td>
-
-                    {/* Action */}
-                    <td className="py-2 px-3 text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-6 text-muted-foreground group-hover:text-foreground opacity-60 group-hover:opacity-100"
-                        title="Inspect Log Entry"
-                      >
-                        <Eye className="size-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
 
-      {/* Log Detail Dialog / Inspector */}
-      <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className="sm:max-w-3xl w-[96vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border-border shadow-2xl">
-          {selectedLog && (
-            <>
-              {/* Modal Fixed Header */}
-              <div className="p-5 pb-3 border-b border-border bg-muted/20 shrink-0 space-y-2.5">
-                <div className="flex items-center gap-2 flex-wrap pr-8">
-                  {getMethodBadge(selectedLog.method)}
-                  {getStatusBadge(selectedLog.statusCode)}
-                  <span className="font-mono text-xs text-muted-foreground px-2 py-0.5 rounded bg-muted/60 border border-border/80">
-                    {selectedLog.durationMs.toFixed(2)} ms
-                  </span>
-                  <span className="font-mono text-xs text-muted-foreground px-2 py-0.5 rounded bg-muted/60 border border-border/80">
-                    {selectedLog.protocol || 'HTTP/1.1'}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {new Date(selectedLog.timestamp).toLocaleString()}
-                  </span>
-                </div>
+      {/* 3. Ingress Access Logs Table */}
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
+        {isLoading && logs.length === 0 ? (
+          <div className="p-6">
+            <LoadingSkeleton variant="table" />
+          </div>
+        ) : logs.length === 0 ? (
+          <EmptyState
+            icon={Globe}
+            title="No ingress access logs found"
+            description={
+              hasActiveFilters
+                ? 'No reverse-proxy requests matched your current filter criteria.'
+                : 'No access logs have been received from Traefik ingress yet.'
+            }
+            action={
+              hasActiveFilters
+                ? {
+                    label: 'Clear Filters',
+                    onClick: handleResetFilters,
+                  }
+                : undefined
+            }
+          />
+        ) : (
+          <>
+            <Table>
+              <TableHeader className="bg-muted/40 border-b border-border">
+                <TableRow className="h-10 hover:bg-transparent">
+                  <TableHead className="w-[12%]">Timestamp</TableHead>
+                  <TableHead className="w-[8%]">Status</TableHead>
+                  <TableHead className="w-[9%]">Method</TableHead>
+                  <TableHead className="w-[28%]">Host & Path</TableHead>
+                  <TableHead className="w-[17%]">Service / Router</TableHead>
+                  <TableHead className="w-[12%]">Node</TableHead>
+                  <TableHead className="w-[11%]">Client IP</TableHead>
+                  <TableHead className="w-[8%]">Latency</TableHead>
+                  <TableHead className="w-[5%] text-right pr-4">Details</TableHead>
+                </TableRow>
+              </TableHeader>
 
-                <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-background border border-border">
-                  <span className="font-mono text-xs text-foreground truncate select-all" title={selectedLog.host ? `https://${selectedLog.host}${selectedLog.path}` : selectedLog.path}>
-                    <span className="text-muted-foreground">{selectedLog.host ? `https://${selectedLog.host}` : ''}</span>
-                    <strong className="text-primary">{selectedLog.path}</strong>
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleCopyText(selectedLog.host ? `https://${selectedLog.host}${selectedLog.path}` : selectedLog.path, 'url')}
-                    className="h-6 px-2 text-[11px] gap-1 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+              <TableBody className="divide-y divide-border/40">
+                {logs.map((log, idx) => (
+                  <TableRow
+                    key={`${log.timestamp}-${idx}-${log.clientIp}`}
+                    onClick={() => setSelectedLog(log)}
+                    className="h-14 hover:bg-muted/30 transition-colors group cursor-pointer active:not-aria-[haspopup]:translate-y-px"
                   >
-                    {copiedKey === 'url' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                    <span>{copiedKey === 'url' ? 'Copied' : 'Copy URL'}</span>
-                  </Button>
-                </div>
-              </div>
-
-              {/* Modal Scrollable Body (Zero Clipping) */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                {/* Section 1: Ingress Routing & Identity */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers className="size-3.5 text-primary" />
-                    <span>Routing & Gateway Telemetry</span>
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
-                      <span className="text-muted-foreground font-sans text-[11px]">Client IP</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-foreground">{selectedLog.clientIp}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyText(selectedLog.clientIp, 'ip')}
-                          className="text-muted-foreground hover:text-foreground cursor-pointer"
-                          title="Copy IP"
-                        >
-                          {copiedKey === 'ip' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                        </button>
+                    {/* Timestamp */}
+                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                      <div className="font-medium text-foreground">
+                        {new Date(log.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
                       </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
-                      <span className="text-muted-foreground font-sans text-[11px]">Ingress Node</span>
-                      <span className="font-semibold text-foreground truncate max-w-[180px]">
-                        {selectedLog.nodeName || selectedLog.nodeId || 'master-node'}
-                      </span>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
-                      <span className="text-muted-foreground font-sans text-[11px]">Traefik Router</span>
-                      <span className="font-semibold text-primary truncate max-w-[180px]" title={selectedLog.routerName}>
-                        {selectedLog.routerName || '—'}
-                      </span>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
-                      <span className="text-muted-foreground font-sans text-[11px]">Target Service</span>
-                      <span className="font-semibold text-foreground truncate max-w-[180px]">
-                        {selectedLog.serviceName || '—'}
-                      </span>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
-                      <span className="text-muted-foreground font-sans text-[11px]">Host Header</span>
-                      <span className="font-semibold text-foreground truncate max-w-[180px]" title={selectedLog.host}>
-                        {selectedLog.host || '—'}
-                      </span>
-                    </div>
-
-                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
-                      <span className="text-muted-foreground font-sans text-[11px]">Ingress Latency</span>
-                      <span className="font-semibold text-emerald-400">
-                        {selectedLog.durationMs.toFixed(2)} ms
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 2: Client User-Agent Header */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
-                      Client User-Agent
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyText(selectedLog.userAgent || '', 'ua')}
-                      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      {copiedKey === 'ua' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                      <span>Copy User-Agent</span>
-                    </button>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border text-xs font-mono break-words leading-relaxed text-foreground select-all">
-                    {selectedLog.userAgent || 'No User-Agent header recorded'}
-                  </div>
-                </div>
-
-                {/* Section 3: Full Raw JSON Telemetry */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
-                        Complete Traefik JSON Telemetry
-                      </span>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border">
-                        application/json
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleCopyText(formattedRawJson, 'json')}
-                      className="h-7 text-xs gap-1.5 border-border cursor-pointer"
-                    >
-                      {copiedKey === 'json' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
-                      <span>{copiedKey === 'json' ? 'Copied' : 'Copy Raw JSON'}</span>
-                    </Button>
-                  </div>
-                  <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30 dark:bg-zinc-950/70 shadow-2xs">
-                    {/* Header bar for code box */}
-                    <div className="flex items-center justify-between px-3.5 py-1.5 border-b border-border/70 bg-muted/40 dark:bg-zinc-900/50 text-[11px] text-muted-foreground font-mono">
-                      <div className="flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-emerald-500" />
-                        <span>traefik-telemetry.json</span>
+                      <div className="text-[10px] text-muted-foreground/80">
+                        {new Date(log.timestamp).toLocaleDateString([], {
+                          month: 'numeric',
+                          day: 'numeric',
+                        })}
                       </div>
-                      <span>{jsonLineCount} lines</span>
-                    </div>
-                    <pre className="prism-code p-4 text-xs font-mono text-foreground overflow-x-auto whitespace-pre leading-relaxed select-all max-h-[360px] overflow-y-auto">
-                      <code
-                        className="language-json"
-                        dangerouslySetInnerHTML={{
-                          __html: highlightedJson,
-                        }}
-                      />
-                    </pre>
-                  </div>
-                </div>
-              </div>
+                    </TableCell>
 
-              {/* Modal Fixed Footer */}
-              <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center justify-between shrink-0">
-                <span className="text-xs font-mono text-muted-foreground">
-                  Timestamp UTC: {selectedLog.timestamp}
+                    {/* Status Code */}
+                    <TableCell className="whitespace-nowrap">
+                      {getStatusBadge(log.statusCode)}
+                    </TableCell>
+
+                    {/* HTTP Method */}
+                    <TableCell className="whitespace-nowrap">
+                      {getMethodBadge(log.method)}
+                    </TableCell>
+
+                    {/* Host & Path */}
+                    <TableCell className="max-w-[280px]">
+                      <div className="flex flex-col truncate">
+                        {log.host && (
+                          <span className="text-[11px] text-muted-foreground truncate" title={log.host}>
+                            {log.host}
+                          </span>
+                        )}
+                        <span className="font-mono text-xs font-semibold text-foreground truncate" title={log.path}>
+                          {log.path}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* Target Service & Router */}
+                    <TableCell className="max-w-[190px]">
+                      <div className="flex flex-col truncate">
+                        <span className="text-xs font-medium text-foreground truncate" title={log.serviceName}>
+                          {log.serviceName || '—'}
+                        </span>
+                        <span className="text-[11px] font-mono text-muted-foreground truncate" title={log.routerName}>
+                          {log.routerName || '—'}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* Node */}
+                    <TableCell className="whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-mono bg-muted/60 text-muted-foreground border border-border">
+                        <Server className="size-3 shrink-0" />
+                        <span className="truncate max-w-[90px]">{log.nodeName || log.nodeId || 'master'}</span>
+                      </span>
+                    </TableCell>
+
+                    {/* Client IP */}
+                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                      {log.clientIp}
+                    </TableCell>
+
+                    {/* Latency / Duration */}
+                    <TableCell className="whitespace-nowrap">
+                      <span
+                        className={cn(
+                          'font-mono text-xs',
+                          log.durationMs > 200
+                            ? 'text-status-danger font-medium'
+                            : log.durationMs > 50
+                            ? 'text-status-warning'
+                            : 'text-muted-foreground'
+                        )}
+                      >
+                        {log.durationMs.toFixed(1)} ms
+                      </span>
+                    </TableCell>
+
+                    {/* Action Inspector Button */}
+                    <TableCell className="text-right pr-4">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7 text-muted-foreground group-hover:text-foreground opacity-60 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        title="View log details"
+                      >
+                        <Eye className="size-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            {/* Table Footer Summary */}
+            <div className="p-3.5 px-4 bg-muted/20 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span>
+                  Showing <strong className="text-foreground font-mono">{logs.length}</strong> access entries
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedLog(null)}
-                  className="h-8 text-xs cursor-pointer"
-                >
-                  Close
-                </Button>
+                {hasActiveFilters && (
+                  <Badge variant="outline" className="text-[10px] h-5 border-border bg-muted/40">
+                    Filtered
+                  </Badge>
+                )}
               </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+              <div className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-status-success animate-pulse" />
+                <span>Buffer limit: 150 events</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 4. Log Detail Slide-over Inspector Sheet */}
+      <IngressLogDetailSheet
+        open={Boolean(selectedLog)}
+        onOpenChange={(open) => !open && setSelectedLog(null)}
+        log={selectedLog}
+      />
     </div>
   );
 }
