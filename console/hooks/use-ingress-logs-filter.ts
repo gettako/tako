@@ -28,10 +28,10 @@ export function useIngressLogsFilter(options: IngressLogsFilterOptions = {}) {
 
   const rateOptions = useMemo(
     () => [
-      { value: '1000', label: '1s (Fast)' },
-      { value: '3000', label: '3s (Default)' },
-      { value: '5000', label: '5s (Normal)' },
-      { value: '10000', label: '10s (Eco)' },
+      { value: '1000', label: '1s' },
+      { value: '3000', label: '3s' },
+      { value: '5000', label: '5s' },
+      { value: '10000', label: '10' },
     ],
     []
   );
