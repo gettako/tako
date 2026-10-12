@@ -75,6 +75,7 @@ export interface TraefikAccessLogEntry {
   nodeId?: string;
   nodeName?: string;
   host?: string;
+  rawJson?: string;
 }
 
 export interface NodeRetentionPolicy {

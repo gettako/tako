@@ -608,99 +608,170 @@ export function IngressLogsViewer() {
 
       {/* Log Detail Dialog / Inspector */}
       <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto font-sans">
+        <DialogContent className="sm:max-w-3xl w-[96vw] max-h-[90vh] flex flex-col p-0 overflow-hidden bg-card border-border shadow-2xl">
           {selectedLog && (
-            <div className="space-y-4">
-              <DialogHeader>
-                <div className="flex items-center gap-2 mb-1">
+            <>
+              {/* Modal Fixed Header */}
+              <div className="p-5 pb-3 border-b border-border bg-muted/20 shrink-0 space-y-2.5">
+                <div className="flex items-center gap-2 flex-wrap pr-8">
                   {getMethodBadge(selectedLog.method)}
                   {getStatusBadge(selectedLog.statusCode)}
-                  <span className="font-mono text-xs text-muted-foreground">
-                    {selectedLog.durationMs.toFixed(2)}ms
+                  <span className="font-mono text-xs text-muted-foreground px-2 py-0.5 rounded bg-muted/60 border border-border/80">
+                    {selectedLog.durationMs.toFixed(2)} ms
+                  </span>
+                  <span className="font-mono text-xs text-muted-foreground px-2 py-0.5 rounded bg-muted/60 border border-border/80">
+                    {selectedLog.protocol || 'HTTP/1.1'}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {new Date(selectedLog.timestamp).toLocaleString()}
                   </span>
                 </div>
-                <DialogTitle className="font-mono text-sm break-all font-semibold text-foreground">
-                  {selectedLog.host ? `https://${selectedLog.host}${selectedLog.path}` : selectedLog.path}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
-                  Recorded at {new Date(selectedLog.timestamp).toUTCString()} ({selectedLog.protocol || 'HTTP/2.0'})
-                </DialogDescription>
-              </DialogHeader>
 
-              {/* Grid of Attributes */}
-              <div className="grid grid-cols-2 gap-3 text-xs bg-muted/30 p-3 rounded-lg border border-border font-mono">
-                <div>
-                  <span className="text-muted-foreground font-sans block text-[11px]">Client IP</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="font-semibold text-foreground">{selectedLog.clientIp}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyText(selectedLog.clientIp, 'ip')}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      {copiedKey === 'ip' ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
-                    </button>
+                <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-background border border-border">
+                  <span className="font-mono text-xs text-foreground truncate select-all" title={selectedLog.host ? `https://${selectedLog.host}${selectedLog.path}` : selectedLog.path}>
+                    <span className="text-muted-foreground">{selectedLog.host ? `https://${selectedLog.host}` : ''}</span>
+                    <strong className="text-primary">{selectedLog.path}</strong>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleCopyText(selectedLog.host ? `https://${selectedLog.host}${selectedLog.path}` : selectedLog.path, 'url')}
+                    className="h-6 px-2 text-[11px] gap-1 shrink-0 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    {copiedKey === 'url' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                    <span>{copiedKey === 'url' ? 'Copied' : 'Copy URL'}</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Modal Scrollable Body (Zero Clipping) */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                {/* Section 1: Ingress Routing & Identity */}
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="size-3.5 text-primary" />
+                    <span>Routing & Gateway Telemetry</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs font-mono">
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
+                      <span className="text-muted-foreground font-sans text-[11px]">Client IP</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-foreground">{selectedLog.clientIp}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(selectedLog.clientIp, 'ip')}
+                          className="text-muted-foreground hover:text-foreground cursor-pointer"
+                          title="Copy IP"
+                        >
+                          {copiedKey === 'ip' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
+                      <span className="text-muted-foreground font-sans text-[11px]">Ingress Node</span>
+                      <span className="font-semibold text-foreground truncate max-w-[180px]">
+                        {selectedLog.nodeName || selectedLog.nodeId || 'master-node'}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
+                      <span className="text-muted-foreground font-sans text-[11px]">Traefik Router</span>
+                      <span className="font-semibold text-primary truncate max-w-[180px]" title={selectedLog.routerName}>
+                        {selectedLog.routerName || '—'}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
+                      <span className="text-muted-foreground font-sans text-[11px]">Target Service</span>
+                      <span className="font-semibold text-foreground truncate max-w-[180px]">
+                        {selectedLog.serviceName || '—'}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
+                      <span className="text-muted-foreground font-sans text-[11px]">Host Header</span>
+                      <span className="font-semibold text-foreground truncate max-w-[180px]" title={selectedLog.host}>
+                        {selectedLog.host || '—'}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-muted/30 border border-border flex items-center justify-between">
+                      <span className="text-muted-foreground font-sans text-[11px]">Ingress Latency</span>
+                      <span className="font-semibold text-emerald-400">
+                        {selectedLog.durationMs.toFixed(2)} ms
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <span className="text-muted-foreground font-sans block text-[11px]">Traefik Router</span>
-                  <span className="font-semibold text-primary mt-0.5 block truncate" title={selectedLog.routerName}>
-                    {selectedLog.routerName || '—'}
-                  </span>
+                {/* Section 2: Client User-Agent Header */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
+                      Client User-Agent
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(selectedLog.userAgent || '', 'ua')}
+                      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      {copiedKey === 'ua' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                      <span>Copy User-Agent</span>
+                    </button>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border text-xs font-mono break-words leading-relaxed text-foreground select-all">
+                    {selectedLog.userAgent || 'No User-Agent header recorded'}
+                  </div>
                 </div>
 
-                <div>
-                  <span className="text-muted-foreground font-sans block text-[11px]">Target Service</span>
-                  <span className="font-semibold text-foreground mt-0.5 block truncate">
-                    {selectedLog.serviceName || '—'}
-                  </span>
-                </div>
-
-                <div>
-                  <span className="text-muted-foreground font-sans block text-[11px]">Ingress Node</span>
-                  <span className="font-semibold text-foreground mt-0.5 block truncate">
-                    {selectedLog.nodeName || selectedLog.nodeId || 'master-node'}
-                  </span>
+                {/* Section 3: Full Raw JSON Telemetry */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
+                      Complete Traefik JSON Telemetry
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyText(selectedLog.rawJson || JSON.stringify(selectedLog, null, 2), 'json')}
+                      className="h-7 text-xs gap-1.5 border-border cursor-pointer"
+                    >
+                      {copiedKey === 'json' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
+                      <span>{copiedKey === 'json' ? 'Copied' : 'Copy Raw JSON'}</span>
+                    </Button>
+                  </div>
+                  <div className="relative rounded-lg border border-border overflow-hidden bg-black/80">
+                    <pre className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto whitespace-pre leading-relaxed select-all">
+                      {selectedLog.rawJson
+                        ? (() => {
+                            try {
+                              return JSON.stringify(JSON.parse(selectedLog.rawJson), null, 2);
+                            } catch {
+                              return selectedLog.rawJson;
+                            }
+                          })()
+                        : JSON.stringify(selectedLog, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               </div>
 
-              {/* User Agent */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium font-sans">User-Agent Header</span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(selectedLog.userAgent, 'ua')}
-                    className="inline-flex items-center gap-1 text-[11px] hover:text-foreground"
-                  >
-                    {copiedKey === 'ua' ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
-                    <span>Copy User-Agent</span>
-                  </button>
-                </div>
-                <div className="p-2.5 rounded-md bg-muted/40 border border-border text-xs font-mono break-all text-muted-foreground">
-                  {selectedLog.userAgent || 'None recorded'}
-                </div>
+              {/* Modal Fixed Footer */}
+              <div className="px-5 py-3 border-t border-border bg-muted/20 flex items-center justify-between shrink-0">
+                <span className="text-xs font-mono text-muted-foreground">
+                  Timestamp UTC: {selectedLog.timestamp}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedLog(null)}
+                  className="h-8 text-xs cursor-pointer"
+                >
+                  Close
+                </Button>
               </div>
-
-              {/* Full Raw JSON */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium font-sans">Raw JSON Telemetry</span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyText(JSON.stringify(selectedLog, null, 2), 'json')}
-                    className="inline-flex items-center gap-1 text-[11px] hover:text-foreground"
-                  >
-                    {copiedKey === 'json' ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
-                    <span>Copy JSON</span>
-                  </button>
-                </div>
-                <pre className="p-3 rounded-lg bg-black/40 border border-border text-[11px] font-mono overflow-x-auto text-foreground/90 max-h-48">
-                  {JSON.stringify(selectedLog, null, 2)}
-                </pre>
-              </div>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
