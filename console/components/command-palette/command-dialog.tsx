@@ -9,6 +9,7 @@ import {
   Server,
   HardDrive,
   Activity,
+  Globe,
   FileText,
   Settings,
   User,
@@ -256,6 +257,16 @@ export function GlobalCommandPalette() {
                 <span className="font-medium">Cluster Telemetry & Monitoring</span>
               </div>
               <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/monitoring</span>
+            </CommandItem>
+            <CommandItem
+              onSelect={() => runCommand(() => router.push('/ingress-logs'))}
+              className="flex items-center justify-between gap-3 py-2 cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Globe className="size-4 text-muted-foreground shrink-0" />
+                <span className="font-medium">Traefik Ingress Real-Time Access Logs</span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground/60 shrink-0 ml-auto">/ingress-logs</span>
             </CommandItem>
           </CommandGroup>
 

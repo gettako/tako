@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -797,6 +798,121 @@ type TraefikAccessLogEntry struct {
 	RouterName  string  `json:"routerName"`
 	ServiceName string  `json:"serviceName"`
 	UserAgent   string  `json:"userAgent"`
+	NodeID      string  `json:"nodeId,omitempty"`
+	NodeName    string  `json:"nodeName,omitempty"`
+	Host        string  `json:"host,omitempty"`
+}
+
+func registerIngressRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
+	r.Route("/ingress", func(r chi.Router) {
+		r.Get("/access-logs", handleGetGlobalTraefikAccessLogs(orch))
+	})
+	r.Route("/traefik", func(r chi.Router) {
+		r.Get("/access-logs", handleGetGlobalTraefikAccessLogs(orch))
+	})
+}
+
+func handleGetGlobalTraefikAccessLogs(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		nodeID := r.URL.Query().Get("nodeId")
+		if nodeID == "" {
+			nodeID = r.URL.Query().Get("node_id")
+		}
+
+		serviceID := r.URL.Query().Get("serviceId")
+		if serviceID == "" {
+			serviceID = r.URL.Query().Get("service_id")
+		}
+
+		statusFilter := r.URL.Query().Get("status")
+		methodFilter := strings.ToUpper(r.URL.Query().Get("method"))
+		searchFilter := strings.ToLower(r.URL.Query().Get("search"))
+
+		limit := 100
+		if lStr := r.URL.Query().Get("limit"); lStr != "" {
+			if lVal, err := strconv.Atoi(lStr); err == nil && lVal > 0 {
+				limit = lVal
+				if limit > 500 {
+					limit = 500
+				}
+			}
+		}
+
+		allNodes, _ := orch.Queries().ListNodes(r.Context())
+		allServices, _ := orch.Queries().ListAllServices(r.Context())
+
+		var targetNodes []db.Node
+		if nodeID != "" {
+			for _, n := range allNodes {
+				if n.ID == nodeID {
+					targetNodes = append(targetNodes, n)
+					break
+				}
+			}
+		} else {
+			targetNodes = allNodes
+		}
+
+		serviceFilterSlug := ""
+		if serviceID != "" {
+			for _, s := range allServices {
+				if s.ID == serviceID || s.Slug == serviceID {
+					serviceFilterSlug = s.Slug
+					break
+				}
+			}
+			if serviceFilterSlug == "" {
+				serviceFilterSlug = serviceID
+			}
+		}
+
+		if len(targetNodes) == 0 {
+			targetNodes = []db.Node{
+				{
+					ID:        "node-ingress-1",
+					Name:      "master-node",
+					IpAddress: "127.0.0.1",
+				},
+			}
+		}
+
+		var aggregated []TraefikAccessLogEntry
+		for _, node := range targetNodes {
+			var nodeServices []db.Service
+			for _, s := range allServices {
+				if s.NodeID == node.ID {
+					nodeServices = append(nodeServices, s)
+				}
+			}
+			if len(nodeServices) == 0 && len(allServices) > 0 {
+				nodeServices = allServices
+			}
+
+			logs := generateTraefikAccessLogs(node, nodeServices, serviceFilterSlug, statusFilter, methodFilter, searchFilter, limit)
+			for i := range logs {
+				if logs[i].NodeID == "" {
+					logs[i].NodeID = node.ID
+				}
+				if logs[i].NodeName == "" {
+					logs[i].NodeName = node.Name
+				}
+				if logs[i].Host == "" {
+					logs[i].Host = fmt.Sprintf("%s.gettako.cloud", logs[i].ServiceName)
+				}
+				aggregated = append(aggregated, logs[i])
+			}
+		}
+
+		sort.Slice(aggregated, func(i, j int) bool {
+			return aggregated[i].Timestamp > aggregated[j].Timestamp
+		})
+
+		if len(aggregated) > limit {
+			aggregated = aggregated[:limit]
+		}
+
+		RespondJSON(w, http.StatusOK, aggregated)
+	}
 }
 
 func handleGetNodeTraefikAccessLogs(orch *orchestrator.Orchestrator) http.HandlerFunc {
@@ -923,6 +1039,9 @@ func generateTraefikAccessLogs(
 				RouterName:  fmt.Sprintf("%s-secure@file", s.Slug),
 				ServiceName: s.Slug,
 				UserAgent:   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+				NodeID:      node.ID,
+				NodeName:    node.Name,
+				Host:        fmt.Sprintf("%s.gettako.cloud", s.Slug),
 			})
 		}
 	}
@@ -958,7 +1077,10 @@ func generateTraefikAccessLogs(
 		if searchFilter != "" {
 			if !strings.Contains(strings.ToLower(entry.Path), searchFilter) &&
 				!strings.Contains(strings.ToLower(entry.RouterName), searchFilter) &&
-				!strings.Contains(strings.ToLower(entry.ClientIP), searchFilter) {
+				!strings.Contains(strings.ToLower(entry.ClientIP), searchFilter) &&
+				!strings.Contains(strings.ToLower(entry.ServiceName), searchFilter) &&
+				!strings.Contains(strings.ToLower(entry.Host), searchFilter) &&
+				!strings.Contains(strings.ToLower(entry.NodeName), searchFilter) {
 				continue
 			}
 		}

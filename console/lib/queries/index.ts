@@ -10,3 +10,4 @@ export * from './use-settings';
 export * from './use-profile';
 export * from './use-audit';
 export * from './use-backups';
+export * from './use-ingress';

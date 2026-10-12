@@ -72,6 +72,9 @@ export interface TraefikAccessLogEntry {
   routerName: string;
   serviceName: string;
   userAgent: string;
+  nodeId?: string;
+  nodeName?: string;
+  host?: string;
 }
 
 export interface NodeRetentionPolicy {
