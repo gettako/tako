@@ -244,10 +244,14 @@
   .dark .prism-code .token.number {
     color: #FBBF24;
   }
-  .prism-code .token.boolean {
+  .prism-code .token.boolean,
+  .prism-code .token.null,
+  .prism-code .token.keyword {
     color: #7C3AED;
   }
-  .dark .prism-code .token.boolean {
+  .dark .prism-code .token.boolean,
+  .dark .prism-code .token.null,
+  .dark .prism-code .token.keyword {
     color: #C084FC;
   }
   .prism-code .token.punctuation {

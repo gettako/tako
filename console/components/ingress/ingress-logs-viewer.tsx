@@ -48,6 +48,8 @@ import { useNodes, useServices } from '@/lib/queries';
 import { TraefikAccessLogEntry } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-json';
 
 export function IngressLogsViewer() {
   const [selectedNode, setSelectedNode] = useState<string>('all');
@@ -60,6 +62,35 @@ export function IngressLogsViewer() {
   const [autoScroll, setAutoScroll] = useState<boolean>(true);
   const [selectedLog, setSelectedLog] = useState<TraefikAccessLogEntry | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Formatted & highlighted JSON for modal
+  const formattedRawJson = useMemo(() => {
+    if (!selectedLog) return '';
+    if (selectedLog.rawJson) {
+      try {
+        return JSON.stringify(JSON.parse(selectedLog.rawJson), null, 2);
+      } catch {
+        return selectedLog.rawJson;
+      }
+    }
+    return JSON.stringify(selectedLog, null, 2);
+  }, [selectedLog]);
+
+  const highlightedJson = useMemo(() => {
+    if (!formattedRawJson) return '';
+    try {
+      if (Prism.languages.json) {
+        return Prism.highlight(formattedRawJson, Prism.languages.json, 'json');
+      }
+    } catch {
+      // Fallback to plain text
+    }
+    return formattedRawJson;
+  }, [formattedRawJson]);
+
+  const jsonLineCount = useMemo(() => {
+    return formattedRawJson ? formattedRawJson.split('\n').length : 0;
+  }, [formattedRawJson]);
 
   // Queries
   const { data: nodes = [] } = useNodes();
@@ -807,30 +838,40 @@ export function IngressLogsViewer() {
                 {/* Section 3: Full Raw JSON Telemetry */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
-                      Complete Traefik JSON Telemetry
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
+                        Complete Traefik JSON Telemetry
+                      </span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground border border-border">
+                        application/json
+                      </span>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleCopyText(selectedLog.rawJson || JSON.stringify(selectedLog, null, 2), 'json')}
+                      onClick={() => handleCopyText(formattedRawJson, 'json')}
                       className="h-7 text-xs gap-1.5 border-border cursor-pointer"
                     >
                       {copiedKey === 'json' ? <Check className="size-3 text-emerald-500" /> : <Copy className="size-3" />}
                       <span>{copiedKey === 'json' ? 'Copied' : 'Copy Raw JSON'}</span>
                     </Button>
                   </div>
-                  <div className="relative rounded-lg border border-border overflow-hidden bg-black/80">
-                    <pre className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto whitespace-pre leading-relaxed select-all">
-                      {selectedLog.rawJson
-                        ? (() => {
-                            try {
-                              return JSON.stringify(JSON.parse(selectedLog.rawJson), null, 2);
-                            } catch {
-                              return selectedLog.rawJson;
-                            }
-                          })()
-                        : JSON.stringify(selectedLog, null, 2)}
+                  <div className="relative rounded-lg border border-border overflow-hidden bg-muted/30 dark:bg-zinc-950/70 shadow-2xs">
+                    {/* Header bar for code box */}
+                    <div className="flex items-center justify-between px-3.5 py-1.5 border-b border-border/70 bg-muted/40 dark:bg-zinc-900/50 text-[11px] text-muted-foreground font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-emerald-500" />
+                        <span>traefik-telemetry.json</span>
+                      </div>
+                      <span>{jsonLineCount} lines</span>
+                    </div>
+                    <pre className="prism-code p-4 text-xs font-mono text-foreground overflow-x-auto whitespace-pre leading-relaxed select-all max-h-[360px] overflow-y-auto">
+                      <code
+                        className="language-json"
+                        dangerouslySetInnerHTML={{
+                          __html: highlightedJson,
+                        }}
+                      />
                     </pre>
                   </div>
                 </div>
