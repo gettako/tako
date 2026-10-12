@@ -424,6 +424,275 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/nodes/{id}/traefik/access-logs:
+    get:
+      summary: Node Traefik ingress access logs
+      description: Retrieves recent HTTP ingress access logs passing through the node Traefik proxy.
+      operationId: getNodeTraefikAccessLogs
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of Traefik access log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/ingress/access-logs:
+    get:
+      summary: Global ingress access logs
+      description: Retrieves global HTTP access logs routed via Traefik ingress proxies across all or filtered nodes/services.
+      operationId: getGlobalIngressAccessLogs
+      tags:
+      - Ingress
+      parameters:
+      - name: nodeId
+        in: query
+        schema:
+          type: string
+      - name: serviceId
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      responses:
+        '200':
+          description: List of Traefik access log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/traefik/access-logs:
+    get:
+      summary: Global Traefik access logs alias
+      description: Alias endpoint for global ingress access logs.
+      operationId: getGlobalTraefikAccessLogs
+      tags:
+      - Ingress
+      parameters:
+      - name: nodeId
+        in: query
+        schema:
+          type: string
+      - name: serviceId
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      responses:
+        '200':
+          description: List of Traefik access log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/nodes/{id}/retention:
+    get:
+      summary: Get node image retention policy
+      description: Retrieves the Docker image retention and auto-prune policy for this node.
+      operationId: getNodeRetentionPolicy
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Node retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodeId:
+                    type: string
+                  keepImageVersions:
+                    type: integer
+                  autoPruneThresholdPercent:
+                    type: number
+                  pruneBuildCache:
+                    type: boolean
+                  updatedAt:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update node image retention policy
+      description: Updates the Docker image retention and automated disk pruning threshold.
+      operationId: updateNodeRetentionPolicy
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                keepImageVersions:
+                  type: integer
+                  example: 3
+                autoPruneThresholdPercent:
+                  type: number
+                  example: 85
+                pruneBuildCache:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Updated retention policy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodeId:
+                    type: string
+                  keepImageVersions:
+                    type: integer
+                  autoPruneThresholdPercent:
+                    type: number
+                  pruneBuildCache:
+                    type: boolean
+                  updatedAt:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/nodes/{id}/prune:
+    post:
+      summary: Prune Docker images and build cache on node
+      description: Triggers immediate on-demand disk cleanup for unused Docker images, stopped containers, and build cache layers.
+      operationId: pruneNodeDisk
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                all:
+                  type: boolean
+                  example: false
+                pruneBuildCache:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Reclaimed disk space summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  spaceReclaimedBytes:
+                    type: integer
+                  spaceReclaimedMb:
+                    type: number
+                  imagesDeleted:
+                    type: integer
+                  buildCacheDeletedBytes:
+                    type: integer
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/events/nodes:
     get:
       summary: Node real-time SSE event stream
@@ -911,6 +1180,315 @@ paths:
           description: Switching protocols to WebSocket
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/services/{id}/access-logs:
+    get:
+      summary: Service Traefik ingress access logs
+      description: Retrieves recent HTTP ingress access logs filtered for this specific service.
+      operationId: getServiceTraefikAccessLogs
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of Traefik access log entries for service
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/maintenance:
+    post:
+      summary: Toggle service maintenance mode
+      description: Enables or disables 1-click maintenance mode with Traefik 503 error middleware.
+      operationId: toggleServiceMaintenanceMode
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - enabled
+              properties:
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Updated service object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Service'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/crons:
+    get:
+      summary: List service cron jobs
+      description: Retrieves all scheduled background tasks configured for this service.
+      operationId: listServiceCronJobs
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of cron jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CronJob'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    post:
+      summary: Create service cron job
+      description: Creates a new periodic scheduled task executing a command inside the service container.
+      operationId: createServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - schedule
+              - command
+              properties:
+                name:
+                  type: string
+                schedule:
+                  type: string
+                  example: "0 0 * * *"
+                command:
+                  type: string
+                  example: "npm run cleanup"
+      responses:
+        '201':
+          description: Cron job created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJob'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/services/{id}/crons/{cronId}:
+    get:
+      summary: Get service cron job
+      description: Retrieves a specific scheduled task by ID.
+      operationId: getServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Cron job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJob'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    patch:
+      summary: Update service cron job
+      description: Updates the schedule expression, command, or active/paused status of a scheduled task.
+      operationId: updateServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                schedule:
+                  type: string
+                command:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, paused]
+      responses:
+        '200':
+          description: Updated cron job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJob'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete service cron job
+      description: Deletes a scheduled task and its execution history.
+      operationId: deleteServiceCronJob
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Cron job deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/crons/{cronId}/run:
+    post:
+      summary: Trigger cron job execution now
+      description: Manually triggers immediate execution of the scheduled task inside the service container.
+      operationId: runServiceCronJobNow
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Execution result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CronJobRun'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/crons/{cronId}/runs:
+    get:
+      summary: List cron job execution runs
+      description: Retrieves historical execution logs and exit codes for this scheduled task.
+      operationId: listServiceCronJobRuns
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of execution runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CronJobRun'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/deployments:
     get:
       summary: List all deployments
@@ -1151,6 +1729,96 @@ paths:
                 $ref: '#/components/schemas/Project'
         '400':
           $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/projects/{id}/env:
+    get:
+      summary: List project shared environment variables
+      description: Retrieves all project-level shared environment variables.
+      operationId: listProjectEnvVars
+      tags:
+      - Projects
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: List of project shared environment variables
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnvVar'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    post:
+      summary: Update project shared environment variables
+      description: Sets or replaces all shared environment variables for a project.
+      operationId: updateProjectEnvVars
+      tags:
+      - Projects
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/EnvVarInput'
+      responses:
+        '200':
+          description: Project shared environment variables updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EnvVar'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/projects/{id}/env/{key}:
+    delete:
+      summary: Delete project shared environment variable
+      description: Deletes a specific shared environment variable from a project by key.
+      operationId: deleteProjectEnvVar
+      tags:
+      - Projects
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Environment variable deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '404':
@@ -1461,6 +2129,37 @@ paths:
           description: Operation succeeded
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/auth/invite/accept:
+    post:
+      summary: Accept team invitation
+      description: Accepts a cluster invitation and sets account credentials.
+      operationId: acceptUserInvite
+      tags:
+      - Users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - email
+              - name
+              - password
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+                password:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: Invitation accepted, returns authentication session token
+        '400':
+          $ref: '#/components/responses/BadRequestError'
   /api/v1/audit-logs:
     get:
       summary: Query audit logs
@@ -1769,6 +2468,108 @@ paths:
           description: Operation succeeded
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/registries:
+    get:
+      summary: List container image registries
+      description: Retrieves all configured private container image registry credentials with masked passwords.
+      operationId: listRegistries
+      tags:
+      - Registries
+      responses:
+        '200':
+          description: List of registries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Registry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      summary: Create container image registry
+      description: Configures credentials for pulling images from a private Docker or OCI registry.
+      operationId: createRegistry
+      tags:
+      - Registries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - serverUrl
+              - username
+              - password
+              properties:
+                name:
+                  type: string
+                serverUrl:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '201':
+          description: Registry created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registry'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/registries/{id}:
+    get:
+      summary: Get registry by ID
+      description: Retrieves a specific container registry configuration.
+      operationId: getRegistry
+      tags:
+      - Registries
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Registry details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      summary: Delete registry
+      description: Removes private registry credentials from the cluster.
+      operationId: deleteRegistry
+      tags:
+      - Registries
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Registry deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
 components:
   securitySchemes:
     cookieAuth:
@@ -1850,6 +2651,121 @@ components:
           schema:
             $ref: '#/components/schemas/SuccessResponse'
   schemas:
+    CronJob:
+      type: object
+      required:
+      - id
+      - serviceId
+      - name
+      - schedule
+      - command
+      - status
+      - createdAt
+      properties:
+        id:
+          type: string
+        serviceId:
+          type: string
+        name:
+          type: string
+        schedule:
+          type: string
+        command:
+          type: string
+        status:
+          type: string
+        lastRunAt:
+          type: string
+        nextRunAt:
+          type: string
+        lastStatus:
+          type: string
+        createdAt:
+          type: string
+    CronJobRun:
+      type: object
+      required:
+      - id
+      - cronJobId
+      - startedAt
+      - durationMs
+      - status
+      - exitCode
+      - output
+      properties:
+        id:
+          type: string
+        cronJobId:
+          type: string
+        startedAt:
+          type: string
+        finishedAt:
+          type: string
+        durationMs:
+          type: integer
+        status:
+          type: string
+        exitCode:
+          type: integer
+        output:
+          type: string
+    Registry:
+      type: object
+      required:
+      - id
+      - name
+      - serverUrl
+      - username
+      - password
+      - createdAt
+      - updatedAt
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        serverUrl:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    TraefikAccessLogEntry:
+      type: object
+      required:
+      - timestamp
+      - clientIp
+      - method
+      - path
+      - statusCode
+      - durationMs
+      - routerName
+      - serviceName
+      properties:
+        timestamp:
+          type: string
+        clientIp:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        protocol:
+          type: string
+        statusCode:
+          type: integer
+        durationMs:
+          type: number
+        routerName:
+          type: string
+        serviceName:
+          type: string
+        userAgent:
+          type: string
     SuccessResponse:
       type: object
       required:

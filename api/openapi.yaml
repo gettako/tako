@@ -2159,7 +2159,7 @@ paths:
         '200':
           description: Invitation accepted, returns authentication session token
         '400':
-          $ref: '#/components/responses/ValidationError'
+          $ref: '#/components/responses/BadRequestError'
   /api/v1/audit-logs:
     get:
       summary: Query audit logs
