@@ -79,7 +79,7 @@ func mapNodeToResponse(n db.Node) NodeResponse {
 func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/nodes", func(r chi.Router) {
 		// POST /api/v1/nodes/enroll-token
-		r.Post("/enroll-token", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Post("/enroll-token", func(w http.ResponseWriter, r *http.Request) {
 			token := orch.GenerateEnrollToken()
 			RespondJSON(w, http.StatusOK, map[string]string{
 				"token": token,
@@ -119,16 +119,16 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// PATCH /api/v1/nodes/{id}
-		r.Patch("/{id}", handleUpdateNode(orch))
+		r.With(RequireAdmin).Patch("/{id}", handleUpdateNode(orch))
 
 		// POST /api/v1/nodes/{id}/reboot
-		r.Post("/{id}/reboot", handleRebootNode(orch))
+		r.With(RequireAdmin).Post("/{id}/reboot", handleRebootNode(orch))
 
 		// POST /api/v1/nodes/{id}/update
-		r.Post("/{id}/update", handleUpdateNodeAgent(orch))
+		r.With(RequireAdmin).Post("/{id}/update", handleUpdateNodeAgent(orch))
 
 		// DELETE /api/v1/nodes/{id}
-		r.Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Delete("/{id}", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			node, err := orch.Queries().GetNodeByID(r.Context(), id)
 			if err != nil {
@@ -190,24 +190,24 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Get("/{id}/traefik", handleGetNodeTraefik(orch))
 
 		// PUT /api/v1/nodes/{id}/traefik
-		r.Put("/{id}/traefik", handleUpdateNodeTraefik(orch))
+		r.With(RequireAdmin).Put("/{id}/traefik", handleUpdateNodeTraefik(orch))
 
 		// POST /api/v1/nodes/{id}/traefik/reload
-		r.Post("/{id}/traefik/reload", handleReloadNodeTraefik(orch))
+		r.With(RequireAdmin).Post("/{id}/traefik/reload", handleReloadNodeTraefik(orch))
 
 		// Traefik dynamic configuration files
 		r.Get("/{id}/traefik/files", handleListNodeTraefikFiles(orch))
 		r.Get("/{id}/traefik/files/{filename}", handleGetNodeTraefikFile(orch))
-		r.Put("/{id}/traefik/files/{filename}", handleSaveNodeTraefikFile(orch))
-		r.Delete("/{id}/traefik/files/{filename}", handleDeleteNodeTraefikFile(orch))
+		r.With(RequireAdmin).Put("/{id}/traefik/files/{filename}", handleSaveNodeTraefikFile(orch))
+		r.With(RequireAdmin).Delete("/{id}/traefik/files/{filename}", handleDeleteNodeTraefikFile(orch))
 
 		// Traefik access logs
 		r.Get("/{id}/traefik/access-logs", handleGetNodeTraefikAccessLogs(orch))
 
 		// Image retention policy & disk cleanup
 		r.Get("/{id}/retention", handleGetNodeRetention(orch))
-		r.Put("/{id}/retention", handleUpdateNodeRetention(orch))
-		r.Post("/{id}/prune", handlePruneNodeDisk(orch))
+		r.With(RequireAdmin).Put("/{id}/retention", handleUpdateNodeRetention(orch))
+		r.With(RequireAdmin).Post("/{id}/prune", handlePruneNodeDisk(orch))
 	})
 }
 

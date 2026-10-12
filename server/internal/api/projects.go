@@ -357,14 +357,19 @@ func handleListProjectEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 			RespondError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
+		reveal := r.URL.Query().Get("reveal") == "true"
 		res := make([]ProjectEnvVarResponse, 0, len(vars))
 		for _, v := range vars {
 			decrypted, _ := security.Decrypt(v.Value)
+			val := decrypted
+			if v.IsSecret == 1 && !reveal {
+				val = "••••••••"
+			}
 			res = append(res, ProjectEnvVarResponse{
 				ID:        v.ID,
 				ProjectID: v.ProjectID,
 				Key:       v.Key,
-				Value:     decrypted,
+				Value:     val,
 				IsSecret:  v.IsSecret == 1,
 			})
 		}

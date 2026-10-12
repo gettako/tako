@@ -2,12 +2,15 @@ package grpc
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"gettako.dev/tako/internal/orchestrator"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/status"
 )
 
 type ServerConfig struct {
@@ -18,21 +21,33 @@ type ServerConfig struct {
 type AgentHandler struct {
 	takov1.UnimplementedAgentServiceServer
 	orchestrator *orchestrator.Orchestrator
+	tokenStore   map[string]string
+	tokenStoreMu sync.RWMutex
 }
 
 func (h *AgentHandler) RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error) {
 	if h.orchestrator != nil {
 		return h.orchestrator.RegisterNode(ctx, req)
 	}
+	token := "tako-agent-" + req.GetNodeId() + "-token"
+	h.tokenStoreMu.Lock()
+	if h.tokenStore != nil {
+		h.tokenStore[token] = req.GetNodeId()
+	}
+	h.tokenStoreMu.Unlock()
 	return &takov1.RegisterNodeResponse{
 		NodeId:       req.GetNodeId(),
 		Status:       "registered",
 		RegisteredAt: time.Now().UTC().Format(time.RFC3339),
-		AuthToken:    "tako-agent-" + req.GetNodeId(),
+		AuthToken:    token,
 	}, nil
 }
 
 func (h *AgentHandler) Heartbeat(ctx context.Context, req *takov1.HeartbeatRequest) (*takov1.HeartbeatResponse, error) {
+	callerNode, _ := ctx.Value(nodeAuthKey{}).(string)
+	if callerNode != "" && callerNode != "master" && callerNode != req.GetNodeId() {
+		return nil, status.Errorf(codes.PermissionDenied, "authenticated node %s cannot send heartbeat for %s", callerNode, req.GetNodeId())
+	}
 	if h.orchestrator != nil {
 		return h.orchestrator.Heartbeat(ctx, req)
 	}
@@ -55,6 +70,11 @@ func (h *AgentHandler) StreamTasks(stream takov1.AgentService_StreamTasksServer)
 	nodeID = firstMsg.GetNodeId()
 	if nodeID == "" {
 		nodeID = "unknown"
+	}
+
+	callerNode, _ := stream.Context().Value(nodeAuthKey{}).(string)
+	if callerNode != "" && callerNode != "master" && callerNode != nodeID {
+		return status.Errorf(codes.PermissionDenied, "authenticated node %s cannot claim session for %s", callerNode, nodeID)
 	}
 
 	if h.orchestrator != nil {
@@ -107,6 +127,12 @@ func (h *AgentHandler) StreamTasks(stream takov1.AgentService_StreamTasksServer)
 
 // NewServer initializes and configures a gRPC server with authentication and service stubs.
 func NewServer(cfg ServerConfig) *grpc.Server {
+	fallbackTokens := make(map[string]string)
+	agentHandler := &AgentHandler{
+		orchestrator: cfg.Orchestrator,
+		tokenStore:   fallbackTokens,
+	}
+
 	opts := []grpc.ServerOption{
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime:             5 * time.Second,
@@ -117,13 +143,13 @@ func NewServer(cfg ServerConfig) *grpc.Server {
 			Time:              30 * time.Second,
 			Timeout:           5 * time.Second,
 		}),
-		grpc.UnaryInterceptor(AuthInterceptor(cfg.AgentSecret)),
-		grpc.StreamInterceptor(StreamAuthInterceptor(cfg.AgentSecret)),
+		grpc.UnaryInterceptor(AuthInterceptor(cfg.AgentSecret, cfg.Orchestrator, fallbackTokens)),
+		grpc.StreamInterceptor(StreamAuthInterceptor(cfg.AgentSecret, cfg.Orchestrator, fallbackTokens)),
 	}
 
 	srv := grpc.NewServer(opts...)
 
-	takov1.RegisterAgentServiceServer(srv, &AgentHandler{orchestrator: cfg.Orchestrator})
+	takov1.RegisterAgentServiceServer(srv, agentHandler)
 	takov1.RegisterDeploymentServiceServer(srv, &takov1.UnimplementedDeploymentServiceServer{})
 	takov1.RegisterContainerServiceServer(srv, &ContainerHandler{orchestrator: cfg.Orchestrator})
 

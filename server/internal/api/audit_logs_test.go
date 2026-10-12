@@ -25,7 +25,7 @@ func TestAuditLogsAPI(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// 1. Initially empty audit logs
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/audit-logs", nil)
@@ -99,7 +99,7 @@ func TestAuditLogsIPAndAvatarRecording(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// 1. Trigger action with X-Forwarded-For header
 	projBody, _ := json.Marshal(CreateProjectRequest{

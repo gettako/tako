@@ -27,7 +27,7 @@ func TestSettingsAndMetricsAPI(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// 1. Test PUT /api/v1/settings/s3_buckets
 	putPayload, _ := json.Marshal(map[string]any{
@@ -118,7 +118,7 @@ func TestSettingsRedaction(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// PUT setting with sensitive keys
 	payload, _ := json.Marshal(map[string]any{

@@ -60,4 +60,11 @@ func (c *RetentionCleaner) Prune(ctx context.Context, retentionDays int) {
 	} else if rows, _ := resAudit.RowsAffected(); rows > 0 {
 		log.Printf("[orchestrator] pruned %d old audit logs (>%d days)", rows, retentionDays)
 	}
+
+	resMetrics, err := c.db.ExecContext(ctx, "DELETE FROM node_metrics WHERE recorded_at < datetime('now', ?)", modifier)
+	if err != nil {
+		log.Printf("[orchestrator] retention cleanup node_metrics error: %v", err)
+	} else if rows, _ := resMetrics.RowsAffected(); rows > 0 {
+		log.Printf("[orchestrator] pruned %d old node metrics (>%d days)", rows, retentionDays)
+	}
 }

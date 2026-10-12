@@ -26,7 +26,7 @@ func TestGlobalIngressAccessLogsAPI(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(database, bus, "test-secret")
-	router := NewRouter(database, orch)
+	router := newTestRouter(t, database, orch)
 
 	ctx := context.Background()
 

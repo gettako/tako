@@ -144,10 +144,16 @@ func extractAuthToken(r *http.Request) string {
 	if c, err := r.Cookie("tako_session"); err == nil && c.Value != "" {
 		return strings.TrimSpace(c.Value)
 	}
+	if q := r.URL.Query().Get("token"); q != "" {
+		return strings.TrimSpace(q)
+	}
 	return ""
 }
 
 func resolveAuthUser(r *http.Request, orch *orchestrator.Orchestrator) (db.User, error) {
+	if u, ok := GetUserFromContext(r.Context()); ok {
+		return u, nil
+	}
 	token := extractAuthToken(r)
 	if token != "" {
 		if sess, ok := orch.GetUserSession(token); ok {
@@ -156,33 +162,36 @@ func resolveAuthUser(r *http.Request, orch *orchestrator.Orchestrator) (db.User,
 			}
 		}
 	}
-	users, err := orch.Queries().ListUsers(r.Context())
-	if err == nil && len(users) > 0 {
-		return orch.Queries().GetUserByID(r.Context(), users[0].ID)
-	}
 	return db.User{}, fmt.Errorf("unauthenticated")
 }
 
 func registerAuthRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/auth", func(r chi.Router) {
+		// Public auth endpoints
 		r.Post("/login", handleLogin(orch))
 		r.Post("/passkey/login", handlePasskeyLogin(orch))
-		r.Post("/logout", handleLogout(orch))
-		r.Get("/me", handleGetMe(orch))
-		r.Put("/profile", handleUpdateProfile(orch))
-		r.Put("/password", handleChangePassword(orch))
-		r.Put("/2fa", handleUpdate2FA(orch))
-		r.Get("/passkeys", handleGetPasskeys(orch))
-		r.Post("/passkeys", handleAddPasskey(orch))
-		r.Delete("/passkeys/{id}", handleDeletePasskey(orch))
-		r.Get("/sessions", handleGetSessions(orch))
-		r.Delete("/sessions/{id}", handleDeleteSession(orch))
-		r.Post("/sessions/revoke-others", handleRevokeOtherSessions(orch))
-		r.Get("/users", handleListUsers(orch))
-		r.Post("/users", handleCreateUser(orch))
-		r.Put("/users/{id}/role", handleUpdateUserRole(orch))
-		r.Delete("/users/{id}", handleDeleteUser(orch))
 		r.Post("/invite/accept", handleAcceptInvite(orch))
+
+		// Protected auth endpoints
+		r.Group(func(r chi.Router) {
+			r.Use(Authenticate(orch))
+
+			r.Post("/logout", handleLogout(orch))
+			r.Get("/me", handleGetMe(orch))
+			r.Put("/profile", handleUpdateProfile(orch))
+			r.Put("/password", handleChangePassword(orch))
+			r.Put("/2fa", handleUpdate2FA(orch))
+			r.Get("/passkeys", handleGetPasskeys(orch))
+			r.Post("/passkeys", handleAddPasskey(orch))
+			r.Delete("/passkeys/{id}", handleDeletePasskey(orch))
+			r.Get("/sessions", handleGetSessions(orch))
+			r.Delete("/sessions/{id}", handleDeleteSession(orch))
+			r.Post("/sessions/revoke-others", handleRevokeOtherSessions(orch))
+			r.Get("/users", handleListUsers(orch))
+			r.With(RequireAdmin).Post("/users", handleCreateUser(orch))
+			r.With(RequireAdmin).Put("/users/{id}/role", handleUpdateUserRole(orch))
+			r.With(RequireAdmin).Delete("/users/{id}", handleDeleteUser(orch))
+		})
 	})
 }
 
@@ -1001,6 +1010,7 @@ func handleDeleteUser(orch *orchestrator.Orchestrator) http.HandlerFunc {
 }
 
 type AcceptInvitePayload struct {
+	Token    string `json:"token"`
 	Email    string `json:"email"`
 	Name     string `json:"name"`
 	Password string `json:"password"`
@@ -1015,11 +1025,77 @@ func handleAcceptInvite(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
+		req.Token = strings.TrimSpace(req.Token)
 		req.Email = strings.TrimSpace(req.Email)
 		req.Name = strings.TrimSpace(req.Name)
+		if req.Token == "" {
+			http.Error(w, `{"error":"Invitation token is required"}`, http.StatusBadRequest)
+			return
+		}
 		if req.Email == "" || req.Name == "" || len(req.Password) < 8 {
 			http.Error(w, `{"error":"Email, name, and password (min 8 chars) are required"}`, http.StatusBadRequest)
 			return
+		}
+
+		// Prevent taking over existing administrator accounts under any circumstances
+		if existingUser, err := orch.Queries().GetUserByEmail(r.Context(), req.Email); err == nil {
+			if existingUser.Role == "admin" {
+				http.Error(w, `{"error":"Forbidden: cannot overwrite existing administrator account"}`, http.StatusForbidden)
+				return
+			}
+		}
+
+		// Verify invitation token from user_invites setting if available
+		assignedRole := "member"
+		if req.Role != "" && req.Role != "admin" {
+			assignedRole = req.Role
+		}
+
+		if s, err := orch.Queries().GetSetting(r.Context(), "user_invites"); err == nil && s.Value != "" {
+			var invites []map[string]any
+			if err := json.Unmarshal([]byte(s.Value), &invites); err == nil && len(invites) > 0 {
+				var matched map[string]any
+				var remaining []map[string]any
+				for _, inv := range invites {
+					code, _ := inv["inviteCode"].(string)
+					tok, _ := inv["token"].(string)
+					if (code != "" && code == req.Token) || (tok != "" && tok == req.Token) {
+						matched = inv
+					} else {
+						remaining = append(remaining, inv)
+					}
+				}
+
+				if matched == nil {
+					http.Error(w, `{"error":"Invalid or already redeemed invitation token"}`, http.StatusBadRequest)
+					return
+				}
+
+				if expStr, ok := matched["expiresAt"].(string); ok && expStr != "" {
+					if expTime, err := time.Parse(time.RFC3339, expStr); err == nil && time.Now().After(expTime) {
+						http.Error(w, `{"error":"This invitation has expired"}`, http.StatusBadRequest)
+						return
+					}
+				}
+
+				if invEmail, ok := matched["email"].(string); ok && invEmail != "" {
+					if !strings.EqualFold(invEmail, req.Email) {
+						http.Error(w, `{"error":"Email does not match invitation recipient"}`, http.StatusBadRequest)
+						return
+					}
+				}
+
+				if invRole, ok := matched["role"].(string); ok && invRole != "" {
+					assignedRole = invRole
+				}
+
+				// Consume invite
+				newJSON, _ := json.Marshal(remaining)
+				_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+					Key:   "user_invites",
+					Value: string(newJSON),
+				})
+			}
 		}
 
 		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
@@ -1044,17 +1120,13 @@ func handleAcceptInvite(orch *orchestrator.Orchestrator) http.HandlerFunc {
 				user.Name = req.Name
 			}
 		} else {
-			role := req.Role
-			if role == "" {
-				role = "member"
-			}
 			id := fmt.Sprintf("usr-%d", time.Now().UnixMilli())
 			newUser, err := orch.Queries().CreateUser(r.Context(), db.CreateUserParams{
 				ID:           id,
 				Name:         req.Name,
 				Email:        req.Email,
 				PasswordHash: string(hash),
-				Role:         role,
+				Role:         assignedRole,
 				AvatarUrl:    sql.NullString{String: "", Valid: false},
 			})
 			if err != nil {

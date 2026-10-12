@@ -31,7 +31,7 @@ func TestNodeTraefikConfigurationAPI(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// Register a test node
 	regResp, err := orch.RegisterNode(context.Background(), &takov1.RegisterNodeRequest{
@@ -172,7 +172,7 @@ func TestNodeTraefikFilesAPI(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	regResp, err := orch.RegisterNode(context.Background(), &takov1.RegisterNodeRequest{
 		NodeId:        "node-files-01",
@@ -333,7 +333,7 @@ func TestUpdateNodeEndpoint(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-token")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// Register a node with public IP in both fields initially
 	nodeID := "node-spec-test"
@@ -396,7 +396,7 @@ func TestRebootNodeEndpoint(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-token")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	nodeID := "node-reboot-test"
 	regReq := &takov1.RegisterNodeRequest{
@@ -472,7 +472,7 @@ func TestNodeOffline_ServicesImpact(t *testing.T) {
 	}
 	bus := events.NewBus()
 	orch := orchestrator.New(memDB, bus, "test-secret")
-	router := NewRouter(memDB, orch)
+	router := newTestRouter(t, memDB, orch)
 	ctx := context.Background()
 
 	// 1. Create a node
@@ -618,7 +618,7 @@ func TestNodeDeletion_WithWorkloadsAndForce(t *testing.T) {
 	}
 	bus := events.NewBus()
 	orch := orchestrator.New(memDB, bus, "test-secret")
-	router := NewRouter(memDB, orch)
+	router := newTestRouter(t, memDB, orch)
 	ctx := context.Background()
 
 	// 1. Create node
@@ -691,7 +691,7 @@ func TestTraefikAccessLogsAPI(t *testing.T) {
 	}
 	bus := events.NewBus()
 	orch := orchestrator.New(memDB, bus, "test-secret")
-	router := NewRouter(memDB, orch)
+	router := newTestRouter(t, memDB, orch)
 	ctx := context.Background()
 
 	// 1. Create node & service

@@ -73,8 +73,17 @@ func TestAuthLogin(t *testing.T) {
 		t.Errorf("expected non-empty token")
 	}
 
+	// Case 2b: Unauthenticated request to protected endpoint MUST return 401
+	unauthReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	unauthW := httptest.NewRecorder()
+	router.ServeHTTP(unauthW, unauthReq)
+	if unauthW.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 Unauthorized for unauthenticated /auth/me, got %d", unauthW.Code)
+	}
+
 	// Case 3: GET /api/v1/auth/me
 	req3 := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	req3.Header.Set("Authorization", "Bearer "+resp.Token)
 	w3 := httptest.NewRecorder()
 	router.ServeHTTP(w3, req3)
 
@@ -90,6 +99,7 @@ func TestAuthLogin(t *testing.T) {
 	})
 	reqProf := httptest.NewRequest(http.MethodPut, "/api/v1/auth/profile", bytes.NewReader(profBody))
 	reqProf.Header.Set("Content-Type", "application/json")
+	reqProf.Header.Set("Authorization", "Bearer "+resp.Token)
 	wProf := httptest.NewRecorder()
 	router.ServeHTTP(wProf, reqProf)
 
@@ -112,6 +122,7 @@ func TestAuthLogin(t *testing.T) {
 	})
 	reqBadPwd := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", bytes.NewReader(badPwdBody))
 	reqBadPwd.Header.Set("Content-Type", "application/json")
+	reqBadPwd.Header.Set("Authorization", "Bearer "+resp.Token)
 	wBadPwd := httptest.NewRecorder()
 	router.ServeHTTP(wBadPwd, reqBadPwd)
 	if wBadPwd.Code != http.StatusBadRequest {
@@ -125,6 +136,7 @@ func TestAuthLogin(t *testing.T) {
 	})
 	reqGoodPwd := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", bytes.NewReader(goodPwdBody))
 	reqGoodPwd.Header.Set("Content-Type", "application/json")
+	reqGoodPwd.Header.Set("Authorization", "Bearer "+resp.Token)
 	wGoodPwd := httptest.NewRecorder()
 	router.ServeHTTP(wGoodPwd, reqGoodPwd)
 	if wGoodPwd.Code != http.StatusOK {
@@ -134,6 +146,7 @@ func TestAuthLogin(t *testing.T) {
 	// Case 7: Passkeys
 	pkBody, _ := json.Marshal(map[string]string{"name": "MacBook Touch ID"})
 	reqPk := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkeys", bytes.NewReader(pkBody))
+	reqPk.Header.Set("Authorization", "Bearer "+resp.Token)
 	wPk := httptest.NewRecorder()
 	router.ServeHTTP(wPk, reqPk)
 	if wPk.Code != http.StatusCreated {
@@ -144,6 +157,7 @@ func TestAuthLogin(t *testing.T) {
 	_ = json.Unmarshal(wPk.Body.Bytes(), &createdPk)
 
 	reqGetPk := httptest.NewRequest(http.MethodGet, "/api/v1/auth/passkeys", nil)
+	reqGetPk.Header.Set("Authorization", "Bearer "+resp.Token)
 	wGetPk := httptest.NewRecorder()
 	router.ServeHTTP(wGetPk, reqGetPk)
 	var passkeys []PasskeyItem
@@ -153,6 +167,7 @@ func TestAuthLogin(t *testing.T) {
 	}
 
 	reqDelPk := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/passkeys/"+createdPk.ID, nil)
+	reqDelPk.Header.Set("Authorization", "Bearer "+resp.Token)
 	wDelPk := httptest.NewRecorder()
 	router.ServeHTTP(wDelPk, reqDelPk)
 	if wDelPk.Code != http.StatusOK {
@@ -184,6 +199,7 @@ func TestAuthLogin(t *testing.T) {
 		"credentialId": "cred-yubikey-12345",
 	})
 	reqGoodPk := httptest.NewRequest(http.MethodPost, "/api/v1/auth/passkeys", bytes.NewReader(goodPkBody))
+	reqGoodPk.Header.Set("Authorization", "Bearer "+resp.Token)
 	wGoodPk := httptest.NewRecorder()
 	router.ServeHTTP(wGoodPk, reqGoodPk)
 	if wGoodPk.Code != http.StatusCreated {
@@ -216,6 +232,7 @@ func TestAuthLogin(t *testing.T) {
 		RecoveryCodes: []string{"abc-123"},
 	})
 	req2FA := httptest.NewRequest(http.MethodPut, "/api/v1/auth/2fa", bytes.NewReader(twoFABody))
+	req2FA.Header.Set("Authorization", "Bearer "+resp.Token)
 	w2FA := httptest.NewRecorder()
 	router.ServeHTTP(w2FA, req2FA)
 	if w2FA.Code != http.StatusOK {
@@ -224,6 +241,7 @@ func TestAuthLogin(t *testing.T) {
 
 	// Case 9: Sessions
 	reqSess := httptest.NewRequest(http.MethodGet, "/api/v1/auth/sessions", nil)
+	reqSess.Header.Set("Authorization", "Bearer "+resp.Token)
 	wSess := httptest.NewRecorder()
 	router.ServeHTTP(wSess, reqSess)
 	if wSess.Code != http.StatusOK {
@@ -248,7 +266,7 @@ func TestUserManagementAndPermissions(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// 1. Test GET /api/v1/auth/users
 	listReq := httptest.NewRequest(http.MethodGet, "/api/v1/auth/users", nil)

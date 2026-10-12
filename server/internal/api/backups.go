@@ -68,7 +68,7 @@ func registerBackupRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// POST /api/v1/backups/snapshot - Execute live SQLite VACUUM snapshot and optional S3 sync
-		r.Post("/snapshot", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Post("/snapshot", func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			snap, err := ExecuteSnapshot(r.Context(), orch)
 			if err != nil {
@@ -87,7 +87,7 @@ func registerBackupRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// POST /api/v1/backups/restore
-		r.Post("/restore", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Post("/restore", func(w http.ResponseWriter, r *http.Request) {
 			var req struct {
 				SnapshotID string `json:"snapshotId"`
 			}

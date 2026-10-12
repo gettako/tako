@@ -55,12 +55,31 @@ export class APIError extends Error {
 
 export async function fetchServer<T>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${GO_SERVER_URL}${path.startsWith('/') ? path : `/${path}`}`;
+
+  let sessionToken = '';
+  try {
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const c = cookieStore.get('tako_session');
+    if (c?.value) {
+      sessionToken = c.value;
+    }
+  } catch {
+    // cookies() unavailable outside Next request contexts
+  }
+
+  const headers = new Headers(options.headers);
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (sessionToken && !headers.has('Authorization') && !headers.has('Cookie')) {
+    headers.set('Cookie', `tako_session=${sessionToken}`);
+    headers.set('Authorization', `Bearer ${sessionToken}`);
+  }
+
   const res = await fetch(url, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     cache: 'no-store',
   });
 

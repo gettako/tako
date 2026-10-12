@@ -80,7 +80,7 @@ func TestMasterGRPCServerAuthAndHandlers(t *testing.T) {
 		t.Errorf("expected acknowledged=true, got false")
 	}
 
-	// 4. Heartbeat with registered agent token (tako-agent-*) should also succeed
+	// 4. Heartbeat with registered agent token should succeed
 	agentTokenCtx := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+regResp.GetAuthToken())
 	hbResp2, err := agentClient.Heartbeat(agentTokenCtx, &takov1.HeartbeatRequest{
 		NodeId:     "node-worker-1",
@@ -91,5 +91,30 @@ func TestMasterGRPCServerAuthAndHandlers(t *testing.T) {
 	}
 	if !hbResp2.GetAcknowledged() {
 		t.Errorf("expected acknowledged=true, got false")
+	}
+
+	// 5. Heartbeat with forged agent token (even with tako-agent- prefix) MUST fail
+	forgedTokenCtx := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer tako-agent-forged-random")
+	_, err = agentClient.Heartbeat(forgedTokenCtx, &takov1.HeartbeatRequest{
+		NodeId:     "node-worker-1",
+		CpuPercent: 15.0,
+	})
+	if err == nil {
+		t.Fatalf("expected unauthenticated error for forged token, got nil")
+	}
+	if st, ok := status.FromError(err); !ok || st.Code() != codes.Unauthenticated {
+		t.Errorf("expected codes.Unauthenticated for forged token, got %v", err)
+	}
+
+	// 6. Valid node token attempting to send heartbeat for different node ID MUST fail
+	_, err = agentClient.Heartbeat(agentTokenCtx, &takov1.HeartbeatRequest{
+		NodeId:     "node-worker-2",
+		CpuPercent: 15.0,
+	})
+	if err == nil {
+		t.Fatalf("expected permission denied for mismatched node id, got nil")
+	}
+	if st, ok := status.FromError(err); !ok || st.Code() != codes.PermissionDenied {
+		t.Errorf("expected codes.PermissionDenied for node mismatch, got %v", err)
 	}
 }

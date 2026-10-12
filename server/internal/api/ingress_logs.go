@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -339,21 +340,48 @@ func generateTraefikAccessLogs(
 
 	var parsed []TraefikAccessLogEntry
 	for _, p := range candidatePaths {
-		if content, err := os.ReadFile(p); err == nil && len(content) > 0 {
-			lines := strings.Split(string(content), "\n")
-			// Iterate in reverse (latest first)
-			for i := len(lines) - 1; i >= 0; i-- {
-				line := strings.TrimSpace(lines[i])
-				if line == "" {
-					continue
-				}
-				if entry, ok := parseTraefikLogEntry(line, node); ok {
-					parsed = append(parsed, entry)
-				}
+		info, err := os.Stat(p)
+		if err != nil || info.Size() == 0 {
+			continue
+		}
+
+		f, err := os.Open(p)
+		if err != nil {
+			continue
+		}
+
+		const maxTailBytes = 1024 * 1024 // 1MB tail buffer
+		var readBytes int64 = info.Size()
+		if readBytes > maxTailBytes {
+			readBytes = maxTailBytes
+			_, _ = f.Seek(-maxTailBytes, io.SeekEnd)
+		}
+
+		content := make([]byte, readBytes)
+		n, err := io.ReadFull(f, content)
+		_ = f.Close()
+		if err != nil && err != io.ErrUnexpectedEOF {
+			continue
+		}
+		content = content[:n]
+
+		lines := strings.Split(string(content), "\n")
+		startIdx := 0
+		if readBytes < info.Size() {
+			startIdx = 1 // discard potential incomplete line slice
+		}
+		// Iterate in reverse (latest first)
+		for i := len(lines) - 1; i >= startIdx; i-- {
+			line := strings.TrimSpace(lines[i])
+			if line == "" {
+				continue
 			}
-			if len(parsed) > 0 {
-				break
+			if entry, ok := parseTraefikLogEntry(line, node); ok {
+				parsed = append(parsed, entry)
 			}
+		}
+		if len(parsed) > 0 {
+			break
 		}
 	}
 

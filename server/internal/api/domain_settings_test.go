@@ -25,7 +25,7 @@ func TestDomainSettingsAndVerification(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// 1. Test PUT with invalid domain format -> returns 400
 	invalidPayload, _ := json.Marshal(map[string]any{
@@ -149,7 +149,7 @@ func TestDomainSanitizationAndEdgeCases(t *testing.T) {
 
 	bus := events.NewBus()
 	orch := orchestrator.New(db, bus, "test-secret")
-	router := NewRouter(db, orch)
+	router := newTestRouter(t, db, orch)
 
 	// 1. Verify URL with protocol and port gets sanitized and checked
 	dirtyPayload, _ := json.Marshal(map[string]any{

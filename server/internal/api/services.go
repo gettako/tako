@@ -312,6 +312,38 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				nodeMap[n.ID] = n
 			}
 
+			domainsByService := make(map[string][]string)
+			if rows, err := orch.DB().QueryContext(r.Context(), "SELECT service_id, domain FROM service_domains"); err == nil {
+				for rows.Next() {
+					var sID, d string
+					if err := rows.Scan(&sID, &d); err == nil {
+						domainsByService[sID] = append(domainsByService[sID], d)
+					}
+				}
+				_ = rows.Close()
+			}
+
+			envVarsByService := make(map[string][]ServiceEnvVarResponse)
+			if rows, err := orch.DB().QueryContext(r.Context(), "SELECT id, service_id, key, value, is_secret FROM service_env_vars"); err == nil {
+				for rows.Next() {
+					var id, sID, key, val string
+					var isSecret int64
+					if err := rows.Scan(&id, &sID, &key, &val, &isSecret); err == nil {
+						maskedVal := val
+						if isSecret == 1 {
+							maskedVal = "••••••••"
+						}
+						envVarsByService[sID] = append(envVarsByService[sID], ServiceEnvVarResponse{
+							ID:       id,
+							Key:      key,
+							Value:    maskedVal,
+							IsSecret: isSecret == 1,
+						})
+					}
+				}
+				_ = rows.Close()
+			}
+
 			res := make([]ServiceResponse, 0, len(services))
 			for _, s := range services {
 				node, hasNode := nodeMap[s.NodeID]
@@ -323,20 +355,13 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					}
 				}
 
-				domainsDB, _ := orch.Queries().ListServiceDomains(r.Context(), s.ID)
-				domains := make([]string, 0, len(domainsDB))
-				for _, d := range domainsDB {
-					domains = append(domains, d.Domain)
+				domains := domainsByService[s.ID]
+				if domains == nil {
+					domains = []string{}
 				}
-				envDB, _ := orch.Queries().ListServiceEnvVars(r.Context(), s.ID)
-				envVars := make([]ServiceEnvVarResponse, 0, len(envDB))
-				for _, ev := range envDB {
-					envVars = append(envVars, ServiceEnvVarResponse{
-						ID:       ev.ID,
-						Key:      ev.Key,
-						Value:    ev.Value,
-						IsSecret: ev.IsSecret == 1,
-					})
+				envVars := envVarsByService[s.ID]
+				if envVars == nil {
+					envVars = []ServiceEnvVarResponse{}
 				}
 				sResp := mapServiceToResponse(s, domains, envVars)
 				if nodeName != "" {
@@ -716,6 +741,12 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		// GET /api/v1/services/{id}/terminal (WebSocket PTY Stream)
 		r.Method(http.MethodGet, "/{id}/terminal", websocket.Handler(func(ws *websocket.Conn) {
 			defer ws.Close()
+			user, ok := GetUserFromContext(ws.Request().Context())
+			if !ok || user.Role != "admin" {
+				_, _ = ws.Write([]byte("\r\n\x1b[31mError: forbidden (admin required)\x1b[0m\r\n"))
+				return
+			}
+
 			serviceID := chi.URLParam(ws.Request(), "id")
 			srv, err := orch.Queries().GetServiceByID(ws.Request().Context(), serviceID)
 			if err != nil {
@@ -817,7 +848,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		}))
 
 		// POST /api/v1/services/{id}/exec (Terminal)
-		r.Post("/{id}/exec", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Post("/{id}/exec", func(w http.ResponseWriter, r *http.Request) {
 			id := chi.URLParam(r, "id")
 			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
 			if err != nil {

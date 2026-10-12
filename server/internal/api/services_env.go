@@ -18,15 +18,20 @@ func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 			return
 		}
 
+		reveal := r.URL.Query().Get("reveal") == "true"
 		res := make([]ServiceEnvVarResponse, 0, len(envDB))
 		serviceKeyMap := make(map[string]bool, len(envDB))
 		for _, ev := range envDB {
 			decrypted, _ := security.Decrypt(ev.Value)
+			val := decrypted
+			if ev.IsSecret == 1 && !reveal {
+				val = "••••••••"
+			}
 			serviceKeyMap[ev.Key] = true
 			res = append(res, ServiceEnvVarResponse{
 				ID:        ev.ID,
 				Key:       ev.Key,
-				Value:     decrypted,
+				Value:     val,
 				IsSecret:  ev.IsSecret == 1,
 				Inherited: false,
 			})
@@ -38,10 +43,14 @@ func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 					for _, pev := range projEnvs {
 						if !serviceKeyMap[pev.Key] {
 							decrypted, _ := security.Decrypt(pev.Value)
+							val := decrypted
+							if pev.IsSecret == 1 && !reveal {
+								val = "••••••••"
+							}
 							res = append(res, ServiceEnvVarResponse{
 								ID:        pev.ID,
 								Key:       pev.Key,
-								Value:     decrypted,
+								Value:     val,
 								IsSecret:  pev.IsSecret == 1,
 								Inherited: true,
 								Source:    "project",

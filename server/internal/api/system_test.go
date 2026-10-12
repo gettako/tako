@@ -26,11 +26,29 @@ func setupSystemTestRouter(t *testing.T) (http.Handler, *orchestrator.Orchestrat
 		t.Fatalf("Migrate failed: %v", err)
 	}
 
+	if err := store.SeedDefaultAdmin(context.Background(), database, "admin@gettako.dev", "secret123"); err != nil {
+		t.Fatalf("SeedDefaultAdmin failed: %v", err)
+	}
+
 	bus := events.NewBus()
 	orch := orchestrator.New(database, bus, "test-master-token")
+	user, err := orch.Queries().GetUserByEmail(context.Background(), "admin@gettako.dev")
+	if err != nil {
+		t.Fatalf("GetAdminUser failed: %v", err)
+	}
+	token := "test-admin-token-" + user.ID
+	orch.RegisterUserSession(token, user)
+
 	router := api.NewRouter(database, orch)
 
-	return router, orch, database
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" && r.Header.Get("Cookie") == "" && r.URL.Query().Get("token") == "" && r.Header.Get("X-No-Auth") != "true" {
+			r.Header.Set("Authorization", "Bearer "+token)
+		}
+		router.ServeHTTP(w, r)
+	})
+
+	return testHandler, orch, database
 }
 
 func TestSystemVersionEndpoint(t *testing.T) {

@@ -28,12 +28,14 @@ type SyncInstallationRequest struct {
 	InstallationID int64 `json:"installationId"`
 }
 
-func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
+func registerPublicGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	// Webhook receiver for GitHub App events
 	r.Post("/webhooks/github", func(w http.ResponseWriter, r *http.Request) {
 		handleGitHubWebhook(w, r, orch)
 	})
+}
 
+func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/github", func(r chi.Router) {
 		// GET /api/v1/github/manifest - generates GitHub App manifest
 		r.Get("/manifest", func(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"gettako.dev/tako/internal/events"
@@ -31,6 +32,9 @@ type Orchestrator struct {
 	telemetry *TelemetryStore
 	agents    *AgentRegistry
 	retention *RetentionCleaner
+
+	nodeTokensMu sync.RWMutex
+	nodeTokens   map[string]string
 }
 
 func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
@@ -43,6 +47,7 @@ func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 		telemetry:   NewTelemetryStore(),
 		agents:      NewAgentRegistry(),
 		retention:   NewRetentionCleaner(database),
+		nodeTokens:  make(map[string]string),
 	}
 }
 
@@ -56,6 +61,25 @@ func (o *Orchestrator) GetUserSession(token string) (UserSession, bool) {
 
 func (o *Orchestrator) RevokeUserSession(token string) {
 	o.sessions.Revoke(token)
+}
+
+func (o *Orchestrator) RegisterNodeAuthToken(token, nodeID string) {
+	o.nodeTokensMu.Lock()
+	defer o.nodeTokensMu.Unlock()
+	if o.nodeTokens == nil {
+		o.nodeTokens = make(map[string]string)
+	}
+	o.nodeTokens[token] = nodeID
+}
+
+func (o *Orchestrator) ValidateNodeAuthToken(token string) (string, bool) {
+	o.nodeTokensMu.RLock()
+	defer o.nodeTokensMu.RUnlock()
+	if o.nodeTokens == nil {
+		return "", false
+	}
+	nodeID, ok := o.nodeTokens[token]
+	return nodeID, ok
 }
 
 func (o *Orchestrator) Queries() *db.Queries {
@@ -178,7 +202,8 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 		)
 	}
 
-	authToken := "tako-agent-" + nodeID
+	authToken := fmt.Sprintf("tako-agent-%s-%s", nodeID, randomHex(16))
+	o.RegisterNodeAuthToken(authToken, nodeID)
 	registeredAt := time.Now().UTC().Format(time.RFC3339)
 
 	o.bus.Publish(events.Event{

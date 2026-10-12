@@ -17,6 +17,9 @@ var defaultKey []byte
 func init() {
 	keyStr := os.Getenv("TAKO_ENCRYPTION_KEY")
 	if keyStr == "" {
+		keyStr = os.Getenv("TAKO_AUTH_SECRET")
+	}
+	if keyStr == "" {
 		keyStr = os.Getenv("TAKO_AGENT_SECRET")
 	}
 	if keyStr == "" {

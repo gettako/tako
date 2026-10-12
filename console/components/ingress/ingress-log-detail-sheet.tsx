@@ -54,6 +54,15 @@ export function IngressLogDetailSheet({
     return JSON.stringify(log, null, 2);
   }, [log]);
 
+  const escapeHtml = (str: string): string => {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
   const highlightedJson = useMemo(() => {
     if (!formattedRawJson) return '';
     try {
@@ -63,7 +72,7 @@ export function IngressLogDetailSheet({
     } catch {
       // Fallback
     }
-    return formattedRawJson;
+    return escapeHtml(formattedRawJson);
   }, [formattedRawJson]);
 
   const jsonLineCount = useMemo(() => {

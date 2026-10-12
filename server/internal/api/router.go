@@ -95,21 +95,27 @@ func NewRouter(db *sql.DB, orch *orchestrator.Orchestrator) http.Handler {
 		})
 
 		if orch != nil {
-			registerNodeRoutes(r, orch)
-			registerEventsRoutes(r, orch)
-			registerServiceRoutes(r, orch)
-			registerDeploymentRoutes(r, orch)
-			registerProjectRoutes(r, orch)
+			registerPublicGitHubRoutes(r, orch)
 			registerAuthRoutes(r, orch)
-			registerAuditLogRoutes(r, orch)
-			registerSettingsRoutes(r, orch)
-			registerMetricsRoutes(r, orch)
-			registerGitHubRoutes(r, orch)
-			registerBackupRoutes(r, orch)
-			registerSystemRoutes(r, orch)
-			registerRegistryRoutes(r, orch)
-			registerCronRoutes(r, orch)
-			registerIngressRoutes(r, orch)
+
+			r.Group(func(r chi.Router) {
+				r.Use(Authenticate(orch))
+
+				registerNodeRoutes(r, orch)
+				registerEventsRoutes(r, orch)
+				registerServiceRoutes(r, orch)
+				registerDeploymentRoutes(r, orch)
+				registerProjectRoutes(r, orch)
+				registerAuditLogRoutes(r, orch)
+				registerSettingsRoutes(r, orch)
+				registerMetricsRoutes(r, orch)
+				registerGitHubRoutes(r, orch)
+				registerBackupRoutes(r, orch)
+				registerSystemRoutes(r, orch)
+				registerRegistryRoutes(r, orch)
+				registerCronRoutes(r, orch)
+				registerIngressRoutes(r, orch)
+			})
 		}
 	})
 

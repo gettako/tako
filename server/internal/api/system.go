@@ -139,7 +139,7 @@ func registerSystemRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// POST /api/v1/system/update
-		r.Post("/update", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Post("/update", func(w http.ResponseWriter, r *http.Request) {
 			var req SystemUpdateRequest
 			_ = json.NewDecoder(r.Body).Decode(&req)
 			if req.Target == "" {
