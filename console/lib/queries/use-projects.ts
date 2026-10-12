@@ -8,6 +8,8 @@ import {
   createProject,
   updateProject,
   deleteProject,
+  getProjectEnvVars,
+  updateProjectEnvVars,
 } from '@/lib/api/projects';
 import { Project, CreateProjectInput, UpdateProjectInput, EnvVar } from '@/lib/types';
 import { toast } from 'sonner';
@@ -113,9 +115,9 @@ export function useDeleteProject(options?: UseDeleteProjectOptions) {
 }
 
 export function useProjectEnvVars(projectId: string | undefined | null) {
-  return useQuery({
+  return useQuery<EnvVar[]>({
     queryKey: ['projects', projectId, 'env'],
-    queryFn: () => (projectId ? import('@/lib/api/projects').then((m) => m.getProjectEnvVars(projectId)) : Promise.resolve([])),
+    queryFn: () => (projectId ? getProjectEnvVars(projectId) : Promise.resolve([])),
     enabled: Boolean(projectId),
   });
 }
@@ -127,8 +129,7 @@ export function useUpdateProjectEnvVars(
   const queryClient = useQueryClient();
 
   return useMutation<EnvVar[], Error, Partial<EnvVar>[]>({
-    mutationFn: (envVars) =>
-      import('@/lib/api/projects').then((m) => m.updateProjectEnvVars(projectId, envVars)),
+    mutationFn: (envVars) => updateProjectEnvVars(projectId, envVars),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['projects', projectId, 'env'] });
       queryClient.invalidateQueries({ queryKey: serviceKeys.all });

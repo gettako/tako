@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Save, FileCode, Table as TableIcon, KeyRound, Loader2, Info, Plus, Trash2, Eye, EyeOff, Copy, Check } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,16 +17,18 @@ interface ProjectSharedEnvPanelProps {
 }
 
 export function ProjectSharedEnvPanel({ projectId }: ProjectSharedEnvPanelProps) {
-  const { data: remoteVars = [], isLoading } = useProjectEnvVars(projectId);
+  const { data: remoteVars, isLoading } = useProjectEnvVars(projectId);
   const [mode, setMode] = useState<'table' | 'raw'>('table');
   const [envVars, setEnvVars] = useState<EnvVar[]>([]);
   const [rawText, setRawText] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [showSecrets, setShowSecrets] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const lastSyncedRef = useRef<EnvVar[] | null>(null);
 
   useEffect(() => {
-    if (!isDirty && remoteVars) {
+    if (!isDirty && remoteVars && remoteVars !== lastSyncedRef.current) {
+      lastSyncedRef.current = remoteVars;
       setEnvVars(remoteVars);
       setRawText(formatDotEnv(remoteVars));
     }
@@ -35,6 +37,7 @@ export function ProjectSharedEnvPanel({ projectId }: ProjectSharedEnvPanelProps)
   const saveMutation = useUpdateProjectEnvVars(projectId, {
     onSuccess: (updated) => {
       setIsDirty(false);
+      lastSyncedRef.current = updated;
       setEnvVars(updated);
       setRawText(formatDotEnv(updated));
     },
