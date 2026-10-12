@@ -16,6 +16,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { ResourceBar } from '@/components/ui/resource-bar';
 import { Server, Copy, Check, Boxes, ChevronRight, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatMemoryMb } from '@/lib/utils';
 
 interface NodeCardProps {
   node: Node;
@@ -129,9 +130,7 @@ export function NodeCard({ node }: NodeCardProps) {
                     className="space-y-1"
                   />
                   <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
-                    {((node.memoryTotalMb || memLimit) / 1024) % 1 === 0
-                      ? `${((node.memoryTotalMb || memLimit) / 1024).toFixed(0)} GiB`
-                      : `${((node.memoryTotalMb || memLimit) / 1024).toFixed(1)} GiB`}
+                    {formatMemoryMb(node.memoryTotalMb || memLimit, 'GiB')}
                   </span>
                 </div>
 

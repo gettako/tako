@@ -46,6 +46,10 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { ResourceSliderFields } from './wizard/resource-slider-fields';
 import { NodePlacementPicker } from './wizard/node-placement-picker';
+import { DatabaseSourceFields, DATABASE_PRESETS } from './wizard/database-source-fields';
+import { GitSourceFields } from './wizard/git-source-fields';
+
+export { DATABASE_PRESETS };
 
 function GitHubIcon({ className }: { className?: string }) {
   return (
@@ -60,41 +64,6 @@ function GitHubIcon({ className }: { className?: string }) {
     </svg>
   );
 }
-
-export const DATABASE_PRESETS = [
-  {
-    type: 'postgresql' as const,
-    name: 'PostgreSQL',
-    port: 5432,
-    defaultTag: 'latest',
-    tags: ['latest', '16-alpine', '15-alpine'],
-    desc: 'Relational database with JSON support & ACID transactions.',
-  },
-  {
-    type: 'mysql' as const,
-    name: 'MySQL',
-    port: 3306,
-    defaultTag: 'latest',
-    tags: ['latest', '8.0', '8.4'],
-    desc: 'Fast, widely adopted relational SQL database.',
-  },
-  {
-    type: 'redis' as const,
-    name: 'Redis',
-    port: 6379,
-    defaultTag: 'latest',
-    tags: ['latest', '7-alpine', '6-alpine'],
-    desc: 'Ultra-fast in-memory key-value cache and message broker.',
-  },
-  {
-    type: 'mongodb' as const,
-    name: 'MongoDB',
-    port: 27017,
-    defaultTag: 'latest',
-    tags: ['latest', '7.0', '6.0'],
-    desc: 'Document-oriented NoSQL database with flexible JSON documents.',
-  },
-];
 
 export interface CreateServiceDialogProps {
   open: boolean;
@@ -706,288 +675,46 @@ export function CreateServiceDialog({
             <div className="space-y-5">
               {/* Database Engine & Tag OR Git Source Selection */}
               {serviceType === 'database' ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                      <Database className="size-3.5 text-foreground" />
-                      <span>Database Engine &amp; Tag</span>
-                      <span className="text-status-danger">*</span>
-                    </Label>
-                    <Badge variant="secondary" className="text-[11px] font-mono">
-                      Persistent Docker Volume
-                    </Badge>
-                  </div>
-
-                  {/* 4 DB Engines Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {DATABASE_PRESETS.map((p) => {
-                      const isSelected = databaseType === p.type;
-                      return (
-                        <button
-                          key={p.type}
-                          type="button"
-                          onClick={() => {
-                            setDatabaseType(p.type);
-                            if (!isSlugTouched || name.endsWith('-db')) {
-                              setName(`${p.type}-db`);
-                              setSlug(`${p.type}-db`);
-                            }
-                          }}
-                          className={cn(
-                            'flex flex-col items-start p-3 rounded-xl border text-left transition-all cursor-pointer outline-none active:not-aria-[haspopup]:translate-y-px',
-                            isSelected
-                              ? 'border-primary bg-primary/10 ring-1 ring-primary/40 text-foreground'
-                              : 'border-border bg-card hover:bg-muted/40 text-muted-foreground hover:text-foreground'
-                          )}
-                        >
-                          <div className="flex items-center justify-between w-full">
-                            <span className="text-xs font-bold text-foreground">{p.name}</span>
-                            {isSelected && <Check className="size-3 text-primary" />}
-                          </div>
-                          <span className="text-[10px] font-mono text-muted-foreground mt-1">Port {p.port}</span>
-                          <span className="text-[10px] text-muted-foreground/80 mt-1 line-clamp-1">{p.desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Image Tag / Version Input Field (Default 'latest', editable by user) */}
-                  <div className="space-y-1.5 pt-1">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="db-image-tag" className="text-xs font-semibold text-foreground">
-                        Image Tag / Version <span className="text-status-danger">*</span>
-                      </Label>
-                      <span className="text-[11px] text-muted-foreground font-mono">
-                        Target Image: {databaseType === 'mongodb' ? 'mongo' : databaseType}:{databaseVersion || 'latest'}
-                      </span>
-                    </div>
-                    <Input
-                      id="db-image-tag"
-                      value={databaseVersion}
-                      onChange={(e) => setDatabaseVersion(e.target.value)}
-                      placeholder="latest"
-                      className="h-9 text-xs sm:text-sm font-mono"
-                    />
-                    <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-                      <span className="text-[11px] text-muted-foreground">Version Presets:</span>
-                      {(DATABASE_PRESETS.find((p) => p.type === databaseType)?.tags || ['latest']).map((tag) => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => setDatabaseVersion(tag)}
-                          className={cn(
-                            'text-[10px] px-2 py-0.5 rounded border transition-all cursor-pointer font-mono active:not-aria-[haspopup]:translate-y-px',
-                            databaseVersion === tag
-                              ? 'bg-primary text-primary-foreground border-primary font-semibold'
-                              : 'bg-muted/50 text-muted-foreground border-border hover:text-foreground'
-                          )}
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <DatabaseSourceFields
+                  databaseType={databaseType}
+                  databaseVersion={databaseVersion}
+                  onSelectDatabaseType={(type) => {
+                    setDatabaseType(type);
+                    if (!isSlugTouched || name.endsWith('-db')) {
+                      setName(`${type}-db`);
+                      setSlug(`${type}-db`);
+                    }
+                  }}
+                  onSelectDatabaseVersion={setDatabaseVersion}
+                />
               ) : (
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                      <FolderGit2 className="size-3.5 text-foreground" />
-                      <span>Git Source Repository</span>
-                      <span className="text-status-danger">*</span>
-                    </Label>
-
-                    {/* Toggle Mode: Select Account/Repo vs Git URL */}
-                    <div className="flex items-center p-0.5 rounded-lg border border-border bg-muted/40 text-xs">
-                      <button
-                        type="button"
-                        onClick={() => setSourceMode('account')}
-                        className={cn(
-                          'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer text-xs active:not-aria-[haspopup]:translate-y-px',
-                          sourceMode === 'account'
-                            ? 'bg-background text-foreground shadow-xs border border-border/80'
-                            : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        GitHub Account &amp; Repo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSourceMode('url')}
-                        className={cn(
-                          'px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer text-xs active:not-aria-[haspopup]:translate-y-px',
-                          sourceMode === 'url'
-                            ? 'bg-background text-foreground shadow-xs border border-border/80'
-                            : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        Custom Git URL
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Source Input Area */}
-                  <div>
-                    {sourceMode === 'account' ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                        {/* Select GitHub Account / Org */}
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold text-foreground">
-                            GitHub Account / Organization
-                          </Label>
-                          <div>
-                            <SearchableSelect
-                              options={accountOptions}
-                              value={selectedAccountId || undefined}
-                              onValueChange={(val) => {
-                                if (!val || val === 'null' || val === 'undefined') return;
-                                const accountId = String(val);
-                                setSelectedAccountId(accountId);
-                                setSelectedRepoId('');
-                                setRepoError('');
-                                if (!isSlugTouched) {
-                                  setName('');
-                                  setSlug('');
-                                }
-                              }}
-                              placeholder="Select account or organization..."
-                              searchPlaceholder="Search account or organization..."
-                              className="w-full"
-                              renderTrigger={(opt) => {
-                                if (!opt) {
-                                  return (
-                                    <span className="text-muted-foreground font-normal">
-                                      Select account or organization...
-                                    </span>
-                                  );
-                                }
-                                if (opt.value === 'all') {
-                                  return (
-                                    <div className="flex items-center gap-2 min-w-0">
-                                      <Globe className="size-3.5 text-primary shrink-0" />
-                                      <span className="font-semibold text-xs text-foreground truncate">
-                                        All Organizations &amp; Accounts
-                                      </span>
-                                    </div>
-                                  );
-                                }
-                                const acc = availableAccounts.find((a) => a.id === opt.value);
-                                return (
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    {acc?.avatarUrl ? (
-                                      <Avatar className="size-4 shrink-0">
-                                        <AvatarImage src={acc.avatarUrl} />
-                                        <AvatarFallback className="text-[9px]">
-                                          {acc.username.slice(0, 2).toUpperCase()}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    ) : acc?.type === 'Organization' ? (
-                                      <Building2 className="size-3.5 text-blue-500 shrink-0" />
-                                    ) : (
-                                      <User className="size-3.5 text-muted-foreground shrink-0" />
-                                    )}
-                                    <span className="font-semibold text-xs text-foreground truncate">
-                                      {acc?.username || opt.label}
-                                    </span>
-                                    {acc?.type && (
-                                      <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal text-muted-foreground shrink-0">
-                                        {acc.type}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                );
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Select Repository */}
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-semibold text-foreground">
-                            Repository <span className="text-status-danger">*</span>
-                          </Label>
-                          <div>
-                            <SearchableSelect
-                              options={repoOptions}
-                              value={selectedRepoId || undefined}
-                              onValueChange={(val) => {
-                                if (!val || val === 'null' || val === 'undefined') {
-                                  handleRepoChange('');
-                                } else {
-                                  handleRepoChange(String(val));
-                                }
-                              }}
-                              placeholder="Select repository..."
-                              searchPlaceholder="Search repository..."
-                              emptyText={
-                                accountRepos.length === 0
-                                  ? 'No repositories found for this account.'
-                                  : 'No matching repositories found.'
-                              }
-                              error={repoError}
-                              className="w-full"
-                              renderTrigger={(opt) => {
-                                if (!opt) {
-                                  return (
-                                    <span className="text-muted-foreground font-normal">
-                                      Select repository...
-                                    </span>
-                                  );
-                                }
-                                const repo = syncedRepos.find((r) => r.id === opt.value);
-                                return (
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <GitHubIcon className="size-3.5 text-muted-foreground shrink-0" />
-                                    <span className="font-mono text-xs font-medium text-foreground truncate">
-                                      {repo ? repo.fullName : opt.label}
-                                    </span>
-                                  </div>
-                                );
-                              }}
-                            />
-                          </div>
-                          <FieldError error={repoError} />
-                        </div>
-                      </div>
-                    ) : (
-                      /* Custom Git URL */
-                      <div className="space-y-1.5">
-                        <Label htmlFor="custom-git-url" className="text-xs font-semibold text-foreground">
-                          Git Repository URL <span className="text-status-danger">*</span>
-                        </Label>
-                        <div className="relative">
-                          <FolderGit2 className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                          <Input
-                            id="custom-git-url"
-                            value={customGitUrl}
-                            onChange={(e) => handleCustomUrlChange(e.target.value)}
-                            placeholder="https://github.com/organization/my-service.git"
-                            error={!!urlError}
-                            className="pl-8 h-9 text-xs sm:text-sm font-mono"
-                          />
-                        </div>
-                        <FieldError error={urlError} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Git Branch (Shared & perfectly stationary in both modes) */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="service-branch" className="text-xs font-semibold text-foreground">
-                      Git Branch
-                    </Label>
-                    <div className="relative">
-                      <GitBranch className="absolute left-2.5 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        id="service-branch"
-                        value={branch}
-                        onChange={(e) => setBranch(e.target.value)}
-                        placeholder="e.g. main or master"
-                        className="pl-8 h-9 text-xs sm:text-sm font-mono"
-                      />
-                    </div>
-                  </div>
-                </div>
+                <GitSourceFields
+                  sourceMode={sourceMode}
+                  onSourceModeChange={setSourceMode}
+                  selectedAccountId={selectedAccountId}
+                  onSelectAccountId={(accId) => {
+                    setSelectedAccountId(accId);
+                    setSelectedRepoId('');
+                    setRepoError('');
+                    if (!isSlugTouched) {
+                      setName('');
+                      setSlug('');
+                    }
+                  }}
+                  accountOptions={accountOptions}
+                  availableAccounts={availableAccounts}
+                  selectedRepoId={selectedRepoId}
+                  onSelectRepoId={handleRepoChange}
+                  repoOptions={repoOptions}
+                  repoError={repoError}
+                  syncedRepos={syncedRepos}
+                  accountRepos={accountRepos}
+                  customGitUrl={customGitUrl}
+                  onCustomGitUrlChange={handleCustomUrlChange}
+                  urlError={urlError}
+                  branch={branch}
+                  onBranchChange={setBranch}
+                />
               )}
 
               {/* 3. Service Identity */}

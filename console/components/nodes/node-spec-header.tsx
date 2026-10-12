@@ -32,6 +32,7 @@ import {
 import { FieldError } from '@/components/ui/field';
 import { parseApiError } from '@/lib/form-errors';
 import { toast } from 'sonner';
+import { formatMemoryMb } from '@/lib/utils';
 import { useUpdateNode, useRebootNode, useUpdateNodeAgent } from '@/lib/queries';
 import { DeleteNodeDialog } from './delete-node-dialog';
 
@@ -41,10 +42,8 @@ interface NodeSpecHeaderProps {
 }
 
 export function formatHostMemory(totalMb: number): string {
-  if (!totalMb || totalMb <= 0) return '0 GiB';
-  const gib = totalMb / 1024;
-  const formatted = gib % 1 === 0 ? gib.toFixed(0) : gib.toFixed(2);
-  return `${formatted} GiB host RAM`;
+  if (!totalMb || totalMb <= 0) return '0 GiB host RAM';
+  return `${formatMemoryMb(totalMb, 'GiB', 2)} host RAM`;
 }
 
 function formatSecondsToDuration(seconds: number): string {

@@ -1,9 +1,7 @@
 package api
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -42,12 +40,6 @@ type ProjectResponse struct {
 	UpdatedAt            string   `json:"updatedAt"`
 	ServicesCount        int      `json:"servicesCount"`
 	HealthyServicesCount int      `json:"healthyServicesCount"`
-}
-
-func randomHexID(n int) string {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
 }
 
 func mapProjectToResponse(p db.Project, servicesCount, healthyServicesCount int) ProjectResponse {

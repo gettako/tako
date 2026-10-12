@@ -23,6 +23,7 @@ import {
   updateNodeRetentionPolicy,
   pruneNodeDisk,
 } from '@/lib/api/nodes';
+import { formatBytes } from '@/lib/utils';
 import { NodeRetentionPolicy, NodePruneResult } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -99,7 +100,7 @@ export function NodeRetentionCard({ nodeId }: NodeRetentionCardProps) {
         pruneBuildCache: pruneCache,
       });
       setPruneResult(res);
-      toast.success(res.message || `Cleaned ${(res.spaceReclaimedBytes / 1024 / 1024).toFixed(1)} MB`);
+      toast.success(res.message || `Cleaned ${formatBytes(res.spaceReclaimedBytes)}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to prune node disk';
       toast.error(msg);

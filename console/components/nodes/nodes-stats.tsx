@@ -4,6 +4,7 @@ import React from 'react';
 import { Node } from '@/lib/types';
 import { StatCard } from '@/components/ui/stat-card';
 import { Server, Cpu, Layers, HardDrive } from 'lucide-react';
+import { formatMemoryMb } from '@/lib/utils';
 
 interface NodesStatsProps {
   nodes: Node[];
@@ -19,7 +20,7 @@ export function NodesStats({ nodes }: NodesStatsProps) {
   const totalMemoryMb = nodes.reduce((acc, n) => acc + (n.memoryTotalMb || 0), 0);
   const totalDiskGb = nodes.reduce((acc, n) => acc + (n.diskTotalGb || 0), 0);
 
-  const formattedMemory = `${Math.round(totalMemoryMb / 1024)} GB`;
+  const formattedMemory = formatMemoryMb(totalMemoryMb, 'GB');
   const formattedDisk =
     totalDiskGb >= 1000
       ? `${(totalDiskGb / 1000).toFixed(1)} TB`

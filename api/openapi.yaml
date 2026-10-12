@@ -464,6 +464,98 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/ingress/access-logs:
+    get:
+      summary: Global ingress access logs
+      description: Retrieves global HTTP access logs routed via Traefik ingress proxies across all or filtered nodes/services.
+      operationId: getGlobalIngressAccessLogs
+      tags:
+      - Ingress
+      parameters:
+      - name: nodeId
+        in: query
+        schema:
+          type: string
+      - name: serviceId
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      responses:
+        '200':
+          description: List of Traefik access log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/traefik/access-logs:
+    get:
+      summary: Global Traefik access logs alias
+      description: Alias endpoint for global ingress access logs.
+      operationId: getGlobalTraefikAccessLogs
+      tags:
+      - Ingress
+      parameters:
+      - name: nodeId
+        in: query
+        schema:
+          type: string
+      - name: serviceId
+        in: query
+        schema:
+          type: string
+      - name: status
+        in: query
+        schema:
+          type: string
+          example: 2xx
+      - name: method
+        in: query
+        schema:
+          type: string
+          example: GET
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 100
+      responses:
+        '200':
+          description: List of Traefik access log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TraefikAccessLogEntry'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/v1/nodes/{id}/retention:
     get:
       summary: Get node image retention policy
