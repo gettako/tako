@@ -36,6 +36,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useIngressAccessLogs } from '@/lib/queries/use-ingress';
 import { useNodes, useServices } from '@/lib/queries';
 import { TraefikAccessLogEntry } from '@/lib/types';
@@ -57,6 +64,52 @@ export function IngressLogsViewer() {
   // Queries
   const { data: nodes = [] } = useNodes();
   const { data: services = [] } = useServices();
+
+  const rateOptions = useMemo(
+    () => [
+      { value: '1000', label: '1s (Fast)' },
+      { value: '3000', label: '3s (Default)' },
+      { value: '5000', label: '5s (Normal)' },
+      { value: '10000', label: '10s (Eco)' },
+    ],
+    []
+  );
+
+  const nodeOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Nodes (Global Cluster)' },
+      ...nodes.map((node) => ({
+        value: node.id,
+        label: `${node.name} (${node.ipAddress || node.publicIp || 'node'})`,
+      })),
+    ],
+    [nodes]
+  );
+
+  const serviceOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Services' },
+      ...services.map((service) => ({
+        value: service.id,
+        label: `${service.name} (${service.slug})`,
+      })),
+    ],
+    [services]
+  );
+
+  const methodOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All Methods' },
+      { value: 'GET', label: 'GET' },
+      { value: 'POST', label: 'POST' },
+      { value: 'PUT', label: 'PUT' },
+      { value: 'DELETE', label: 'DELETE' },
+      { value: 'PATCH', label: 'PATCH' },
+      { value: 'OPTIONS', label: 'OPTIONS' },
+      { value: 'HEAD', label: 'HEAD' },
+    ],
+    []
+  );
 
   const queryFilters = useMemo(
     () => ({
@@ -277,19 +330,29 @@ export function IngressLogsViewer() {
             </Button>
 
             {/* Polling Interval Select */}
-            <div className="inline-flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 border border-border px-2.5 py-1 rounded-md">
-              <span>Rate:</span>
-              <select
-                value={pollInterval}
-                onChange={(e) => setPollInterval(Number(e.target.value))}
-                className="bg-transparent text-foreground font-medium text-xs focus:outline-hidden cursor-pointer"
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground font-medium shrink-0">Rate:</span>
+              <Select
+                value={String(pollInterval)}
+                onValueChange={(val) => {
+                  if (val) setPollInterval(Number(val));
+                }}
+                items={rateOptions}
                 disabled={!isLive}
               >
-                <option value={1000} className="bg-popover text-popover-foreground">1s</option>
-                <option value={3000} className="bg-popover text-popover-foreground">3s (Default)</option>
-                <option value={5000} className="bg-popover text-popover-foreground">5s</option>
-                <option value={10000} className="bg-popover text-popover-foreground">10s</option>
-              </select>
+                <SelectTrigger size="sm" className="h-8 w-32 text-xs bg-muted/30 border-border">
+                  <SelectValue placeholder="Rate">
+                    {(val) => rateOptions.find((r) => r.value === val)?.label || `${val}ms`}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} align="start">
+                  {rateOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Manual Refresh */}
@@ -350,21 +413,27 @@ export function IngressLogsViewer() {
             <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
               Filter by Node
             </label>
-            <div className="relative">
-              <Server className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
-              <select
-                value={selectedNode}
-                onChange={(e) => setSelectedNode(e.target.value)}
-                className="w-full h-8 pl-8 pr-3 text-xs rounded-md bg-muted/40 border border-border text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="all" className="bg-popover text-popover-foreground">All Nodes (Global Cluster)</option>
-                {nodes.map((node) => (
-                  <option key={node.id} value={node.id} className="bg-popover text-popover-foreground">
-                    {node.name} ({node.ipAddress || node.publicIp || 'node'})
-                  </option>
+            <Select
+              value={selectedNode}
+              onValueChange={(val) => setSelectedNode(val ?? 'all')}
+              items={nodeOptions}
+            >
+              <SelectTrigger size="sm" className="h-8 text-xs bg-muted/40 border-border">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Server className="size-3.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="All Nodes">
+                    {(val) => nodeOptions.find((n) => n.value === val)?.label || 'All Nodes'}
+                  </SelectValue>
+                </div>
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start" className="w-(--anchor-width) max-h-60">
+                {nodeOptions.map((node) => (
+                  <SelectItem key={node.value} value={node.value}>
+                    {node.label}
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Service Filter */}
@@ -372,21 +441,27 @@ export function IngressLogsViewer() {
             <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
               Filter by Service
             </label>
-            <div className="relative">
-              <Box className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground pointer-events-none" />
-              <select
-                value={selectedService}
-                onChange={(e) => setSelectedService(e.target.value)}
-                className="w-full h-8 pl-8 pr-3 text-xs rounded-md bg-muted/40 border border-border text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer"
-              >
-                <option value="all" className="bg-popover text-popover-foreground">All Services</option>
-                {services.map((service) => (
-                  <option key={service.id} value={service.id} className="bg-popover text-popover-foreground">
-                    {service.name} ({service.slug})
-                  </option>
+            <Select
+              value={selectedService}
+              onValueChange={(val) => setSelectedService(val ?? 'all')}
+              items={serviceOptions}
+            >
+              <SelectTrigger size="sm" className="h-8 text-xs bg-muted/40 border-border">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Box className="size-3.5 text-muted-foreground shrink-0" />
+                  <SelectValue placeholder="All Services">
+                    {(val) => serviceOptions.find((s) => s.value === val)?.label || 'All Services'}
+                  </SelectValue>
+                </div>
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start" className="w-(--anchor-width) max-h-60">
+                {serviceOptions.map((service) => (
+                  <SelectItem key={service.value} value={service.value}>
+                    {service.label}
+                  </SelectItem>
                 ))}
-              </select>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Method Filter */}
@@ -394,20 +469,24 @@ export function IngressLogsViewer() {
             <label className="text-[11px] font-medium text-muted-foreground mb-1 block">
               HTTP Method
             </label>
-            <select
+            <Select
               value={selectedMethod}
-              onChange={(e) => setSelectedMethod(e.target.value)}
-              className="w-full h-8 px-2.5 text-xs rounded-md bg-muted/40 border border-border text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary cursor-pointer font-mono"
+              onValueChange={(val) => setSelectedMethod(val ?? 'all')}
+              items={methodOptions}
             >
-              <option value="all" className="bg-popover text-popover-foreground">All Methods</option>
-              <option value="GET" className="bg-popover text-popover-foreground">GET</option>
-              <option value="POST" className="bg-popover text-popover-foreground">POST</option>
-              <option value="PUT" className="bg-popover text-popover-foreground">PUT</option>
-              <option value="DELETE" className="bg-popover text-popover-foreground">DELETE</option>
-              <option value="PATCH" className="bg-popover text-popover-foreground">PATCH</option>
-              <option value="OPTIONS" className="bg-popover text-popover-foreground">OPTIONS</option>
-              <option value="HEAD" className="bg-popover text-popover-foreground">HEAD</option>
-            </select>
+              <SelectTrigger size="sm" className="h-8 text-xs bg-muted/40 border-border font-mono">
+                <SelectValue placeholder="All Methods">
+                  {(val) => methodOptions.find((m) => m.value === val)?.label || 'All Methods'}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start">
+                {methodOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value} className="font-mono text-xs">
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Search Box */}
