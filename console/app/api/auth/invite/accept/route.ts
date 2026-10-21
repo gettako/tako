@@ -8,6 +8,12 @@ import { UserInvite } from '@/lib/types';
 const SESSION_COOKIE = 'tako_session';
 const SESSION_USER_COOKIE = 'tako_user';
 
+function isSecureRequest(req?: NextRequest): boolean {
+  if (!req) return false;
+  return req.headers.get('x-forwarded-proto') === 'https' || req.nextUrl.protocol === 'https:';
+}
+
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -144,7 +150,7 @@ export async function POST(req: NextRequest) {
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE, result.token || `tako_session_${Date.now()}`, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecureRequest(req),
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
@@ -152,7 +158,7 @@ export async function POST(req: NextRequest) {
 
     cookieStore.set(SESSION_USER_COOKIE, JSON.stringify(userWithAvatar), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecureRequest(req),
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,
