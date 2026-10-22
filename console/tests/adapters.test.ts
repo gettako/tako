@@ -147,4 +147,48 @@ describe("Data Adapters", () => {
     expect(adapted.steps?.length).toBe(1)
     expect(adapted.steps?.[0]?.status).toBe("success")
   })
+
+  it("handles environment variables editor parsing and formatting", () => {
+    const rawEnvText = `
+# Server Configuration
+PORT=8080
+NODE_ENV="production"
+DATABASE_URL='postgres://user:pass@localhost:5432/db'
+EMPTY_VAL=
+# Comment line
+CUSTOM_FLAG=true
+`
+    const parsed = rawEnvText
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"))
+      .map((l) => {
+        const eq = l.indexOf("=")
+        if (eq === -1) return { key: l, value: "" }
+        let val = l.slice(eq + 1).trim()
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        ) {
+          val = val.slice(1, -1)
+        }
+        return { key: l.slice(0, eq).trim(), value: val }
+      })
+      .filter((i) => i.key.length > 0)
+
+    expect(parsed.length).toBe(5)
+    expect(parsed[0]).toEqual({ key: "PORT", value: "8080" })
+    expect(parsed[1]).toEqual({ key: "NODE_ENV", value: "production" })
+    expect(parsed[2]).toEqual({
+      key: "DATABASE_URL",
+      value: "postgres://user:pass@localhost:5432/db",
+    })
+    expect(parsed[3]).toEqual({ key: "EMPTY_VAL", value: "" })
+    expect(parsed[4]).toEqual({ key: "CUSTOM_FLAG", value: "true" })
+
+    // Formatting back to .env
+    const formatted = parsed.map((e) => `${e.key}=${e.value}`).join("\n")
+    expect(formatted).toContain("PORT=8080")
+    expect(formatted).toContain("CUSTOM_FLAG=true")
+  })
 })

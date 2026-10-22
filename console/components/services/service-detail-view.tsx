@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button"
 import { CodeEditor } from "@/components/ui/code-editor"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Flag } from "@/components/ui/flag"
+import { ServiceCronsTab } from "@/components/services/service-crons-tab"
 import { ServiceDeploymentsTab } from "@/components/services/service-deployments-tab"
 import { ServiceLogsTab } from "@/components/services/service-logs-tab"
 import { ServiceOverviewTab } from "@/components/services/service-overview-tab"
@@ -60,7 +61,7 @@ export function ServiceDetailView({
   const targetNode = nodes.find((n) => n.id === service?.targetNodeId)
 
   const [activeTab, setActiveTab] = React.useState<
-    "overview" | "deployments" | "terminal" | "logs" | "config" | "settings"
+    "overview" | "deployments" | "terminal" | "logs" | "crons" | "config" | "settings"
   >("overview")
 
   // Code editor state
@@ -432,7 +433,22 @@ export function ServiceDetailView({
           )}
         </button>
 
-        {/* Tab 5: Compose Manifest (Only for Docker Compose services; Dockerfile tab removed) */}
+        {/* Tab 5: Cron Jobs */}
+        <button
+          type="button"
+          onClick={() => setActiveTab("crons")}
+          className={cn(
+            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+            currentTab === "crons"
+              ? "border-primary font-semibold text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Clock className="size-3.5" />
+          <span>Cron Jobs</span>
+        </button>
+
+        {/* Tab 6: Compose Manifest (Only for Docker Compose services; Dockerfile tab removed) */}
         {service.type === "docker-compose" && (
           <button
             type="button"
@@ -449,7 +465,7 @@ export function ServiceDetailView({
           </button>
         )}
 
-        {/* Tab 6: Settings */}
+        {/* Tab 7: Settings */}
         <button
           type="button"
           onClick={() => setActiveTab("settings")}
@@ -488,7 +504,10 @@ export function ServiceDetailView({
       {/* View 4: Runtime Logs */}
       {currentTab === "logs" && <ServiceLogsTab service={service} />}
 
-      {/* View 5: Docker Compose Manifest Editor (Only for compose services) */}
+      {/* View 5: Scheduled Cron Jobs */}
+      {currentTab === "crons" && <ServiceCronsTab service={service} />}
+
+      {/* View 6: Docker Compose Manifest Editor (Only for compose services) */}
       {service.type === "docker-compose" && currentTab === "config" && (
         <div className="space-y-4">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
