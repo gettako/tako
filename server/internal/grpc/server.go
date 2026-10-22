@@ -4,6 +4,7 @@ package grpc
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -172,12 +173,45 @@ type ContainerHandler struct {
 	orchestrator *orchestrator.Orchestrator
 }
 
+// resolveNodeID dynamically determines which worker or leader node hosts the given container.
+func (h *ContainerHandler) resolveNodeID(ctx context.Context, containerID string) string {
+	if h.orchestrator == nil {
+		return "tako-master-01"
+	}
+	clean := strings.TrimPrefix(containerID, "/")
+	slug := clean
+	var candidateSlug string
+	if strings.HasPrefix(clean, "tako-app-") {
+		slug = strings.TrimPrefix(clean, "tako-app-")
+		if idx := strings.LastIndex(slug, "-"); idx > 0 {
+			candidateSlug = slug[:idx]
+		}
+	}
+	if srvs, err := h.orchestrator.Queries().ListAllServices(ctx); err == nil {
+		for _, s := range srvs {
+			if (s.Slug == slug || s.Slug == candidateSlug || s.ID == containerID) && s.NodeID != "" {
+				return s.NodeID
+			}
+		}
+	}
+	if nodes, err := h.orchestrator.Queries().ListNodes(ctx); err == nil && len(nodes) > 0 {
+		for _, n := range nodes {
+			if n.Role == "leader" {
+				return n.ID
+			}
+		}
+		return nodes[0].ID
+	}
+	return "tako-master-01"
+}
+
 // ExecCommand runs a command inside a specified container on a worker node.
 func (h *ContainerHandler) ExecCommand(ctx context.Context, req *takov1.ExecCommandRequest) (*takov1.ExecCommandResponse, error) {
 	if h.orchestrator == nil {
 		return &takov1.ExecCommandResponse{ExitCode: 1, Error: "orchestrator not configured"}, nil
 	}
-	out, code, err := h.orchestrator.DispatchExec(ctx, "tako-master-01", req.GetContainerId(), req.GetCommand())
+	nodeID := h.resolveNodeID(ctx, req.GetContainerId())
+	out, code, err := h.orchestrator.DispatchExec(ctx, nodeID, req.GetContainerId(), req.GetCommand())
 	errStr := ""
 	if err != nil {
 		errStr = err.Error()
@@ -198,7 +232,8 @@ func (h *ContainerHandler) GetContainerLogs(ctx context.Context, req *takov1.Get
 	if tail <= 0 {
 		tail = 100
 	}
-	logs, err := h.orchestrator.DispatchContainerLogs(ctx, "tako-master-01", req.GetContainerId(), tail)
+	nodeID := h.resolveNodeID(ctx, req.GetContainerId())
+	logs, err := h.orchestrator.DispatchContainerLogs(ctx, nodeID, req.GetContainerId(), tail)
 	errStr := ""
 	if err != nil {
 		errStr = err.Error()

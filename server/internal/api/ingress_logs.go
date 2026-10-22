@@ -215,6 +215,11 @@ func parseTraefikLogEntry(line string, node db.Node) (TraefikAccessLogEntry, boo
 		return TraefikAccessLogEntry{}, false
 	}
 
+	// Do not misattribute local access logs to another worker node if raw entry specifies node ID
+	if raw.NodeID != "" && node.ID != "" && raw.NodeID != node.ID {
+		return TraefikAccessLogEntry{}, false
+	}
+
 	entry := TraefikAccessLogEntry{
 		NodeID:   node.ID,
 		NodeName: node.Name,

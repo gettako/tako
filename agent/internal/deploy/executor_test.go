@@ -141,3 +141,22 @@ func TestExecuteDeploy_PublishToHost(t *testing.T) {
 		t.Errorf("expected final step Live, got %s", lastChunk.GetStep())
 	}
 }
+
+func TestExecuteDeploy_InvalidGitRepoFails(t *testing.T) {
+	executor := deploy.NewExecutor(nil)
+	stream := &mockDeployStream{}
+	req := &takov1.DeployRequest{
+		DeploymentId: "dep-test-invalid-git",
+		ServiceId:    "srv-test-invalid-git",
+		ServiceName:  "invalid-app",
+		Repository:   "https://non-existent.invalid/org/fake-repo.git",
+		Dockerfile:   "Dockerfile",
+		Image:        "fake-app:latest",
+	}
+
+	err := executor.ExecuteDeploy(context.Background(), req, stream)
+	if err == nil {
+		t.Fatalf("expected deployment to fail for non-existent git repository, got nil")
+	}
+}
+

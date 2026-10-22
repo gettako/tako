@@ -169,10 +169,19 @@ func (o *Orchestrator) evaluateAutoScaling(ctx context.Context) {
 		// Execute Scale Up
 		if shouldScaleUp && c.replicas < c.maxReplicas {
 			newReplicas := c.replicas + 1
+			// shortcut: multi-container dynamic load balancing in Traefik is pending ingress service mesh; currently updates database target replicas and emits cluster events.
 			_, err := o.db.ExecContext(ctx, "UPDATE services SET replicas = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", newReplicas, c.id)
 			if err == nil {
 				scaleCooldownsMu.Lock()
 				scaleCooldowns[c.id] = time.Now()
+				if len(scaleCooldowns) > 100 {
+					cutoff := time.Now().Add(-1 * time.Hour)
+					for id, ts := range scaleCooldowns {
+						if ts.Before(cutoff) {
+							delete(scaleCooldowns, id)
+						}
+					}
+				}
 				scaleCooldownsMu.Unlock()
 
 				log.Printf("[autoscaler] scale UP service %s (%s): replicas %d -> %d (%s, cooldown: %ds)",
@@ -210,6 +219,14 @@ func (o *Orchestrator) evaluateAutoScaling(ctx context.Context) {
 			if err == nil {
 				scaleCooldownsMu.Lock()
 				scaleCooldowns[c.id] = time.Now()
+				if len(scaleCooldowns) > 100 {
+					cutoff := time.Now().Add(-1 * time.Hour)
+					for id, ts := range scaleCooldowns {
+						if ts.Before(cutoff) {
+							delete(scaleCooldowns, id)
+						}
+					}
+				}
 				scaleCooldownsMu.Unlock()
 
 				log.Printf("[autoscaler] scale DOWN service %s (%s): replicas %d -> %d (%s, cooldown: %ds)",

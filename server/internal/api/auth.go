@@ -57,11 +57,32 @@ func (t *loginAttemptTracker) isBlocked(key string) bool {
 	return len(valid) >= t.maxAttempts
 }
 
+func (t *loginAttemptTracker) cleanup(now time.Time) {
+	cutoff := now.Add(-t.window)
+	for k, timestamps := range t.attempts {
+		var valid []time.Time
+		for _, ts := range timestamps {
+			if ts.After(cutoff) {
+				valid = append(valid, ts)
+			}
+		}
+		if len(valid) == 0 {
+			delete(t.attempts, k)
+		} else {
+			t.attempts[k] = valid
+		}
+	}
+}
+
 func (t *loginAttemptTracker) recordFailure(key string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	now := time.Now()
+	if len(t.attempts) > 100 {
+		t.cleanup(now)
+	}
+
 	cutoff := now.Add(-t.window)
 
 	var valid []time.Time

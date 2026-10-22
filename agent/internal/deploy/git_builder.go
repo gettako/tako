@@ -24,14 +24,14 @@ func (e *Executor) handleGitBuild(
 	req *takov1.DeployRequest,
 	targetImage string,
 	sendLog func(step, msg string, isError bool),
-) string {
+) (string, error) {
 	commitHash := req.GetCommitHash()
 
 	// Reuse existing cached image for this commit if explicitly specified and already built locally
 	if e.dockerCli != nil && commitHash != "" && commitHash != "main" && commitHash != "master" {
 		if _, _, err := e.dockerCli.RawClient().ImageInspectWithRaw(ctx, targetImage); err == nil {
 			sendLog("Build", fmt.Sprintf("Using cached local image %s for commit %s", targetImage, commitHash), false)
-			return commitHash
+			return commitHash, nil
 		}
 	}
 
@@ -53,10 +53,8 @@ func (e *Executor) handleGitBuild(
 
 	tmpDir, err := os.MkdirTemp("", "tako-repo-*")
 	if err != nil {
-		sendLog("Clone", fmt.Sprintf("Notice: temp dir error (%v), falling back to simulated clone", err), false)
-		sendLog("Build", fmt.Sprintf("Building Dockerfile %s...", dockerfileName), false)
-		sendLog("Build", fmt.Sprintf("Successfully tagged %s", targetImage), false)
-		return commitHash
+		sendLog("Clone", fmt.Sprintf("Failed to create build temporary directory: %v", err), true)
+		return "", fmt.Errorf("temp dir error: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -71,10 +69,9 @@ func (e *Executor) handleGitBuild(
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		sendLog("Clone", fmt.Sprintf("Notice: git clone output: %s (%v)", strings.TrimSpace(string(out)), err), false)
-		sendLog("Build", fmt.Sprintf("Building Dockerfile %s (simulated context)...", dockerfileName), false)
-		sendLog("Build", fmt.Sprintf("Successfully tagged %s", targetImage), false)
-		return commitHash
+		outStr := strings.TrimSpace(string(out))
+		sendLog("Clone", fmt.Sprintf("Git clone failed: %s (%v)", outStr, err), true)
+		return "", fmt.Errorf("git clone failed: %s (%w)", outStr, err)
 	}
 
 	sendLog("Clone", fmt.Sprintf("Successfully cloned %s", repoURL), false)
@@ -140,7 +137,7 @@ func (e *Executor) handleGitBuild(
 		tarStream, err := createTarArchive(tmpDir)
 		if err != nil {
 			sendLog("Build", fmt.Sprintf("Failed to archive build context: %v", err), true)
-			return actualHash
+			return actualHash, fmt.Errorf("archive build context error: %w", err)
 		}
 
 		buildTags := []string{
@@ -159,31 +156,36 @@ func (e *Executor) handleGitBuild(
 
 		resp, err := e.dockerCli.RawClient().ImageBuild(ctx, tarStream, buildOpts)
 		if err != nil {
-			sendLog("Build", fmt.Sprintf("Docker ImageBuild notice: %v", err), false)
-		} else {
-			defer resp.Body.Close()
-			scanner := bufio.NewScanner(resp.Body)
-			for scanner.Scan() {
-				line := scanner.Text()
-				var msg struct {
-					Stream string `json:"stream"`
-					Error  string `json:"error"`
-				}
-				if jsonErr := json.Unmarshal([]byte(line), &msg); jsonErr == nil {
-					if msg.Error != "" {
-						sendLog("Build", msg.Error, true)
-					} else if s := strings.TrimSpace(msg.Stream); s != "" {
-						sendLog("Build", s, false)
-					}
-				} else if strings.TrimSpace(line) != "" {
-					sendLog("Build", line, false)
-				}
+			sendLog("Build", fmt.Sprintf("Docker ImageBuild failed: %v", err), true)
+			return actualHash, fmt.Errorf("docker image build error: %w", err)
+		}
+		defer resp.Body.Close()
+		scanner := bufio.NewScanner(resp.Body)
+		var buildErr error
+		for scanner.Scan() {
+			line := scanner.Text()
+			var msg struct {
+				Stream string `json:"stream"`
+				Error  string `json:"error"`
 			}
+			if jsonErr := json.Unmarshal([]byte(line), &msg); jsonErr == nil {
+				if msg.Error != "" {
+					sendLog("Build", msg.Error, true)
+					buildErr = fmt.Errorf("docker build error: %s", msg.Error)
+				} else if s := strings.TrimSpace(msg.Stream); s != "" {
+					sendLog("Build", s, false)
+				}
+			} else if strings.TrimSpace(line) != "" {
+				sendLog("Build", line, false)
+			}
+		}
+		if buildErr != nil {
+			return actualHash, buildErr
 		}
 	}
 
 	sendLog("Build", fmt.Sprintf("Successfully tagged %s", targetImage), false)
-	return actualHash
+	return actualHash, nil
 }
 
 // createTarArchive packs the files in srcDir into an in-memory tar stream

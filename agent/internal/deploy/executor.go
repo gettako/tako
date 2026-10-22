@@ -100,7 +100,10 @@ func (e *Executor) ExecuteDeployWithCallback(
 	}
 
 	if req.GetRepository() != "" {
-		actualHash := e.handleGitBuild(ctx, req, targetImage, sendLog)
+		actualHash, err := e.handleGitBuild(ctx, req, targetImage, sendLog)
+		if err != nil {
+			return fmt.Errorf("git repository build failed: %w", err)
+		}
 		if actualHash != "" && (req.GetCommitHash() == "" || req.GetCommitHash() == "main" || req.GetCommitHash() == "master") {
 			commit8 = actualHash
 			if len(commit8) > 8 {

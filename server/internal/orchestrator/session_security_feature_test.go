@@ -156,3 +156,27 @@ func TestFeature_NodeRegistrationAndHeartbeatState(t *testing.T) {
 		t.Errorf("expected MemoryUsedMb 8192, got %d", nodeDB.MemoryUsedMb)
 	}
 }
+
+func TestFeature_SessionStorePruning(t *testing.T) {
+	store := orchestrator.NewSessionStore()
+	user := db.User{ID: "usr-1", Role: "admin"}
+
+	// Register a session
+	sess := store.Register("token-valid", user)
+	if sess.Token != "token-valid" {
+		t.Fatalf("expected token-valid, got %s", sess.Token)
+	}
+
+	// Active session returns true
+	_, ok := store.Get("token-valid")
+	if !ok {
+		t.Fatalf("expected valid session to be found")
+	}
+
+	// Pruning unexpired session returns 0
+	pruned := store.PruneExpired()
+	if pruned != 0 {
+		t.Errorf("expected 0 pruned, got %d", pruned)
+	}
+}
+
