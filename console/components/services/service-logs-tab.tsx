@@ -20,6 +20,7 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
+import { apiGet } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 import type { ProjectService } from "@/types/platform"
@@ -39,13 +40,45 @@ interface ServiceLogsTabProps {
 }
 
 const MAX_LOG_ENTRIES = 500
-const STREAM_INTERVAL_MS = 1400
+const STREAM_INTERVAL_MS = 2500
 
 function formatTimestamp(date: Date) {
   const pad = (value: number) => value.toString().padStart(2, "0")
   const padMs = (value: number) => value.toString().padStart(3, "0")
 
   return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${padMs(date.getMilliseconds())}`
+}
+
+function parseRawContainerLogs(
+  rawText: string,
+  containerName: string
+): ServiceLogEntry[] {
+  if (!rawText || !rawText.trim()) return []
+  const lines = rawText.split("\n").filter((l) => l.trim().length > 0)
+  return lines.map((line, idx) => {
+    let timestamp = formatTimestamp(new Date())
+    let message = line
+    const match = line.match(/^\[(.*?)\]\s*(.*)$/)
+    if (match) {
+      timestamp = match[1]
+      message = match[2]
+    }
+
+    let level: ServiceLogLevel = "info"
+    if (/(error|failed|fatal|panic|exception)/i.test(line)) {
+      level = "error"
+    } else if (/(warn|warning)/i.test(line)) {
+      level = "warn"
+    }
+
+    return {
+      id: `real-log-${idx}-${line.slice(0, 16)}`,
+      timestamp,
+      level,
+      container: containerName,
+      message,
+    }
+  })
 }
 
 function getContainerNames(service: ProjectService) {
@@ -158,61 +191,13 @@ function createInitialLogs(service: ProjectService): ServiceLogEntry[] {
       main,
       `Runtime listening on 0.0.0.0:${port}/${protocol}.`
     ),
-    entry(
-      1800,
-      "info",
-      sidecar,
-      `Telemetry sidecar attached to ${main}; forwarding stdout and stderr.`
-    ),
-    entry(
-      600,
-      "info",
-      main,
-      `Health probe GET /healthz returned 200 OK (${service.metrics.cpuPercent}% CPU, ${service.metrics.memoryMb}MB RAM).`
-    ),
   ]
 }
 
-function createStreamEntry(service: ProjectService): ServiceLogEntry {
-  const { main, sidecar } = getContainerNames(service)
-  const container = Math.random() > 0.25 ? main : sidecar
-  const latency = Math.floor(Math.random() * 80) + 4
-  const roll = Math.random()
-
-  let level: ServiceLogLevel = "info"
-  let message: string
-
-  if (roll < 0.06) {
-    level = "error"
-    message =
-      "Upstream request failed: connection reset by peer. Retrying on the next scheduled attempt."
-  } else if (roll < 0.16) {
-    level = "warn"
-    message = `Slow upstream response ${latency + 280}ms from ${service.targetNodeId}; circuit breaker threshold is 1000ms.`
-  } else {
-    const messages = [
-      `GET /healthz 200 ${latency}ms`,
-      `POST /api/v1/telemetry 202 ${latency + 8}ms`,
-      `gRPC keepalive ACK from ${service.targetNodeId} (${latency}ms)`,
-      `Memory ${service.metrics.memoryMb}MB / ${service.metrics.memoryLimitMb}MB; GC pause 1.2ms`,
-      `Serving ${Math.floor(Math.random() * 20) + 3} concurrent requests`,
-      `Cache hit ratio ${(Math.random() * 10 + 88).toFixed(1)}% over the last 60s`,
-    ]
-
-    message = messages[Math.floor(Math.random() * messages.length)]
-  }
-
-  return {
-    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    timestamp: formatTimestamp(new Date()),
-    level,
-    container,
-    message,
-  }
-}
-
 export function ServiceLogsTab({ service }: ServiceLogsTabProps) {
-  const [logs, setLogs] = React.useState<ServiceLogEntry[]>([])
+  const [logs, setLogs] = React.useState<ServiceLogEntry[]>(() =>
+    createInitialLogs(service)
+  )
   const [isStreaming, setIsStreaming] = React.useState(true)
   const [containerFilter, setContainerFilter] = React.useState("all")
   const [levelFilter, setLevelFilter] = React.useState<string>("all")
@@ -220,8 +205,6 @@ export function ServiceLogsTab({ service }: ServiceLogsTabProps) {
   const [autoScroll, setAutoScroll] = React.useState(true)
   const [copied, setCopied] = React.useState(false)
 
-  const seededServiceRef = React.useRef<string | null>(null)
-  const serviceRef = React.useRef(service)
   const logContainerRef = React.useRef<HTMLDivElement>(null)
 
   const { main, sidecar } = getContainerNames(service)
@@ -237,33 +220,41 @@ export function ServiceLogsTab({ service }: ServiceLogsTabProps) {
     [main, sidecar]
   )
 
+  const fetchRealLogs = React.useCallback(async () => {
+    try {
+      const targetContainer = containerFilter === "all" ? main : containerFilter
+      const res = await apiGet<{ logs: string }>(
+        `/services/${service.id}/container-logs?containerName=${encodeURIComponent(targetContainer)}`
+      )
+      if (res && typeof res.logs === "string" && res.logs.trim().length > 0) {
+        const parsed = parseRawContainerLogs(res.logs, targetContainer)
+        if (parsed.length > 0) {
+          setLogs(parsed.slice(-MAX_LOG_ENTRIES))
+        }
+      }
+    } catch {
+      // Retain existing log state on temporary network blips
+    }
+  }, [service.id, containerFilter, main])
+
+  // Initial fetch on mount or service change
   React.useEffect(() => {
-    serviceRef.current = service
-  }, [service])
+    const timer = setTimeout(() => {
+      void fetchRealLogs()
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [service.id, fetchRealLogs])
 
-  // Seed after hydration so timestamps never differ between server and client.
-  React.useEffect(() => {
-    if (seededServiceRef.current === service.id) return
-
-    seededServiceRef.current = service.id
-    setLogs(createInitialLogs(service))
-  }, [service])
-
+  // Periodic poll from real container endpoint when streaming is active
   React.useEffect(() => {
     if (!streamActive) return
 
     const interval = setInterval(() => {
-      setLogs((previous) => {
-        const next = [...previous, createStreamEntry(serviceRef.current)]
-
-        return next.length > MAX_LOG_ENTRIES
-          ? next.slice(next.length - MAX_LOG_ENTRIES)
-          : next
-      })
+      void fetchRealLogs()
     }, STREAM_INTERVAL_MS)
 
     return () => clearInterval(interval)
-  }, [streamActive])
+  }, [streamActive, fetchRealLogs])
 
   const filteredLogs = React.useMemo(() => {
     return logs.filter((entry) => {

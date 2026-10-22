@@ -105,7 +105,7 @@ const notificationsSchema = z
   })
 
 export function NotificationsPanel() {
-  const { settings, updateSettings, addAuditLog, testNotifications } =
+  const { settings, currentUser, updateSettings, addAuditLog, testNotifications } =
     usePlatformData()
 
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(
@@ -171,7 +171,10 @@ export function NotificationsPanel() {
         addAuditLog({
           action: "Notification Test Dispatched",
           category: "config",
-          actor: { name: "admin@gettako.dev", type: "user" },
+          actor: {
+            name: currentUser.email || currentUser.name || "admin@gettako.dev",
+            type: "user",
+          },
           target: "Outbound Webhooks",
           details:
             res.message ||

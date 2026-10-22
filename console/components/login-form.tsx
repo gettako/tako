@@ -119,9 +119,28 @@ export function LoginForm({
         if (cred && cred.id) {
           credentialId = cred.id
         }
-      } catch {
-        // Fallback to registered passkey directly
+      } catch (err: unknown) {
+        const isAbort =
+          err instanceof DOMException &&
+          (err.name === "NotAllowedError" || err.name === "AbortError")
+        setPasskeyStatus(
+          isAbort
+            ? "Passkey request cancelled. Sign in with password or retry."
+            : "No response from security key. Sign in with password first."
+        )
+        setIsPasskeyLoading(false)
+        return
       }
+    } else {
+      setPasskeyStatus("Passkeys are not supported in this browser environment.")
+      setIsPasskeyLoading(false)
+      return
+    }
+
+    if (!credentialId) {
+      setPasskeyStatus("No credential ID received. Sign in with password first.")
+      setIsPasskeyLoading(false)
+      return
     }
 
     try {

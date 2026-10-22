@@ -708,10 +708,31 @@ export function PlatformDataProvider({
   }, [])
 
   const refreshAll = React.useCallback(async () => {
-    const results = await Promise.allSettled([
+    // 1. Fetch primary core platform entities first (must succeed)
+    const [nodesRes, projectsRes, servicesRes] = await Promise.allSettled([
       refreshNodes(),
       refreshProjects(),
       refreshServices(),
+    ])
+
+    if (nodesRes.status === "rejected") {
+      throw nodesRes.reason instanceof ApiError
+        ? nodesRes.reason
+        : new Error("Failed to load nodes")
+    }
+    if (projectsRes.status === "rejected") {
+      throw projectsRes.reason instanceof ApiError
+        ? projectsRes.reason
+        : new Error("Failed to load projects")
+    }
+    if (servicesRes.status === "rejected") {
+      throw servicesRes.reason instanceof ApiError
+        ? servicesRes.reason
+        : new Error("Failed to load services")
+    }
+
+    // 2. Fetch secondary entities gracefully without blocking the dashboard
+    const secondaryResults = await Promise.allSettled([
       refreshAuditLogs(),
       refreshSettings(),
       refreshUsers(),
@@ -721,13 +742,10 @@ export function PlatformDataProvider({
       refreshPasskeys(),
       refreshSystemVersion(),
     ])
-    const failed = results.find((result) => result.status === "rejected")
-    if (failed && failed.status === "rejected") {
-      const reason = failed.reason
-      if (reason instanceof ApiError) {
-        throw reason
+    for (const res of secondaryResults) {
+      if (res.status === "rejected") {
+        console.warn("Non-fatal platform data fetch failure:", res.reason)
       }
-      throw new Error("Failed to load platform data")
     }
   }, [
     refreshNodes,

@@ -324,6 +324,7 @@ export function ServiceTerminalTab({
   const [copiedBuffer, setCopiedBuffer] = React.useState(false)
   const [isReconnecting, setIsReconnecting] = React.useState(false)
   const [wsConnected, setWsConnected] = React.useState(false)
+  const [reconnectKey, setReconnectKey] = React.useState(0)
   const wsRef = React.useRef<WebSocket | null>(null)
 
   // Establish WebSocket connection to backend terminal when available
@@ -349,17 +350,35 @@ export function ServiceTerminalTab({
       ws.onmessage = (event) => {
         const text = typeof event.data === "string" ? event.data : ""
         if (text && !text.includes("Error: service not found")) {
-          setHistoryList((prev) => [
-            ...prev,
-            {
-              id: `ws-${Date.now()}-${Math.random()}`,
-              command: "",
-              // eslint-disable-next-line no-control-regex
-              output: text.replace(/\x1b\[[0-9;]*m/g, "").trim(),
-              timestamp: new Date().toLocaleTimeString(),
-              cwd: currentCwd,
-            },
-          ])
+          // Clean ANSI color codes and control sequences (e.g. \x1b[2J, \x1b[H, \r)
+          const cleanText = text
+            // eslint-disable-next-line no-control-regex
+            .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
+            .replace(/\r/g, "")
+            .trim()
+          if (!cleanText) return
+
+          setHistoryList((prev) => {
+            if (prev.length > 0) {
+              const last = prev[prev.length - 1]
+              return [
+                ...prev.slice(0, -1),
+                {
+                  ...last,
+                  output: last.output ? `${last.output}\n${cleanText}` : cleanText,
+                },
+              ]
+            }
+            return [
+              {
+                id: `ws-${Date.now()}-${Math.random()}`,
+                command: "",
+                output: cleanText,
+                timestamp: new Date().toLocaleTimeString(),
+                cwd: currentCwd,
+              },
+            ]
+          })
         }
       }
       ws.onerror = () => {
@@ -377,7 +396,7 @@ export function ServiceTerminalTab({
       ws?.close()
       wsRef.current = null
     }
-  }, [service.id, selectedContainer, currentCwd])
+  }, [service.id, selectedContainer, currentCwd, reconnectKey])
 
   const terminalRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -533,6 +552,16 @@ export function ServiceTerminalTab({
       wsConnected &&
       wsRef.current.readyState === WebSocket.OPEN
     ) {
+      setHistoryList((prev) => [
+        ...prev,
+        {
+          id: `cmd-${Date.now()}`,
+          command: trimmed,
+          output: "",
+          timestamp: now,
+          cwd: currentCwd,
+        },
+      ])
       wsRef.current.send(trimmed + "\n")
       setInputVal("")
       return
@@ -827,10 +856,16 @@ export function ServiceTerminalTab({
 
   const handleReconnect = async () => {
     setIsReconnecting(true)
-    await new Promise((res) => setTimeout(res, 800))
-    setIsReconnecting(false)
+    if (wsRef.current) {
+      wsRef.current.close()
+      wsRef.current = null
+    }
+    setWsConnected(false)
     setHistoryList([])
     setCurrentCwd("/app")
+    await new Promise((res) => setTimeout(res, 600))
+    setReconnectKey((prev) => prev + 1)
+    setIsReconnecting(false)
   }
 
   return (

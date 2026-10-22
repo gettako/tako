@@ -49,8 +49,9 @@ interface NodeDetailViewProps {
 type TabType = "containers" | "telemetry" | "config"
 
 export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
-  const { nodes, services, updateService, deleteNode, addAuditLog } = usePlatformData()
+  const { nodes, services, currentUser, updateService, deleteNode, addAuditLog } = usePlatformData()
   const node = nodes.find((n) => n.id === nodeId)
+  const actorName = currentUser.email || currentUser.name || "admin@gettako.dev"
 
   const [activeTab, setActiveTab] = React.useState<TabType>("containers")
   const [copiedIp, setCopiedIp] = React.useState(false)
@@ -151,7 +152,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
       addAuditLog({
         action: "Agent Restart Dispatched",
         category: "node",
-        actor: { name: "admin@gettako.dev", type: "user" },
+        actor: { name: actorName, type: "user" },
         target: `${node.name} (${node.id})`,
         details: `Triggered remote agent update and reload sequence on ${node.ipAddress}`,
         status: "success",
@@ -174,7 +175,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
       addAuditLog({
         action: "Node Disk Pruned",
         category: "node",
-        actor: { name: "admin@gettako.dev", type: "user" },
+        actor: { name: actorName, type: "user" },
         target: `${node.name} (${node.id})`,
         details: `Cleaned up dangling images, dead build cache, and reclaimed disk on ${node.ipAddress}`,
         status: "success",
@@ -195,7 +196,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
       addAuditLog({
         action: "Container Restarted",
         category: "deployment",
-        actor: { name: "admin@gettako.dev", type: "user" },
+        actor: { name: actorName, type: "user" },
         target: `container-${containerId}`,
         details: `Triggered graceful restart of container on node ${node.name}`,
         status: "success",

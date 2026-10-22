@@ -18,7 +18,6 @@ const DROP_REQUEST_HEADERS = new Set([
   "te",
   "trailer",
   "transfer-encoding",
-  "upgrade",
 ])
 
 const DROP_RESPONSE_HEADERS = new Set([
@@ -39,7 +38,7 @@ async function proxy(request: NextRequest) {
     }
   })
 
-  const init: RequestInit = {
+  const init: RequestInit & { duplex?: "half" } = {
     method: request.method,
     headers,
     cache: "no-store",
@@ -47,7 +46,8 @@ async function proxy(request: NextRequest) {
   }
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    init.body = await request.arrayBuffer()
+    init.body = request.body
+    init.duplex = "half"
   }
 
   let response: Response

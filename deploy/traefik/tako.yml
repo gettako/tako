@@ -2,6 +2,23 @@
 # Physical host location: /etc/tako/traefik/tako.yml
 http:
   routers:
+    # Terminal WebSocket PTY stream direct to backend
+    tako-terminal-secure:
+      rule: "PathPrefix(`/api/v1/services/`) && PathRegexp(`/api/v1/services/[^/]+/terminal`)"
+      entryPoints:
+        - websecure
+      priority: 10
+      tls:
+        certResolver: letsencrypt
+      service: tako-server
+
+    tako-terminal:
+      rule: "PathPrefix(`/api/v1/services/`) && PathRegexp(`/api/v1/services/[^/]+/terminal`)"
+      entryPoints:
+        - web
+      priority: 10
+      service: tako-server
+
     # HTTPS: Console served on websecure
     tako-console-secure:
       rule: "PathPrefix(`/`)"
@@ -12,23 +29,19 @@ http:
         certResolver: letsencrypt
       service: tako-console
 
-    # HTTP: Redirect console to HTTPS
-    tako-console-redirect:
+    # HTTP: Console served on web
+    tako-console:
       rule: "PathPrefix(`/`)"
       entryPoints:
         - web
       priority: 1
-      middlewares:
-        - tako-redirect-ssl
       service: tako-console
 
-  middlewares:
-    tako-redirect-ssl:
-      redirectScheme:
-        scheme: https
-        permanent: true
-
   services:
+    tako-server:
+      loadBalancer:
+        servers:
+          - url: "http://tako-server:8080"
     tako-console:
       loadBalancer:
         servers:

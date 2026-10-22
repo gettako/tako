@@ -87,10 +87,14 @@ export function DomainPanel() {
   const [verificationResult, setVerificationResult] = React.useState<{
     ok: boolean
     message: string
-  } | null>({
-    ok: true,
-    message: "DNS A-Record resolved correctly to " + detectedLeaderIp,
-  })
+  } | null>(() =>
+    domainConfig.dnsVerified && domainConfig.domain
+      ? {
+          ok: true,
+          message: `DNS A-Record verified successfully for ${domainConfig.domain}`,
+        }
+      : null
+  )
   const [isReloadingTraefik, setIsReloadingTraefik] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
   const [copiedIp, setCopiedIp] = React.useState(false)

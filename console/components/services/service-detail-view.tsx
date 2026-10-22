@@ -47,6 +47,7 @@ export function ServiceDetailView({
     services,
     projects,
     nodes,
+    currentUser,
     triggerDeploy,
     cancelDeploy,
     activeDeployingId,
@@ -133,6 +134,8 @@ export function ServiceDetailView({
     activeDeployingId === service.id || service.status === "deploying"
   const isRunning = service.status === "running"
 
+  const actorName = currentUser.email || currentUser.name || "admin@gettako.dev"
+
   const handleRestartService = async () => {
     setIsRestarting(true)
     try {
@@ -141,7 +144,7 @@ export function ServiceDetailView({
       addAuditLog({
         action: "Container Restarted",
         category: "node",
-        actor: { name: "admin@gettako.dev", type: "user" },
+        actor: { name: actorName, type: "user" },
         target: `${service.name} (${service.id})`,
         details: `Graceful container restart on node ${service.targetNodeId}`,
         status: "success",
@@ -158,7 +161,7 @@ export function ServiceDetailView({
     addAuditLog({
       action: isRunning ? "Service Stopped" : "Service Started",
       category: "node",
-      actor: { name: "admin@gettako.dev", type: "user" },
+      actor: { name: actorName, type: "user" },
       target: `${service.name} (${service.id})`,
       details: `Service container status updated via action ${nextAction}`,
       status: "success",
