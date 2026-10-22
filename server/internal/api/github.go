@@ -705,6 +705,7 @@ func handleGitHubWebhook(w http.ResponseWriter, r *http.Request, orch *orchestra
 			// Match services in database
 			services, err := orch.Queries().ListAllServices(r.Context())
 			if err == nil {
+				var deployedList []map[string]any
 				for _, s := range services {
 					if s.Repository != "" && strings.Contains(s.Repository, pushPayload.Repository.FullName) {
 						if s.Branch == "" || s.Branch == branch {
@@ -717,16 +718,23 @@ func handleGitHubWebhook(w http.ResponseWriter, r *http.Request, orch *orchestra
 									TargetID:   s.ID,
 									TargetName: s.Name,
 								})
-								w.Header().Set("Content-Type", "application/json")
-								_ = json.NewEncoder(w).Encode(map[string]any{
-									"deployed":     true,
+								deployedList = append(deployedList, map[string]any{
 									"serviceId":    s.ID,
 									"deploymentId": dep.ID,
 								})
-								return
 							}
 						}
 					}
+				}
+				if len(deployedList) > 0 {
+					w.Header().Set("Content-Type", "application/json")
+					_ = json.NewEncoder(w).Encode(map[string]any{
+						"deployed":     true,
+						"serviceId":    deployedList[0]["serviceId"],
+						"deploymentId": deployedList[0]["deploymentId"],
+						"deployments":  deployedList,
+					})
+					return
 				}
 			}
 		}

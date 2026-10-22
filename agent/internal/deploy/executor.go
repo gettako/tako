@@ -361,8 +361,19 @@ func (e *Executor) ExecuteDeployWithCallback(
 	if e.dockerCli != nil {
 		healthy := false
 		var lastInspectErr error
-		for i := 0; i < 8; i++ {
-			time.Sleep(time.Duration(150+i*150) * time.Millisecond)
+		maxAttempts := 15
+		if req.GetEnvVars()["TAKO_HEALTHCHECK_PATH"] != "" {
+			maxAttempts = 35 // Allow up to 35s for health check warming up
+		}
+
+		for i := 0; i < maxAttempts; i++ {
+			if i > 0 {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(1 * time.Second):
+				}
+			}
 			inspect, err := e.dockerCli.RawClient().ContainerInspect(ctx, containerName)
 			if err != nil {
 				lastInspectErr = err
@@ -408,28 +419,34 @@ func (e *Executor) ExecuteDeployWithCallback(
 			}
 		}
 
-		if !healthy && lastInspectErr != nil {
-			sendLog("Health check", fmt.Sprintf("Notice: container inspect returned: %v", lastInspectErr), false)
-		} else if healthy {
-			sendLog("Health check", fmt.Sprintf("Health check passed: container %s is running and stable", containerName), false)
-
-			// Safely promote canonical domain routing ONLY after health check passes
-			if len(canonicalDomains) > 0 {
-				canonicalCfg := traefik.RouteConfig{
-					ServiceName:   serviceName,
-					ConfigName:    serviceName, // writes to <serviceName>.yml
-					ContainerName: containerName,
-					Domains:       canonicalDomains,
-					TargetPort:    targetPort,
-					EnableTLS:     hasCustomDomain,
-					Network:       "tako-network",
-				}
-				_ = traefik.WriteDynamicConfig(dynamicDir, canonicalCfg)
-				sendLog("Deploy", fmt.Sprintf("Canonical domain routing updated to %s", containerName), false)
-
-				// Allow Traefik dynamic file provider to converge before terminating old containers
-				time.Sleep(1 * time.Second)
+		if !healthy {
+			_ = os.Remove(filepath.Join(dynamicDir, fmt.Sprintf("%s-%s.yml", serviceName, commit8)))
+			errMsg := "Health check FAILED: container did not become healthy within timeout"
+			if lastInspectErr != nil {
+				errMsg = fmt.Sprintf("Health check FAILED: %v", lastInspectErr)
 			}
+			sendLog("Health check", errMsg, true)
+			return fmt.Errorf("%s", errMsg)
+		}
+
+		sendLog("Health check", fmt.Sprintf("Health check passed: container %s is running and stable", containerName), false)
+
+		// Safely promote canonical domain routing ONLY after health check passes
+		if len(canonicalDomains) > 0 {
+			canonicalCfg := traefik.RouteConfig{
+				ServiceName:   serviceName,
+				ConfigName:    serviceName, // writes to <serviceName>.yml
+				ContainerName: containerName,
+				Domains:       canonicalDomains,
+				TargetPort:    targetPort,
+				EnableTLS:     hasCustomDomain,
+				Network:       "tako-network",
+			}
+			_ = traefik.WriteDynamicConfig(dynamicDir, canonicalCfg)
+			sendLog("Deploy", fmt.Sprintf("Canonical domain routing updated to %s", containerName), false)
+
+			// Allow Traefik dynamic file provider to converge before terminating old containers
+			time.Sleep(1 * time.Second)
 		}
 	} else {
 		time.Sleep(50 * time.Millisecond)

@@ -59,10 +59,12 @@ func main() {
 	router := api.NewRouter(db, orch)
 
 	httpSrv := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      router,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:        ":" + cfg.Port,
+		Handler:     router,
+		ReadTimeout: 15 * time.Second,
+		// WriteTimeout is set to 0 to prevent cutting off long-lived Server-Sent Events (SSE)
+		// and real-time container log/event streams after a fixed timeout.
+		WriteTimeout: 0,
 		IdleTimeout:  60 * time.Second,
 	}
 

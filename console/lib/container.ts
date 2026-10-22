@@ -11,7 +11,7 @@ export function getServiceContainers(
 
   return [
     {
-      name: `tako_${service.slug}`,
+      name: `tako-app-${service.slug}`,
       isMain: true,
       ports: service.portMappings.map((mapping) => ({
         port: mapping.container,

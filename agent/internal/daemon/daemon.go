@@ -49,6 +49,7 @@ type Daemon struct {
 	collector *metrics.Collector
 	executor  *deploy.Executor
 	mu        sync.RWMutex
+	streamMu  sync.Mutex
 	state     State
 }
 
@@ -323,7 +324,7 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 		}
 
 		// Initial greeting/handshake
-		_ = stream.Send(&takov1.AgentTaskResult{
+		_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 			TaskId: "handshake",
 			NodeId: nodeID,
 		})
@@ -348,6 +349,12 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 	}
 }
 
+func (d *Daemon) sendTaskResult(stream takov1.AgentService_StreamTasksClient, res *takov1.AgentTaskResult) error {
+	d.streamMu.Lock()
+	defer d.streamMu.Unlock()
+	return stream.Send(res)
+}
+
 func errString(err error) string {
 	if err != nil {
 		return err.Error()
@@ -362,7 +369,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 	d.mu.RUnlock()
 
 	sendDeployLog := func(chunk *takov1.DeployLogChunk) {
-		_ = stream.Send(&takov1.AgentTaskResult{
+		_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 			TaskId: taskID,
 			NodeId: nodeID,
 			Result: &takov1.AgentTaskResult_DeployLog{
@@ -391,7 +398,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 		if d.dockerCli != nil {
 			out, exitCode, err = d.dockerCli.Exec(ctx, execReq.GetContainerId(), execReq.GetCommand())
 		}
-		_ = stream.Send(&takov1.AgentTaskResult{
+		_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 			TaskId: taskID,
 			NodeId: nodeID,
 			Result: &takov1.AgentTaskResult_ExecResult{
@@ -409,7 +416,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 
 		if action == "reboot-node" || (containerID == "host" && (action == "reboot" || action == "reboot-node")) {
 			log.Printf("[tako-agent] received host reboot command for node %s", nodeID)
-			_ = stream.Send(&takov1.AgentTaskResult{
+			_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 				TaskId: taskID,
 				NodeId: nodeID,
 				Result: &takov1.AgentTaskResult_ContainerActionResult{
@@ -428,7 +435,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 		}
 
 		if action == "update-agent" {
-			_ = stream.Send(&takov1.AgentTaskResult{
+			_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 				TaskId: taskID,
 				NodeId: nodeID,
 				Result: &takov1.AgentTaskResult_ContainerActionResult{
@@ -463,7 +470,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 		if err != nil {
 			msg = err.Error()
 		}
-		_ = stream.Send(&takov1.AgentTaskResult{
+		_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 			TaskId: taskID,
 			NodeId: nodeID,
 			Result: &takov1.AgentTaskResult_ContainerActionResult{
@@ -480,7 +487,7 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 		if d.dockerCli != nil {
 			logs, err = d.dockerCli.Logs(ctx, logsReq.GetContainerId(), int(logsReq.GetTailLines()))
 		}
-		_ = stream.Send(&takov1.AgentTaskResult{
+		_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 			TaskId: taskID,
 			NodeId: nodeID,
 			Result: &takov1.AgentTaskResult_ContainerLogsResult{

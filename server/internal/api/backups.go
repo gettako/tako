@@ -310,34 +310,47 @@ func ExecuteRestore(ctx context.Context, orch *orchestrator.Orchestrator, snapsh
 	}
 	defer tx.Rollback()
 
-	_, _ = tx.ExecContext(ctx, "PRAGMA foreign_keys = OFF")
+	// Delete in child-to-parent reverse dependency order to respect foreign key constraints
+	deleteTables := []string{
+		"deployments",
+		"service_domains",
+		"service_env_vars",
+		"services",
+		"node_metrics",
+		"cluster_settings",
+		"nodes",
+		"projects",
+		"users",
+	}
 
-	tables := []string{
+	for _, table := range deleteTables {
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM main.%s", table)); err != nil {
+			return nil, fmt.Errorf("failed to clear table %s: %w", table, err)
+		}
+	}
+
+	// Populate in parent-to-child forward dependency order
+	populateTables := []string{
 		"users",
 		"projects",
 		"nodes",
+		"cluster_settings",
 		"services",
 		"service_domains",
 		"service_env_vars",
 		"deployments",
-		"cluster_settings",
 		"node_metrics",
 	}
 
-	for _, table := range tables {
+	for _, table := range populateTables {
 		var count int
 		err := tx.QueryRowContext(ctx, "SELECT count(*) FROM backup_db.sqlite_master WHERE type='table' AND name=?", table).Scan(&count)
 		if err == nil && count > 0 {
-			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM main.%s", table)); err != nil {
-				return nil, fmt.Errorf("failed to clear table %s: %w", table, err)
-			}
 			if _, err := tx.ExecContext(ctx, fmt.Sprintf("INSERT INTO main.%s SELECT * FROM backup_db.%s", table, table)); err != nil {
 				return nil, fmt.Errorf("failed to populate table %s: %w", table, err)
 			}
 		}
 	}
-
-	_, _ = tx.ExecContext(ctx, "PRAGMA foreign_keys = ON")
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit restore transaction: %w", err)

@@ -163,6 +163,10 @@ func (o *Orchestrator) ExecuteCronJob(ctx context.Context, job db.CronJob) (*db.
 				out = err.Error()
 			}
 		}
+	} else if node, err := o.queries.GetNodeByID(ctx, srv.NodeID); err == nil && node.Status == "offline" {
+		out = fmt.Sprintf("Error: node %s (%s) is offline; command could not be dispatched", node.Name, srv.NodeID)
+		exitCode = 1
+		status = "failed"
 	} else {
 		out = fmt.Sprintf("Command '%s' executed successfully.", job.Command)
 		exitCode = 0

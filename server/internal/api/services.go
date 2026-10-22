@@ -1220,13 +1220,16 @@ func isAllowedServiceContainer(srvSlug, containerName string) bool {
 		return false
 	}
 	base := "tako-app-" + srvSlug
-	if cName == base || cName == srvSlug {
+	if cName == base || cName == srvSlug || cName == "tako_"+srvSlug {
 		return true
 	}
 	if strings.HasPrefix(cName, base+"-") || strings.HasPrefix(cName, base+"_") {
 		return true
 	}
 	if strings.HasPrefix(cName, srvSlug+"-") || strings.HasPrefix(cName, srvSlug+"_") {
+		return true
+	}
+	if strings.HasPrefix(cName, "tako_"+srvSlug+"-") || strings.HasPrefix(cName, "tako_"+srvSlug+"_") {
 		return true
 	}
 	return false

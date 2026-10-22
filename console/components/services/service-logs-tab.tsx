@@ -82,7 +82,7 @@ function parseRawContainerLogs(
 }
 
 function getContainerNames(service: ProjectService) {
-  const main = `tako_${service.slug}`
+  const main = `tako-app-${service.slug}`
 
   return {
     main,

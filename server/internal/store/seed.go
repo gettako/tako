@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -44,8 +45,11 @@ func SeedDefaultAdmin(ctx context.Context, db *sql.DB, email, password string) e
 	return nil
 }
 
-// SeedDefaultNodes seeds a sample edge node if the nodes table is empty.
+// SeedDefaultNodes seeds a sample edge node only when explicitly requested (e.g. demo mode).
 func SeedDefaultNodes(ctx context.Context, db *sql.DB) error {
+	if os.Getenv("TAKO_SEED_DEMO_NODES") != "true" {
+		return nil
+	}
 	var count int
 	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM nodes").Scan(&count); err != nil {
 		return err
