@@ -1,106 +1,46 @@
 ---
-title: "Troubleshooting & Diagnostics"
-description: "Resolving common issues with deployments, worker node agents, edge routing, and Let's Encrypt certificates."
+title: "Troubleshooting Guide"
+description: "Diagnosing and fixing common deployment, networking, and agent connection issues in Tako."
 ---
 
-## Overview
+## 1. Worker Agent Fails to Connect to Master
 
-This guide provides diagnostic steps and resolutions for the most common errors encountered when deploying and managing infrastructure with Tako.
+**Symptoms:** Worker node status shows **Offline** or connection timeouts in agent logs.
 
----
-
-## 1. Deployment & Container Failures
-
-### Issue: Container exits immediately with code 1
-- **Symptom:** Deployment log displays:
-  ```text
-  [Health check] Health check FAILED: container exited prematurely with code 1
-  ```
-- **Cause:** Missing required runtime environment variables, fatal syntax error during application bootstrap, or an incorrect start command.
-- **Resolution:**
-  1. In the Tako Console, go to your service settings and temporarily toggle off **Auto-Rollback on Health Failure**.
-  2. Redeploy the service so the container is retained in its failed state.
-  3. Inspect container logs via the Console **Logs** tab or SSH terminal:
-     ```bash
-     docker logs tako-app-<service-slug>-<commit8>
-     ```
-  4. Fix missing environment keys in the **Environment** tab and redeploy.
-
-### Issue: Build fails with `OOMKilled` (Out of Memory)
-- **Symptom:** Build process terminates abruptly without a clear compiler error, or host kernel logs report `invoked oom-killer`.
-- **Cause:** High memory consumption during compilation (e.g. `npm run build` with Webpack/Rust or heavy Go builds on a 1 GB VPS).
-- **Resolution:**
-  - Add swap space to your Linux host (recommended: 2 GB to 4 GB swap):
-    ```bash
-    sudo fallocate -l 2G /swapfile
-    sudo chmod 600 /swapfile
-    sudo mkswap /swapfile
-    sudo swapon /swapfile
-    ```
-  - Or configure Node.js memory limits in your `Dockerfile`:
-    ```dockerfile
-    ENV NODE_OPTIONS="--max-old-space-size=1024"
-    ```
+### Check List:
+1. **Firewall on Master:** Ensure inbound port `50051` is open on the master server:
+   ```bash
+   sudo ufw allow 50051/tcp
+   # or on iptables / security groups
+   ```
+2. **Verify Master IP & Token:**
+   Check the worker `.env` file in `/opt/tako/.env` and verify `TAKO_MASTER_URL` and `TAKO_AGENT_TOKEN`.
+3. **Inspect Agent Logs:**
+   ```bash
+   cd /opt/tako && docker compose logs -f agent
+   ```
 
 ---
 
-## 2. Worker Node & Agent Connectivity
+## 2. Deployment Fails on Health Check
 
-### Issue: Node status shows `offline` in Console
-- **Symptom:** Enrolled worker server appears red / offline after installation.
-- **Diagnostics:**
-  1. SSH into the worker server and inspect agent container logs:
-     ```bash
-     cd /opt/tako && docker compose logs -f agent
-     ```
-  2. Common causes:
-     - **gRPC Port Blocked:** The master server firewall is blocking inbound port `50051`. Run `curl -v telnet://<MASTER_IP>:50051` to test connectivity.
-     - **Invalid Token:** The enrollment token in `/opt/tako/data/agent/agent.json` does not match `TAKO_AGENT_SECRET` on the master.
-  3. Restart the worker daemon after updating firewall rules:
-     ```bash
-     cd /opt/tako && docker compose restart agent
-     ```
+**Symptoms:** Deployment status marks **Failed** and rolls back after build succeeds.
+
+### Check List:
+1. **Health Check Path:** Verify the path exists in your application (e.g. `/health` or `/api/health`).
+2. **Internal Port Mapping:** Ensure the internal container port matches what your app listens on (e.g. `3000` vs `8080`).
+3. **Listen Address:** Make sure your application binds to `0.0.0.0` inside the container, **not** `127.0.0.1` (localhost)!
 
 ---
 
-## 3. Ingress, Domains & SSL Certificates
+## 3. SSL / Let's Encrypt Certificate Pending
 
-### Issue: Let's Encrypt returns self-signed or invalid certificate
-- **Symptom:** Browser warns `NET::ERR_CERT_AUTHORITY_INVALID` when accessing custom domain.
-- **Cause:** Traefik failed to satisfy the HTTP-01 challenge with Let's Encrypt.
-- **Resolution:**
-  1. **Verify Port 80 is Open:** Let's Encrypt requires port 80 open to the public internet:
-     ```bash
-     sudo ufw allow 80/tcp
-     ```
-  2. **Verify DNS Propagation:** Ensure the domain's `A` record points to the public IP of the **specific node** where the service runs (not Cloudflare proxy during initial certificate issuance):
-     ```bash
-     dig +short app.example.com
-     ```
-  3. **Inspect Traefik Logs:**
-     ```bash
-     cd /opt/tako && docker compose logs traefik | grep -i acme
-     ```
+**Symptoms:** Domain routes over HTTP but HTTPS displays a certificate warning or timeout.
 
-### Issue: Cloudflare "Too Many Redirects" (Redirect Loop)
-- **Symptom:** Accessing HTTPS URL results in `ERR_TOO_MANY_REDIRECTS`.
-- **Cause:** Cloudflare SSL mode is set to **Flexible**, causing Cloudflare to speak HTTP to Traefik while Traefik enforces HTTPS redirection.
-- **Resolution:** In your Cloudflare dashboard under **SSL/TLS -> Overview**, change the encryption mode from **Flexible** to **Full** or **Full (Strict)**.
-
----
-
-## 4. Useful Diagnostic Commands
-
-```bash
-# Check status of core Tako services
-cd /opt/tako && docker compose ps
-
-# Follow master server logs
-cd /opt/tako && docker compose logs -f server
-
-# View active dynamic Traefik routing rules
-cat /etc/tako/traefik/dynamic/*.yml
-
-# Inspect Docker bridge network
-docker network inspect tako-network
-```
+### Check List:
+1. **DNS Resolution:** Verify that your domain's `A` record points directly to the server's public IP address.
+2. **Port 80 Open:** Let's Encrypt HTTP-01 challenge requires inbound port `80` to be open from the internet.
+3. **Inspect Traefik Logs:**
+   ```bash
+   cd /opt/tako && docker compose logs -f traefik
+   ```

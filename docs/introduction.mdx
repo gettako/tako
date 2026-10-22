@@ -1,20 +1,23 @@
 ---
 title: "Introduction"
-description: "A lightweight, self-hosted deployment platform built for minimalism, outbound node orchestration, and low resource overhead."
+description: "A lightweight, self-hosted deployment platform engineered for minimalism, outbound node orchestration, and low resource overhead."
 ---
 
 ## What is Tako?
 
-Tako is an open-source, self-hosted deployment platform designed to run web applications and background services across one or more Linux servers. It provides the ergonomics of a modern platform-as-a-service (PaaS) without requiring heavy background database daemons, container registries, or open management ports on worker servers.
+**Tako** is a modern, open-source, self-hosted Platform-as-a-Service (PaaS). It schedules, builds, and runs web applications and background workloads across one or more Linux servers with the developer ergonomics of modern cloud platforms (like Vercel or Render), but running entirely on your own infrastructure.
 
-Traditional self-hosted PaaS solutions offer extensive feature sets, but often require significant operational overhead. Many platforms require multiple infrastructure containers (such as dedicated PostgreSQL, Redis, or queue workers) just to run their control panel. In addition, managing remote worker servers often involves granting root SSH access over the public internet.
+Traditional self-hosted deployment tools often carry heavy operational baggage:
+- They require multiple bulky services (PostgreSQL, Redis, RabbitMQ, Celery/BullMQ) just to run their control panel.
+- Connecting worker nodes usually requires opening inbound SSH port 22 or exposing insecure HTTP daemon ports to the public internet.
+- High memory footprint: idling control panels frequently consume 1 GB to 2 GB of RAM before running a single user workload.
 
-Tako approaches self-hosting with a different set of priorities:
+Tako approaches self-hosting with a modern systems architecture:
 
-- **Static Go control plane:** The master server runs as a single Go binary with an embedded SQLite database in Write-Ahead Logging (WAL) mode. The entire master stack idles at less than 50 MB of RAM.
-- **Outbound-only worker nodes:** Worker nodes run a lightweight Go daemon that establishes an outbound gRPC stream over TLS to the master server. Remote worker nodes require zero inbound management ports and no open SSH port 22.
-- **Dynamic Traefik v3 routing:** Edge routing, zero-downtime cutover gates, and automatic Let's Encrypt TLS certificate provisioning run through local Traefik instances configured dynamically.
-- **Standard Docker tooling:** Deployments run directly on the local Docker Engine using standard `Dockerfile` or `docker-compose.yml` configurations, without requiring custom buildpack abstractions.
+- **Ultra-Lean Go Control Plane:** The master orchestrator (`tako-server`) runs as a single compiled Go binary backed by an embedded SQLite database in WAL (Write-Ahead Logging) mode. The entire master control plane idles at under 50 MB RAM.
+- **Outbound-Only Worker Architecture:** Worker nodes run a lightweight Go daemon (`tako-agent`) that dials out to the master server over a persistent, multiplexed gRPC connection. Remote worker nodes require **zero inbound management ports and no open SSH port 22**. They work transparently behind NAT, residential IPs, and strict firewalls.
+- **Edge Routing with Traefik v3:** Dynamic reverse proxying, zero-downtime cutover gates, and automatic Let's Encrypt SSL/TLS certificates run through Traefik v3 without manual configuration.
+- **Modern Web Console:** Built with Next.js 16 (App Router), React 19, and Tailwind CSS, providing an interactive dashboard, real-time log streaming, and an in-browser container terminal.
 
 ---
 
@@ -22,55 +25,81 @@ Tako approaches self-hosting with a different set of priorities:
 
 ```mermaid
 flowchart TD
-    Client["Developer / Web Browser"] -->|HTTPS :443| Ingress["Traefik v3 Edge Proxy"]
-    Ingress -->|Route: /api/*| MasterServer["Tako Master Server (Go)"]
-    Ingress -->|Route: /*| MasterConsole["Tako Console (Next.js)"]
-    Ingress -->|Domain Routing| Apps["Deployed Workloads"]
+    Browser["Operator Browser / Developer"] -->|"HTTPS :443"| Edge["Traefik v3 Edge Proxy"]
 
-    subgraph MasterNode["Master Server (/opt/tako)"]
-        MasterServer
-        MasterConsole
-        DB[("Embedded SQLite WAL")]
-        MasterServer --> DB
+    subgraph MasterNode["Master Node (:80 / :443)"]
+        Edge -->|"/* console"| Console["tako-console (Next.js :3000)"]
+        Edge -->|"/api/v1/* proxy"| Server["tako-server (Go REST :8080 / gRPC :50051)"]
+        Edge -->|"domain routing"| LocalApps["Local Workload Containers"]
+        Server <--> DB[("SQLite WAL")]
+        Server <-->|"outbound gRPC stream"| LocalAgent["tako-agent"]
+        LocalAgent --> LocalDocker["Local Docker Engine"]
+        LocalAgent --> LocalTraefik["/etc/tako/traefik/dynamic"]
+        LocalDocker --> LocalApps
     end
 
-    subgraph WorkerNode["Worker Server"]
-        Agent["Tako Agent Daemon (Go)"]
-        DockerEngine["Docker Engine SDK"]
-        Agent --> DockerEngine
+    subgraph WorkerNode["Remote Worker Node(s)"]
+        WorkerEdge["Traefik v3 Edge Proxy"]
+        WorkerAgent["tako-agent (Daemon)"]
+        WorkerDocker["Docker Engine"]
+        WorkerTraefik["/etc/tako/traefik/dynamic"]
+        WorkerApps["Worker Workload Containers"]
+
+        WorkerAgent --> WorkerDocker
+        WorkerAgent --> WorkerTraefik
+        WorkerDocker --> WorkerApps
+        WorkerEdge --> WorkerApps
     end
 
-    Agent -.->|"Outbound gRPC :50051 (TLS)"| MasterServer
+    WorkerAgent -.->|"Outbound gRPC :50051 (StreamTasks)"| Server
 ```
-
-In this architecture:
-
-1. **Master Node:** Hosts the HTTP API (`tako-server`), the web dashboard (`tako-console`), an embedded SQLite database, and an edge Traefik instance.
-2. **Worker Nodes:** Run the `tako-agent` daemon. Each daemon dials out to the master server over gRPC (port 50051) and listens for deployment instructions, telemetry requests, and log streaming commands.
-3. **Workload Containers:** The agent interfaces directly with the local Docker daemon over the unix socket (`/var/run/docker.sock`) to build images, provision containers, and manage routing files.
 
 ---
 
-## Design Principles
+## Key Capabilities
 
-Tako is guided by four technical principles:
-
-### 1. Predictable Resource Consumption
-Small virtual private servers (such as 1 GB or 2 GB RAM droplets) should not spend half their memory running platform control services. Tako uses Go binaries compiled without heavy runtime dependencies and stores all relational state in an embedded SQLite database.
-
-### 2. Reduced Attack Surface on Remote Nodes
-Traditional orchestration tools connect into remote nodes using SSH keys or exposed HTTP agent endpoints. Tako flips this model: worker nodes initiate outbound connections to the master server. A worker node can sit behind carrier-grade NAT or a private subnet without requiring a public IP or port forwarding.
-
-### 3. Native Docker Primitives
-Tako avoids proprietary build pipelines. Every project is built from a standard `Dockerfile` or composed with `docker-compose.yml`. What builds locally in Docker builds identically on Tako.
-
-### 4. Zero-Downtime Deployment Gates
-Every deployment starts the new container version under an isolated preview route while the previous version continues handling live traffic. Traefik promotes public traffic to the new container only after container health checks succeed.
+<CardGroup cols={2}>
+  <Card title="Zero-Downtime Deployments" icon="shield-check">
+    Automatic health check gates with dynamic Traefik preview routing. New versions are promoted only when healthy; failed deployments automatically roll back.
+  </Card>
+  <Card title="Multi-Node Clustering" icon="server">
+    Add remote worker servers across any cloud provider, VPS, or bare metal with a single enrollment command.
+  </Card>
+  <Card title="Interactive Web Terminal" icon="terminal">
+    Execute commands directly inside running containers from your browser with xterm.js, tab autocompletion, and virtual file navigation.
+  </Card>
+  <Card title="Live Log Streaming" icon="lines-leaning">
+    Real-time Server-Sent Events (SSE) log streaming with ANSI color decoding for deployment builds and container runtimes.
+  </Card>
+  <Card title="Git & GitHub App Integration" icon="github">
+    Connect private GitHub repositories using official GitHub App manifests for instant push-to-deploy webhooks.
+  </Card>
+  <Card title="Automated S3 Backups" icon="database">
+    Automatic SQLite database snapshots and scheduled backups to any S3-compatible object storage (AWS, Cloudflare R2, MinIO, Wasabi).
+  </Card>
+  <Card title="Passkeys & WebAuthn" icon="fingerprint">
+    Hardware security key and biometric authentication (Face ID, Touch ID, YubiKey) alongside password protection.
+  </Card>
+  <Card title="Scheduled Crons & Webhooks" icon="clock">
+    Manage container cron jobs and trigger automated redeployments via secure HTTP webhooks.
+  </Card>
+</CardGroup>
 
 ---
 
 ## Next Steps
 
-- Review the [Philosophy and Motivations](/why-tako) behind Tako.
-- Install the master server and connect your first node in the [Quickstart Guide](/quickstart/installation).
-- Learn about the system internals in [Architecture Overview](/architecture/overview).
+<CardGroup cols={2}>
+  <Card title="Quickstart Installation" icon="rocket" href="/quickstart/installation">
+    Install Tako Master and connect your first node in less than 2 minutes.
+  </Card>
+  <Card title="Why Tako?" icon="lightbulb" href="/why-tako">
+    Explore the design philosophy and technical decisions behind Tako.
+  </Card>
+  <Card title="Architecture Internals" icon="cpu" href="/architecture/overview">
+    Learn how the control plane, worker agent, and edge proxy interact.
+  </Card>
+  <Card title="System Configuration" icon="sliders" href="/reference/configuration">
+    Complete environment variables and operational parameters.
+  </Card>
+</CardGroup>

@@ -1,0 +1,54 @@
+---
+title: "Adding Worker Nodes"
+description: "How to scale your Tako cluster across multiple physical servers, VPS instances, or home labs."
+---
+
+## Overview
+
+Tako's multi-node clustering lets you distribute services across multiple machines under a single unified dashboard.
+
+Because worker nodes connect **outbound** to the master control plane, worker nodes can be located:
+- On different cloud providers (AWS, Hetzner, DigitalOcean, OVH).
+- On bare metal servers.
+- Behind NAT or dynamic home IPs (home lab / Raspberry Pi / NUC).
+
+---
+
+## Step 1: Obtain the Enrollment Token
+
+In the Tako Console:
+1. Go to **Settings** in the sidebar.
+2. Under the **Cluster** section, locate the **Enrollment Token**.
+3. Click **Copy Token**.
+
+Alternatively, retrieve the token from the master server terminal:
+```bash
+grep TAKO_AGENT_SECRET /opt/tako/.env
+```
+
+---
+
+## Step 2: Install the Agent on the Worker Node
+
+SSH into your remote worker server as `root` (or with `sudo`), and execute:
+
+```bash
+curl -fsSL https://gettako.dev/install.sh | bash -s -- \
+  --agent \
+  --token "<ENROLLMENT_TOKEN>" \
+  --master "<MASTER_PUBLIC_IP>:50051" \
+  --node-name "worker-node-02"
+```
+
+The script will:
+1. Install Docker Engine and Compose v2 if missing.
+2. Write a minimal worker Compose file running Traefik and `tako-agent`.
+3. Launch the daemon and dial out to the master server over gRPC.
+
+---
+
+## Step 3: Verify Node Health
+
+1. In the Tako Console, click **Nodes** in the sidebar.
+2. The newly connected node will appear with an **Online** status badge, displaying its CPU model, core count, RAM, disk space, and gRPC ping latency.
+3. When creating or configuring any project or service, you can now select this worker node from the **Target Node** dropdown!

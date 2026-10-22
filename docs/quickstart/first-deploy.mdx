@@ -1,110 +1,75 @@
 ---
-title: "First Deployment"
-description: "Deploy your first web application from a Git repository or Dockerfile in Tako."
+title: "Deploying Your First App"
+description: "A 3-minute tutorial to deploy your first containerized application on Tako."
 ---
 
 ## Overview
 
-In Tako, applications are organized into **Projects** and **Services**:
-
-- **Project:** A logical grouping representing an application stack or environment (such as `production` or `staging`).
-- **Service:** An individual container workload within a project, assigned to a specific server node and configured with Git repository settings, ports, environment variables, and domains.
-
----
-
-## Deployment Journey
-
-```mermaid
-flowchart LR
-    Step1["1. Create Project"] --> Step2["2. Configure Service"]
-    Step2 --> Step3["3. Trigger Deployment"]
-    Step3 --> Step4["4. Health Check Verification"]
-    Step4 --> Step5["5. Access Live URL via sslip.io"]
-```
+In this guide, you will deploy a web application to your Tako cluster using a Git repository or Docker image, configure custom routing, and verify automatic SSL certificate provisioning.
 
 ---
 
 ## Step 1: Create a Project
 
-1. Log into the Tako Console at `https://<YOUR_SERVER_IP>` (or port 3000).
-2. Click **New Project** on the dashboard.
-3. Enter a project name (for example, `My Web App`) and choose an environment (`production` or `staging`).
-4. Click **Create Project**.
+Tako organizes workloads into **Projects** with environment separation (`production`, `staging`, `preview`):
+
+1. In the Tako Console, click **Projects** in the sidebar.
+2. Click **Create Project**.
+3. Enter a project name (e.g., `my-saas-app`) and select the target environment (`production`).
+4. Select the target node (e.g. `tako-master-01` or any connected worker node).
+5. Click **Create Project**.
 
 ---
 
 ## Step 2: Add a Service
 
-Within your newly created project:
+Inside your project, click **+ Add Service** or select from the dropdown:
 
-1. Click **Add Service**.
-2. Select your deployment source:
-   - **Git Repository:** Enter your repository URL (such as `https://github.com/example/my-node-app`), branch (e.g., `main`), and the path to your `Dockerfile`.
-   - **Pre-built Docker Image:** Enter a public or private container image tag (such as `ghcr.io/example/my-app:v1.0.0`).
-3. Select the **Target Node**: Choose whether this service runs on the master node or on an enrolled worker node.
-4. Define the **Container Port**: Specify the internal port your container listens on (such as `3000` for Next.js, `8080` for Go, or `80` for NGINX).
+<Steps>
+  <Step title="Choose Deployment Source">
+    Select how you want to deploy your service:
+    - **Public or Private Git Repository:** Provide a Git clone URL (HTTPS/SSH) and branch name (e.g. `main`).
+    - **GitHub App:** Select directly from your connected GitHub account or organization repositories.
+    - **Docker Image:** Pull directly from Docker Hub, GitHub Container Registry (`ghcr.io`), or private registries.
+    - **Docker Compose:** Paste or upload multi-container compose definitions.
+  </Step>
 
----
+  <Step title="Configure Build Settings">
+    Specify your build options:
+    - **Build Type:** `Dockerfile`, `Docker Compose`, or `Nixpacks`.
+    - **Port Mapping:** Internal container port (e.g., `3000` for Next.js/Node, `8080` for Go/Java, `8000` for Python/Django).
+    - **Health Check Path:** Optional probe endpoint (e.g. `/health` or `/api/health`).
+  </Step>
 
-## Step 3: Configure Environment Variables
+  <Step title="Set Domains & Environment Variables">
+    - **Domain:** Add your custom domain (e.g., `app.yourdomain.com`). Traefik will automatically provision a free Let's Encrypt TLS certificate.
+    - **Environment Variables:** Enter key-value pairs (e.g. `NODE_ENV=production`, `DATABASE_URL=...`). Sensitive values are masked automatically.
+  </Step>
 
-If your application requires runtime configuration:
-
-1. Navigate to the **Environment** tab in the service view.
-2. Add your key-value pairs (for example, `NODE_ENV=production` or `DATABASE_URL=postgres://...`).
-3. Toggle the **Secret** switch for sensitive tokens, passwords, or private keys. Secrets are encrypted using AES-256-GCM before storage in SQLite.
-4. Click **Save Changes**.
-
----
-
-## Step 4: Trigger the Deployment
-
-Click **Deploy** in the top-right corner of the service interface.
-
-Tako streams real-time execution logs and updates the step status cards as the pipeline progresses:
-
-```
-[15:04:02] [Queued] Deployment dep-8f92a1 initialized for service web-frontend
-[15:04:03] [Clone] Cloning https://github.com/example/my-node-app.git (branch: main)...
-[15:04:05] [Clone] HEAD commit 4a8b1c9: fix: update landing header (by developer)
-[15:04:06] [Build] Running docker build with Dockerfile...
-[15:04:22] [Push/Load image] Image tako/web-frontend:4a8b1c9 ready for deployment
-[15:04:23] [Deploy] Prepared Traefik routing rules for domains
-[15:04:24] [Deploy] Container tako-app-web-frontend-4a8b1c9 started successfully
-[15:04:25] [Health check] Verifying service container status...
-[15:04:27] [Health check] Health check passed: container is running and stable
-[15:04:28] [Deploy] Canonical domain routing updated to tako-app-web-frontend-4a8b1c9
-[15:04:29] [Live] Service web-frontend is live and ready to receive traffic!
-```
+  <Step title="Click Deploy">
+    Click **Deploy Service** to start the deployment pipeline!
+  </Step>
+</Steps>
 
 ---
 
-## Step 5: Verify Live Traffic & Preview Domains
+## Step 3: Monitor Deployment Progress
 
-Every service in Tako receives an automatic wildcard DNS domain using `sslip.io` based on the target node IP address:
+Once triggered, navigate to the **Deployments** tab or **Runtime Logs** tab in your service view:
 
-```
-http://<service-slug>-<node-dashed-ip>.sslip.io
-# Example: http://web-frontend-198-51-100-24.sslip.io
-```
+1. **Live Stream:** Watch real-time build logs streamed directly from the agent via Server-Sent Events (SSE).
+2. **Container Launch:** The agent builds the Docker image and launches the container on an internal port.
+3. **Health Check Gate:** The agent probes your application's health endpoint.
+4. **Traffic Promotion:** Once healthy, Traefik atomically cuts over live traffic to the new container.
 
-You can open this URL immediately in your browser to verify your running application without configuring manual DNS records.
+Your service is now live! Click the domain link in the service header to open your running application in your browser.
 
 ---
 
-## Step 6: Add a Custom Domain & Enable SSL
+## Step 4: Interact with Your Container
 
-When you are ready to bind a production domain:
+Tako includes powerful operational tools built directly into the Console:
 
-1. In your DNS provider (Cloudflare, Namecheap, Route 53, etc.), create an `A` record pointing your domain or subdomain to your server's public IP address:
-   ```text
-   Type : A
-   Name : app (or @)
-   Value: <YOUR_SERVER_PUBLIC_IP>
-   ```
-2. In the Tako Console, open your service and click **Domains**.
-3. Click **Add Domain** and enter your hostname (for example, `app.example.com`).
-4. Keep the **SSL (Let's Encrypt)** toggle enabled.
-5. Click **Save Domain**.
-
-Traefik immediately registers the domain, issues an HTTP-01 challenge to Let's Encrypt, retrieves a TLS certificate, and enables HTTPS traffic.
+- **Web Terminal:** Open the **Terminal** tab to execute shell commands directly inside your running container with xterm.js and tab completion.
+- **Runtime Logs:** Open the **Logs** tab to stream stdout/stderr output from your container.
+- **Rollback:** If a future deployment fails, go to the **Deployments** tab and click **Rollback** on any previous deployment to instantly revert traffic.

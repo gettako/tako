@@ -1,83 +1,40 @@
 ---
 title: "Environment Variables & Secrets"
-description: "Managing service configuration, runtime environment variables, and AES-256-GCM encrypted secrets."
+description: "How to manage runtime environment variables, secret masking, and bulk .env imports in Tako."
 ---
 
-## Overview
+## Managing Service Variables
 
-Applications deployed on Tako are configured through runtime environment variables. Tako provides built-in separation between standard non-sensitive configuration values (such as `PORT` or `LOG_LEVEL`) and sensitive credentials (such as API keys, tokens, and database passwords).
+Environment variables are passed directly into your container runtime when the container starts.
+
+To manage environment variables:
+
+1. Open your Service and click the **Environment** tab.
+2. Tako provides two editing modes:
+   - **Table View:** Structured Key-Value inputs with individual variable toggles and delete buttons.
+   - **Raw .env View:** Standard multi-line editor for bulk pasting existing `.env` files.
 
 ---
 
-## Architecture & Secret Encryption
+## Secret Masking & Protection
 
-```mermaid
-flowchart TD
-    User["Operator in Console / API"] --> Input["Input Key & Value"]
-    Input --> SecretCheck{"Is Value Marked as Secret?"}
-    
-    SecretCheck -- "Yes" --> Encrypt["Encrypt via AES-256-GCM<br/>(Master TAKO_AUTH_SECRET)"]
-    SecretCheck -- "No" --> Plaintext["Store as Plaintext"]
-    
-    Encrypt --> DB[("SQLite DB (service_env_vars)")]
-    Plaintext --> DB
+To protect sensitive API tokens, private keys, and database passwords from shoulder-surfing or accidental screen shares:
 
-    DeployTrigger["Deployment Triggered"] --> Fetch["Fetch & Decrypt Variables"]
-    DB --> Fetch
-    Fetch --> Inject["Inject into Docker Container<br/>(ContainerConfig.Env)"]
+- Values containing keywords like `SECRET`, `PASSWORD`, `KEY`, `TOKEN`, or `AUTH` are automatically masked by default.
+- Click the **Reveal (Eye icon)** to temporarily view the decrypted value.
+- Sensitive environment variables are encrypted at rest in the SQLite database before being committed to disk.
+
+---
+
+## Variable Precedence & Interpolation
+
+You can reference platform-provided variables in your environment definitions:
+
+```text
+DATABASE_URL=postgres://user:pass@db:5432/main
+PORT=3000
+NODE_ENV=production
+TAKO_SERVICE_ID=srv_xyz123
 ```
 
----
-
-## Adding Environment Variables
-
-1. Open your service in the Tako Console.
-2. Select the **Environment** tab.
-3. Click **Add Variable**.
-4. Enter the **Key** (for example, `DATABASE_URL`) and the **Value**.
-5. If the value contains private tokens or passwords, toggle **Secret**.
-6. Click **Save Changes**.
-
-<Note>
-Modifying environment variables takes effect on the next deployment. To apply changes immediately, trigger a deployment by clicking **Deploy** in the service view.
-</Note>
-
----
-
-## Secret Storage & Cryptography
-
-When a variable is marked as a secret:
-
-- **AES-256-GCM Encryption:** The master server encrypts the value before inserting it into SQLite using the cluster's master key (`TAKO_AUTH_SECRET`).
-- **Masked in Console:** Secrets are never returned in plaintext to the web console or non-admin API responses after initial entry.
-- **In-Memory Decryption:** During a deployment, the orchestrator decrypts secrets in memory and passes them to the target worker agent over the encrypted gRPC TLS stream.
-- **Ephemeral Injection:** The agent injects variables into the Docker daemon when calling `ContainerCreate`. Secrets never touch the worker node's physical filesystem.
-
----
-
-## Bulk Import via .env Syntax
-
-You can import multiple environment variables simultaneously:
-
-1. In the **Environment** tab, click **Bulk Edit / Import**.
-2. Paste standard `.env` content into the text area:
-   ```dotenv
-   NODE_ENV=production
-   PORT=3000
-   API_KEY=sk_live_9823471092834
-   DATABASE_URL=postgres://user:password@node-ip:5432/production
-   ```
-3. Click **Parse & Import**. Variables with sensitive key patterns (such as `KEY`, `SECRET`, `PASSWORD`, `TOKEN`) are automatically flagged as secrets for confirmation.
-
----
-
-## Reserved & System Variables
-
-Tako exposes several system variables that alter runtime behavior:
-
-| Variable | Default | Purpose |
-| :--- | :--- | :--- |
-| **`PORT`** | `80` (or configured port) | The internal port your web server listens on. |
-| **`TAKO_PREVIEW_RETENTION`** | `2` | Maximum number of historical preview containers retained on the node before automatic pruning. |
-| **`TAKO_SERVICE_NAME`** | Service Slug | Automatically injected service slug identifier. |
-| **`TAKO_NODE_ID`** | Host Node ID | Automatically injected ID of the physical server executing the container. |
+When you save changes to environment variables, Tako prompts you to trigger a zero-downtime redeployment so the new container version picks up the updated values immediately.

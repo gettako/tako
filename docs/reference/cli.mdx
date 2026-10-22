@@ -1,112 +1,64 @@
 ---
-title: "CLI & Installer Reference"
-description: "Reference for install.sh flags, automated environment variables, and Docker Compose service control commands."
+title: "CLI & Script Reference"
+description: "Reference for install.sh flags, command line parameters, and operational commands."
 ---
 
-## Universal Installer Script (`install.sh`)
+## Universal Installer (`install.sh`) Flags
 
-The Tako installer script (`install.sh`) provisions master servers and remote worker agents automatically.
-
-### Command-Line Flags
+The universal installer (`install.sh`) accepts flags to customize setup:
 
 ```bash
-# Standard Syntax
 curl -fsSL https://gettako.dev/install.sh | bash -s -- [FLAGS]
 ```
 
-| Flag | Short | Default | Description |
-| :--- | :--- | :--- | :--- |
-| **`--agent`** | `-a` | `0` | Configure the host as a Worker Agent rather than a Master Server. |
-| **`--token <TOKEN>`** | `-t` | [Auto-generated] | Cluster enrollment token (required when enrolling a worker node). |
-| **`--master <ADDR>`** | `-m` | None | Master server address and gRPC port (e.g. `198.51.100.24:50051`). |
-| **`--dir <PATH>`** | `-d` | `/opt/tako` | Target installation and working directory on the host filesystem. |
-| **`--email <EMAIL>`** | `-e` | `admin@gettako.dev` | Initial administrator email for the master server. |
-| **`--password <PASS>`** | `-p` | [Auto-generated] | Initial administrator password for the master server. |
-| **`--branch <BRANCH>`** | `-b` | `main` | Git branch to clone for building Tako from source. |
-| **`--repo <URL>`** | `-r` | `https://github.com/gettako/tako.git` | Git repository URL to clone during source build. |
+### Supported Flags:
+
+| Flag | Long Flag | Description |
+| :--- | :--- | :--- |
+| `-a` | `--agent` | Install in Worker Agent mode (instead of Master Server). |
+| `-t <token>` | `--token <token>` | Provide the master enrollment token (required for worker nodes). |
+| `-m <addr>` | `--master <addr>` | Specify master gRPC address (e.g. `198.51.100.10:50051`). |
+| `-e <email>` | `--email <email>` | Admin email for initial master account setup. |
+| `-p <pass>` | `--password <pass>` | Admin password for master account setup. |
+| `-b <branch>` | `--branch <branch>` | Git branch to clone during source build (default: `main`). |
+| `-d <dir>` | `--dir <dir>` | Target installation directory on host (default: `/opt/tako`). |
 
 ---
 
-### Non-Interactive Environment Variables
+## Remote Deployer (`deploy.sh`)
 
-You can supply arguments directly as environment variables for unattended infrastructure provisioning:
+For developers deploying directly from a local development machine to a remote VPS:
 
 ```bash
-curl -fsSL https://gettako.dev/install.sh | \
-  TAKO_EMAIL="admin@example.com" \
-  TAKO_PASSWORD="CustomAdminPassword123!" \
-  TAKO_PUBLIC_IP="198.51.100.24" \
-  bash
+# 1. Copy example deployment configuration
+cp .env.deploy.example .env.deploy
+
+# 2. Edit .env.deploy with remote SSH credentials
+nano .env.deploy
+
+# 3. Execute remote synchronization & build
+./deploy.sh
 ```
 
-| Variable | Description |
-| :--- | :--- |
-| **`TAKO_EMAIL`** | Pre-sets the master administrator email address. |
-| **`TAKO_PASSWORD`** | Pre-sets the master administrator password. |
-| **`TAKO_AGENT_TOKEN`** | Pre-sets the cluster enrollment token on master or worker. |
-| **`TAKO_MASTER_URL`** | Destination master address for worker agent (`<IP>:50051`). |
-| **`TAKO_PUBLIC_IP`** | Overrides public IP detection for edge Traefik and sslip.io routing. |
-| **`TAKO_PRIVATE_IP`** | Overrides internal private IP detection for internal routing. |
-| **`TAKO_DIR`** | Sets custom target working directory (default: `/opt/tako`). |
-
 ---
 
-## Service Control Commands
+## Operational Docker Compose Commands
 
-All Tako components run via Docker Compose in the target working directory (`/opt/tako`).
-
-### Master Node Operations
+All Tako services on the host run inside `/opt/tako`:
 
 ```bash
-# Check status of master services
+# Check service health
 cd /opt/tako && docker compose ps
 
-# Follow logs from the Go master server
+# View real-time logs of a specific component
 cd /opt/tako && docker compose logs -f server
-
-# Follow logs from the edge Traefik proxy
+cd /opt/tako && docker compose logs -f agent
+cd /opt/tako && docker compose logs -f console
 cd /opt/tako && docker compose logs -f traefik
 
-# Follow logs from the Next.js web console
-cd /opt/tako && docker compose logs -f console
-
-# Restart all master services
-cd /opt/tako && docker compose restart
-
-# Stop all master services
+# Stop the Tako stack
 cd /opt/tako && docker compose down
-```
 
-### Worker Node Operations
-
-```bash
-# Check status of worker services
-cd /opt/tako && docker compose ps
-
-# Follow logs from the worker agent
-cd /opt/tako && docker compose logs -f agent
-
-# Restart the worker daemon
-cd /opt/tako && docker compose restart agent
-```
-
----
-
-## Agent State Inspection
-
-On worker nodes, persistent state (node identifier, hardware fingerprint, and enrollment status) is stored in `/opt/tako/data/agent/agent.json`:
-
-```bash
-cat /opt/tako/data/agent/agent.json
-```
-
-Example content:
-```json
-{
-  "node_id": "node-8f2c-491b",
-  "name": "worker-lon1-01",
-  "role": "worker",
-  "enrolled_at": "2026-10-11T14:22:10Z",
-  "last_token_hash": "a9b8c7..."
-}
+# Restart the Tako stack
+cd /opt/tako && docker compose up -d
 ```

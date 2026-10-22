@@ -1,161 +1,144 @@
 ---
 title: "Installation"
-description: "System requirements, firewall prerequisites, and step-by-step setup for Tako Master and Worker nodes."
+description: "Step-by-step setup guide for the Tako Master Server and Worker Nodes using the universal installer."
 ---
 
 ## System Requirements
 
-Before installing Tako, ensure your target Linux host meets the following baseline requirements:
+Tako runs on standard modern Linux distributions with Docker Engine installed.
 
 | Component | Minimum | Recommended |
 | :--- | :--- | :--- |
 | **Operating System** | Linux (Ubuntu 22.04+, Debian 12+, Rocky/AlmaLinux 9+, Alpine 3.19+) | Ubuntu 24.04 LTS or Debian 12 |
-| **CPU Architecture** | x86_64 (amd64) or ARM64 (aarch64) | x86_64 or ARM64 |
-| **CPU Cores** | 1 vCPU | 2 vCPU |
-| **System Memory (RAM)** | 1 GB | 2 GB or more |
-| **Disk Space** | 10 GB SSD / NVMe | 25 GB or more |
-| **Docker Engine** | Docker 24.0+ and Docker Compose v2 | Docker 26.0+ |
+| **Architecture** | x86_64 (`amd64`) or ARM64 (`aarch64`) | `amd64` or `arm64` |
+| **CPU** | 1 vCPU | 2 vCPU |
+| **RAM** | 512 MB (Master control plane idles under 50 MB) | 2 GB or more (for user workload builds) |
+| **Storage** | 10 GB SSD / NVMe | 25 GB SSD |
+| **Docker Engine** | Docker 24.0+ & Docker Compose v2 | Docker 26.0+ |
 
 <Note>
-The Tako installer script automatically installs Docker Engine and Docker Compose if they are not already detected on the system.
+If Docker Engine or Docker Compose v2 are not installed on your host, the universal installer script will automatically install and configure them for you.
 </Note>
 
 ---
 
-## Network & Firewall Requirements
+## Network & Firewall Setup
 
-### Master Server Ports
+### Master Node Ports
 
-| Port | Protocol | Direction | Purpose | Access |
+| Port | Protocol | Direction | Purpose | Access Level |
 | :--- | :--- | :--- | :--- | :--- |
-| **80** | TCP | Inbound | HTTP web traffic and Let's Encrypt ACME challenges | Public Internet |
-| **443** | TCP | Inbound | HTTPS web traffic, Tako Console, and user apps | Public Internet |
-| **50051** | TCP | Inbound | gRPC endpoint for worker agent connections | Worker Node IPs (or Public) |
-| **22** | TCP | Inbound | SSH administrative host access | Restricted / Management Only |
+| **80** | TCP | Inbound | HTTP traffic and ACME Let's Encrypt challenges | Public Internet |
+| **443** | TCP | Inbound | HTTPS web traffic, Tako Console, and deployed apps | Public Internet |
+| **50051** | TCP | Inbound | gRPC endpoint for worker agent multiplexed connections | Public or Worker IPs |
+| **22** | TCP | Inbound | SSH server management (host administration) | Restricted / VPN |
 
 ### Worker Node Ports
 
-| Port | Protocol | Direction | Purpose | Access |
+| Port | Protocol | Direction | Purpose | Access Level |
 | :--- | :--- | :--- | :--- | :--- |
-| **80** | TCP | Inbound | HTTP web traffic for hosted workloads | Public Internet |
-| **443** | TCP | Inbound | HTTPS web traffic and TLS termination | Public Internet |
-| **50051** | TCP | Outbound | Bidirectional gRPC stream to Master Server | Destination: Master IP |
+| **80** | TCP | Inbound | HTTP ingress traffic for hosted containers | Public Internet |
+| **443** | TCP | Inbound | HTTPS ingress traffic and TLS termination | Public Internet |
+| **50051** | TCP | **Outbound** | Persistent gRPC connection to Master Server | Destination: Master IP:50051 |
 
 <Important>
-Worker nodes do not require inbound port 50051 or inbound SSH port 22 open to the master server. The agent initiates an outbound TLS connection to the master.
+Worker nodes **do not require inbound port 50051 or inbound SSH port 22** open to the master server! The worker agent establishes an outbound connection to the master.
 </Important>
-
----
-
-## Installation Pipeline
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Admin as Operator / Terminal
-    participant Script as install.sh
-    participant OS as Host OS & Docker
-    participant Master as Tako Master Server
-
-    Admin->>Script: Execute curl installer
-    Script->>OS: Verify root privileges, architecture, and Docker
-    Script->>OS: Generate secrets (AUTH_SECRET, AGENT_SECRET, Admin Password)
-    Script->>OS: Create directories (/opt/tako, /etc/tako/traefik)
-    Script->>OS: Write docker-compose.yml and system configuration
-    Script->>Master: Launch Tako Master, Console, Traefik, and local Agent
-    Master-->>Admin: Display login URL, Admin credentials, and Worker Token
-```
 
 ---
 
 ## Step 1: Install the Master Server
 
-Log into your master server via SSH with `root` or `sudo` access, and run the universal installer:
+SSH into your target master server as `root` (or with `sudo`), and execute the universal installer:
 
 ```bash
 curl -fsSL https://gettako.dev/install.sh | bash
 ```
 
-### Non-Interactive Master Installation
+### Automated / Non-Interactive Installation
 
-For automated or scripted deployments, you can pass environment variables directly:
+For automated provisioning (e.g. cloud-init, Ansible, or CI scripts), pass environment variables inline:
 
 ```bash
-curl -fsSL https://gettako.dev/install.sh | TAKO_EMAIL="admin@example.com" TAKO_PASSWORD="your-secure-password" bash
+curl -fsSL https://gettako.dev/install.sh | TAKO_EMAIL="admin@yourdomain.com" TAKO_PASSWORD="your-secure-password" bash
 ```
 
-During installation, the script performs the following actions:
-1. Validates host architecture (`amd64` or `arm64`) and kernel compatibility.
-2. Creates the base application directory at `/opt/tako` and dynamic routing paths at `/etc/tako/traefik`.
-3. Generates cryptographically secure keys for authentication and node enrollment.
-4. Initializes the local Traefik v3 reverse proxy with Let's Encrypt ACME support.
-5. Builds and launches the `tako-server`, `tako-console`, and local `tako-agent` containers.
+### What the Installer Does:
+1. Detects host operating system and architecture (`amd64` or `arm64`).
+2. Checks for Git, Docker Engine, and Docker Compose v2 (installs them automatically if missing).
+3. Auto-detects public and private IP addresses.
+4. Generates cryptographically secure secrets (`TAKO_AUTH_SECRET`, `TAKO_AGENT_SECRET`).
+5. Creates runtime directories: `/opt/tako/data` and `/etc/tako/traefik/dynamic`.
+6. Configures Traefik v3 reverse proxy with Let's Encrypt TLS support.
+7. Launches the Tako Master stack (`tako-server`, `tako-console`, `tako-agent`, and `tako-traefik`).
 
-Once completed, the terminal outputs your access credentials:
+Once installation finishes, the terminal displays your connection credentials:
 
 ```text
 ==================================================
-Tako Master Server Installed Successfully
+Tako Master Server Installed Successfully!
 ==================================================
-Console URL      : https://your-server-ip
-Admin Email      : admin@example.com
-Admin Password   : [Generated Password]
-Worker Token     : [Random 32-character Token]
+Console URL      : http://<SERVER_IP>:3000 (or https://<DOMAIN>)
+Admin Email      : admin@yourdomain.com
+Admin Password   : [Randomly Generated or Specified Password]
+Enrollment Token : [32-Character Enrollment Secret]
 Working Dir      : /opt/tako
 ==================================================
 ```
 
 ---
 
-## Step 2: Access the Tako Console
+## Step 2: Open the Tako Console
 
-Open your web browser and navigate to your master server's public IP or assigned domain:
+Open your browser and navigate to:
 
-```
-http://<MASTER_SERVER_IP>:3000
-# Or via HTTPS if Traefik domain routing is configured
-https://<MASTER_SERVER_IP>
+```text
+http://<YOUR_SERVER_IP>:3000
 ```
 
-Log in using the administrator email and password output by the installer script.
+Log in using the administrator email and password from Step 1. You will be greeted by the Tako Platform Dashboard!
 
 ---
 
 ## Step 3: Connect Worker Nodes (Optional)
 
-If you wish to distribute container workloads across multiple physical servers or VPS instances, install the Tako Agent on each remote worker node.
+Tako can schedule workloads across multiple nodes. To connect a remote worker server:
 
-Log into the worker server and run:
+1. Log into your worker server via SSH.
+2. Run the installer with the `--agent` flag:
 
 ```bash
 curl -fsSL https://gettako.dev/install.sh | bash -s -- \
   --agent \
-  --token "<WORKER_TOKEN>" \
+  --token "<ENROLLMENT_TOKEN>" \
   --master "<MASTER_PUBLIC_IP>:50051"
 ```
 
 Replace:
-- `<WORKER_TOKEN>`: The enrollment token printed by the master installer (also viewable under **Cluster Settings** in the Console).
-- `<MASTER_PUBLIC_IP>`: The public IP address or hostname of your master server.
+- `<ENROLLMENT_TOKEN>`: The enrollment token printed by the master installer (also visible in **Settings > Cluster** in the Console).
+- `<MASTER_PUBLIC_IP>`: The public IP address or domain of your master server.
 
-The worker agent will automatically establish an outbound gRPC stream to the master server, register its CPU, memory, and disk capacity, and appear as **Online** in the Tako Console within seconds.
+Within seconds, the worker agent registers with the master, and the new server appears as **Online** under the **Nodes** section in the Console!
 
 ---
 
-## Service Control Commands
+## Common Management Commands
 
-Tako manages its core services using standard Docker Compose in `/opt/tako`:
+Tako services run in `/opt/tako` via standard Docker Compose:
 
 ```bash
-# View running core services
+# Check service status
 cd /opt/tako && docker compose ps
 
-# Inspect master server logs
+# View master server logs
 cd /opt/tako && docker compose logs -f server
 
-# Inspect edge proxy logs
+# View edge proxy logs
 cd /opt/tako && docker compose logs -f traefik
 
-# Restart the Tako stack
+# View agent logs
+cd /opt/tako && docker compose logs -f agent
+
+# Restart the entire stack
 cd /opt/tako && docker compose restart
 ```

@@ -1,0 +1,41 @@
+---
+title: "Interactive Web Terminal & Container Exec"
+description: "How to use Tako's in-browser container terminal with xterm.js, tab autocompletion, and virtual file navigation."
+---
+
+## Overview
+
+Tako features a built-in interactive web terminal in the Service dashboard. You can debug running containers, inspect filesystem states, run database migrations, or test connectivity without opening an SSH tunnel into the host machine!
+
+---
+
+## Features
+
+- **xterm.js Emulation:** Full terminal emulation with ANSI color support, cursor positioning, and standard keybindings (`Ctrl+C`, `Ctrl+L`, etc.).
+- **Tab Autocompletion:** Native autocompletion for shell commands and filesystem paths.
+- **Virtual File Navigation:** Browse directories, preview files, and inspect logs directly within the terminal tab.
+- **Zero Inbound Port Exposure:** Terminal sessions are relayed over WebSocket from the browser to `tako-server`, and piped over the existing gRPC stream to `tako-agent`, executing inside Docker via `docker exec`.
+
+---
+
+## Accessing the Terminal
+
+1. Open your Service in the Tako Console.
+2. Select the **Terminal** tab.
+3. If the container is currently running, the terminal connects automatically and drops into an interactive shell (`/bin/sh` or `/bin/bash`).
+
+### Common Use Cases:
+
+```bash
+# Run database migrations
+npx prisma migrate deploy
+
+# Check container network connectivity
+ping -c 3 google.com
+
+# Inspect process memory & CPU inside container
+top
+
+# Check environment variables
+env
+```

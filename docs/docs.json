@@ -41,9 +41,7 @@
             "icon": "book-open",
             "pages": [
               "introduction",
-              "why-tako",
-              "limitations",
-              "roadmap"
+              "why-tako"
             ]
           },
           {
@@ -55,39 +53,34 @@
             ]
           },
           {
-            "group": "Architecture & Workflow",
+            "group": "Architecture & Internals",
             "icon": "cpu",
             "pages": [
               "architecture/overview",
-              "architecture/deployment-lifecycle",
               "architecture/agent-protocol",
+              "architecture/deployment-lifecycle",
               "architecture/reverse-proxy"
             ]
           },
           {
-            "group": "Guides & How-tos",
+            "group": "Guides & Workflows",
             "icon": "compass",
             "pages": [
               "guides/deploying-apps",
-              "guides/docker-compose",
-              "guides/framework-starters",
               "guides/github-integration",
-              "guides/adding-a-server",
               "guides/domains-and-ssl",
               "guides/environment-variables",
-              "guides/databases",
+              "guides/terminal-and-exec",
+              "guides/runtime-logs",
+              "guides/cron-jobs-and-webhooks",
+              "guides/adding-worker-nodes",
+              "guides/databases-and-volumes",
+              "guides/s3-storage-and-backups",
+              "guides/notifications-and-alerts",
               "guides/security-and-auth",
-              "guides/rollback",
-              "guides/backup",
+              "guides/monitoring-and-ingress",
               "guides/system-upgrades",
               "guides/troubleshooting"
-            ]
-          },
-          {
-            "group": "Ecosystem & Comparisons",
-            "icon": "scale",
-            "pages": [
-              "comparisons/coolify-and-dokploy"
             ]
           },
           {
@@ -104,8 +97,8 @@
         "tab": "API Reference",
         "groups": [
           {
-            "group": "Control Plane API",
-            "icon": "terminal",
+            "group": "Control Plane REST API",
+            "icon": "code",
             "openapi": "api-reference/openapi.yaml"
           }
         ]

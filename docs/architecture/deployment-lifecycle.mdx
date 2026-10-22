@@ -1,134 +1,92 @@
 ---
-title: "Deployment Lifecycle"
-description: "Under the hood walkthrough of the Tako deployment pipeline, zero-downtime cutover gates, and automated rollbacks."
+title: "Deployment Lifecycle & Rollback"
+description: "How Tako builds, verifies, promotes, and rolls back container deployments with zero downtime."
 ---
 
 ## Overview
 
-Deployments in Tako are executed as a structured pipeline. Rather than stopping an existing container and starting a replacement, Tako runs the incoming container alongside the active version under an isolated preview configuration. Public traffic is switched to the new container only after health checks succeed.
+Tako ensures that no bad build or crashing container ever drops live user traffic. Every deployment follows a strict five-stage lifecycle: **Build → Preview → Probe → Promote → Prune**.
 
 ---
 
-## High-Level Deployment Pipeline
-
-```mermaid
-flowchart TD
-    Trigger["1. Deployment Triggered<br/>(Git Push / Webhook / Web Console)"] --> Queued["2. Pipeline Queued<br/>(Recorded in SQLite, Dispatched via gRPC)"]
-    Queued --> Clone["3. Clone Repository<br/>(Extract Commit Hash, Author & Branch)"]
-    Clone --> Build["4. Build Container Image<br/>(Docker Engine build or Image Pull)"]
-    Build --> Load["5. Tag Image<br/>(tako/service-slug:commit8)"]
-    Load --> Run["6. Launch New Container<br/>(tako-app-service-slug-commit8)"]
-    Run --> HealthCheck{"7. Health Check Gate<br/>(Container Running, Healthcheck Passed)"}
-
-    HealthCheck -- "Failed" --> CheckAutoRollback{"Auto-Rollback<br/>Enabled?"}
-    CheckAutoRollback -- "Yes" --> TriggerRollback["Trigger Automated Rollback<br/>(Revert to Last Healthy Deployment)"]
-    CheckAutoRollback -- "No" --> RetainFailed["Retain Container in Failed State<br/>(For Manual Operator Debugging)"]
-
-    HealthCheck -- "Passed" --> Promote["8. Promote Canonical Routing<br/>(Atomic Traefik File Write)"]
-    Promote --> Prune["9. Prune Old Containers<br/>(Enforce TAKO_PREVIEW_RETENTION limit)"]
-    Prune --> Live["10. Deployment Marked Live"]
-```
-
----
-
-## Sequence Diagram: Component Interactions
+## Detailed Deployment Lifecycle
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Dev as Developer / Webhook
-    participant Master as Master Server (Go)
-    participant DB as SQLite WAL
-    participant Agent as Worker Agent (Go)
-    participant Docker as Docker Engine SDK
-    participant Traefik as Traefik v3 Proxy
+    participant Server as Master Server
+    participant Agent as Worker Agent
+    participant Docker as Docker Daemon
+    participant Traefik as Traefik Ingress
 
-    Dev->>Master: POST /api/v1/services/{id}/deploy
-    Master->>DB: INSERT deployment record (status: queued)
-    Master->>Agent: gRPC MasterTask (DeployRequest)
-
-    opt Git Source
-        Agent->>Agent: Clone repository & checkout commit
-        Agent->>Master: Stream DeployLogChunk (Step: Clone)
+    Dev->>Server: POST /api/v1/services/{id}/deploy
+    Server->>Server: Insert deployment (status: QUEUED)
+    Server->>Agent: Send MasterTask (TASK_DEPLOY)
+    
+    rect rgb(240, 248, 255)
+        note over Agent,Docker: 1. Build Phase
+        Agent->>Agent: Clone or fetch Git commit
+        Agent->>Docker: Build image (or pull remote tag)
+        Agent->>Server: Stream build logs (SSE)
     end
 
-    Agent->>Docker: Build image or pull image tag
-    Docker-->>Agent: Build completed
-    Agent->>Master: Stream DeployLogChunk (Step: Build)
-
-    Agent->>Traefik: Write preview route (/etc/tako/traefik/dynamic/app-commit.yml)
-    Agent->>Docker: Create & start container (tako-app-slug-commit8)
-    Agent->>Master: Stream DeployLogChunk (Step: Deploy)
-
-    loop Health Check Verification (up to 8 iterations)
-        Agent->>Docker: ContainerInspect(containerName)
-        Docker-->>Agent: State (Running, Health, ExitCode, OOMKilled)
+    rect rgb(255, 250, 240)
+        note over Agent,Traefik: 2. Preview Phase
+        Agent->>Docker: Start container on dynamic private port
+        Agent->>Traefik: Write preview route (preview-<deploy-id>.domain)
     end
 
-    alt Health Check Succeeded
-        Agent->>Traefik: Write canonical route (/etc/tako/traefik/dynamic/app.yml)
-        Note over Traefik: Traefik reloads inotify config<br/>Traffic cuts over to new container
-        Agent->>Docker: Prune containers exceeding retention limit
-        Agent->>Master: Stream DeployLogChunk (Step: Live)
-        Master->>DB: UPDATE deployment (status: live, duration_ms)
-        Master-->>Dev: Deployment completed successfully
-    else Health Check Failed
-        Agent->>Master: Stream DeployLogChunk (Step: Health check, is_error: true)
-        Master->>DB: UPDATE deployment (status: failed)
-        opt Auto-Rollback Enabled
-            Master->>Master: Find last healthy deployment
-            Master->>Agent: Dispatch rollback task
+    rect rgb(245, 255, 245)
+        note over Agent,Docker: 3. Health Probe Phase
+        Agent->>Docker: Probe configured health check path
+        alt Health check passes within timeout
+            Agent->>Traefik: Write canonical public route (Cutover)
+            Agent->>Docker: Stop previous container version
+            Agent->>Server: Report Status: LIVE
+        else Health check fails or times out
+            Agent->>Traefik: Remove preview route
+            Agent->>Docker: Stop and prune failed container
+            Agent->>Server: Report Status: FAILED
+            note over Server: Existing live deployment remains active!
         end
     end
 ```
 
 ---
 
-## Detailed Pipeline Stages
+## The 5 Lifecycle Phases
 
-### 1. Trigger & Scheduling
-A deployment begins when a developer clicks **Deploy** in the console, calls the REST API, or pushes a commit to a configured GitHub branch. The master server creates a deployment record in SQLite with status `queued` and assigns a unique ID (such as `dep-9b7e3f`).
+### 1. Build Phase
+- If the service is Git-based, the agent clones the repository (or fetches the specific branch/commit).
+- Submodules are populated if configured.
+- The Docker Engine builds the image using standard `Dockerfile` or `docker-compose.yml`.
+- Build logs are tagged with timestamps and streamed live over gRPC to the master server, which relays them to the Web Console via Server-Sent Events (SSE).
 
-### 2. gRPC Task Dispatch
-The master server locates the active `AgentSession` corresponding to the service's assigned `node_id`. The deployment parameters (repository URL, branch, commit, Dockerfile path, environment variables, ports, and resource limits) are packed into a protobuf `DeployRequest` and sent across the persistent gRPC task channel.
+### 2. Preview Phase
+- A new container is launched with all decrypted environment variables and port mappings.
+- The agent assigns a temporary preview router in Traefik (e.g. `preview-<deploy_id>.<cluster_domain>`).
+- The existing container running the previous version continues serving 100% of public traffic.
 
-### 3. Clone & Metadata Extraction
-If the service is configured with a Git repository, the agent performs a local clone into an ephemeral workspace. It extracts the HEAD commit hash, author name, and commit message, streaming these details back to the master to update the deployment card in the console.
+### 3. Health Probe Phase
+- If a health check path is configured (e.g. `/health`), the agent probes the new container at defined intervals (e.g. every 2 seconds, up to 15 attempts).
+- Both HTTP status codes `200-299` and container runtime health statuses are verified.
 
-### 4. Build or Image Pull
-- **Git Source:** The agent invokes the Docker daemon to build a container image using the specified `Dockerfile` and build arguments.
-- **Pre-built Image:** If an image repository is specified, the agent pulls the image directly using the Docker Engine SDK.
-- The image is tagged locally as `tako/<service-slug>:<commit8>`.
+### 4. Promotion (Zero-Downtime Cutover)
+- Once health checks succeed, the agent updates the canonical Traefik dynamic configuration file `/etc/tako/traefik/dynamic/<service_id>.yml`.
+- Traefik hot-reloads the route in memory. New HTTP requests are immediately routed to the new container. Active in-flight requests on the old container finish without interruption.
 
-### 5. Preview Routing & Container Creation
-To prevent port collisions and ensure traffic isolation:
-- The container name is prefixed with the short commit hash: `tako-app-<service-slug>-<commit8>`.
-- The agent writes a commit-specific preview routing configuration to `/etc/tako/traefik/dynamic/<service-slug>-<commit8>.yml`.
-- The container is connected to the bridge network `tako-network` with memory and CPU limits applied.
-
-### 6. Health Check Verification Gate
-Before routing public traffic to the new container, the agent verifies container stability:
-- It checks `inspect.State.Running`, ensuring the process has not terminated unexpectedly.
-- If a `HEALTHCHECK` instruction is present in the Dockerfile, it inspects `inspect.State.Health.Status` until the container reports `healthy`.
-- It verifies that the container has not encountered an Out-Of-Memory (OOM) termination (`inspect.State.OOMKilled == false`).
-
-### 7. Zero-Downtime Canonical Cutover
-Once health checks pass:
-- The agent updates the canonical Traefik configuration file at `/etc/tako/traefik/dynamic/<service-slug>.yml`.
-- Traefik detects the file modification via filesystem events (`inotify`) and seamlessly cuts over incoming requests to the new container.
-- Live traffic never encounters dropped connections or incomplete startup screens.
-
-### 8. Preview Retention & Container Pruning
-After traffic promotion, the agent checks the number of running historical containers for that service. Old containers exceeding the retention threshold (`TAKO_PREVIEW_RETENTION`, default: 2) are gracefully stopped and removed.
+### 5. Pruning & Retention
+- After a configurable grace period (default: 15 seconds), the agent stops the retired container.
+- Image retention policies ensure the previous 3-5 images are kept locally for instant rollback, while dangling and older layers are automatically pruned.
 
 ---
 
-## Automated Rollback Mechanism
+## Instant Rollback Mechanism
 
-If a new container fails its health checks (for example, due to a fatal boot crash, missing runtime environment variable, or database connection timeout):
+If an unexpected runtime bug is discovered in production:
 
-1. The agent marks the health check step as `failed` and cleans up the preview configuration file.
-2. The master server inspects the service setting `auto_rollback_enabled`.
-3. If auto-rollback is enabled, the master queries SQLite for the most recent deployment that finished in `live` or `healthy` status.
-4. It immediately triggers an automated rollback to that stable release, keeping production traffic uninterrupted.
-5. If auto-rollback is disabled in service settings, the container is preserved in its failed state so operators can inspect stdout/stderr logs directly.
+1. Open the service in the Tako Console and select the **Deployments** tab.
+2. Locate any previously successful deployment in the deployment history.
+3. Click **Rollback**.
+4. Because the Docker image is already cached locally on the worker node, the agent immediately starts the previous container, passes the health check, and switches the Traefik router in under 2 seconds.

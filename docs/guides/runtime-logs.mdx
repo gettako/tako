@@ -1,0 +1,29 @@
+---
+title: "Runtime Logs & Live Streaming"
+description: "How to inspect and live-stream deployment builds and container runtime logs in Tako."
+---
+
+## Overview
+
+Tako provides real-time log streaming for both:
+1. **Deployment Logs:** Build output from Dockerfile execution, Git cloning, and container health probes.
+2. **Runtime Logs:** Live stdout and stderr streams emitted by active workload containers.
+
+---
+
+## Viewing Runtime Logs
+
+1. Open your Service and click the **Logs** tab.
+2. The log viewer automatically connects to the server's Server-Sent Events (SSE) stream (`/api/v1/services/{id}/logs`).
+3. Logs stream in real time with:
+   - Millisecond timestamps.
+   - ANSI color code rendering.
+   - Auto-scroll lock toggle (pauses auto-scrolling when you scroll up to inspect an error).
+   - Text search and log filtering.
+
+---
+
+## Downloading Logs
+
+You can export container logs for external log aggregation or offline debugging:
+- Click the **Download Logs** button in the top right corner of the log viewer to save a `.log` text file with full historical logs.

@@ -1,138 +1,107 @@
 ---
 title: "Reverse Proxy & Edge Routing"
-description: "How Traefik v3 powers dynamic ingress routing, zero-downtime cutover gates, and automated Let's Encrypt TLS."
+description: "How Tako leverages Traefik v3 for atomic dynamic routing, automatic Let's Encrypt TLS, and WebSocket streaming."
 ---
 
-## Overview
+## Why Traefik v3?
 
-Tako embeds **Traefik v3** as its default edge proxy. Every server node that runs web workloads runs a local Traefik container. Rather than configuring complex API hooks or restarting proxy processes, Tako utilizes Traefik's **Dynamic File Provider** with atomic file operations to manage routing rules with zero downtime.
+Tako uses [Traefik v3](https://traefik.io) as its native edge reverse proxy across both master and worker nodes because:
+
+1. **Native Hot-Reloading Without Process Restarts:** Traefik uses a declarative file watcher. Modifying a dynamic `.yml` configuration file updates routing tables in memory within milliseconds without restarting Traefik or closing active TCP connections.
+2. **First-Class Let's Encrypt ACME:** Traefik natively resolves and renews SSL/TLS certificates via the ACME HTTP-01 and TLS-ALPN-01 challenges.
+3. **Full HTTP/2, HTTP/3 & WebSocket Support:** Real-time log streams, SSE endpoints, and interactive container terminal WebSockets work out of the box without special proxy buffering flags.
 
 ---
 
-## Routing & Proxy Architecture
+## Static Configuration
 
-```mermaid
-flowchart TD
-    Client["Client Request (HTTP/S :80, :443)"] --> Traefik["Traefik v3 Proxy Container"]
-    
-    subgraph ConfigFiles["Dynamic File Provider (/etc/tako/traefik/dynamic)"]
-        FileCanonical["Canonical Route (<service>.yml)"]
-        FilePreview["Preview Route (<service>-<commit8>.yml)"]
-    end
+When Tako is installed, the static configuration is written to `/etc/tako/traefik/traefik.yml`:
 
-    ConfigFiles -.->|Inotify Watcher| Traefik
+```yaml
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
 
-    subgraph Containers["Docker Bridge Network (tako-network)"]
-        ActiveApp["Active Container (tako-app-web-7a1b)"]
-        NewApp["New Container (tako-app-web-9c2d)"]
-    end
+api:
+  dashboard: false
 
-    Traefik -->|Custom Domains| ActiveApp
-    Traefik -->|Commit Preview Domains| NewApp
+providers:
+  docker:
+    exposedByDefault: false
+    network: tako-network
+    watch: true
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
 
-    Agent["Tako Agent Daemon"] -->|Writes .yml atomically| ConfigFiles
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "admin@gettako.dev"
+      storage: "/acme.json"
+      httpChallenge:
+        entryPoint: web
 ```
 
 ---
 
-## Dynamic File Provider Mechanism
+## Dynamic Configuration File Layout
 
-Traefik monitors `/etc/tako/traefik/dynamic` using Linux inotify filesystem events. Whenever a file is added, modified, or deleted in this directory, Traefik updates its internal routing table in memory without dropping active HTTP connections or restarting worker threads.
+The agent atomically writes routing rules for each service inside `/etc/tako/traefik/dynamic/`:
 
-### Configuration Hierarchy
-
-Each service in Tako generates two distinct configuration files:
-
-#### 1. Preview Configuration (`<service-slug>-<commit8>.yml`)
-Written immediately when a new deployment container starts. It binds the incoming container to commit-specific preview domains (such as `commit8-web-app.sslip.io`). This allows internal health checks and preview testing before promoting the build to production.
-
-```yaml
-# Example: /etc/tako/traefik/dynamic/web-frontend-9c2d4e8a.yml
-http:
-  routers:
-    web-frontend-9c2d4e8a:
-      rule: "Host(`9c2d4e8a-web-frontend.198-51-100-24.sslip.io`)"
-      entryPoints:
-        - web
-      service: web-frontend-9c2d4e8a
-
-  services:
-    web-frontend-9c2d4e8a:
-      loadBalancer:
-        servers:
-          - url: "http://tako-app-web-frontend-9c2d4e8a:3000"
+```text
+/etc/tako/traefik/dynamic/
+├── tako.yml             # Tako Console and master API routing
+├── srv_auth_svc.yml     # User Service A router and load balancer
+└── srv_api_svc.yml      # User Service B router and load balancer
 ```
 
-#### 2. Canonical Configuration (`<service-slug>.yml`)
-Written only after container health checks succeed. It points production custom domains (such as `app.example.com`) to the newly verified container.
+### Sample Generated Service Route:
 
 ```yaml
-# Example: /etc/tako/traefik/dynamic/web-frontend.yml
 http:
   routers:
-    web-frontend-secure:
-      rule: "Host(`app.example.com`)"
+    srv-production-secure:
+      rule: "Host(`api.yourdomain.com`)"
       entryPoints:
         - websecure
       tls:
         certResolver: letsencrypt
-      service: web-frontend
+      service: srv-production
 
-    web-frontend-http:
-      rule: "Host(`app.example.com`)"
+    srv-production-redirect:
+      rule: "Host(`api.yourdomain.com`)"
       entryPoints:
         - web
       middlewares:
         - redirect-to-https
-      service: web-frontend
+      service: srv-production
+
+  middlewares:
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
 
   services:
-    web-frontend:
+    srv-production:
       loadBalancer:
         servers:
-          - url: "http://tako-app-web-frontend-9c2d4e8a:3000"
+          - url: "http://tako-srv-abc1234:8080"
 ```
 
 ---
 
-## Automated TLS with Let's Encrypt
+## Ingress Traffic Logs & Monitoring
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User Browser
-    participant Traefik as Traefik v3 Proxy
-    participant ACME as Let's Encrypt ACME Server
-    participant App as Application Container
-
-    User->>Traefik: HTTPS Request (https://app.example.com)
-    opt First Request (No TLS Certificate in acme.json)
-        Traefik->>ACME: Request Certificate for app.example.com
-        ACME->>Traefik: HTTP-01 Challenge on Port :80
-        Traefik-->>ACME: Respond with Challenge Token
-        ACME-->>Traefik: Issue Valid X.509 Certificate
-        Traefik->>Traefik: Store certificate in /acme.json (0600)
-    end
-    Traefik->>Traefik: Terminate TLS & Match Router
-    Traefik->>App: Forward HTTP Traffic over tako-network
-    App-->>Traefik: HTTP Response
-    Traefik-->>User: Encrypted HTTPS Response
-```
-
-### Key TLS Characteristics:
-- **HTTP-01 ACME Challenge:** Traefik intercepts incoming HTTP requests matching `/.well-known/acme-challenge/*` on port 80 to satisfy Let's Encrypt validation.
-- **Certificate Storage:** Certificates are saved in `/etc/tako/traefik/acme.json` with strict `0600` permissions.
-- **Automatic Renewal:** Traefik checks certificate expiration daily and triggers background renewal 30 days before expiration.
-
----
-
-## Wildcard Preview Domains via sslip.io
-
-To provide instant domain access without requiring manual DNS configuration, Tako generates canonical preview domains using `sslip.io`:
-
-- If a worker node's IP address is `198.51.100.24`, dashes replace periods to form `198-51-100-24`.
-- A service named `api-server` automatically receives:
-  ```text
-  http://api-server-198-51-100-24.sslip.io
-  ```
-- Public DNS queries for any `*.sslip.io` hostname resolve directly to the embedded IP address, allowing immediate browser testing.
+Traefik logs all inbound requests, response status codes, client IP addresses, and upstream latency.
+Tako reads these logs directly, parses incoming traffic, and surfaces:
+- Requests per second (RPS) and error rate metrics.
+- Ingress logs viewer with status code filtering (`2xx`, `3xx`, `4xx`, `5xx`).
+- Detailed request inspector sheet showing user agents, upstream response time, and TLS cipher details.

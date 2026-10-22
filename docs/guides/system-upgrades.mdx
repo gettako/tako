@@ -1,72 +1,47 @@
 ---
-title: "Upgrading Tako"
-description: "Upgrading the Tako master orchestrator, web console, and remote worker agents with zero downtime."
+title: "System Upgrades"
+description: "How to check for updates and perform zero-downtime upgrades of the Tako control plane and worker agents."
 ---
 
-## Overview
+## Checking for Updates
 
-Tako is delivered as immutable Docker container images for the master control plane (`tako-server`, `tako-console`, `traefik`) and a lightweight Go binary daemon for the worker agent (`tako-agent`).
+Tako automatically checks for new releases on GitHub:
 
-Because all platform metadata is persisted in the embedded SQLite database (`/opt/tako/data/sqlite/tako.db`) and worker configurations are stored in `agent.json`, upgrading Tako to newer releases preserves all projects, services, SSL certificates, and active deployments without data loss.
+1. In the Tako Console, go to **Settings** > **System**.
+2. Click **Check for Updates** (calls `/api/v1/system/version/check`).
+3. If a new version is available, the release notes and version tag will be displayed.
 
 ---
 
-## 1. Upgrading the Master Server
+## Performing an Upgrade
 
-You can upgrade the Tako Master Server using either Docker Compose or the universal installer script:
+Because Tako's state is stored in `/opt/tako/data/tako.db`, upgrading the control plane preserves all projects, services, domains, and secrets:
 
-### Method A: Using Docker Compose (Recommended)
+### 1. Master Server Upgrade
 
-1. SSH into your master server with root or sudo privileges:
-   ```bash
-   cd /opt/tako
-   ```
-2. Pull the latest release images:
-   ```bash
-   docker compose pull
-   ```
-3. Re-launch the containers with the newly pulled images:
-   ```bash
-   docker compose up -d
-   ```
-4. Verify all master containers are running healthy:
-   ```bash
-   docker compose ps
-   ```
-
-### Method B: Using the Universal Installer
-
-Running the installer script on an existing installation automatically detects existing `.env` secrets, pulls updated images, and restarts the control plane:
+SSH into the master server and re-run the universal installer:
 
 ```bash
+cd /opt/tako
 curl -fsSL https://gettako.dev/install.sh | bash
 ```
 
----
+Alternatively, pull the latest images using Docker Compose:
 
-## 2. Upgrading Remote Worker Nodes
+```bash
+cd /opt/tako
+docker compose pull
+docker compose up -d
+```
 
-Worker nodes run workloads independently of the master server. Upgrading a worker node does not restart active user containers:
+### 2. Worker Node Upgrade
 
-1. SSH into the remote worker server:
-   ```bash
-   cd /opt/tako
-   ```
-2. Pull the updated agent container:
-   ```bash
-   docker compose pull agent
-   ```
-3. Restart the agent service:
-   ```bash
-   docker compose up -d agent
-   ```
-4. The worker agent will read `/opt/tako/data/agent/agent.json`, reconnect to the master server via gRPC within seconds, and resume streaming telemetry.
+On each worker node:
 
----
+```bash
+cd /opt/tako
+docker compose pull
+docker compose up -d
+```
 
-## Post-Upgrade Verification Checklist
-
-- [ ] Log into the Tako Console and check that the cluster version in **Settings** matches the expected release.
-- [ ] Verify that all registered nodes in the **Nodes** view display an **Online** status.
-- [ ] Confirm deployed user applications are serving HTTP/S traffic without interruption.
-- [ ] Verify Server-Sent Events (SSE) live logs are streaming on the deployment view.
+The updated agent will automatically reconnect to the master server and resume task processing without dropping any running user workload containers!

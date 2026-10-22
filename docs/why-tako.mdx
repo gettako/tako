@@ -1,99 +1,60 @@
 ---
 title: "Why Tako?"
-description: "Architectural motivations, resource efficiency, and an honest comparison of self-hosted deployment models."
+description: "The core design philosophy, architectural rationale, and architectural contrasts behind Tako."
 ---
 
-## Philosophy & Core Motivation
+## The Problem with Traditional Self-Hosted PaaS
 
-Self-hosting platforms such as Coolify and Dokploy have demonstrated that developers want the convenience of a modern cloud platform on their own virtual private servers. Both projects have built active communities and provide comprehensive suites of tools for managing infrastructure.
+Platform-as-a-Service tools have dramatically improved developer productivity. However, self-hosting traditional PaaS solutions often introduces new operational hurdles:
 
-Tako was built to explore a distinct architectural position: **extreme minimalism with single-binary efficiency**.
-
-When evaluating self-hosted tooling on budget virtual private servers (such as 1 GB or 2 GB RAM instances), the baseline overhead of the platform itself becomes a primary operational constraint. Running a management stack that requires dedicated PostgreSQL instances, Redis queues, and runtime processes can consume 500 MB to 1.5 GB of RAM before a single user application has been launched.
-
-Tako focuses on running custom applications with minimal platform overhead, using three architectural design decisions:
-
-1. **Single static Go binary control plane:** The master server runs without an external database server or interpreted language runtime.
-2. **Embedded SQLite in WAL mode:** Database operations use modern SQLite with Write-Ahead Logging and AES-256-GCM encryption for stored secrets. Relational operations occur in-process without network latency or additional memory allocations.
-3. **Outbound-only node streaming:** Worker nodes initiate connections to the master using gRPC over TLS, eliminating inbound management ports on remote hosts.
+1. **Heavy Resource Footprint:** Many tools require spinning up PostgreSQL, Redis, RabbitMQ, and numerous backend workers just to run their web dashboard. A $5/mo or $10/mo VPS (1 GB – 2 GB RAM) often exhausts its memory before running a single application container.
+2. **Insecure Worker Node Management:** Multi-server clustering typically requires opening SSH port 22 to the public internet and providing the master server with root SSH private keys, or opening unauthenticated HTTP daemon ports.
+3. **Flaky Deployments & Traffic Drops:** Deployments that swap containers without health checks or graceful zero-downtime cutover cause intermittent 502 Bad Gateway errors for active users.
+4. **Complex State Management:** Managing distributed state across multi-server setups frequently requires distributed consensus clusters (e.g. etcd, ZooKeeper) that are brittle and hard to maintain.
 
 ---
 
-## The Network Model: Outbound vs Inbound
+## Architectural Principles of Tako
 
-In traditional self-hosted management platforms, orchestrating workloads across multiple servers generally follows one of two networking models:
+Tako was engineered to resolve these challenges through clean, modern systems design.
 
-### Model A: Inbound SSH Orchestration
-The control plane initiates SSH sessions directly into every managed worker node. While practical to set up initially, this pattern introduces specific operational requirements:
-- Inbound SSH (port 22) must remain open to the public internet or managed through complex VPN meshes.
-- The control plane must manage root SSH credentials for every server in its inventory.
-- Network interruptions during long-running shell scripts can leave packages or deployment steps in undefined states.
+### 1. Minimal Resource Footprint (Go + SQLite WAL)
+The master orchestrator (`tako-server`) is written in Go and compiles to a single native binary. All platform data—services, deployments, node heartbeats, environment variables, and audit logs—is stored in an embedded SQLite database using **Write-Ahead Logging (WAL)** mode.
+- Idle control plane memory: **< 50 MB RAM**.
+- Zero external database containers required.
+- Instant crash recovery and atomic transactions.
 
-### Model B: Inbound Agent Webhooks
-Worker nodes run an HTTP daemon listening on an exposed port. The master server issues API requests into the node to trigger actions:
-- Every worker server requires a public IP address and an open firewall port for the agent API.
-- TLS certificates must be provisioned and renewed for each agent endpoint.
-- Nodes behind firewalls, private subnets, or carrier-grade NAT cannot easily receive inbound traffic from the master.
+### 2. Outbound-Only Worker Architecture (gRPC)
+In Tako, the master server **never initiates inbound network connections into worker nodes**.
+Instead, worker nodes run `tako-agent`, which connects out to the master server over a persistent, multiplexed **gRPC stream (HTTP/2)**:
+- **No SSH Port 22 required** on remote worker nodes.
+- **No inbound firewall ports needed** on worker nodes.
+- **NAT-Friendly:** Worker nodes can run in private subnets, behind carrier-grade NAT, or on dynamic home broadband IPs without port forwarding.
 
-### Tako: Outbound gRPC Stream Over TLS
+### 3. Dynamic Traefik v3 Edge Routing
+Rather than writing fragile NGINX reload scripts that drop active TCP connections, Tako uses Traefik v3. The agent writes Traefik dynamic file configurations atomically:
+- **Automatic Let's Encrypt:** Zero-configuration TLS certificates via HTTP-01 challenges.
+- **Hot-Reloading without Downtime:** Traefik detects dynamic configuration changes in milliseconds without restarting or dropping in-flight HTTP connections.
 
-Tako reverses the connection direction:
-
-```
-[Worker Node (Agent)]  === Outbound gRPC over TLS (Port 50051) ==>  [Master Server]
-```
-
-On startup, the `tako-agent` daemon dials out to the master server over gRPC. Once the TLS handshake and enrollment token verification succeed, a long-lived bidirectional stream is established.
-
-This design provides several operational characteristics:
-
-- **No open management ports on worker nodes:** The worker node only opens web traffic ports (80 and 443) for incoming application requests. Port 22 can be disabled or bound strictly to a private management subnet.
-- **NAT and private cloud compatibility:** Worker nodes can be located in home labs, local workstations, private cloud VPCs, or dynamic IP environments without port forwarding.
-- **Multiplexed telemetry:** Deployment commands, log streaming, cancellation signals, and 3-second host metric updates flow across a single persistent HTTP/2 connection.
+### 4. Zero-Downtime Deployment Promotion Gates
+Tako enforces a strict deployment verification lifecycle:
+1. When a new deployment is triggered, the agent pulls or builds the new Docker image.
+2. The agent launches the new container on an isolated private port and creates a temporary **preview route**.
+3. The agent executes configured HTTP health checks against the new container.
+4. If health checks pass, Traefik atomically cuts over public traffic to the new container and prunes the old version.
+5. If health checks fail or time out, the new container is safely stopped, and the existing healthy deployment remains untouched.
 
 ---
 
-## Architectural Trade-offs & Comparisons
+## Feature Comparison Matrix
 
-Coolify and Dokploy are mature, capable open-source platforms that offer extensive feature sets. Deciding between them and Tako comes down to architectural priorities:
-
-| Dimension | Coolify / Dokploy | Tako |
-| :--- | :--- | :--- |
-| **Control Plane Stack** | Web UI, API service, PostgreSQL, Redis, worker queues | Single Go binary, embedded SQLite WAL |
-| **Idle Memory Footprint** | ~500 MB to 1.5 GB RAM baseline | Under 50 MB RAM baseline |
-| **Node Communication** | Inbound SSH (port 22) or Docker socket | Outbound-only gRPC over TLS (port 50051) |
-| **Worker Ports Required** | Port 22 (SSH) + Ports 80 and 443 | Ports 80 and 443 only (no inbound SSH required) |
-| **Edge Proxy** | Traefik or Caddy | Traefik v3 with dynamic configuration files |
-| **Application Marketplace** | 200+ one-click community templates (WordPress, Nextcloud, Ghost, etc.) | Core database templates only (PostgreSQL, MySQL, Redis, MongoDB) |
-| **Build Mechanisms** | Nixpacks, Cloud Native Buildpacks, Dockerfiles | Standard `Dockerfile` or `docker-compose.yml` only |
-| **Multi-Tenancy** | Multi-organization support, team workspaces | Single flat workspace (Admin and Member roles) |
-| **Target Workloads** | Homelabs, community app catalogs, multi-tenant teams | Custom microservices, personal projects, constrained VPS nodes |
-
----
-
-## Decision Flow: Choosing the Right Tool
-
-```mermaid
-flowchart TD
-    Start["Evaluating Self-Hosted Deployment Platforms"] --> Q1{"Do you need 1-click catalogs for 200+ third-party apps<br/>(such as WordPress, Nextcloud, or Ghost)?<br/>Do you prefer Nixpacks over writing Dockerfiles?"}
-    
-    Q1 -- "Yes" --> ChooseCoolify["Choose Coolify or Dokploy<br/>(Rich template ecosystem, automated buildpacks)"]
-    Q1 -- "No" --> Q2{"Are you running on constrained VPS environments<br/>(1 GB to 2 GB RAM) where low idle footprint matters?<br/>Do you require outbound-only agent networking without open SSH?"}
-    
-    Q2 -- "Yes" --> ChooseTako["Choose Tako<br/>(Single Go binary, SQLite WAL, under 50 MB idle RAM)"]
-    Q2 -- "No" --> Q3{"Do you require multi-datacenter container rescheduling,<br/>overlay network meshes, or enterprise Kubernetes CRDs?"}
-    
-    Q3 -- "Yes" --> ChooseK8s["Choose Kubernetes or Docker Swarm"]
-    Q3 -- "No" --> ChooseTako
-```
-
-### When to Choose Coolify or Dokploy
-- You want an extensive catalog of pre-configured open-source applications ready to install in a single click.
-- You prefer deploying source code without authoring a `Dockerfile`, letting Nixpacks determine runtime dependencies automatically.
-- You manage multiple client organizations requiring strict multi-tenant boundaries within a single control panel.
-
-### When to Choose Tako
-- You run on cost-effective virtual private servers where minimizing background memory usage is essential.
-- You prefer defining your builds explicitly with standard `Dockerfile` or `docker-compose.yml` configurations.
-- You want remote nodes to connect without exposing port 22 or storing root SSH keys in the control plane.
-- You prefer a single-binary control plane where backup and disaster recovery involve copying a single SQLite file.
+| Feature | Tako | Coolify | Dokploy | Kubernetes / K8s |
+| :--- | :--- | :--- | :--- | :--- |
+| **Control Plane Idle RAM** | **~45 MB** | ~800 MB – 1.5 GB | ~300 MB – 600 MB | ~1.5 GB – 3 GB+ |
+| **Primary Database** | **Embedded SQLite (WAL)** | PostgreSQL + Redis | PostgreSQL | etcd cluster |
+| **Worker Inbound Ports** | **0 (Outbound gRPC only)** | Port 22 (SSH root access) | Port 22 (SSH access) | Inbound API & Kubelet |
+| **NAT / Private Subnet Worker** | **Full Native Support** | Complex (Requires VPN/Tunnels) | Complex (Requires VPN) | Requires overlay network |
+| **Zero-Downtime Cutover** | **Dynamic Traefik v3 Gates** | Traefik | Traefik | RollingUpdate Pods |
+| **In-Browser Terminal** | **Included (xterm.js + VFS)** | Terminal available | Web terminal | `kubectl exec` |
+| **Passkey / WebAuthn Support** | **Built-in** | Limited | Limited | External OIDC |
+| **Single-Binary Agent** | **Yes (~20 MB Go)** | Docker Engine script | Docker Engine script | Kubelet + Containerd |
