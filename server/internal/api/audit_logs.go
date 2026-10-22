@@ -15,6 +15,7 @@ import (
 	"gettako.dev/tako/internal/store/db"
 )
 
+// AuditActorResponse represents the user account that performed the audited operation.
 type AuditActorResponse struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -22,6 +23,7 @@ type AuditActorResponse struct {
 	AvatarURL string `json:"avatarUrl,omitempty"`
 }
 
+// AuditLogResponse describes an audited administrative action, target entity, and client IP.
 type AuditLogResponse struct {
 	ID         string                 `json:"id"`
 	Actor      AuditActorResponse     `json:"actor"`
@@ -34,11 +36,13 @@ type AuditLogResponse struct {
 	Timestamp  string                 `json:"timestamp"`
 }
 
+// md5Hex returns MD5 hex digest string used for Dicebear avatar seeds.
 func md5Hex(s string) string {
 	h := md5.Sum([]byte(s))
 	return hex.EncodeToString(h[:])
 }
 
+// mapAuditLogToResponse converts a db.AuditLog model into a formatted API response.
 func mapAuditLogToResponse(log db.AuditLog) AuditLogResponse {
 	var meta map[string]interface{}
 	if log.Metadata != "" {

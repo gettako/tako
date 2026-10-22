@@ -25,6 +25,7 @@ import (
 	"gettako.dev/tako/internal/store/db"
 )
 
+// ClusterBackupSnapshot represents a point-in-time database and service configuration backup snapshot.
 type ClusterBackupSnapshot struct {
 	ID        string  `json:"id"`
 	Filename  string  `json:"filename"`
@@ -35,6 +36,7 @@ type ClusterBackupSnapshot struct {
 	CreatedAt string  `json:"createdAt"`
 }
 
+// S3BucketConfig contains connection credentials for S3/MinIO compatible object storage.
 type S3BucketConfig struct {
 	ID              string `json:"id"`
 	Name            string `json:"name"`
@@ -46,6 +48,7 @@ type S3BucketConfig struct {
 	IsDefault       bool   `json:"isDefault"`
 }
 
+// getBackupDir resolves and creates the directory where local cluster backup files are kept.
 func getBackupDir() string {
 	backupDir := os.Getenv("TAKO_BACKUP_DIR")
 	if backupDir == "" {

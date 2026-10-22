@@ -24,6 +24,7 @@ type GitHubInstallation = gh.Installation
 type GitHubAppConfig = gh.AppConfig
 type GitHubAppPublicResponse = gh.AppPublicResponse
 
+// SyncInstallationRequest specifies an installation ID to sync repositories for.
 type SyncInstallationRequest struct {
 	InstallationID int64 `json:"installationId"`
 }

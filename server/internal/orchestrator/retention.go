@@ -8,14 +8,17 @@ import (
 	"time"
 )
 
+// RetentionCleaner purges historical deployments, audit logs, and metrics older than a configured threshold.
 type RetentionCleaner struct {
 	db *sql.DB
 }
 
+// NewRetentionCleaner creates a new RetentionCleaner backed by the SQLite database.
 func NewRetentionCleaner(db *sql.DB) *RetentionCleaner {
 	return &RetentionCleaner{db: db}
 }
 
+// Start launches a background goroutine that runs Prune at periodic intervals.
 func (c *RetentionCleaner) Start(ctx context.Context, interval time.Duration, retentionDays int) {
 	if interval <= 0 {
 		interval = 24 * time.Hour
@@ -41,6 +44,7 @@ func (c *RetentionCleaner) Start(ctx context.Context, interval time.Duration, re
 	}()
 }
 
+// Prune executes SQL delete queries to remove stale records older than retentionDays.
 func (c *RetentionCleaner) Prune(ctx context.Context, retentionDays int) {
 	if retentionDays <= 0 {
 		retentionDays = 90

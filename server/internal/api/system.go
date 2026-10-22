@@ -16,6 +16,7 @@ import (
 	"gettako.dev/tako/internal/orchestrator"
 )
 
+// SystemVersionResponse describes currently running release version, upstream GitHub latest, and update availability.
 type SystemVersionResponse struct {
 	CurrentVersion  string `json:"currentVersion"`
 	LatestVersion   string `json:"latestVersion"`
@@ -25,10 +26,12 @@ type SystemVersionResponse struct {
 	CheckedAt       string `json:"checkedAt"`
 }
 
+// SystemUpdateRequest parameters specifying which components (server, console, agents) to update.
 type SystemUpdateRequest struct {
 	Target string `json:"target"` // "all", "console", "server", "agents"
 }
 
+// SystemUpdateResponse reports status and components updated during 1-click upgrade.
 type SystemUpdateResponse struct {
 	Success           bool     `json:"success"`
 	Message           string   `json:"message"`
@@ -41,6 +44,7 @@ var (
 	lastVersionCheck  time.Time
 )
 
+// getCurrentVersion reads the current Tako version from environment or default fallback.
 func getCurrentVersion() string {
 	if v := os.Getenv("TAKO_VERSION"); v != "" {
 		return v
@@ -48,6 +52,7 @@ func getCurrentVersion() string {
 	return "v1.0.0"
 }
 
+// fetchLatestGitHubRelease queries GitHub API for latest release metadata.
 func fetchLatestGitHubRelease(ctx context.Context) (string, string, string, error) {
 	client := &http.Client{Timeout: 4 * time.Second}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/repos/gettako/tako/releases/latest", nil)

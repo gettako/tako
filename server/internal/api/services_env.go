@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// handleListServiceEnvVars retrieves service environment variables, decrypting secrets and optionally masking them.
 func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
@@ -65,6 +66,7 @@ func handleListServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc 
 	}
 }
 
+// handleUpdateServiceEnvVars encrypts sensitive values and saves the service environment variable list.
 func handleUpdateServiceEnvVars(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")

@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// NodeTraefikConfig represents the Traefik reverse proxy configuration deployed on an edge node.
 type NodeTraefikConfig struct {
 	NodeID              string `json:"nodeId"`
 	Enabled             bool   `json:"enabled"`

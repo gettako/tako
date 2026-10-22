@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// NodeResponse models a cluster worker or leader node, enriched with live telemetry and connection status.
 type NodeResponse struct {
 	ID            string            `json:"id"`
 	Name          string            `json:"name"`
@@ -34,6 +35,7 @@ type NodeResponse struct {
 	LastHeartbeat  string            `json:"lastHeartbeat,omitempty"`
 }
 
+// ResourceUsageJSON represents sampled CPU, RAM, disk, and network I/O usage for a node.
 type ResourceUsageJSON struct {
 	CPUPercent    float64 `json:"cpuPercent"`
 	MemoryUsedMB  int64   `json:"memoryUsedMb"`
@@ -44,10 +46,12 @@ type ResourceUsageJSON struct {
 	NetworkTxKBps float64 `json:"networkTxKbps,omitempty"`
 }
 
+// mapNodeToResponse converts a db.Node record to a basic NodeResponse.
 func mapNodeToResponse(n db.Node) NodeResponse {
 	return mapNodeToResponseEnriched(n, 0, false)
 }
 
+// mapNodeToResponseEnriched builds a NodeResponse with service counts and live agent stream status.
 func mapNodeToResponseEnriched(n db.Node, servicesCount int, agentConnected bool) NodeResponse {
 	lastHB := ""
 	if n.LastHeartbeat.Valid {
@@ -83,6 +87,7 @@ func mapNodeToResponseEnriched(n db.Node, servicesCount int, agentConnected bool
 	}
 }
 
+// serviceCountsByNode counts active services assigned to each node.
 func serviceCountsByNode(ctx context.Context, orch *orchestrator.Orchestrator) map[string]int {
 	counts := make(map[string]int)
 	services, err := orch.Queries().ListAllServices(ctx)

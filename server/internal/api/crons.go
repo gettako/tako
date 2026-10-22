@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// CronJobResponse represents a scheduled service cron job along with its last execution status.
 type CronJobResponse struct {
 	ID         string  `json:"id"`
 	ServiceID  string  `json:"serviceId"`
@@ -27,6 +28,7 @@ type CronJobResponse struct {
 	CreatedAt  string  `json:"createdAt"`
 }
 
+// CronJobRunResponse models the execution telemetry (exit code, output logs, duration) of a single run.
 type CronJobRunResponse struct {
 	ID         string `json:"id"`
 	CronJobID  string `json:"cronJobId"`
@@ -38,12 +40,14 @@ type CronJobRunResponse struct {
 	Output     string `json:"output"`
 }
 
+// CreateCronJobRequest specifies properties needed to create a new cron schedule for a service.
 type CreateCronJobRequest struct {
 	Name     string `json:"name"`
 	Schedule string `json:"schedule"`
 	Command  string `json:"command"`
 }
 
+// UpdateCronJobRequest allows modifying an existing cron job schedule, command, or active status.
 type UpdateCronJobRequest struct {
 	Name     *string `json:"name,omitempty"`
 	Schedule *string `json:"schedule,omitempty"`
@@ -51,6 +55,7 @@ type UpdateCronJobRequest struct {
 	Status   *string `json:"status,omitempty"`
 }
 
+// formatCronJob converts a database CronJob model and recent runs into an API response struct.
 func formatCronJob(job db.CronJob, runs []db.CronJobRun) CronJobResponse {
 	resp := CronJobResponse{
 		ID:        job.ID,
@@ -73,6 +78,7 @@ func formatCronJob(job db.CronJob, runs []db.CronJobRun) CronJobResponse {
 	return resp
 }
 
+// formatCronJobRun converts a database run record into a structured API response.
 func formatCronJobRun(r db.CronJobRun) CronJobRunResponse {
 	duration := int64(0)
 	finStr := ""

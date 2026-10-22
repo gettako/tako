@@ -10,8 +10,10 @@ import (
 	"gettako.dev/tako/internal/store/db"
 )
 
+// ClientIPContextKey is the context key for retrieving client IP from HTTP middleware.
 const ClientIPContextKey = "tako_client_ip"
 
+// AuditLogInput holds structured parameters for recording security and administrative actions.
 type AuditLogInput struct {
 	ActorID    string
 	ActorName  string

@@ -80,12 +80,14 @@ func MatchCron(schedule string, t time.Time) bool {
 		MatchCronPart(parts[4], dow)
 }
 
+// CronScheduler evaluates and triggers scheduled cron jobs against cluster services.
 type CronScheduler struct {
 	orch              *Orchestrator
 	lastExecutionLock sync.Mutex
 	lastExecution     map[string]int64 // cronID -> minute timestamp
 }
 
+// NewCronScheduler initializes a CronScheduler backed by the master Orchestrator.
 func NewCronScheduler(orch *Orchestrator) *CronScheduler {
 	return &CronScheduler{
 		orch:          orch,
@@ -138,6 +140,7 @@ func (cs *CronScheduler) evaluateCrons(ctx context.Context, now time.Time) {
 	}
 }
 
+// ExecuteCronJob dispatches a scheduled command inside the target service container and records run logs.
 func (o *Orchestrator) ExecuteCronJob(ctx context.Context, job db.CronJob) (*db.CronJobRun, error) {
 	srv, err := o.queries.GetServiceByID(ctx, job.ServiceID)
 	if err != nil {

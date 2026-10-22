@@ -26,6 +26,7 @@ type PingResponse struct {
 	Message string `json:"message"`
 }
 
+// extractRequestIP extracts the client IP address from proxy headers (X-Forwarded-For, X-Real-IP) or RemoteAddr.
 func extractRequestIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		parts := strings.Split(xff, ",")
@@ -52,6 +53,7 @@ func extractRequestIP(r *http.Request) string {
 	return "127.0.0.1"
 }
 
+// clientIPMiddleware injects the resolved client IP into the request context for audit logging.
 func clientIPMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := extractRequestIP(r)
@@ -61,6 +63,7 @@ func clientIPMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// NewRouter constructs and configures Chi router with middleware, public health checks, and API endpoints.
 func NewRouter(db *sql.DB, orch *orchestrator.Orchestrator) http.Handler {
 	r := chi.NewRouter()
 

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// NodeRetentionPolicyResponse represents image and cache retention thresholds for a node.
 type NodeRetentionPolicyResponse struct {
 	NodeID                    string  `json:"nodeId"`
 	KeepImageVersions         int64   `json:"keepImageVersions"`
@@ -20,17 +21,20 @@ type NodeRetentionPolicyResponse struct {
 	UpdatedAt                 string  `json:"updatedAt"`
 }
 
+// UpdateNodeRetentionPolicyRequest specifies updated limits for image retention and auto-pruning.
 type UpdateNodeRetentionPolicyRequest struct {
 	KeepImageVersions         *int64   `json:"keepImageVersions,omitempty"`
 	AutoPruneThresholdPercent *float64 `json:"autoPruneThresholdPercent,omitempty"`
 	PruneBuildCache           *bool    `json:"pruneBuildCache,omitempty"`
 }
 
+// PruneNodeDiskRequest parameters for triggering an immediate Docker disk cleanup pass.
 type PruneNodeDiskRequest struct {
 	All             bool `json:"all,omitempty"`
 	PruneBuildCache bool `json:"pruneBuildCache,omitempty"`
 }
 
+// PruneNodeDiskResponse details reclaimed disk space and pruned image counts.
 type PruneNodeDiskResponse struct {
 	Success                bool    `json:"success"`
 	SpaceReclaimedBytes    int64   `json:"spaceReclaimedBytes"`

@@ -13,6 +13,7 @@ import (
 	"gettako.dev/tako/internal/store/db"
 )
 
+// MetricPointResponse formats aggregated time-series telemetry for console dashboard graphs.
 type MetricPointResponse struct {
 	Timestamp     string  `json:"timestamp"`
 	CPU           float64 `json:"cpu"`

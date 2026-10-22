@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// RegistryResponse models an authenticated private container image registry (Docker Hub, GHCR, Quay, Harbor).
 type RegistryResponse struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -24,6 +25,7 @@ type RegistryResponse struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
+// CreateRegistryRequest specifies credentials to authenticate with a private container registry.
 type CreateRegistryRequest struct {
 	Name      string `json:"name"`
 	ServerURL string `json:"serverUrl"`
@@ -31,6 +33,7 @@ type CreateRegistryRequest struct {
 	Password  string `json:"password"`
 }
 
+// maskRegistryPassword returns a masked string to protect stored registry secrets in API responses.
 func maskRegistryPassword(pass string) string {
 	if pass == "" {
 		return ""
@@ -38,6 +41,7 @@ func maskRegistryPassword(pass string) string {
 	return "••••••••"
 }
 
+// formatRegistryResponse maps a database registry record to an API response with masked credentials.
 func formatRegistryResponse(r db.Registry) RegistryResponse {
 	return RegistryResponse{
 		ID:        r.ID,

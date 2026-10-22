@@ -84,6 +84,7 @@ type UpdateServiceParams struct {
 	RegistryID              *string
 }
 
+// fallbackVal returns the dereferenced pointer value if non-nil and non-zero, or fallback.
 func fallbackVal[T comparable](ptr *T, fallback T) T {
 	var zero T
 	if ptr != nil && *ptr != zero {

@@ -17,6 +17,7 @@ import (
 	"gettako.dev/tako/internal/store/db"
 )
 
+// loginAttemptTracker tracks failed authentication attempts to protect against brute-force attacks.
 type loginAttemptTracker struct {
 	mu          sync.Mutex
 	attempts    map[string][]time.Time
@@ -26,6 +27,7 @@ type loginAttemptTracker struct {
 
 var globalLoginTracker = newLoginAttemptTracker(10, 15*time.Minute)
 
+// newLoginAttemptTracker creates a rate limiter for tracking login attempts per IP or username.
 func newLoginAttemptTracker(maxAttempts int, window time.Duration) *loginAttemptTracker {
 	return &loginAttemptTracker{
 		attempts:    make(map[string][]time.Time),
@@ -78,11 +80,13 @@ func (t *loginAttemptTracker) reset(key string) {
 	delete(t.attempts, key)
 }
 
+// LoginRequest holds user credentials submitted during login.
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
+// AuthUserResponse represents public profile attributes of an authenticated user.
 type AuthUserResponse struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
@@ -93,6 +97,7 @@ type AuthUserResponse struct {
 	CreatedAt        string `json:"createdAt,omitempty"`
 }
 
+// LoginResponse contains the issued bearer session token and user profile.
 type LoginResponse struct {
 	Token string           `json:"token"`
 	User  AuthUserResponse `json:"user"`

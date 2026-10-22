@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// TraefikAccessLogEntry parses and represents a parsed Traefik HTTP edge access log record.
 type TraefikAccessLogEntry struct {
 	Timestamp   string  `json:"timestamp"`
 	ClientIP    string  `json:"clientIp"`
@@ -44,6 +45,7 @@ func registerIngressRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	})
 }
 
+// handleGetGlobalTraefikAccessLogs filters and aggregates access logs from edge proxy containers.
 func handleGetGlobalTraefikAccessLogs(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		nodeID := r.URL.Query().Get("nodeId")

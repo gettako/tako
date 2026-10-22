@@ -45,6 +45,7 @@ type ServiceLimitsResponse struct {
 	SwapMB   int64   `json:"swapMb"`
 }
 
+// ServiceUsageResponse represents point-in-time CPU, RAM, and network bandwidth usage for a service.
 type ServiceUsageResponse struct {
 	CPUPercent    float64 `json:"cpuPercent"`
 	MemoryUsedMB  int64   `json:"memoryUsedMb"`
@@ -53,6 +54,7 @@ type ServiceUsageResponse struct {
 	NetworkTxKBps float64 `json:"networkTxKbps"`
 }
 
+// ServiceAutoScalingResponse models autoscaling parameters and triggers for horizontal replica management.
 type ServiceAutoScalingResponse struct {
 	Enabled             bool    `json:"enabled"`
 	MinReplicas         int64   `json:"minReplicas"`
@@ -64,6 +66,7 @@ type ServiceAutoScalingResponse struct {
 	CooldownSeconds     int64   `json:"cooldownSeconds"`
 }
 
+// ServiceDomainResponse models an edge domain mapping and SSL certificate status for a service.
 type ServiceDomainResponse struct {
 	ID              string `json:"id"`
 	Domain          string `json:"domain"`
@@ -76,6 +79,7 @@ type ServiceDomainResponse struct {
 	CreatedAt       string `json:"createdAt"`
 }
 
+// ServiceEnvVarResponse represents a service environment variable or secret.
 type ServiceEnvVarResponse struct {
 	ID        string `json:"id"`
 	Key       string `json:"key"`
@@ -85,6 +89,7 @@ type ServiceEnvVarResponse struct {
 	Source    string `json:"source,omitempty"`
 }
 
+// ServiceResponse is the comprehensive API model for an application or database service workload.
 type ServiceResponse struct {
 	ID                      string                      `json:"id"`
 	ProjectID               string                      `json:"projectId"`

@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// CreateProjectRequest specifies the required parameters to create a new cluster project.
 type CreateProjectRequest struct {
 	Name        string   `json:"name"`
 	Slug        string   `json:"slug"`
@@ -20,6 +21,7 @@ type CreateProjectRequest struct {
 	Tags        []string `json:"tags"`
 }
 
+// UpdateProjectRequest allows modifying existing project metadata, tags, and environments.
 type UpdateProjectRequest struct {
 	Name        *string   `json:"name"`
 	Slug        *string   `json:"slug"`
@@ -28,6 +30,7 @@ type UpdateProjectRequest struct {
 	Tags        *[]string `json:"tags"`
 }
 
+// ProjectResponse represents a cluster project enriched with total and healthy service counts.
 type ProjectResponse struct {
 	ID                   string   `json:"id"`
 	Name                 string   `json:"name"`
@@ -42,6 +45,7 @@ type ProjectResponse struct {
 	HealthyServicesCount int      `json:"healthyServicesCount"`
 }
 
+// mapProjectToResponse converts a db.Project entity into an API response, computing overall project health status.
 func mapProjectToResponse(p db.Project, servicesCount, healthyServicesCount int) ProjectResponse {
 	var tags []string
 	if p.Tags != "" {

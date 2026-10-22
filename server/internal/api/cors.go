@@ -51,6 +51,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// corsOriginAllowed tests whether an incoming origin header is permitted by the CORS policy.
 func corsOriginAllowed(origin string, allowed map[string]struct{}, allowAll bool) bool {
 	if allowAll {
 		return true

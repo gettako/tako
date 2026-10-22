@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// TraefikConfigFile represents metadata of a Traefik dynamic configuration file on disk.
 type TraefikConfigFile struct {
 	Name      string `json:"name"`
 	Path      string `json:"path"`
@@ -27,15 +28,18 @@ type TraefikConfigFile struct {
 	Type      string `json:"type"`
 }
 
+// TraefikConfigFileContent includes the complete text content of a Traefik configuration file.
 type TraefikConfigFileContent struct {
 	TraefikConfigFile
 	Content string `json:"content"`
 }
 
+// SaveTraefikFileRequest holds updated YAML/TOML/JSON text to write to a Traefik configuration file.
 type SaveTraefikFileRequest struct {
 	Content string `json:"content"`
 }
 
+// isValidTraefikFilename checks for safe file names and valid configuration file extensions (.yml, .yaml, .toml, .json).
 func isValidTraefikFilename(name string) bool {
 	if name == "" || len(name) > 64 {
 		return false
@@ -55,6 +59,7 @@ func isValidTraefikFilename(name string) bool {
 	return true
 }
 
+// getTraefikFileType determines the file type string based on filename extension.
 func getTraefikFileType(name string) string {
 	lower := strings.ToLower(name)
 	if strings.HasSuffix(lower, ".yml") || strings.HasSuffix(lower, ".yaml") {
@@ -69,6 +74,7 @@ func getTraefikFileType(name string) string {
 	return "yaml"
 }
 
+// getAssignedConsoleDomain returns the production custom domain configured for the console.
 func getAssignedConsoleDomain(ctx context.Context, orch *orchestrator.Orchestrator) string {
 	ds, err := orch.Queries().GetSetting(ctx, "domain_settings")
 	if err != nil || ds.Value == "" {
@@ -87,6 +93,7 @@ func getAssignedConsoleDomain(ctx context.Context, orch *orchestrator.Orchestrat
 	return d
 }
 
+// generateConsoleTraefikYaml generates dynamic Traefik routing configuration for Tako Console.
 func generateConsoleTraefikYaml(domain string) string {
 	d := strings.TrimSpace(domain)
 	if d == "" {

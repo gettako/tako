@@ -409,6 +409,7 @@ func (o *Orchestrator) RunRetentionCleanup(ctx context.Context, retentionDays in
 	o.retention.Prune(ctx, retentionDays)
 }
 
+// formatUptime converts uptime in seconds into human-readable duration strings (e.g. "3d 4h 12m").
 func formatUptime(seconds int64) string {
 	if seconds <= 0 {
 		return "0s"

@@ -1,3 +1,5 @@
+// Package orchestrator coordinates worker node liveness, container deployments,
+// cron execution, autoscaling telemetry, and cluster database retention.
 package orchestrator
 
 import (
@@ -10,6 +12,8 @@ import (
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
+// AgentSession tracks an active gRPC stream connection with a worker node agent,
+// maintaining outbound task queues and task-specific callback registrations.
 type AgentSession struct {
 	NodeID          string
 	TaskChan        chan *takov1.MasterTask
@@ -61,17 +65,20 @@ func (s *AgentSession) HandleResult(res *takov1.AgentTaskResult) {
 	}
 }
 
+// AgentRegistry manages active agent sessions across all cluster worker nodes.
 type AgentRegistry struct {
 	mu     sync.RWMutex
 	agents map[string]*AgentSession
 }
 
+// NewAgentRegistry creates a thread-safe registry for agent task sessions.
 func NewAgentRegistry() *AgentRegistry {
 	return &AgentRegistry{
 		agents: make(map[string]*AgentSession),
 	}
 }
 
+// Register adds an active agent session for the specified worker node.
 func (r *AgentRegistry) Register(nodeID string, taskChan chan *takov1.MasterTask) *AgentSession {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -87,6 +94,7 @@ func (r *AgentRegistry) Register(nodeID string, taskChan chan *takov1.MasterTask
 	return sess
 }
 
+// Unregister removes the agent session when a node disconnects.
 func (r *AgentRegistry) Unregister(nodeID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -94,12 +102,14 @@ func (r *AgentRegistry) Unregister(nodeID string) {
 	log.Printf("[orchestrator] unregistered agent task session for node: %s", nodeID)
 }
 
+// Get retrieves an agent session for the specified node ID if connected.
 func (r *AgentRegistry) Get(nodeID string) *AgentSession {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.agents[nodeID]
 }
 
+// DispatchExec sends a command execution request to a container on a worker node and awaits output.
 func (r *AgentRegistry) DispatchExec(ctx context.Context, nodeID, containerID, cmd string) (string, int, error) {
 	sess := r.Get(nodeID)
 	if sess == nil {
@@ -143,6 +153,7 @@ func (r *AgentRegistry) DispatchExec(ctx context.Context, nodeID, containerID, c
 	}
 }
 
+// DispatchContainerLogs streams recent container logs from a worker node.
 func (r *AgentRegistry) DispatchContainerLogs(ctx context.Context, nodeID, containerID string, tailLines int) (string, error) {
 	sess := r.Get(nodeID)
 	if sess == nil {
@@ -186,6 +197,7 @@ func (r *AgentRegistry) DispatchContainerLogs(ctx context.Context, nodeID, conta
 	}
 }
 
+// DispatchContainerAction triggers lifecycle actions (start, stop, restart, delete) on a container.
 func (r *AgentRegistry) DispatchContainerAction(ctx context.Context, nodeID, containerID, action string) error {
 	sess := r.Get(nodeID)
 	if sess == nil {

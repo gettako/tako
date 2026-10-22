@@ -7,6 +7,7 @@ import (
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
+// ServiceTelemetryPoint represents a single metric snapshot of container CPU, RAM, Network, and Disk I/O.
 type ServiceTelemetryPoint struct {
 	Timestamp      time.Time `json:"timestamp"`
 	CPUPercent     float64   `json:"cpuPercent"`
@@ -18,12 +19,14 @@ type ServiceTelemetryPoint struct {
 	DiskWriteBytes int64     `json:"diskWriteBytes"`
 }
 
+// TelemetryStore caches real-time container metrics and a rolling window of history for dashboard charts.
 type TelemetryStore struct {
 	mu      sync.RWMutex
 	latest  map[string]ServiceTelemetryPoint
 	history map[string][]ServiceTelemetryPoint
 }
 
+// NewTelemetryStore constructs an initialized TelemetryStore.
 func NewTelemetryStore() *TelemetryStore {
 	return &TelemetryStore{
 		latest:  make(map[string]ServiceTelemetryPoint),
@@ -31,6 +34,7 @@ func NewTelemetryStore() *TelemetryStore {
 	}
 }
 
+// RecordContainerSamples ingests container metrics, updating the latest point and appending to rolling history.
 func (t *TelemetryStore) RecordContainerSamples(containers []*takov1.ContainerTelemetry) {
 	if len(containers) == 0 {
 		return
@@ -74,6 +78,7 @@ func (t *TelemetryStore) RecordContainerSamples(containers []*takov1.ContainerTe
 	}
 }
 
+// GetLatest retrieves the most recently sampled telemetry point for a service.
 func (t *TelemetryStore) GetLatest(serviceID, serviceSlug string) (ServiceTelemetryPoint, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -86,6 +91,7 @@ func (t *TelemetryStore) GetLatest(serviceID, serviceSlug string) (ServiceTeleme
 	return ServiceTelemetryPoint{}, false
 }
 
+// GetHistory returns up to 120 historic metric points for a service.
 func (t *TelemetryStore) GetHistory(serviceID, serviceSlug string) []ServiceTelemetryPoint {
 	t.mu.RLock()
 	defer t.mu.RUnlock()

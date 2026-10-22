@@ -21,6 +21,7 @@ import (
 
 var domainRegex = regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$`)
 
+// cleanDomain strips protocol schemes, port numbers, and path suffixes from domain strings.
 func cleanDomain(domain string) string {
 	d := strings.TrimSpace(domain)
 	d = strings.TrimPrefix(d, "https://")
@@ -34,6 +35,7 @@ func cleanDomain(domain string) string {
 	return strings.ToLower(strings.TrimSpace(d))
 }
 
+// isValidDomain validates whether a domain string conforms to RFC hostname standards or wildcard syntax.
 func isValidDomain(domain string) bool {
 	if domain == "localhost" {
 		return true
@@ -49,15 +51,18 @@ func isValidDomain(domain string) bool {
 	return domainRegex.MatchString(check)
 }
 
+// UpdateSettingRequest holds the JSON payload for updating a global cluster setting key.
 type UpdateSettingRequest struct {
 	Value any `json:"value"`
 }
 
+// VerifyDomainRequest specifies parameters for testing DNS A-record propagation and SSL status.
 type VerifyDomainRequest struct {
 	Domain     string `json:"domain"`
 	ExpectedIP string `json:"expectedIp,omitempty"`
 }
 
+// VerifyDomainResponse describes DNS resolution, A-record matches, and TLS certificate expiration.
 type VerifyDomainResponse struct {
 	Domain        string   `json:"domain"`
 	Valid         bool     `json:"valid"`

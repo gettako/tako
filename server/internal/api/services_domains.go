@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// handleListServiceDomains returns all custom and preview domains assigned to a service.
 func handleListServiceDomains(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
@@ -35,6 +36,7 @@ func handleListServiceDomains(orch *orchestrator.Orchestrator) http.HandlerFunc 
 	}
 }
 
+// handleCreateServiceDomain binds an additional custom domain or routing path to a service.
 func handleCreateServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
@@ -133,6 +135,7 @@ func handleCreateServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 	}
 }
 
+// handleDeleteServiceDomain unbinds a domain and removes corresponding Traefik dynamic routing rules.
 func handleDeleteServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
@@ -174,6 +177,7 @@ func handleDeleteServiceDomain(orch *orchestrator.Orchestrator) http.HandlerFunc
 	}
 }
 
+// handleSetServiceDomainPrimary designates a specific domain as the canonical primary domain.
 func handleSetServiceDomainPrimary(orch *orchestrator.Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")

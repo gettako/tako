@@ -33,6 +33,7 @@ type DeploymentResponse struct {
 	CreatedAt     string          `json:"createdAt"`
 }
 
+// mapDeploymentToResponse converts a database Deployment record into a JSON-friendly response struct.
 func mapDeploymentToResponse(d db.Deployment) DeploymentResponse {
 	steps := json.RawMessage(d.Steps)
 	if len(steps) == 0 || !json.Valid(steps) {
@@ -60,6 +61,7 @@ func mapDeploymentToResponse(d db.Deployment) DeploymentResponse {
 	}
 }
 
+// mapDeploymentListRow maps a queried joined deployment row to a DeploymentResponse.
 func mapDeploymentListRow(row db.ListDeploymentsWithServiceByServiceRow) DeploymentResponse {
 	return mapDeploymentToResponse(db.Deployment{
 		ID:            row.ID,
@@ -79,6 +81,7 @@ func mapDeploymentListRow(row db.ListDeploymentsWithServiceByServiceRow) Deploym
 	})
 }
 
+// mapRecentDeploymentRow converts a recent deployments query row into a DeploymentResponse.
 func mapRecentDeploymentRow(row db.ListRecentDeploymentsRow) DeploymentResponse {
 	return mapDeploymentToResponse(db.Deployment{
 		ID:            row.ID,

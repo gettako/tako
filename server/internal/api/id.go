@@ -1,3 +1,4 @@
+// Package api defines the REST HTTP API handlers and routing for Tako master control plane.
 package api
 
 import (
