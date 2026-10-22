@@ -20,14 +20,19 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
+// Executor coordinates container deployment lifecycle on worker nodes:
+// image pulling/building, container configuration, Traefik edge routing,
+// health probe verification, and preview deployment pruning.
 type Executor struct {
 	dockerCli *docker.Client
 }
 
+// NewExecutor creates a new deploy Executor backed by the local Docker engine.
 func NewExecutor(dockerCli *docker.Client) *Executor {
 	return &Executor{dockerCli: dockerCli}
 }
 
+// ExecuteDeploy executes a deployment using a gRPC stream for log delivery.
 func (e *Executor) ExecuteDeploy(
 	ctx context.Context,
 	req *takov1.DeployRequest,
@@ -42,6 +47,9 @@ func (e *Executor) ExecuteDeploy(
 	return e.ExecuteDeployWithCallback(ctx, req, onLogChunk)
 }
 
+// ExecuteDeployWithCallback manages the container deployment lifecycle: pulling or building
+// the application image, configuring Traefik preview routes, launching isolated Docker containers,
+// verifying health check probes, promoting canonical routing, and pruning older preview deployments.
 func (e *Executor) ExecuteDeployWithCallback(
 	ctx context.Context,
 	req *takov1.DeployRequest,

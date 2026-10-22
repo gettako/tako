@@ -24,6 +24,8 @@ import (
 	"github.com/docker/docker/api/types/image"
 )
 
+// Config defines agent startup configuration including master connection parameters,
+// node metadata, and heartbeat polling intervals.
 type Config struct {
 	MasterURL         string
 	EnrollToken       string
@@ -37,11 +39,15 @@ type Config struct {
 	Insecure          bool
 }
 
+// State represents persistent node identity and credentials stored on disk
+// so the agent can reconnect without re-enrolling from scratch.
 type State struct {
 	NodeID    string `json:"node_id"`
 	AuthToken string `json:"auth_token"`
 }
 
+// Daemon supervises worker node operations: registration handshake,
+// periodic resource metric collection, and gRPC task stream processing.
 type Daemon struct {
 	cfg       Config
 	grpcCli   *client.Client
@@ -49,10 +55,11 @@ type Daemon struct {
 	collector *metrics.Collector
 	executor  *deploy.Executor
 	mu        sync.RWMutex
-	streamMu  sync.Mutex
+	streamMu  sync.Mutex // Serializes gRPC stream writes to prevent HTTP/2 race conditions
 	state     State
 }
 
+// New initializes the agent Daemon, connecting to local Docker engine and preparing gRPC client stubs.
 func New(cfg Config) (*Daemon, error) {
 	if cfg.HeartbeatInterval <= 0 {
 		cfg.HeartbeatInterval = 3 * time.Second
@@ -86,6 +93,7 @@ func New(cfg Config) (*Daemon, error) {
 	return d, nil
 }
 
+// loadState reads persistent node ID and auth token from the state file on disk.
 func (d *Daemon) loadState() {
 	if d.cfg.StateFile == "" {
 		return
@@ -102,6 +110,7 @@ func (d *Daemon) loadState() {
 	}
 }
 
+// saveState persists node ID and auth token to disk to survive agent restarts.
 func (d *Daemon) saveState() error {
 	if d.cfg.StateFile == "" {
 		return nil
@@ -205,6 +214,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 }
 
+// pollTelemetry runs in the background to update cached container resource metrics.
 func (d *Daemon) pollTelemetry(ctx context.Context) {
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
@@ -222,6 +232,8 @@ func (d *Daemon) pollTelemetry(ctx context.Context) {
 	}
 }
 
+// sendHeartbeat transmits node health, resource utilization (CPU, memory, disk, network),
+// and active container states to the master server.
 func (d *Daemon) sendHeartbeat(ctx context.Context) {
 	snap := d.collector.Collect(ctx)
 
@@ -263,6 +275,7 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 	}
 }
 
+// watchDockerEvents subscribes to the Docker daemon event bus to monitor container lifecycle changes.
 func (d *Daemon) watchDockerEvents(ctx context.Context) {
 	eventsChan, errChan := d.dockerCli.Events(ctx)
 	for {
@@ -282,6 +295,7 @@ func (d *Daemon) watchDockerEvents(ctx context.Context) {
 	}
 }
 
+// Close gracefully closes the Docker engine and gRPC connections.
 func (d *Daemon) Close() error {
 	if d.dockerCli != nil {
 		_ = d.dockerCli.Close()
@@ -292,6 +306,8 @@ func (d *Daemon) Close() error {
 	return nil
 }
 
+// listenTasks maintains a persistent bi-directional gRPC stream to receive master commands
+// (deployments, exec commands, container stop/start/restart, logs).
 func (d *Daemon) listenTasks(ctx context.Context) {
 	for {
 		select {
@@ -349,12 +365,14 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 	}
 }
 
+// sendTaskResult thread-safely sends a task result or log chunk over the gRPC stream.
 func (d *Daemon) sendTaskResult(stream takov1.AgentService_StreamTasksClient, res *takov1.AgentTaskResult) error {
 	d.streamMu.Lock()
 	defer d.streamMu.Unlock()
 	return stream.Send(res)
 }
 
+// errString extracts error message text safely handling nil errors.
 func errString(err error) string {
 	if err != nil {
 		return err.Error()
@@ -362,6 +380,7 @@ func errString(err error) string {
 	return ""
 }
 
+// handleTask dispatches an incoming task from master to the appropriate executor subsystem.
 func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_StreamTasksClient, task *takov1.MasterTask) {
 	taskID := task.GetTaskId()
 	d.mu.RLock()
@@ -500,6 +519,8 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 	}
 }
 
+// executeHostReboot schedules an orderly reboot of the host machine by trying
+// privileged docker helper containers, sysrq triggers, and systemctl fallbacks.
 func (d *Daemon) executeHostReboot() {
 	log.Printf("[tako-agent] executing host reboot sequence...")
 
@@ -541,6 +562,7 @@ func (d *Daemon) executeHostReboot() {
 	}
 }
 
+// executeAgentUpdate pulls the latest agent image and restarts the agent service.
 func (d *Daemon) executeAgentUpdate() {
 	log.Printf("[tako-agent] executing agent update sequence...")
 

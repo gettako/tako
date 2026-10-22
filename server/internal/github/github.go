@@ -1,3 +1,5 @@
+// Package github integrates with the GitHub App Manifest flow, webhook signatures,
+// and RS256 JWT generation for repository cloning and commit deployments.
 package github
 
 import (
@@ -20,6 +22,7 @@ import (
 	"time"
 )
 
+// Manifest represents the JSON structure posted to GitHub to register a new App via Manifest flow.
 type Manifest struct {
 	Name               string            `json:"name"`
 	Description        string            `json:"description,omitempty"`
@@ -33,16 +36,19 @@ type Manifest struct {
 	DefaultEvents      []string          `json:"default_events"`
 }
 
+// HookAttributes specifies webhook settings for the GitHub App.
 type HookAttributes struct {
 	URL    string `json:"url"`
 	Active bool   `json:"active"`
 	Secret string `json:"secret,omitempty"`
 }
 
+// ConvertManifestRequest holds the temporary code from GitHub to exchange for app credentials.
 type ConvertManifestRequest struct {
 	Code string `json:"code"`
 }
 
+// Owner represents the user or organization account owning the GitHub App.
 type Owner struct {
 	Login     string `json:"login"`
 	AvatarURL string `json:"avatarUrl,omitempty"`
@@ -50,6 +56,7 @@ type Owner struct {
 	HTMLURL   string `json:"htmlUrl,omitempty"`
 }
 
+// Installation represents a repository installation of the GitHub App.
 type Installation struct {
 	ID                  int64  `json:"id"`
 	Account             Owner  `json:"account"`
@@ -57,6 +64,7 @@ type Installation struct {
 	InstalledAt         string `json:"installedAt,omitempty"`
 }
 
+// AppConfig stores the credentials and state of an enrolled GitHub App.
 type AppConfig struct {
 	AppID          int64          `json:"appId"`
 	Slug           string         `json:"slug"`
@@ -75,6 +83,7 @@ type AppConfig struct {
 	UpdatedAt      string         `json:"updatedAt"`
 }
 
+// AppPublicResponse contains public-safe metadata of the GitHub App, omitting secrets and private keys.
 type AppPublicResponse struct {
 	AppID          int64          `json:"appId"`
 	Slug           string         `json:"slug"`

@@ -17,6 +17,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// CreateServiceRequest represents the payload accepted by POST /api/v1/services.
 type CreateServiceRequest struct {
 	ProjectID        string            `json:"projectId"`
 	NodeID           string            `json:"nodeId"`
@@ -37,6 +38,7 @@ type CreateServiceRequest struct {
 	RegistryID       string            `json:"registryId,omitempty"`
 }
 
+// ServiceLimitsResponse represents container resource constraints (CPU, RAM, Swap).
 type ServiceLimitsResponse struct {
 	CPUCores float64 `json:"cpuCores"`
 	MemoryMB int64   `json:"memoryMb"`

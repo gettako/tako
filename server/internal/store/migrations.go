@@ -8,6 +8,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// MigrationFS holds embedded SQL migration scripts for database schema evolution.
 //go:embed migrations/*.sql
 var MigrationFS embed.FS
 

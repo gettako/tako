@@ -1,3 +1,4 @@
+// Package store manages SQLite database connectivity, migrations execution, and seed provisioning.
 package store
 
 import (

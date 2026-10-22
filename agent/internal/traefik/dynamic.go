@@ -1,3 +1,4 @@
+// Package traefik provides dynamic YAML config generation for Traefik reverse proxy.
 package traefik
 
 import (

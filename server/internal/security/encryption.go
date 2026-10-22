@@ -1,3 +1,5 @@
+// Package security provides AES-256-GCM envelope encryption and decryption for sensitive
+// cluster credentials such as environment secrets, GitHub webhooks, and registry passwords.
 package security
 
 import (

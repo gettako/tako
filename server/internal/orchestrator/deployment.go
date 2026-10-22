@@ -18,6 +18,8 @@ import (
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
+// DeploymentStepJSON models individual step execution telemetry (logs, timings, status)
+// stored in the deployments table JSON column.
 type DeploymentStepJSON struct {
 	Name       string   `json:"name"`
 	Status     string   `json:"status"`
@@ -27,6 +29,7 @@ type DeploymentStepJSON struct {
 	Logs       []string `json:"logs,omitempty"`
 }
 
+// CreateServiceParams specifies parameters for registering a new application or database service.
 type CreateServiceParams struct {
 	ProjectID        string
 	NodeID           string
@@ -47,6 +50,8 @@ type CreateServiceParams struct {
 	RegistryID       string
 }
 
+// UpdateServiceParams contains optional field pointers for modifying service settings,
+// resource limits, autoscaling thresholds, or health probe configs.
 type UpdateServiceParams struct {
 	Name                    *string
 	Repository              *string

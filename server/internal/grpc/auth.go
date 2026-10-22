@@ -1,3 +1,4 @@
+// Package grpc provides authentication interceptors for securing gRPC RPC endpoints.
 package grpc
 
 import (
@@ -11,8 +12,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// nodeAuthKey is a context key used to store the verified node identifier of the caller.
 type nodeAuthKey struct{}
 
+// validateToken verifies the bearer token from gRPC metadata against master secrets,
+// dynamically registered node tokens, or fallback tokens.
 func validateToken(ctx context.Context, secret string, orch *orchestrator.Orchestrator, fallbackTokens map[string]string) (context.Context, error) {
 	if secret == "" && orch == nil && len(fallbackTokens) == 0 {
 		return ctx, nil
@@ -26,19 +30,19 @@ func validateToken(ctx context.Context, secret string, orch *orchestrator.Orches
 		return ctx, status.Error(codes.Unauthenticated, "invalid or missing authentication token")
 	}
 
-	// 1. Direct match with master agent secret
+	// Direct match with master agent secret
 	if secret != "" && token == secret {
 		return context.WithValue(ctx, nodeAuthKey{}, "master"), nil
 	}
 
-	// 2. Match with dynamically registered node token in orchestrator
+	// Match with dynamically registered node token in orchestrator
 	if orch != nil {
 		if nodeID, valid := orch.ValidateNodeAuthToken(token); valid {
 			return context.WithValue(ctx, nodeAuthKey{}, nodeID), nil
 		}
 	}
 
-	// 3. Match with registered fallback token (for test harnesses)
+	// Match with registered fallback token (for test harnesses)
 	if fallbackTokens != nil {
 		if nodeID, valid := fallbackTokens[token]; valid {
 			return context.WithValue(ctx, nodeAuthKey{}, nodeID), nil
@@ -48,6 +52,7 @@ func validateToken(ctx context.Context, secret string, orch *orchestrator.Orches
 	return ctx, status.Error(codes.Unauthenticated, "invalid or missing authentication token")
 }
 
+// wrappedServerStream overrides the Context method of grpc.ServerStream to inject authentication values.
 type wrappedServerStream struct {
 	grpc.ServerStream
 	ctx context.Context
@@ -82,6 +87,7 @@ func StreamAuthInterceptor(secret string, orch *orchestrator.Orchestrator, fallb
 	}
 }
 
+// extractToken pulls bearer or x-agent-token credentials from incoming gRPC metadata.
 func extractToken(md metadata.MD) string {
 	if vals := md.Get("authorization"); len(vals) > 0 {
 		val := vals[0]

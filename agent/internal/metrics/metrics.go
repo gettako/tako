@@ -1,3 +1,5 @@
+// Package metrics gathers host hardware information and samples CPU, memory,
+// disk, and network I/O utilization via gopsutil.
 package metrics
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/shirou/gopsutil/v4/net"
 )
 
+// SystemInfo represents static host system specs (CPUs, RAM, disk capacity, OS).
 type SystemInfo struct {
 	TotalCPUs     int32
 	TotalMemoryMB int64
@@ -24,6 +27,7 @@ type SystemInfo struct {
 	KernelVersion string
 }
 
+// Snapshot contains a point-in-time sample of host resource consumption.
 type Snapshot struct {
 	CPUPercent    float64
 	MemoryUsedMB  int64
@@ -34,6 +38,7 @@ type Snapshot struct {
 	Timestamp     int64
 }
 
+// Collector samples system utilization and computes rates across collection intervals.
 type Collector struct {
 	mu          sync.Mutex
 	lastNetTime time.Time
@@ -41,6 +46,7 @@ type Collector struct {
 	lastTxBytes uint64
 }
 
+// NewCollector constructs a new host metrics collector.
 func NewCollector() *Collector {
 	return &Collector{
 		lastNetTime: time.Now(),

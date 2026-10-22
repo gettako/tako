@@ -65,7 +65,7 @@ func (e *Executor) pruneOldDeployments(
 		}
 	}
 
-	// 1. Clean up any orphaned preview YAML files in dynamicDir for which no container exists
+	// Clean up any orphaned preview YAML files in dynamicDir for which no container exists
 	if files, err := filepath.Glob(filepath.Join(dynamicDir, fmt.Sprintf("%s-*.yml", serviceName))); err == nil {
 		for _, f := range files {
 			base := filepath.Base(f)
@@ -92,7 +92,7 @@ func (e *Executor) pruneOldDeployments(
 		}
 	}
 
-	// 2. Clean up any zero-byte empty YAML files in dynamicDir
+	// Clean up any zero-byte empty YAML files in dynamicDir
 	if allYmls, err := filepath.Glob(filepath.Join(dynamicDir, "*.yml")); err == nil {
 		for _, y := range allYmls {
 			if fi, err := os.Stat(y); err == nil && fi.Size() == 0 {

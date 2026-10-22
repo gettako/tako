@@ -1,3 +1,5 @@
+// Package traefik provides generators for Traefik v3 dynamic file-based configs
+// and Docker container labels, supporting HTTP, HTTPS (Let's Encrypt), and preview domains.
 package traefik
 
 import (
@@ -8,6 +10,8 @@ import (
 
 var nameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_\-]`)
 
+// RouteConfig specifies routing parameters for Traefik ingress, including domain names,
+// target ports, TLS termination resolver, middlewares, and health check intervals.
 type RouteConfig struct {
 	ServiceName         string
 	ConfigName          string
@@ -153,6 +157,7 @@ func AddRedirectRegexMiddleware(labels map[string]string, serviceName, regex, re
 	appendMiddleware(labels, name, mwName)
 }
 
+// appendMiddleware safely joins a middleware name to the router's comma-separated middleware list.
 func appendMiddleware(labels map[string]string, routerName, mwName string) {
 	key := fmt.Sprintf("traefik.http.routers.%s.middlewares", routerName)
 	existing, ok := labels[key]

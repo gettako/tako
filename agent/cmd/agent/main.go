@@ -1,3 +1,7 @@
+// Package main provides the entrypoint for tako-agent.
+// tako-agent runs as a daemon on every worker and edge node. It initiates an outbound
+// gRPC connection to tako-server, registers node specifications, sends periodic health/resource
+// telemetry heartbeats, and receives deployment, terminal exec, and container action tasks.
 package main
 
 import (
@@ -16,6 +20,7 @@ import (
 	"gettako.dev/tako/agent/internal/daemon"
 )
 
+// getEnv retrieves an environment variable with a default fallback.
 func getEnv(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
@@ -23,6 +28,7 @@ func getEnv(key, defaultVal string) string {
 	return defaultVal
 }
 
+// metricsInterval parses TAKO_METRICS_INTERVAL duration, defaulting to 3 seconds.
 func metricsInterval() time.Duration {
 	const fallback = 3 * time.Second
 	raw := getEnv("TAKO_METRICS_INTERVAL", "")
@@ -37,6 +43,8 @@ func metricsInterval() time.Duration {
 	return interval
 }
 
+// detectPublicIP probes external echo services to determine this node's public IP address.
+// This is used for wildcard DNS routing (e.g., sslip.io) and external browser access.
 func detectPublicIP() string {
 	endpoints := []string{
 		"https://ifconfig.co",
@@ -61,6 +69,7 @@ func detectPublicIP() string {
 	return ""
 }
 
+// detectPrivateIP discovers the node's local IPv4 address by probing a route or inspecting interfaces.
 func detectPrivateIP() string {
 	// Try establishing a UDP connection to determine preferred outbound interface
 	conn, err := net.Dial("udp", "1.1.1.1:80")
@@ -105,6 +114,7 @@ func detectPrivateIP() string {
 	return ""
 }
 
+// main initializes daemon configuration, probes networking, and starts the agent worker process.
 func main() {
 	defaultHost, _ := os.Hostname()
 	if defaultHost == "" {

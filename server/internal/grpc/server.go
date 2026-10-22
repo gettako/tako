@@ -1,3 +1,5 @@
+// Package grpc provides the Tako master gRPC server implementation for agent communications,
+// including registration, heartbeat metric updates, and bidirectional task streaming.
 package grpc
 
 import (
@@ -13,11 +15,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ServerConfig configures gRPC listeners with orchestrator handles and enrollment secrets.
 type ServerConfig struct {
 	AgentSecret  string
 	Orchestrator *orchestrator.Orchestrator
 }
 
+// AgentHandler implements takov1.AgentServiceServer for agent handshakes,
+// telemetry ingestion, and dispatching execution tasks.
 type AgentHandler struct {
 	takov1.UnimplementedAgentServiceServer
 	orchestrator *orchestrator.Orchestrator
@@ -25,6 +30,7 @@ type AgentHandler struct {
 	tokenStoreMu sync.RWMutex
 }
 
+// RegisterNode authenticates agent enroll tokens and provisions permanent node auth tokens.
 func (h *AgentHandler) RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error) {
 	if h.orchestrator != nil {
 		return h.orchestrator.RegisterNode(ctx, req)
@@ -43,6 +49,7 @@ func (h *AgentHandler) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 	}, nil
 }
 
+// Heartbeat handles incoming metrics from worker nodes and persists them to SQLite.
 func (h *AgentHandler) Heartbeat(ctx context.Context, req *takov1.HeartbeatRequest) (*takov1.HeartbeatResponse, error) {
 	callerNode, _ := ctx.Value(nodeAuthKey{}).(string)
 	if callerNode != "" && callerNode != "master" && callerNode != req.GetNodeId() {
@@ -57,6 +64,8 @@ func (h *AgentHandler) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 	}, nil
 }
 
+// StreamTasks establishes a persistent duplex communication channel with an agent
+// to dispatch deployments, terminal commands, and receive execution log chunks.
 func (h *AgentHandler) StreamTasks(stream takov1.AgentService_StreamTasksServer) error {
 	taskChan := make(chan *takov1.MasterTask, 16)
 	var sess *orchestrator.AgentSession
@@ -156,11 +165,14 @@ func NewServer(cfg ServerConfig) *grpc.Server {
 	return srv
 }
 
+// ContainerHandler implements takov1.ContainerServiceServer for executing commands
+// and streaming container logs via the orchestrator.
 type ContainerHandler struct {
 	takov1.UnimplementedContainerServiceServer
 	orchestrator *orchestrator.Orchestrator
 }
 
+// ExecCommand runs a command inside a specified container on a worker node.
 func (h *ContainerHandler) ExecCommand(ctx context.Context, req *takov1.ExecCommandRequest) (*takov1.ExecCommandResponse, error) {
 	if h.orchestrator == nil {
 		return &takov1.ExecCommandResponse{ExitCode: 1, Error: "orchestrator not configured"}, nil
@@ -177,6 +189,7 @@ func (h *ContainerHandler) ExecCommand(ctx context.Context, req *takov1.ExecComm
 	}, nil
 }
 
+// GetContainerLogs retrieves recent log lines from a container on a worker node.
 func (h *ContainerHandler) GetContainerLogs(ctx context.Context, req *takov1.GetContainerLogsRequest) (*takov1.ContainerLogsResponse, error) {
 	if h.orchestrator == nil {
 		return &takov1.ContainerLogsResponse{Error: "orchestrator not configured"}, nil

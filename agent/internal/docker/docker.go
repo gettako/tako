@@ -1,3 +1,5 @@
+// Package docker provides a wrapper around the Docker Engine API SDK for container
+// lifecycle operations, telemetry metrics sampling, and log streaming.
 package docker
 
 import (
@@ -22,6 +24,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
+// containerMetricSample holds timestamped metric counters used to compute rate deltas (CPU, Network Rx/Tx).
 type containerMetricSample struct {
 	recordedAt time.Time
 	cpuTotal   uint64
@@ -29,6 +32,8 @@ type containerMetricSample struct {
 	txBytes    uint64
 }
 
+// Client wraps the official Docker engine client with Tako-specific helper methods
+// for container resolution, resource telemetry polling, and safe reboot triggers.
 type Client struct {
 	cli               *client.Client
 	prevMetricsMu     sync.Mutex
@@ -86,12 +91,12 @@ func (c *Client) ResolveContainer(ctx context.Context, containerName string) str
 		return containerName
 	}
 
-	// 1. Direct inspect check
+	// Direct inspect check
 	if _, err := c.cli.ContainerInspect(ctx, containerName); err == nil {
 		return containerName
 	}
 
-	// 2. Query matching containers
+	// Query matching containers
 	containers := c.ResolveAllContainers(ctx, containerName)
 	if len(containers) > 0 {
 		return containers[0]
@@ -636,6 +641,7 @@ func (c *Client) CollectContainersTelemetry(ctx context.Context) ([]*takov1.Cont
 	return results, nil
 }
 
+// extractServiceSlug parses the canonical service identifier from a container name.
 func extractServiceSlug(containerName, fallbackSlug string) string {
 	if fallbackSlug != "" {
 		return fallbackSlug

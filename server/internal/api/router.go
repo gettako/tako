@@ -1,3 +1,5 @@
+// Package api implements the HTTP REST API and Server-Sent Events (SSE) router for Tako master,
+// providing handlers for authentication, services, deployments, metrics, nodes, and Traefik config.
 package api
 
 import (
@@ -13,11 +15,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
+// HealthResponse represents health check status for load balancers.
 type HealthResponse struct {
 	Status   string `json:"status"`
 	Database string `json:"database"`
 }
 
+// PingResponse represents basic ping response payload.
 type PingResponse struct {
 	Message string `json:"message"`
 }

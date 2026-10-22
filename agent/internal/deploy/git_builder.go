@@ -1,3 +1,5 @@
+// Package deploy manages container deployment execution, Git repository builds,
+// host port management, Traefik routing configuration, and deployment retention.
 package deploy
 
 import (
@@ -25,7 +27,7 @@ func (e *Executor) handleGitBuild(
 ) string {
 	commitHash := req.GetCommitHash()
 
-	// 1. Reuse existing cached image for this commit if explicitly specified (not main/master) and already built locally
+	// Reuse existing cached image for this commit if explicitly specified and already built locally
 	if e.dockerCli != nil && commitHash != "" && commitHash != "main" && commitHash != "master" {
 		if _, _, err := e.dockerCli.RawClient().ImageInspectWithRaw(ctx, targetImage); err == nil {
 			sendLog("Build", fmt.Sprintf("Using cached local image %s for commit %s", targetImage, commitHash), false)
@@ -184,6 +186,8 @@ func (e *Executor) handleGitBuild(
 	return actualHash
 }
 
+// createTarArchive packs the files in srcDir into an in-memory tar stream
+// suitable for sending to Docker's ImageBuild API, excluding any .git directory.
 func createTarArchive(srcDir string) (io.Reader, error) {
 	pr, pw := io.Pipe()
 

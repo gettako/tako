@@ -1,3 +1,5 @@
+// Package orchestrator coordinates cluster-wide operations: node registrations,
+// heartbeats, deployment pipelines, container actions, user auth sessions, and cron tasks.
 package orchestrator
 
 import (
@@ -16,12 +18,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Config specifies orchestrator timeouts and enrollment secret.
 type Config struct {
 	MasterEnrollToken string
 	LivenessInterval  time.Duration
 	LivenessTimeout   time.Duration
 }
 
+// Orchestrator manages cluster state, node heartbeats, agent streams,
+// telemetry, deployment lifecycles, and retention pruning.
 type Orchestrator struct {
 	db          *sql.DB
 	queries     *db.Queries
@@ -37,6 +42,7 @@ type Orchestrator struct {
 	nodeTokens   map[string]string
 }
 
+// New initializes an Orchestrator with database, event bus, and session stores.
 func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 	return &Orchestrator{
 		db:          database,
@@ -51,18 +57,22 @@ func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 	}
 }
 
+// RegisterUserSession tracks an active logged-in console user session by auth token.
 func (o *Orchestrator) RegisterUserSession(token string, user db.User) UserSession {
 	return o.sessions.Register(token, user)
 }
 
+// GetUserSession retrieves user session metadata for an authenticated token.
 func (o *Orchestrator) GetUserSession(token string) (UserSession, bool) {
 	return o.sessions.Get(token)
 }
 
+// RevokeUserSession clears a user session on logout.
 func (o *Orchestrator) RevokeUserSession(token string) {
 	o.sessions.Revoke(token)
 }
 
+// RegisterNodeAuthToken maps an agent authentication token to its node ID.
 func (o *Orchestrator) RegisterNodeAuthToken(token, nodeID string) {
 	o.nodeTokensMu.Lock()
 	defer o.nodeTokensMu.Unlock()
@@ -72,6 +82,7 @@ func (o *Orchestrator) RegisterNodeAuthToken(token, nodeID string) {
 	o.nodeTokens[token] = nodeID
 }
 
+// ValidateNodeAuthToken checks if a bearer token corresponds to an active enrolled agent.
 func (o *Orchestrator) ValidateNodeAuthToken(token string) (string, bool) {
 	o.nodeTokensMu.RLock()
 	defer o.nodeTokensMu.RUnlock()
@@ -82,38 +93,47 @@ func (o *Orchestrator) ValidateNodeAuthToken(token string) (string, bool) {
 	return nodeID, ok
 }
 
+// Queries returns the sqlc database queries interface.
 func (o *Orchestrator) Queries() *db.Queries {
 	return o.queries
 }
 
+// DB returns the underlying sql.DB connection pool.
 func (o *Orchestrator) DB() *sql.DB {
 	return o.db
 }
 
+// Bus returns the central event bus for publishing SSE and audit events.
 func (o *Orchestrator) Bus() *events.Bus {
 	return o.bus
 }
 
+// RegisterAgentSession registers an active bi-directional task stream for a worker node.
 func (o *Orchestrator) RegisterAgentSession(nodeID string, taskChan chan *takov1.MasterTask) *AgentSession {
 	return o.agents.Register(nodeID, taskChan)
 }
 
+// UnregisterAgentSession unregisters an agent session when gRPC stream disconnects.
 func (o *Orchestrator) UnregisterAgentSession(nodeID string) {
 	o.agents.Unregister(nodeID)
 }
 
+// GetAgentSession returns the active agent session for a given node ID, or nil if offline.
 func (o *Orchestrator) GetAgentSession(nodeID string) *AgentSession {
 	return o.agents.Get(nodeID)
 }
 
+// DispatchExec executes a terminal command inside a container on the host node via agent stream.
 func (o *Orchestrator) DispatchExec(ctx context.Context, nodeID, containerID, cmd string) (string, int, error) {
 	return o.agents.DispatchExec(ctx, nodeID, containerID, cmd)
 }
 
+// DispatchContainerLogs retrieves stdout/stderr logs from a container via agent stream.
 func (o *Orchestrator) DispatchContainerLogs(ctx context.Context, nodeID, containerID string, tailLines int) (string, error) {
 	return o.agents.DispatchContainerLogs(ctx, nodeID, containerID, tailLines)
 }
 
+// DispatchContainerAction sends start, stop, restart, or reboot commands to an agent.
 func (o *Orchestrator) DispatchContainerAction(ctx context.Context, nodeID, containerID, action string) error {
 	return o.agents.DispatchContainerAction(ctx, nodeID, containerID, action)
 }

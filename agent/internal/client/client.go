@@ -1,3 +1,5 @@
+// Package client provides the gRPC client used by the agent daemon to communicate
+// with the master server, including TLS configuration, reconnect backoff, and bearer token auth.
 package client
 
 import (
@@ -16,12 +18,15 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+// Config configures gRPC connection parameters and auth tokens.
 type Config struct {
 	ServerAddr string
 	AuthToken  string
 	Insecure   bool
 }
 
+// Client wraps a gRPC ClientConn and provides typed RPC wrappers for node registration,
+// heartbeats, and task streaming with automatic bearer token injection.
 type Client struct {
 	mu          sync.RWMutex
 	cfg         Config
@@ -71,6 +76,7 @@ func New(cfg Config) (*Client, error) {
 	return c, nil
 }
 
+// SetAuthToken updates the bearer authentication token dynamically (e.g. after registration handshake).
 func (c *Client) SetAuthToken(token string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -101,18 +107,22 @@ func (c *Client) streamAuthInterceptor() grpc.StreamClientInterceptor {
 	}
 }
 
+// RegisterNode invokes the RegisterNode RPC to enroll or re-identify the agent with the master server.
 func (c *Client) RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error) {
 	return c.agentClient.RegisterNode(ctx, req)
 }
 
+// Heartbeat transmits host and container resource metrics to the master server.
 func (c *Client) Heartbeat(ctx context.Context, req *takov1.HeartbeatRequest) (*takov1.HeartbeatResponse, error) {
 	return c.agentClient.Heartbeat(ctx, req)
 }
 
+// AgentClient returns the underlying gRPC generated client stub for streaming tasks.
 func (c *Client) AgentClient() takov1.AgentServiceClient {
 	return c.agentClient
 }
 
+// Close closes the underlying gRPC client transport connection.
 func (c *Client) Close() error {
 	if c.conn != nil {
 		return c.conn.Close()

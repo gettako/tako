@@ -10,6 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// registerEventsRoutes registers Server-Sent Events (SSE) streaming endpoints
+// for real-time node metrics (/events/nodes) and service updates (/events/services).
 func registerEventsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/events", func(r chi.Router) {
 		// GET /api/v1/events/nodes

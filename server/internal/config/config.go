@@ -1,9 +1,12 @@
+// Package config parses environment variables into structured master server configurations.
 package config
 
 import (
 	"os"
 )
 
+// Config represents runtime configurations for HTTP/gRPC ports, database paths,
+// cluster credentials, and bootstrap administrator accounts.
 type Config struct {
 	Port          string
 	GRPCPort      string
@@ -14,6 +17,7 @@ type Config struct {
 	AdminPassword string
 }
 
+// getEnv returns the environment variable for key or defaultVal if empty.
 func getEnv(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
@@ -33,6 +37,7 @@ func getEnvAny(keys []string, defaultVal string) string {
 	return defaultVal
 }
 
+// Load reads all Tako server configurations from environment variables.
 func Load() *Config {
 	return &Config{
 		Port:          getEnvAny([]string{"TAKO_HTTP_PORT", "TAKO_PORT"}, "8080"),

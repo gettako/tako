@@ -19,6 +19,10 @@ import (
 	"gettako.dev/tako/internal/store"
 )
 
+// main is the entrypoint for tako-server, the master control plane.
+// It initializes SQLite database storage, executes database migrations,
+// boots background orchestrator routines, and starts both the REST HTTP API
+// and the gRPC management server for worker node agents.
 func main() {
 	cfg := config.Load()
 
@@ -35,6 +39,7 @@ func main() {
 	}
 	log.Printf("[tako-server] migrations completed successfully")
 
+	// Seed default admin and nodes if not already present
 	if err := store.SeedDefaultAdmin(context.Background(), db, cfg.AdminEmail, cfg.AdminPassword); err != nil {
 		log.Printf("[tako-server] warning: failed to seed default admin: %v", err)
 	}
@@ -49,6 +54,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Start background orchestrator supervisors
 	orch.StartLivenessWatcher(ctx, 5*time.Second, 15)
 	orch.StartAutoScaler(ctx, 15*time.Second)
 	orch.StartRetentionCleaner(ctx, 24*time.Hour, 90)
