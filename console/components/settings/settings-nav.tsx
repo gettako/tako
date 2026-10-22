@@ -1,162 +1,213 @@
-'use client';
+"use client"
 
-import React from 'react';
+import * as React from "react"
 import {
-  Sliders,
-  Users,
-  HardDrive,
-  FolderGit2,
-  Database,
-  Globe,
+  Archive,
   Bell,
-  LayoutDashboard,
   Boxes,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  FolderGit2,
+  Globe,
+  HardDrive,
+  LayoutDashboard,
+  Radio,
+  Users,
+} from "lucide-react"
 
-export type GlobalSettingsSection =
-  | 'overview'
-  | 'users'
-  | 'registries'
-  | 'buckets'
-  | 'git'
-  | 'backups'
-  | 'domain'
-  | 'notifications';
+import { cn } from "@/lib/utils"
 
-interface SettingsNavProps {
-  activeSection: GlobalSettingsSection;
-  onSectionChange: (section: GlobalSettingsSection) => void;
-  pendingInvitesCount?: number;
-}
+export type SettingsSection =
+  | "overview"
+  | "users"
+  | "registries"
+  | "storage"
+  | "git"
+  | "backups"
+  | "domain"
+  | "notifications"
+  | "network"
 
 interface NavItem {
-  id: GlobalSettingsSection;
-  label: string;
-  description: string;
-  icon: React.ElementType;
-  badge?: number;
+  id: SettingsSection
+  label: string
+  description: string
+  icon: React.ComponentType<{ className?: string }>
+  badge?: string | number
 }
 
-const NAV_ITEMS: NavItem[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    description: 'System health & Tako version',
-    icon: LayoutDashboard,
-  },
-  {
-    id: 'users',
-    label: 'Team & RBAC',
-    description: 'Members, roles, and invite links',
-    icon: Users,
-  },
-  {
-    id: 'registries',
-    label: 'Docker Registries',
-    description: 'Private registry credentials (ghcr, Docker Hub)',
-    icon: Boxes,
-  },
-  {
-    id: 'buckets',
-    label: 'S3 Storage',
-    description: 'Buckets for volume & db snapshots',
-    icon: HardDrive,
-  },
-  {
-    id: 'git',
-    label: 'Git Providers',
-    description: 'GitHub App & synced repositories',
-    icon: FolderGit2,
-  },
-  {
-    id: 'backups',
-    label: 'Backups',
-    description: 'Tako database automated snapshots',
-    icon: Database,
-  },
-  {
-    id: 'domain',
-    label: 'Cluster Domain',
-    description: 'Control plane DNS & SSL certificates',
-    icon: Globe,
-  },
-  {
-    id: 'notifications',
-    label: 'Notifications',
-    description: 'Outbound alerts (Coming Soon)',
-    icon: Bell,
-  },
-];
+interface SettingsNavProps {
+  activeSection: SettingsSection
+  onSectionChange: (section: SettingsSection) => void
+  pendingInvitesCount?: number
+  bucketsCount?: number
+  registriesCount?: number
+}
 
-export function GlobalSettingsNav({
+export function SettingsNav({
   activeSection,
   onSectionChange,
-  pendingInvitesCount,
+  pendingInvitesCount = 0,
+  bucketsCount,
+  registriesCount,
 }: SettingsNavProps) {
+  const navItems: NavItem[] = React.useMemo(
+    () => [
+      {
+        id: "overview",
+        label: "Overview",
+        description: "Cluster health, consensus & version",
+        icon: LayoutDashboard,
+      },
+      {
+        id: "users",
+        label: "Team & RBAC",
+        description: "Members, roles, and invite links",
+        icon: Users,
+        badge: pendingInvitesCount > 0 ? pendingInvitesCount : undefined,
+      },
+      {
+        id: "registries",
+        label: "Docker Registries",
+        description: "Private GHCR & Docker Hub access",
+        icon: Boxes,
+        badge:
+          registriesCount && registriesCount > 0 ? registriesCount : undefined,
+      },
+      {
+        id: "storage",
+        label: "S3 Object Storage",
+        description: "Artifacts, volume & db snapshots",
+        icon: HardDrive,
+        badge: bucketsCount && bucketsCount > 0 ? `${bucketsCount}` : undefined,
+      },
+      {
+        id: "git",
+        label: "Git Providers",
+        description: "GitHub App & PAT synced repos",
+        icon: FolderGit2,
+      },
+      {
+        id: "backups",
+        label: "Backups & Snapshots",
+        description: "Automated snapshots & restore state",
+        icon: Archive,
+      },
+      {
+        id: "domain",
+        label: "Cluster Domain",
+        description: "Control plane DNS & TLS certs",
+        icon: Globe,
+      },
+      {
+        id: "notifications",
+        label: "Notifications",
+        description: "Discord, Slack, Email & Telegram",
+        icon: Bell,
+      },
+      {
+        id: "network",
+        label: "Daemon & Security",
+        description: "gRPC mTLS, token & IP allowlist",
+        icon: Radio,
+      },
+    ],
+    [pendingInvitesCount, bucketsCount, registriesCount]
+  )
+
   return (
     <>
-      {/* Mobile Horizontal Pill Scroll */}
-      <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-2 border-b border-border scrollbar-none">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
+      {/* Mobile Horizontal Scrollable Tabs */}
+      <div className="flex scrollbar-none gap-1.5 overflow-x-auto pb-2 lg:hidden">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = activeSection === item.id
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => onSectionChange(item.id)}
-              className={cn( 'flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border', isActive ? 'bg-primary/10 border-primary/40 text-primary font-semibold' : 'bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted/50' )}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+                isActive
+                  ? "bg-primary font-semibold text-primary-foreground shadow-xs"
+                  : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
             >
-              <Icon className="size-4" />
+              <Icon className="size-3.5" />
               <span>{item.label}</span>
-              {item.id === 'users' && pendingInvitesCount !== undefined && pendingInvitesCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-xs bg-muted font-mono">
-                  {pendingInvitesCount}
+              {item.badge !== undefined && (
+                <span
+                  className={cn(
+                    "py-0.2 rounded px-1.5 font-mono text-[10px]",
+                    isActive
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {item.badge}
                 </span>
               )}
             </button>
-          );
+          )
         })}
       </div>
 
       {/* Desktop Vertical Sidebar */}
-      <nav className="hidden md:flex flex-col gap-1.5 w-64 shrink-0">
-        <div className="px-3 pb-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Cluster Settings
+      <nav
+        aria-label="Cluster Settings navigation"
+        className="hidden [scrollbar-width:thin] space-y-1 rounded-lg border border-border bg-card p-2 shadow-xs lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
+      >
+        <div className="px-3 py-2 font-mono text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+          Cluster Configuration
         </div>
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
+
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const isActive = activeSection === item.id
           return (
             <button
               key={item.id}
+              type="button"
               onClick={() => onSectionChange(item.id)}
-              className={cn( 'group flex items-start gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm transition-all border', isActive ? 'bg-primary/10 border-primary/30 text-primary font-medium ' : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60' )}
+              className={cn(
+                "flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
+                isActive
+                  ? "bg-primary font-semibold text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
             >
-              <div
-                className={cn( 'mt-0.5 p-1 rounded-md transition-colors', isActive ? 'bg-primary/20 text-primary' : 'text-muted-foreground group-hover:text-foreground' )}
-              >
+              <div className="flex min-w-0 items-center gap-2.5">
                 <Icon className="size-4 shrink-0" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className={cn('text-sm font-medium text-foreground', isActive && 'font-semibold text-primary')}>
-                    {item.label}
+                <div className="flex min-w-0 flex-col">
+                  <span className="truncate font-medium">{item.label}</span>
+                  <span
+                    className={cn(
+                      "truncate text-[10px]",
+                      isActive
+                        ? "text-primary-foreground/80"
+                        : "text-muted-foreground/80"
+                    )}
+                  >
+                    {item.description}
                   </span>
-                  {item.id === 'users' && pendingInvitesCount !== undefined && pendingInvitesCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-muted/80 text-muted-foreground font-mono">
-                      {pendingInvitesCount}
-                    </span>
-                  )}
                 </div>
-                <p className="text-sm text-muted-foreground truncate mt-0.5">
-                  {item.description}
-                </p>
               </div>
+
+              {item.badge !== undefined && (
+                <span
+                  className={cn(
+                    "ml-2 shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px]",
+                    isActive
+                      ? "bg-primary-foreground/20 text-primary-foreground"
+                      : "border border-border/50 bg-muted text-muted-foreground"
+                  )}
+                >
+                  {item.badge}
+                </span>
+              )}
             </button>
-          );
+          )
         })}
       </nav>
     </>
-  );
+  )
 }

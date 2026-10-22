@@ -315,4 +315,3 @@ func TestAuthSecurityAndRBAC(t *testing.T) {
 		}
 	})
 }
-

@@ -1,152 +1,141 @@
-<div align="center">
-
-<img src="docs/images/tako.png" alt="Tako Logo" width="120" />
-
 # Tako
 
-**The lightweight, self-hosted deployment platform.**  
-Outbound gRPC node orchestration, automated Let's Encrypt TLS, dynamic Traefik routing, and WebAuthn authentication.
-
-[![Go Version](https://img.shields.io/badge/Go-1.24%2B-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
-[![Documentation](https://img.shields.io/badge/Docs-docs.gettako.dev-5560D6?style=for-the-badge)](https://docs.gettako.dev)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
-
-[Documentation](https://docs.gettako.dev) • [Architecture](#architecture) • [Local Development](#local-development) • [Contributing](CONTRIBUTING.md)
-
-</div>
-
----
-
-## Overview
-
-**Tako** is an open-source, self-hosted platform for deploying applications across one or more servers without running heavy control plane databases or opening SSH ports on remote worker nodes.
-
-- **Outbound-only agent architecture:** Worker nodes initiate an outbound gRPC stream over TLS to the master server. Remote hosts require no inbound SSH port 22 and no open management ports.
-- **Embedded SQLite persistence:** The master server runs as a static Go binary with embedded SQLite in WAL mode, keeping idle memory under 50 MB.
-- **Dynamic Traefik v3 edge routing:** Ingress routing, zero-downtime cutover gates, and Let's Encrypt TLS certificate provisioning are fully automated.
-- **Standard Docker tooling:** Deploy straight from Git repositories using your own `Dockerfile` or `docker-compose.yml` stacks.
-
-> [!TIP]
-> **Looking to install and use Tako?**  
-> Complete installation scripts, server requirements, and setup guides are maintained in the official documentation at **[docs.gettako.dev](https://docs.gettako.dev)**.
-
----
+Tako is a self-hosted deployment platform. A Go control plane schedules
+containers on one or more worker nodes, a Go agent runs on each worker and
+talks to the local Docker engine, and a Next.js console provides the operator
+interface.
 
 ## Architecture
 
 ```mermaid
 flowchart TD
-    User["Developer / Browser"] -->|HTTPS :443| Edge["Traefik v3 Edge Proxy"]
-    Edge -->|Path: /api/*| Server["Tako Master Server (Go + Chi)"]
-    Edge -->|Path: /*| Console["Tako Console (Next.js 16)"]
-    Edge -->|Custom Domains| App["Deployed User Apps"]
+    Browser["Operator browser"]
 
-    subgraph MasterNode["Master Node (/opt/tako)"]
-        Server
-        Console
-        DB[("SQLite WAL Database")]
-        TraefikConfig["Dynamic Config (/traefik/dynamic)"]
-        Server --> DB
-        Server -->|Atomic Writes| TraefikConfig
+    subgraph Master["Master node"]
+        Edge["Traefik<br/>:80 / :443"]
+        Console["tako-console<br/>Next.js :3000"]
+        Server["tako-server<br/>REST :8080<br/>gRPC :50051"]
+        DB[("SQLite WAL")]
+        LocalAgent["tako-agent"]
+        LocalDocker["Docker Engine"]
+        LocalRoutes["/etc/tako/traefik/dynamic"]
+        LocalApps["Workload containers"]
     end
 
-    subgraph WorkerNode1["Worker Node A"]
-        AgentA["Tako Agent (Go Daemon)"]
-        DockerA["Docker Engine SDK"]
-        AgentA --> DockerA
+    subgraph Worker["Worker node"]
+        WorkerEdge["Traefik"]
+        WorkerAgent["tako-agent"]
+        WorkerDocker["Docker Engine"]
+        WorkerRoutes["/etc/tako/traefik/dynamic"]
+        WorkerApps["Workload containers"]
     end
 
-    subgraph WorkerNode2["Worker Node B"]
-        AgentB["Tako Agent (Go Daemon)"]
-        DockerB["Docker Engine SDK"]
-        AgentB --> DockerB
-    end
-
-    AgentA -.->|Outbound gRPC :50051| Server
-    AgentB -.->|Outbound gRPC :50051| Server
+    Browser -->|"HTTPS"| Edge
+    Edge -->|"console"| Console
+    Edge -->|"deployed apps"| LocalApps
+    Console -->|"/api/v1 proxy"| Server
+    Server <--> DB
+    Server <-->|"outbound gRPC"| LocalAgent
+    Server <-->|"outbound gRPC"| WorkerAgent
+    LocalAgent --> LocalDocker
+    LocalAgent --> LocalRoutes
+    LocalDocker --> LocalApps
+    Edge -.->|"watches"| LocalRoutes
+    WorkerAgent --> WorkerDocker
+    WorkerAgent --> WorkerRoutes
+    WorkerDocker --> WorkerApps
+    WorkerEdge -.->|"watches"| WorkerRoutes
+    WorkerEdge -->|"deployed apps"| WorkerApps
 ```
 
----
+The master stores state in SQLite and talks to agents over gRPC. Agents never
+accept inbound management connections; they dial out to the master, execute
+Docker and Traefik work locally, and stream logs and task results back.
 
-## Repository Structure
+## Deployment flow
 
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Operator
+    participant Console as Next.js Console
+    participant Server as tako-server
+    participant DB as SQLite
+    participant Agent as tako-agent
+    participant Docker as Docker Engine
+    participant Traefik as Traefik
+
+    Operator->>Console: Deploy service
+    Console->>Server: POST /api/v1/services/{id}/deploy
+    Server->>DB: Insert deployment (queued)
+    Server->>Agent: DeployRequest over StreamTasks
+    Agent->>Agent: Clone or pull repository
+    Agent->>Docker: Build or pull image
+    Agent->>Traefik: Write preview route
+    Agent->>Docker: Start new container
+    Agent->>Docker: Health check
+    alt Health check passes
+        Agent->>Traefik: Write canonical route
+        Agent->>Docker: Prune old previews
+        Agent->>Server: Report Live
+    else Health check fails
+        Agent->>Server: Report Failed
+        Server->>Agent: Roll back to last healthy deployment
+    end
+    Agent-->>Server: Task result and log chunks
+    Server-->>Console: SSE events and logs
+    Console-->>Operator: Live progress
 ```
+
+## Repository layout
+
+```text
 gettako/
-├── agent/            # Node daemon in Go (Docker Engine SDK, outbound gRPC client)
-├── api/              # OpenAPI 3.1 specification (openapi.yaml) & Protocol Buffers (proto/)
-├── console/          # Next.js 16 dashboard (React 19, Tailwind CSS v4)
-├── deploy/           # Compose stacks (server/agent) and Traefik config
-├── docs/             # Technical documentation source (Mintlify MDX)
-├── install.sh        # Universal installer script for Master Server & Worker Agent
-└── server/           # Master orchestrator in Go (Chi REST/SSE, SQLite WAL, gRPC server)
+├── console/      Next.js 16 operator console (App Router, React 19)
+├── server/       Master control plane (Go, Chi, SQLite, gRPC)
+├── agent/        Worker daemon (Go, Docker Engine SDK, outbound gRPC)
+├── api/          Protobuf contracts and generated Go stubs
+├── deploy/       Docker Compose stacks and Traefik configuration
+├── docs/         Architecture and operations documentation
+├── install.sh    Master and worker installer
+├── go.work       Go workspace: server, agent, and proto modules
+└── old/          Reference implementation used for the port
 ```
 
----
+## Documentation
 
-## Local Development
+Start with [docs/README.md](docs/README.md). It covers the runtime topology,
+the agent protocol, the deployment lifecycle, edge routing, the data model, the
+REST API, and operations.
 
-Tako is organized as a monorepo. You can run all components locally for development and testing.
-
-### Prerequisites
-
-- **Go 1.24+**
-- **Node.js 20+** (LTS) & `npm`
-- **Docker 24+** & Docker Compose v2
-
-### Running Components Locally
+## Local development
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/gettako/tako.git
-cd tako
-
-# 2. Run master server (Terminal 1)
+# Master server
 cd server
-cp .env.example .env
-go run ./cmd/server
+TAKO_AGENT_SECRET=dev-token TAKO_DB_PATH=../data/tako.db go run ./cmd/server
 
-# 3. Run worker agent (Terminal 2)
-cd ../agent
-cp .env.example .env
+# Worker agent
+cd agent
+TAKO_MASTER_URL=127.0.0.1:50051 TAKO_ENROLL_TOKEN=dev-token \
+TAKO_NODE_NAME=tako-local TAKO_STATE_FILE=../data/agent.json \
 go run ./cmd/agent
 
-# 4. Run web console (Terminal 3)
-cd ../console
-npm install
-npm run dev
+# Console
+cd console
+bun install
+bun run dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to open the local development console.
+The console proxies `/api/v1/*` to `TAKO_SERVER_URL` (default
+`http://127.0.0.1:8080`), so the browser talks to the same origin in development
+and production.
 
-### Running Tests & Validations
+## Verification
 
 ```bash
-# Server unit tests & OpenAPI endpoint validation
-cd server
-go test -v ./...
-
-# Agent tests
-cd ../agent
-go test -v ./...
-
-# Console typecheck
-cd ../console
-npm run typecheck
+go build ./server/... ./agent/...
+(cd server && go test ./...)
+(cd agent && go test ./...)
+(cd console && bun run lint && bun run typecheck && bun run build)
 ```
-
----
-
-## Contributing
-
-We welcome contributions from the community. Whether you are fixing bugs, improving documentation, or proposing new features:
-
-1. Review [CONTRIBUTING.md](CONTRIBUTING.md) for coding conventions, Conventional Commits standards, and PR workflows.
-2. Check existing [GitHub Issues](https://github.com/gettako/tako/issues) or start a discussion.
-3. Submit a Pull Request targeting the `main` branch.
-
----
-
-## License
-
-Tako is licensed under the **Apache License, Version 2.0**. See [LICENSE](LICENSE) for details.

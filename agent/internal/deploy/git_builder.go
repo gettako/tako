@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
+	"github.com/docker/docker/api/types"
 )
 
 // handleGitBuild clones the Git repository, resolves commits, and builds or caches the Docker image.

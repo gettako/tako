@@ -1,57 +1,64 @@
-'use client';
+"use client"
 
-import React from 'react';
-import Link from 'next/link';
-import { LucideIcon, Inbox } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import * as React from "react"
+import { LucideIcon } from "lucide-react"
 
-export interface EmptyStateProps {
-  title: string;
-  description: string;
-  icon?: LucideIcon;
-  action?: {
-    label: string;
-    onClick?: () => void;
-    href?: string;
-    icon?: LucideIcon;
-  };
-  className?: string;
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+interface EmptyStateProps {
+  icon: LucideIcon
+  title: string
+  description: string
+  actionLabel?: string
+  onAction?: () => void
+  secondaryActionLabel?: string
+  onSecondaryAction?: () => void
+  className?: string
 }
 
 export function EmptyState({
+  icon: Icon,
   title,
   description,
-  icon: Icon = Inbox,
-  action,
+  actionLabel,
+  onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
   className,
 }: EmptyStateProps) {
-  const ActionIcon = action?.icon;
-
   return (
     <div
-      className={cn( 'flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/30 p-8 sm:p-12 text-center', className )}
+      className={cn(
+        "flex flex-col items-center justify-center rounded-lg border border-dashed border-border/80 bg-muted/20 p-8 text-center sm:p-12",
+        className
+      )}
     >
-      <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground ring-8 ring-muted/30">
-        <Icon className="size-6 stroke-[1.5]" />
+      <div className="flex size-12 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-xs">
+        <Icon className="size-6 text-foreground/80" aria-hidden="true" />
       </div>
-      <h3 className="mt-4 text-base font-semibold text-foreground tracking-tight">{title}</h3>
-      <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">{description}</p>
-      {action && (
-        <div className="mt-6">
-          {action.href ? (
-            <Button render={<Link href={action.href} />} className="gap-2">
-              {ActionIcon && <ActionIcon className="size-4" />}
-              <span>{action.label}</span>
+
+      <h3 className="mt-4 text-base font-semibold text-foreground">{title}</h3>
+
+      <p className="mt-1.5 max-w-sm text-sm leading-normal text-muted-foreground">
+        {description}
+      </p>
+
+      {(actionLabel || secondaryActionLabel) && (
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+          {actionLabel && onAction && (
+            <Button onClick={onAction} size="sm">
+              {actionLabel}
             </Button>
-          ) : (
-            <Button onClick={action.onClick} className="gap-2">
-              {ActionIcon && <ActionIcon className="size-4" />}
-              <span>{action.label}</span>
+          )}
+
+          {secondaryActionLabel && onSecondaryAction && (
+            <Button variant="outline" size="sm" onClick={onSecondaryAction}>
+              {secondaryActionLabel}
             </Button>
           )}
         </div>
       )}
     </div>
-  );
+  )
 }

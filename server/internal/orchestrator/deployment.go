@@ -764,11 +764,25 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 					ID:     srv.ID,
 					Status: "healthy",
 				})
+				o.bus.Publish(events.Event{
+					Type: events.EventServiceUpdated,
+					Payload: map[string]any{
+						"service_id": srv.ID,
+						"status":     "healthy",
+					},
+				})
 				doneOnce.Do(func() { close(doneCh) })
 			} else if chunk.IsError {
 				_ = o.queries.UpdateServiceStatus(bgCtx, db.UpdateServiceStatusParams{
 					ID:     srv.ID,
 					Status: "error",
+				})
+				o.bus.Publish(events.Event{
+					Type: events.EventServiceUpdated,
+					Payload: map[string]any{
+						"service_id": srv.ID,
+						"status":     "error",
+					},
 				})
 				doneOnce.Do(func() { close(doneCh) })
 			}

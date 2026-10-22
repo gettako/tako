@@ -138,6 +138,17 @@ func registerSystemRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			RespondJSON(w, http.StatusOK, info)
 		})
 
+		// POST /api/v1/system/version/check
+		r.Post("/version/check", func(w http.ResponseWriter, r *http.Request) {
+			versionCacheMu.Lock()
+			cachedVersionInfo = nil
+			lastVersionCheck = time.Time{}
+			versionCacheMu.Unlock()
+
+			info := getOrCheckSystemVersion(r.Context())
+			RespondJSON(w, http.StatusOK, info)
+		})
+
 		// POST /api/v1/system/update
 		r.With(RequireAdmin).Post("/update", func(w http.ResponseWriter, r *http.Request) {
 			var req SystemUpdateRequest

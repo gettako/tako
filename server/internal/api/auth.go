@@ -134,6 +134,34 @@ type SessionItem struct {
 	LastActive string `json:"lastActive"`
 }
 
+const sessionCookieName = "tako_session"
+
+// setSessionCookie stores the bearer token in an HttpOnly same-site cookie so
+// browser requests through the console proxy are authenticated without
+// exposing the token to client-side JavaScript.
+func setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
+	secure := r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   24 * 60 * 60,
+	})
+}
+
+func clearSessionCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1,
+	})
+}
+
 func extractAuthToken(r *http.Request) string {
 	if auth := r.Header.Get("Authorization"); auth != "" {
 		if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
@@ -239,6 +267,7 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		token := "tako_tk_" + randomHexID(24)
 		orch.RegisterUserSession(token, user)
+		setSessionCookie(w, r, token)
 
 		avatar := ""
 		if user.AvatarUrl.Valid {
@@ -272,6 +301,7 @@ func handleLogout(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		if token != "" {
 			orch.RevokeUserSession(token)
 		}
+		clearSessionCookie(w)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
@@ -571,7 +601,7 @@ func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		if req.CredentialID == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Passkey credential is required"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Credential ID is required"})
 			return
 		}
 
@@ -593,7 +623,7 @@ func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			globalLoginTracker.recordFailure(rateLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			_ = json.NewEncoder(w).Encode(map[string]string{"error": "No registered passkey found"})
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "No registered passkey found on this server. Please sign in with password and add a passkey in Profile."})
 			return
 		}
 
@@ -644,6 +674,7 @@ func handlePasskeyLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		if fullUser, err := orch.Queries().GetUserByID(r.Context(), targetUser.ID); err == nil {
 			orch.RegisterUserSession(token, fullUser)
 		}
+		setSessionCookie(w, r, token)
 
 		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 			Action:     "login_passkey",
@@ -853,13 +884,15 @@ func handleListUsers(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			http.Error(w, `{"error":"Failed to list users"}`, http.StatusInternalServerError)
 			return
 		}
+		twoFactorEnabled := is2FAEnabled(r.Context(), orch)
 		type UserResp struct {
-			ID        string `json:"id"`
-			Name      string `json:"name"`
-			Email     string `json:"email"`
-			Role      string `json:"role"`
-			AvatarURL string `json:"avatarUrl,omitempty"`
-			CreatedAt string `json:"createdAt"`
+			ID               string `json:"id"`
+			Name             string `json:"name"`
+			Email            string `json:"email"`
+			Role             string `json:"role"`
+			AvatarURL        string `json:"avatarUrl,omitempty"`
+			TwoFactorEnabled bool   `json:"twoFactorEnabled"`
+			CreatedAt        string `json:"createdAt"`
 		}
 		resp := make([]UserResp, 0, len(users))
 		for _, u := range users {
@@ -871,12 +904,13 @@ func handleListUsers(orch *orchestrator.Orchestrator) http.HandlerFunc {
 				avatar = fmt.Sprintf("https://api.dicebear.com/10.x/big-smile/png?seed=%s", md5Hex(cleanSeed))
 			}
 			resp = append(resp, UserResp{
-				ID:        u.ID,
-				Name:      u.Name,
-				Email:     u.Email,
-				Role:      u.Role,
-				AvatarURL: avatar,
-				CreatedAt: u.CreatedAt.Format(time.RFC3339),
+				ID:               u.ID,
+				Name:             u.Name,
+				Email:            u.Email,
+				Role:             u.Role,
+				AvatarURL:        avatar,
+				TwoFactorEnabled: twoFactorEnabled,
+				CreatedAt:        u.CreatedAt.Format(time.RFC3339),
 			})
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -1138,6 +1172,7 @@ func handleAcceptInvite(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		token := "tako_tk_" + randomHexID(24)
 		orch.RegisterUserSession(token, user)
+		setSessionCookie(w, r, token)
 
 		avatar := ""
 		if user.AvatarUrl.Valid {
@@ -1166,4 +1201,3 @@ func handleAcceptInvite(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		})
 	}
 }
-

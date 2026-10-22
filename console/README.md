@@ -1,21 +1,33 @@
-# Next.js template
+# Tako Console
 
-This is a Next.js template with shadcn/ui.
+The Tako operator console. This directory contains only the Next.js 16
+application; the Go control plane and worker agent live in the sibling
+`server/`, `agent/`, and `api/` directories.
 
-## Adding components
-
-To add components to your app, run the following command:
+## Development
 
 ```bash
-npx shadcn@latest add button
+bun install
+bun run dev
 ```
 
-This will place the ui components in the `components` directory.
+The console runs at `http://127.0.0.1:3000`.
 
-## Using components
+## API proxy
 
-To use the components in your app, import them as follows:
+`app/api/v1/[...path]/route.ts` forwards REST and SSE requests to the master
+server at `TAKO_SERVER_URL` (default `http://127.0.0.1:8080`). Browser code can
+therefore use same-origin URLs such as `/api/v1/nodes` without CORS.
 
-```tsx
-import { Button } from "@/components/ui/button";
+## Checks
+
+```bash
+bun run lint
+bun run typecheck
+bun run build
 ```
+
+## Documentation
+
+Backend architecture and operations are documented in
+[../docs/README.md](../docs/README.md).

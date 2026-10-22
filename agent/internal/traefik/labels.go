@@ -9,13 +9,13 @@ import (
 var nameSanitizer = regexp.MustCompile(`[^a-zA-Z0-9_\-]`)
 
 type RouteConfig struct {
-	ServiceName   string
-	ConfigName    string
-	ContainerName string
-	Domains       []string
-	TargetPort    int
-	EnableTLS     bool
-	ForceHTTPS    bool
+	ServiceName         string
+	ConfigName          string
+	ContainerName       string
+	Domains             []string
+	TargetPort          int
+	EnableTLS           bool
+	ForceHTTPS          bool
 	CertResolver        string
 	Network             string
 	Middlewares         []string

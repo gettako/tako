@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
 // pruneOldDeployments removes older preview containers and orphaned Traefik routes exceeding the retention quota.

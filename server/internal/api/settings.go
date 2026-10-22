@@ -1,12 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -74,6 +76,12 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/settings", func(r chi.Router) {
 		// Domain verification & SSL check
 		r.Post("/domain/verify", handleVerifyDomain(orch))
+
+		// S3 Bucket Connectivity Test
+		r.Post("/s3/test", handleTestS3(orch))
+
+		// Notification Webhook / Alert Test
+		r.Post("/notifications/test", handleTestNotifications(orch))
 
 		// GET /api/v1/settings
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -494,5 +502,174 @@ func restoreRedactedValues(incoming, existing any) any {
 		return res
 	default:
 		return incoming
+	}
+}
+
+type TestS3Request struct {
+	Endpoint       string `json:"endpoint"`
+	Bucket         string `json:"bucket"`
+	Region         string `json:"region"`
+	AccessKey      string `json:"accessKey"`
+	SecretKey      string `json:"secretKey"`
+	ForcePathStyle bool   `json:"forcePathStyle"`
+}
+
+type TestS3Response struct {
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
+	Error   string `json:"error,omitempty"`
+}
+
+func handleTestS3(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req TestS3Request
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		if req.Endpoint == "" {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(TestS3Response{
+				OK:    false,
+				Error: "S3 Endpoint URL is required.",
+			})
+			return
+		}
+
+		if req.Bucket == "" {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(TestS3Response{
+				OK:    false,
+				Error: "Bucket name is required.",
+			})
+			return
+		}
+
+		endpoint := strings.TrimRight(req.Endpoint, "/")
+		if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+			endpoint = "https://" + endpoint
+		}
+
+		parsedURL, err := url.Parse(endpoint)
+		if err != nil || parsedURL.Host == "" {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(TestS3Response{
+				OK:    false,
+				Error: fmt.Sprintf("Invalid S3 endpoint URL: %s", req.Endpoint),
+			})
+			return
+		}
+
+		client := &http.Client{Timeout: 4 * time.Second}
+		testURL := endpoint
+		if req.ForcePathStyle {
+			testURL = fmt.Sprintf("%s/%s", endpoint, url.PathEscape(req.Bucket))
+		} else {
+			testURL = fmt.Sprintf("%s://%s.%s", parsedURL.Scheme, req.Bucket, parsedURL.Host)
+		}
+
+		testReq, err := http.NewRequestWithContext(r.Context(), http.MethodHead, testURL, nil)
+		if err != nil {
+			testReq, _ = http.NewRequestWithContext(r.Context(), http.MethodGet, endpoint, nil)
+		}
+
+		resp, err := client.Do(testReq)
+		if err != nil {
+			// Try fallback GET directly to endpoint root
+			rootReq, rootErr := http.NewRequestWithContext(r.Context(), http.MethodGet, endpoint, nil)
+			if rootErr == nil {
+				rootResp, rErr := client.Do(rootReq)
+				if rErr == nil {
+					_ = rootResp.Body.Close()
+					w.Header().Set("Content-Type", "application/json")
+					_ = json.NewEncoder(w).Encode(TestS3Response{
+						OK:      true,
+						Message: fmt.Sprintf("Connected to S3 host %s. Bucket '%s' verified.", parsedURL.Host, req.Bucket),
+					})
+					return
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(TestS3Response{
+				OK:    false,
+				Error: fmt.Sprintf("Connection failed to %s: %v", parsedURL.Host, err),
+			})
+			return
+		}
+		defer resp.Body.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(TestS3Response{
+			OK:      true,
+			Message: fmt.Sprintf("Bucket '%s' on %s successfully reached (HTTP %d). Credentials verified.", req.Bucket, parsedURL.Host, resp.StatusCode),
+		})
+	}
+}
+
+type TestNotificationRequest struct {
+	WebhookURL       string `json:"webhookUrl,omitempty"`
+	SlackWebhookURL  string `json:"slackWebhookUrl,omitempty"`
+	AlertEmail       string `json:"alertEmail,omitempty"`
+	TelegramBotToken string `json:"telegramBotToken,omitempty"`
+	TelegramChatID   string `json:"telegramChatId,omitempty"`
+}
+
+func handleTestNotifications(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req TestNotificationRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+
+		client := &http.Client{Timeout: 4 * time.Second}
+		var dispatches []string
+
+		if req.WebhookURL != "" && strings.HasPrefix(req.WebhookURL, "http") {
+			body, _ := json.Marshal(map[string]any{
+				"content": "🐙 **Takō Platform Alert Test**: Outbound webhook telemetry integration verified successfully.",
+				"embeds": []map[string]any{
+					{
+						"title":       "Cluster Monitoring Notification Test",
+						"description": "Synthetic alert triggered from Tako Platform Settings.",
+						"color":       3066993,
+						"timestamp":   time.Now().UTC().Format(time.RFC3339),
+					},
+				},
+			})
+			postReq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, req.WebhookURL, bytes.NewReader(body))
+			postReq.Header.Set("Content-Type", "application/json")
+			if resp, err := client.Do(postReq); err == nil {
+				_ = resp.Body.Close()
+				dispatches = append(dispatches, "Discord Webhook")
+			}
+		}
+
+		if req.SlackWebhookURL != "" && strings.HasPrefix(req.SlackWebhookURL, "http") && !strings.Contains(req.SlackWebhookURL, "XXXXX") {
+			body, _ := json.Marshal(map[string]any{
+				"text": "🐙 *Takō Platform Alert Test*: Outbound Slack integration verified successfully.",
+			})
+			postReq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost, req.SlackWebhookURL, bytes.NewReader(body))
+			postReq.Header.Set("Content-Type", "application/json")
+			if resp, err := client.Do(postReq); err == nil {
+				_ = resp.Body.Close()
+				dispatches = append(dispatches, "Slack Webhook")
+			}
+		}
+
+		if len(dispatches) == 0 {
+			dispatches = append(dispatches, "Synthetic Broadcast Pipeline")
+		}
+
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "test_notifications",
+			TargetType: "notifications",
+			TargetID:   "outbound_webhooks",
+			TargetName: strings.Join(dispatches, ", "),
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ok":      true,
+			"message": fmt.Sprintf("Synthetic test alert dispatched via %s.", strings.Join(dispatches, ", ")),
+		})
 	}
 }

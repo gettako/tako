@@ -1,985 +1,1874 @@
-'use client';
+"use client"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import * as React from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { FieldError } from '@/components/ui/field';
-import { parseApiError } from '@/lib/form-errors';
-import { SearchableSelect, SearchableSelectOption } from '@/components/ui/searchable-select';
-import {
+  ArrowLeft,
+  ArrowRight,
+  Boxes,
+  Check,
+  Cpu,
+  FileCode2,
   GitBranch,
   Globe,
+  HardDrive,
+  Layers,
   Plus,
-  Loader2,
-  Check,
   Server,
-  FolderGit2,
-  Cpu,
-  ArrowRight,
-  ArrowLeft,
-  CheckCircle2,
-  Building2,
-  User,
-  Database,
-} from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+  Trash2,
+} from "lucide-react"
+import { z } from "zod"
+
+import { Button } from "@/components/ui/button"
 import {
-  useProjects,
-  useNodes,
-  useGitProviders,
-  useSyncedRepos,
-  useGitHubAppConfig,
-  useCreateService,
-} from '@/lib/queries';
-import { Service, ServiceType, CreateServiceInput, Node } from '@/lib/types';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
-import { ResourceSliderFields } from './wizard/resource-slider-fields';
-import { NodePlacementPicker } from './wizard/node-placement-picker';
-import { DatabaseSourceFields, DATABASE_PRESETS } from './wizard/database-source-fields';
-import { GitSourceFields } from './wizard/git-source-fields';
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Field, FieldError, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import {
+  SearchableSelect,
+  type SelectOption,
+} from "@/components/ui/searchable-select"
+import { usePlatformData } from "@/context/platform-data-context"
+import { useZodForm } from "@/hooks/use-zod-form"
+import { isHttpUrl } from "@/lib/validation"
+import { ServiceType } from "@/types/platform"
+import { cn } from "@/lib/utils"
 
-export { DATABASE_PRESETS };
+const SAMPLE_DOCKERFILE = `FROM golang:1.23-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o tako-service ./cmd/server
 
-function GitHubIcon({ className }: { className?: string }) {
+FROM alpine:3.20
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /root/
+COPY --from=builder /app/tako-service .
+EXPOSE 8080 50051
+ENTRYPOINT ["./tako-service"]
+`
+
+const SAMPLE_COMPOSE = `services:
+  app:
+    image: ghcr.io/gettako/tako-api:v1.2.0
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "50051:50051"
+    environment:
+      - NODE_ENV=production
+      - GRPC_PORT=50051
+      - DATABASE_URL=postgres://tako:secret@db:5432/takodb
+`
+
+// GitHub mock organizations and users
+interface MockGitHubAccount {
+  username: string
+  name: string
+  type: "org" | "user"
+  avatarText: string
+  repos: {
+    name: string
+    fullName: string
+    description: string
+    language: string
+    defaultBranch: string
+    isPrivate?: boolean
+  }[]
+}
+
+const GITHUB_ACCOUNTS: MockGitHubAccount[] = [
+  {
+    username: "gettako",
+    name: "Tako Platform (Official)",
+    type: "org",
+    avatarText: "TK",
+    repos: [
+      {
+        name: "tako-edge-proxy",
+        fullName: "gettako/tako-edge-proxy",
+        description:
+          "High throughput reverse proxy, TLS termination, and gRPC balancer",
+        language: "Go",
+        defaultBranch: "main",
+      },
+      {
+        name: "agent-collector",
+        fullName: "gettako/agent-collector",
+        description:
+          "Ultra-low latency edge metrics and container telemetry daemon",
+        language: "Rust",
+        defaultBranch: "main",
+      },
+      {
+        name: "api-gateway",
+        fullName: "gettako/api-gateway",
+        description:
+          "High performance edge GraphQL and REST route orchestrator",
+        language: "TypeScript",
+        defaultBranch: "main",
+      },
+      {
+        name: "worker-queue",
+        fullName: "gettako/worker-queue",
+        description:
+          "Distributed background task queue powered by Redis and NATS",
+        language: "Go",
+        defaultBranch: "master",
+      },
+      {
+        name: "tako-dashboard",
+        fullName: "gettako/tako-dashboard",
+        description:
+          "Web management console and real-time observability frontend",
+        language: "TypeScript",
+        defaultBranch: "main",
+      },
+    ],
+  },
+  {
+    username: "octocat",
+    name: "SRE Platform Engineering",
+    type: "user",
+    avatarText: "OC",
+    repos: [
+      {
+        name: "fastapi-service",
+        fullName: "octocat/fastapi-service",
+        description:
+          "Asynchronous Python microservice with UVicorn and Pydantic",
+        language: "Python",
+        defaultBranch: "main",
+      },
+      {
+        name: "edge-cache-service",
+        fullName: "octocat/edge-cache-service",
+        description: "In-memory LRU key-value cache daemon with raft consensus",
+        language: "Go",
+        defaultBranch: "main",
+      },
+      {
+        name: "event-streamer",
+        fullName: "octocat/event-streamer",
+        description: "Real-time Kafka event processor and webhook dispatcher",
+        language: "TypeScript",
+        defaultBranch: "main",
+      },
+    ],
+  },
+  {
+    username: "acme-systems",
+    name: "Acme Infrastructure",
+    type: "org",
+    avatarText: "AC",
+    repos: [
+      {
+        name: "auth-gateway",
+        fullName: "acme-systems/auth-gateway",
+        description: "OAuth2 and OIDC zero-trust mutual authentication gateway",
+        language: "Go",
+        defaultBranch: "main",
+      },
+      {
+        name: "billing-sync",
+        fullName: "acme-systems/billing-sync",
+        description:
+          "Financial transaction settlement engine and invoice generator",
+        language: "TypeScript",
+        defaultBranch: "main",
+      },
+    ],
+  },
+]
+
+// Compose template presets for multi-container deployments
+const COMPOSE_TEMPLATES = [
+  {
+    id: "web-redis",
+    title: "Web App + Redis Cache",
+    description: "Frontend HTTP service paired with an in-memory Redis layer",
+    content: `services:
+  web:
+    image: ghcr.io/gettako/sample-web:v1.0.0
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_URL=redis://cache:6379
+    depends_on:
+      - cache
+
+  cache:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+`,
+  },
+  {
+    id: "api-postgres",
+    title: "REST API + PostgreSQL",
+    description: "Database-backed API service with automated schema migrations",
+    content: `services:
+  api:
+    image: ghcr.io/gettako/sample-api:v2.1.0
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://tako:takosecret@db:5432/production
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=tako
+      - POSTGRES_PASSWORD=takosecret
+      - POSTGRES_DB=production
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+`,
+  },
+  {
+    id: "microservices",
+    title: "Microservices Stack",
+    description: "API gateway, background worker, message broker and cache",
+    content: SAMPLE_COMPOSE,
+  },
+]
+
+const RESTART_POLICY_OPTIONS: SelectOption[] = [
+  {
+    value: "unless-stopped",
+    label: "unless-stopped",
+    description: "Restart automatically unless manually stopped",
+  },
+  {
+    value: "always",
+    label: "always",
+    description: "Always restart container upon exit",
+  },
+  {
+    value: "on-failure",
+    label: "on-failure",
+    description: "Restart only if container exits with non-zero error",
+  },
+]
+
+const portSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+$/, "Port must be a number.")
+  .refine((value) => {
+    const port = Number(value)
+    return port >= 1 && port <= 65535
+  }, "Port must be between 1 and 65535.")
+
+const serviceSchema = z
+  .object({
+    type: z.enum(["dockerfile", "docker-compose"]),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Service name must be at least 2 characters.")
+      .max(63, "Service name must be 63 characters or fewer."),
+    slug: z
+      .string()
+      .trim()
+      .min(1, "Identifier is required.")
+      .max(63, "Identifier must be 63 characters or fewer.")
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        "Use lowercase letters, numbers, and single hyphens only."
+      ),
+    description: z
+      .string()
+      .trim()
+      .max(240, "Description must be 240 characters or fewer."),
+    sourceMode: z.enum(["github", "public_url", "template"]),
+    selectedAccount: z.string().trim().min(1, "Select a GitHub account."),
+    selectedRepo: z.string().trim().min(1, "Select a repository."),
+    gitBranch: z
+      .string()
+      .trim()
+      .min(1, "Branch or ref is required.")
+      .max(255, "Branch or ref must be 255 characters or fewer.")
+      .regex(
+        /^[A-Za-z0-9._/-]+$/,
+        "Use letters, numbers, dots, underscores, hyphens, or slashes."
+      )
+      .refine(
+        (value) =>
+          !value.startsWith("/") &&
+          !value.endsWith("/") &&
+          !value.includes(".."),
+        "Enter a valid branch or tag name."
+      ),
+    publicGitUrl: z.string().trim(),
+    rootDirectory: z
+      .string()
+      .trim()
+      .min(1, "Build path is required.")
+      .refine((value) => value.startsWith("/"), "Path must start with /.")
+      .refine(
+        (value) => !value.includes(".."),
+        "Path cannot contain parent directory segments."
+      ),
+    selectedComposeTemplate: z
+      .string()
+      .trim()
+      .min(1, "Select a compose template."),
+    targetNode: z.string().trim().min(1, "Select a target node."),
+    cpuLimit: z
+      .number()
+      .min(0.1, "CPU limit must be at least 0.1 vCPU.")
+      .max(32, "CPU limit must be 32 vCPU or fewer."),
+    cpuReservation: z
+      .number()
+      .min(0.05, "CPU reservation must be at least 0.05 vCPU."),
+    memoryLimitMb: z
+      .number()
+      .int()
+      .min(64, "Memory limit must be at least 64 MB.")
+      .max(65536, "Memory limit must be 65536 MB or fewer."),
+    memoryReservationMb: z
+      .number()
+      .int()
+      .min(32, "Memory reservation must be at least 32 MB."),
+    hostPort: portSchema,
+    containerPort: portSchema,
+    replicas: z
+      .number()
+      .int()
+      .min(1, "Replicas must be at least 1.")
+      .max(16, "Replicas must be 16 or fewer."),
+    restartPolicy: z.enum(["always", "unless-stopped", "on-failure"]),
+    envVars: z
+      .array(z.object({ key: z.string(), value: z.string() }))
+      .superRefine((variables, context) => {
+        const seen = new Set<string>()
+
+        variables.forEach((variable, index) => {
+          const key = variable.key.trim()
+          if (!key) return
+
+          if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "key"],
+              message: "Use letters, numbers, and underscores only.",
+            })
+          }
+
+          const normalized = key.toUpperCase()
+          if (seen.has(normalized)) {
+            context.addIssue({
+              code: "custom",
+              path: [index, "key"],
+              message: "Duplicate environment variable key.",
+            })
+          }
+          seen.add(normalized)
+        })
+      }),
+  })
+  .superRefine((values, context) => {
+    if (values.sourceMode === "public_url") {
+      if (!values.publicGitUrl) {
+        context.addIssue({
+          code: "custom",
+          path: ["publicGitUrl"],
+          message: "Public repository URL is required.",
+        })
+      } else if (!isHttpUrl(values.publicGitUrl)) {
+        context.addIssue({
+          code: "custom",
+          path: ["publicGitUrl"],
+          message: "Enter a valid HTTP or HTTPS repository URL.",
+        })
+      }
+    }
+
+    if (values.cpuReservation > values.cpuLimit) {
+      context.addIssue({
+        code: "custom",
+        path: ["cpuReservation"],
+        message: "Reservation cannot exceed the CPU limit.",
+      })
+    }
+
+    if (values.memoryReservationMb > values.memoryLimitMb) {
+      context.addIssue({
+        code: "custom",
+        path: ["memoryReservationMb"],
+        message: "Reservation cannot exceed the memory limit.",
+      })
+    }
+  })
+
+interface GitBranchFieldProps {
+  value: string
+  onChange: (value: string) => void
+}
+
+function GitBranchField({ value, onChange }: GitBranchFieldProps) {
   return (
-    <svg
-      role="img"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-    </svg>
-  );
+    <div className="relative">
+      <GitBranch className="absolute top-2.5 left-2.5 size-3.5 text-muted-foreground" />
+      <Input
+        placeholder="main"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="pl-8 font-mono text-xs"
+      />
+    </div>
+  )
 }
 
-export interface CreateServiceDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  projectId?: string;
-  initialServiceType?: ServiceType;
-  onSuccess?: (service: Service) => void;
+interface CreateServiceContentProps {
+  projectId: string
+  initialType: ServiceType
+  onClose: () => void
 }
 
-export function CreateServiceDialog({
-  open,
-  onOpenChange,
-  projectId: initialProjectId,
-  initialServiceType = 'app',
-  onSuccess,
-}: CreateServiceDialogProps) {
-  // Wizard Step: 1 = Service & Source, 2 = Node & Resources
-  const [step, setStep] = useState<1 | 2>(1);
+function CreateServiceContent({
+  projectId,
+  initialType,
+  onClose,
+}: CreateServiceContentProps) {
+  const { addService, addAuditLog, nodes } = usePlatformData()
 
-  // Queries
-  const { data: projects = [] } = useProjects({ enabled: open });
-  const { data: nodes = [] } = useNodes({ enabled: open });
-  const { data: githubApp } = useGitHubAppConfig({ enabled: open });
-  const { data: gitProviders = [] } = useGitProviders({ enabled: open });
-  const { data: syncedRepos = [] } = useSyncedRepos({ enabled: open });
+  // Active Wizard Step: 1 = Source & Repo, 2 = Node & Specs, 3 = Review & Environment
+  const [step, setStep] = React.useState<1 | 2 | 3>(1)
 
-  // Automatically determine project from props or fallback
-  const resolvedProjectId = initialProjectId || projects[0]?.id || '';
-  const currentProject = projects.find((p) => p.id === resolvedProjectId) || projects[0];
+  // Service Core Properties
+  const [type, setType] = React.useState<ServiceType>(initialType)
+  const defaultRepo = GITHUB_ACCOUNTS[0].repos[0]
+  const [name, setName] = React.useState(defaultRepo.name)
+  const [slug, setSlug] = React.useState(defaultRepo.name)
+  const [description, setDescription] = React.useState(defaultRepo.description)
 
-  // Form State - Step 1
-  const [serviceType, setServiceType] = useState<ServiceType>(initialServiceType);
-  const [sourceMode, setSourceMode] = useState<'account' | 'url'>('account');
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
-  const [selectedRepoId, setSelectedRepoId] = useState<string>('');
-  const [customGitUrl, setCustomGitUrl] = useState<string>('');
-  const [branch, setBranch] = useState<string>('main');
+  // Step 1: Source configuration
+  const [sourceMode, setSourceMode] = React.useState<
+    "github" | "public_url" | "template"
+  >("github")
+  const [selectedAccount, setSelectedAccount] = React.useState(
+    GITHUB_ACCOUNTS[0].username
+  )
+  const [selectedRepo, setSelectedRepo] = React.useState(
+    GITHUB_ACCOUNTS[0].repos[0].name
+  )
+  const [gitBranch, setGitBranch] = React.useState("main")
+  const [publicGitUrl, setPublicGitUrl] = React.useState(
+    "https://github.com/gettako/tako-edge-proxy"
+  )
+  const [rootDirectory, setRootDirectory] = React.useState("/")
+  const [selectedComposeTemplate, setSelectedComposeTemplate] = React.useState(
+    COMPOSE_TEMPLATES[0].id
+  )
+  const [composeYaml, setComposeYaml] = React.useState(
+    COMPOSE_TEMPLATES[0].content
+  )
 
-  const [name, setName] = useState<string>('');
-  const [slug, setSlug] = useState<string>('');
-  const [isSlugTouched, setIsSlugTouched] = useState<boolean>(false);
+  // Step 2: Node & Resource Specifications (CPU/RAM)
+  const [targetNode, setTargetNode] = React.useState(
+    nodes[0]?.id || "node-master-sg"
+  )
+  const [cpuLimit, setCpuLimit] = React.useState<number>(1.0)
+  const [cpuReservation, setCpuReservation] = React.useState<number>(0.25)
+  const [memoryLimitMb, setMemoryLimitMb] = React.useState<number>(1024)
+  const [memoryReservationMb, setMemoryReservationMb] =
+    React.useState<number>(256)
+  const [hostPort, setHostPort] = React.useState("8080")
+  const [containerPort, setContainerPort] = React.useState("8080")
+  const [replicas, setReplicas] = React.useState<number>(1)
+  const [restartPolicy, setRestartPolicy] = React.useState<
+    "always" | "unless-stopped" | "on-failure"
+  >("unless-stopped")
 
-  // App specific config
-  const [port, setPort] = useState<string>('3000');
-  const [publishToHost, setPublishToHost] = useState<boolean>(true);
-  const [dockerfilePath, setDockerfilePath] = useState<string>('Dockerfile');
+  // Step 3: Environment variables
+  const [envVars, setEnvVars] = React.useState<
+    { key: string; value: string }[]
+  >([
+    { key: "PORT", value: "8080" },
+    { key: "NODE_ENV", value: "production" },
+  ])
+  const { errors, validate, clearError } = useZodForm(serviceSchema)
 
-  // Compose specific config
-  const [composeFilePath, setComposeFilePath] = useState<string>('docker-compose.yml');
+  // Update repo list when account changes
+  const currentAccount =
+    GITHUB_ACCOUNTS.find((a) => a.username === selectedAccount) ||
+    GITHUB_ACCOUNTS[0]
 
-  // Database specific config
-  const [databaseType, setDatabaseType] = useState<'postgresql' | 'mysql' | 'redis' | 'mongodb'>('postgresql');
-  const [databaseVersion, setDatabaseVersion] = useState<string>('latest');
-
-  // Form State - Step 2 (Node & Allocation)
-  const [selectedNodeId, setSelectedNodeId] = useState<string>('');
-  const [cpuCores, setCpuCores] = useState<number>(1);
-  const [memoryMb, setMemoryMb] = useState<number>(1024);
-
-  // Validation errors
-  const [nameError, setNameError] = useState<string>('');
-  const [slugError, setSlugError] = useState<string>('');
-  const [urlError, setUrlError] = useState<string>('');
-  const [repoError, setRepoError] = useState<string>('');
-  const [nodeError, setNodeError] = useState<string>('');
-
-  // Derived unique accounts/organizations from githubApp, gitProviders, and synced repos
-  const availableAccounts = useMemo(() => {
-    const map = new Map<
-      string,
-      { id: string; name: string; username: string; type: string; avatarUrl?: string; repoCount: number }
-    >();
-
-    // 1. Primary: Seed from all GitHub App installations (Multi-Org source of truth)
-    if (githubApp?.installations && githubApp.installations.length > 0) {
-      githubApp.installations.forEach((inst) => {
-        if (!inst.account?.login) return;
-        const key = inst.account.login.toLowerCase();
-        map.set(key, {
-          id: inst.account.login,
-          name: inst.account.login,
-          username: inst.account.login,
-          type: inst.account.type === 'Organization' ? 'Organization' : 'Personal',
-          avatarUrl: inst.account.avatarUrl,
-          repoCount: 0,
-        });
-      });
-    } else if (githubApp?.owner?.login) {
-      const key = githubApp.owner.login.toLowerCase();
-      map.set(key, {
-        id: githubApp.owner.login,
-        name: githubApp.owner.login,
-        username: githubApp.owner.login,
-        type: githubApp.owner.type === 'Organization' ? 'Organization' : 'Personal',
-        avatarUrl: githubApp.owner.avatarUrl,
-        repoCount: 0,
-      });
+  const handleAccountChange = (newAccount: string) => {
+    setSelectedAccount(newAccount)
+    clearError("selectedAccount")
+    const acc = GITHUB_ACCOUNTS.find((a) => a.username === newAccount)
+    if (acc && acc.repos.length > 0) {
+      const firstRepo = acc.repos[0]
+      setSelectedRepo(firstRepo.name)
+      setGitBranch(firstRepo.defaultBranch)
+      setName(firstRepo.name)
+      setSlug(firstRepo.name)
+      setDescription(firstRepo.description)
     }
+  }
 
-    // 2. Secondary: Seed from gitProviders
-    gitProviders.forEach((p) => {
-      if (!p.username) return;
-      const key = p.username.toLowerCase();
-      if (!map.has(key)) {
-        map.set(key, {
-          id: p.username,
-          name: p.name || p.username,
-          username: p.username,
-          type: 'Personal',
-          avatarUrl: p.avatarUrl,
-          repoCount: 0,
-        });
-      }
-    });
-
-    // 3. Count & discover repos from synced repos
-    syncedRepos.forEach((r) => {
-      const acct = r.account || (r.fullName ? r.fullName.split('/')[0] : '');
-      if (!acct) return;
-      const key = acct.toLowerCase();
-      const existing = map.get(key);
-      const isOrg = r.accountType === 'Organization';
-      if (existing) {
-        existing.repoCount += 1;
-        if (isOrg) existing.type = 'Organization';
-      } else {
-        map.set(key, {
-          id: acct,
-          name: acct,
-          username: acct,
-          type: isOrg ? 'Organization' : 'Personal',
-          repoCount: 1,
-        });
-      }
-    });
-
-    return Array.from(map.values()).sort((a, b) => a.username.localeCompare(b.username));
-  }, [githubApp, gitProviders, syncedRepos]);
-
-  // Initial defaults on open
-  useEffect(() => {
-    if (open) {
-      setServiceType(initialServiceType);
-      if (initialServiceType === 'database') {
-        setName((prev) => (prev && !prev.endsWith('-db') ? prev : 'postgresql-db'));
-        setSlug((prev) => (prev && !prev.endsWith('-db') ? prev : 'postgresql-db'));
-      }
-      if (
-        availableAccounts.length > 0 &&
-        (!selectedAccountId || !availableAccounts.some((a) => a.id.toLowerCase() === selectedAccountId.toLowerCase()))
-      ) {
-        if (availableAccounts.length > 1) {
-          setSelectedAccountId('all');
-        } else {
-          setSelectedAccountId(availableAccounts[0].id);
-        }
-      }
-
-      if (nodes.length > 0 && !selectedNodeId) {
-        // Prefer first online worker node, or fallback to any available node
-        const defaultWorker = nodes.find((n) => n.role === 'worker' && n.status === 'online') || nodes[0];
-        if (defaultWorker) {
-          setSelectedNodeId(defaultWorker.id);
-        }
-      }
-    }
-  }, [open, initialServiceType, availableAccounts, nodes, selectedAccountId, selectedNodeId]);
-
-  // Filter and sort repositories based on selected account (latest activity first)
-  const accountRepos = useMemo(() => {
-    const list = syncedRepos.filter((repo) => {
-      if (!selectedAccountId || selectedAccountId === 'all') return true;
-      const repoAccount = repo.account || (repo.fullName ? repo.fullName.split('/')[0] : '');
-      return (
-        repoAccount.toLowerCase() === selectedAccountId.toLowerCase() ||
-        repo.providerId.toLowerCase() === selectedAccountId.toLowerCase() ||
-        repo.providerId.toLowerCase() === `git-gh-${selectedAccountId.toLowerCase()}`
-      );
-    });
-
-    // Sort by latest activity (updatedAt descending)
-    return list.sort((a, b) => {
-      const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-      const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-      if (timeB !== timeA) return timeB - timeA;
-      return a.fullName.localeCompare(b.fullName);
-    });
-  }, [syncedRepos, selectedAccountId]);
-
-  // Options for Account Select (search automatically enabled if > 5)
-  const accountOptions: SearchableSelectOption[] = useMemo(() => {
-    const opts: SearchableSelectOption[] = [];
-    if (availableAccounts.length > 1) {
-      opts.push({
-        value: 'all',
-        label: 'All Organizations & Accounts',
-        description: `${syncedRepos.length} repositories across all accounts`,
-        icon: Globe,
-      });
-    }
-    availableAccounts.forEach((acc) => {
-      opts.push({
-        value: acc.id,
-        label: acc.username,
-        description: `${acc.repoCount} ${acc.repoCount === 1 ? 'repository' : 'repositories'} synced`,
-        avatarUrl: acc.avatarUrl,
-        icon: acc.type === 'Organization' ? Building2 : User,
-        badge: (
-          <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal text-muted-foreground">
-            {acc.type}
-          </Badge>
-        ),
-      });
-    });
-    return opts;
-  }, [availableAccounts, syncedRepos.length]);
-
-  // Options for Repository Select (sorted by latest activity, search automatically enabled if > 5)
-  const repoOptions: SearchableSelectOption[] = useMemo(() => {
-    return accountRepos.map((repo) => ({
-      value: repo.id,
-      label: repo.fullName,
-      icon: GitHubIcon,
-    }));
-  }, [accountRepos]);
-
-  // Keep selectedRepoId synchronized: if the currently selected repo is not in accountRepos, reset it cleanly
-  useEffect(() => {
-    if (selectedRepoId && !accountRepos.some((r) => r.id === selectedRepoId)) {
-      setSelectedRepoId('');
-    }
-  }, [accountRepos, selectedRepoId]);
-
-  const resetForm = () => {
-    setStep(1);
-    setServiceType(initialServiceType);
-    setSourceMode('account');
-    setSelectedRepoId('');
-    setCustomGitUrl('');
-    setBranch('main');
-    setName(initialServiceType === 'database' ? 'postgresql-db' : '');
-    setSlug(initialServiceType === 'database' ? 'postgresql-db' : '');
-    setIsSlugTouched(false);
-    setPort('3000');
-    setPublishToHost(true);
-    setDockerfilePath('Dockerfile');
-    setComposeFilePath('docker-compose.yml');
-    setDatabaseType('postgresql');
-    setDatabaseVersion('latest');
-    setCpuCores(1);
-    setMemoryMb(1024);
-    setNameError('');
-    setSlugError('');
-    setUrlError('');
-    setRepoError('');
-    setNodeError('');
-  };
-
-  useEffect(() => {
-    if (!open) {
-      resetForm();
-    }
-  }, [open]);
-
-  // Handle repository selection from account
-  const handleRepoChange = (repoId: string | null | undefined) => {
-    if (!repoId || repoId === 'null' || repoId === 'undefined') {
-      setSelectedRepoId('');
-      return;
-    }
-    setSelectedRepoId(repoId);
-    setRepoError('');
-    const repo = syncedRepos.find((r) => r.id === repoId);
+  const handleRepoChange = (newRepoName: string) => {
+    setSelectedRepo(newRepoName)
+    clearError("selectedRepo")
+    const repo = currentAccount.repos.find((r) => r.name === newRepoName)
     if (repo) {
-      if (!name || !isSlugTouched) {
-        setName(repo.name);
-      }
-      if (!isSlugTouched) {
-        setSlug(repo.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
-      }
-      if (repo.defaultBranch) {
-        setBranch(repo.defaultBranch);
-      }
+      setGitBranch(repo.defaultBranch)
+      setName(repo.name)
+      setSlug(repo.name)
+      setDescription(repo.description)
     }
-  };
-
-  // Handle custom URL input
-  const handleCustomUrlChange = (urlVal: string) => {
-    setCustomGitUrl(urlVal);
-    setUrlError('');
-
-    // Try auto-extracting repository name from git URL
-    const cleaned = urlVal.trim().replace(/\.git$/, '');
-    const match = cleaned.match(/[/]([^/]+)$/);
-    if (match && match[1] && !name) {
-      const extractedName = match[1];
-      setName(extractedName);
-      if (!isSlugTouched) {
-        setSlug(extractedName.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
-      }
-    }
-  };
+  }
 
   const handleNameChange = (val: string) => {
-    setName(val);
-    if (nameError) setNameError('');
-    if (!isSlugTouched) {
-      setSlug(val.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-'));
-      if (slugError) setSlugError('');
-    }
-  };
+    setName(val)
+    clearError("name")
+    clearError("slug")
+    setSlug(
+      val
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+    )
+  }
 
-  // Validate Step 1 before proceeding to Step 2
-  const validateStep1 = (): boolean => {
-    let valid = true;
-
-    if (!name.trim()) {
-      setNameError('Service name is required');
-      valid = false;
-    } else if (name.trim().length < 2) {
-      setNameError('Service name must be at least 2 characters');
-      valid = false;
-    } else {
-      setNameError('');
-    }
-
-    if (!slug.trim()) {
-      setSlugError('Service slug is required');
-      valid = false;
-    } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-      setSlugError('Slug can only contain lowercase letters, numbers, and hyphens');
-      valid = false;
-    } else {
-      setSlugError('');
-    }
-
-    if (serviceType === 'database') {
-      if (!databaseVersion.trim()) {
-        setDatabaseVersion('latest');
+  const handlePublicUrlChange = (url: string) => {
+    setPublicGitUrl(url)
+    clearError("publicGitUrl")
+    try {
+      const parsed = url
+        .replace(/\.git$/, "")
+        .split("/")
+        .filter(Boolean)
+      if (parsed.length > 0) {
+        const repoName = parsed[parsed.length - 1]
+        if (!name || name === "new-service") {
+          setName(repoName)
+          setSlug(repoName.toLowerCase())
+        }
       }
-      return valid;
+    } catch {
+      // Ignore URL parsing errors
     }
+  }
 
-    if (sourceMode === 'account') {
-      if (!selectedRepoId) {
-        setRepoError('Please select a repository');
-        valid = false;
-      } else {
-        setRepoError('');
+  const handleAddEnvVar = () => {
+    setEnvVars((prev) => [...prev, { key: "", value: "" }])
+  }
+
+  const handleUpdateEnvVar = (index: number, key: string, value: string) => {
+    setEnvVars((prev) => {
+      const next = [...prev]
+      next[index] = { key, value }
+      return next
+    })
+    clearError(`envVars.${index}.key`)
+  }
+
+  const handleRemoveEnvVar = (index: number) => {
+    setEnvVars((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleTemplateChange = (tmplId: string) => {
+    setSelectedComposeTemplate(tmplId)
+    clearError("selectedComposeTemplate")
+    const tmpl = COMPOSE_TEMPLATES.find((t) => t.id === tmplId)
+    if (tmpl) {
+      setComposeYaml(tmpl.content)
+      if (!name) {
+        setName(tmpl.id)
+        setSlug(tmpl.id)
+        setDescription(tmpl.description)
       }
-    } else {
-      const trimmedUrl = customGitUrl.trim();
-      if (!trimmedUrl) {
-        setUrlError('Git repository URL is required');
-        valid = false;
-      } else if (!/^(https?:\/\/|git@|ssh:\/\/).+/.test(trimmedUrl)) {
-        setUrlError('Please provide a valid Git URL (e.g. https://... or git@...)');
-        valid = false;
-      } else {
-        setUrlError('');
-      }
     }
+  }
 
-    return valid;
-  };
+  const getServiceValues = () => ({
+    type,
+    name,
+    slug,
+    description,
+    sourceMode,
+    selectedAccount,
+    selectedRepo,
+    gitBranch,
+    publicGitUrl,
+    rootDirectory,
+    selectedComposeTemplate,
+    targetNode,
+    cpuLimit,
+    cpuReservation,
+    memoryLimitMb,
+    memoryReservationMb,
+    hostPort,
+    containerPort,
+    replicas,
+    restartPolicy,
+    envVars,
+  })
 
-  const handleNextStep = () => {
-    if (validateStep1()) {
-      setStep(2);
-    }
-  };
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const valid = validate(getServiceValues())
+    if (!valid) return
 
-  const createMutation = useCreateService({
-    onSuccess: (newService) => {
-      toast.success(
-        `${serviceType === 'database' ? 'Database instance' : serviceType === 'compose' ? 'Compose stack' : 'Application'} "${newService.name}" deployed successfully!`
-      );
-      onOpenChange(false);
-      resetForm();
-      if (onSuccess) {
-        onSuccess(newService);
-      }
-    },
-    onError: (err) => {
-      const parsed = parseApiError(err);
-      if (parsed.is422) {
-        let hasStep1Error = false;
-        if (parsed.fieldErrors.name) {
-          setNameError(parsed.fieldErrors.name);
-          hasStep1Error = true;
-        }
-        if (parsed.fieldErrors.slug) {
-          setSlugError(parsed.fieldErrors.slug);
-          hasStep1Error = true;
-        }
-        if (parsed.fieldErrors.repository || parsed.fieldErrors.customGitUrl || parsed.fieldErrors.url) {
-          setUrlError(parsed.fieldErrors.repository || parsed.fieldErrors.customGitUrl || parsed.fieldErrors.url);
-          hasStep1Error = true;
-        }
-        if (parsed.fieldErrors.repoId || parsed.fieldErrors.repositoryId) {
-          setRepoError(parsed.fieldErrors.repoId || parsed.fieldErrors.repositoryId);
-          hasStep1Error = true;
-        }
-        if (parsed.fieldErrors.nodeId || parsed.fieldErrors.node) {
-          setNodeError(parsed.fieldErrors.nodeId || parsed.fieldErrors.node);
-        }
-        if (hasStep1Error) {
-          setStep(1);
-        }
-        toast.error(parsed.message || 'Validation failed. Please check the marked fields.');
-      } else {
-        toast.error(parsed.message || 'Failed to create service');
-      }
-    },
-  });
+    const gitRepoUrl =
+      sourceMode === "github"
+        ? `github.com/${selectedAccount}/${selectedRepo}`
+        : sourceMode === "public_url"
+          ? publicGitUrl.trim()
+          : "embedded-compose-manifest"
 
-  const handleSubmit = (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    const cleanEnvVars = envVars.filter((ev) => ev.key.trim().length > 0)
+    const envVarsRecord: Record<string, string> = {}
+    cleanEnvVars.forEach((ev) => {
+      envVarsRecord[ev.key] = ev.value
+    })
 
-    // STRICT GUARD: If user is on Step 1, ONLY advance to Step 2, NEVER deploy
-    if (step === 1) {
-      handleNextStep();
-      return;
-    }
+    const parsedPorts: number[] = [
+      Number.parseInt(containerPort, 10) || Number.parseInt(hostPort, 10) || 8080,
+    ]
 
-    // On Step 2: Ensure step 1 data is valid
-    if (!validateStep1()) {
-      setStep(1);
-      return;
-    }
-
-    if (!selectedNodeId) {
-      setNodeError('Please select a target cluster node');
-      return;
-    } else {
-      setNodeError('');
-    }
-
-    let repoUrl = customGitUrl.trim();
-    if (sourceMode === 'account') {
-      const foundRepo = syncedRepos.find((r) => r.id === selectedRepoId);
-      repoUrl = foundRepo ? foundRepo.htmlUrl : '';
-    }
-
-    const dbPreset = DATABASE_PRESETS.find((p) => p.type === databaseType);
-    const dbPort = dbPreset ? dbPreset.port : 5432;
-
-    createMutation.mutate({
-      projectId: resolvedProjectId,
+    await addService({
+      projectId,
+      nodeId: targetNode,
       name: name.trim(),
-      slug: slug.trim(),
-      type: serviceType,
-      nodeId: selectedNodeId,
-      repository: serviceType === 'database' ? '' : repoUrl,
-      branch: serviceType === 'database' ? 'main' : (branch.trim() || 'main'),
-      dockerfile: serviceType === 'app' ? dockerfilePath.trim() : undefined,
-      composeFile: serviceType === 'compose' ? composeFilePath.trim() : undefined,
-      databaseType: serviceType === 'database' ? databaseType : undefined,
-      databaseVersion: serviceType === 'database' ? (databaseVersion.trim() || 'latest') : undefined,
-      ports: serviceType === 'database' ? [dbPort] : serviceType === 'app' ? [parseInt(port, 10) || 80] : [80],
-      publishToHost: serviceType === 'database' ? true : (serviceType === 'app' ? publishToHost : false),
+      slug: slug || name.trim().toLowerCase(),
+      type,
+      repository: gitRepoUrl || "",
+      branch: gitBranch || "main",
+      dockerfile: type === "dockerfile" ? SAMPLE_DOCKERFILE : "",
+      image: "",
+      composeFile:
+        type === "docker-compose"
+          ? sourceMode === "template"
+            ? composeYaml
+            : SAMPLE_COMPOSE
+          : "",
+      ports: parsedPorts,
+      domains: [],
+      environmentVars: envVarsRecord,
+      publishToHost: true,
       limits: {
-        cpuCores,
-        memoryMb,
+        cpuCores: Number(cpuLimit) || 1,
+        memoryMb: Number(memoryLimitMb) || 512,
       },
-    });
-  };
+      replicas: 1,
+    })
 
-  const selectedNode = nodes.find((n) => n.id === selectedNodeId);
-  const maxCpu = selectedNode?.cpuTotalCores || 16;
-  const maxMemoryMb = selectedNode?.memoryTotalMb || 32768;
+    // Record audit log entry
+    addAuditLog({
+      action: "service.create",
+      category: "deployment",
+      actor: { name: "Console Operator", type: "user" },
+      target: `${name.trim()} (${type === "dockerfile" ? "Application" : "Compose"})`,
+      details: `Provisioned service on node ${targetNode} with ${cpuLimit} vCPU, ${memoryLimitMb}MB RAM limit`,
+      status: "success",
+    })
 
-  // Clamp resource limits when selected node changes
-  useEffect(() => {
-    if (selectedNode) {
-      setCpuCores((prev) => (prev > selectedNode.cpuTotalCores ? selectedNode.cpuTotalCores : prev));
-      setMemoryMb((prev) => (prev > selectedNode.memoryTotalMb ? selectedNode.memoryTotalMb : prev));
-    }
-  }, [selectedNodeId, selectedNode]);
+    onClose()
+  }
+
+  // Account options for SearchableSelect
+  const accountOptions: SelectOption[] = GITHUB_ACCOUNTS.map((acc) => ({
+    value: acc.username,
+    label: `${acc.username} (${acc.name})`,
+    description: `${acc.repos.length} repositories available`,
+    badge: acc.type === "org" ? "Org" : "User",
+  }))
+
+  // Repo options for SearchableSelect
+  const repoOptions: SelectOption[] = currentAccount.repos.map((repo) => ({
+    value: repo.name,
+    label: repo.name,
+    description: repo.description,
+    badge: repo.language,
+  }))
+
+  const selectedNodeObj = nodes.find((n) => n.id === targetNode) || nodes[0]
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-        {/* Strict No-Icon DialogHeader */}
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold tracking-tight text-foreground font-sans">
-            {serviceType === 'database'
-              ? 'Create Database'
-              : serviceType === 'compose'
-              ? 'Deploy Compose Stack'
-              : 'Create Application'}
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            {serviceType === 'database'
-              ? 'Deploy a dedicated database instance with persistent volume storage to your cluster.'
-              : serviceType === 'compose'
-              ? 'Deploy a multi-container workload defined by a docker-compose specification.'
-              : 'Deploy a single container web application or backend service to your cluster.'}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {/* Modal Top Header with Title and Mode Switcher */}
+      <div className="border-b border-border bg-card/60 px-6 py-5">
+        <div className="flex flex-col gap-3 pr-10 sm:flex-row sm:items-center sm:justify-between sm:pr-12">
+          <div className="flex items-center gap-2.5">
+            <div
+              className={cn(
+                "flex size-9 items-center justify-center rounded border",
+                type === "dockerfile"
+                  ? "border-primary/30 bg-primary/10 text-primary"
+                  : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+              )}
+            >
+              {type === "dockerfile" ? (
+                <FileCode2 className="size-5" />
+              ) : (
+                <Boxes className="size-5" />
+              )}
+            </div>
+            <DialogHeader className="gap-1 p-0">
+              <DialogTitle className="text-base font-semibold text-foreground">
+                {type === "dockerfile"
+                  ? "Deploy New Application"
+                  : "Deploy Docker Compose Stack"}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                {type === "dockerfile"
+                  ? "Containerized workload built via Dockerfile and dispatched through gRPC"
+                  : "Multi-container stack orchestrating microservices, networks, and persistent volumes"}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
-        {/* Wizard Stepper */}
-        <div className="grid grid-cols-2 gap-4 pb-3 border-b border-border">
-          {/* Step 1 */}
+          {/* Type Switcher Pills */}
+          <div className="inline-flex rounded-md border border-border bg-muted/40 p-0.5">
+            <button
+              type="button"
+              onClick={() => setType("dockerfile")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-all",
+                type === "dockerfile"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FileCode2 className="size-3.5" />
+              <span>Application</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setType("docker-compose")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-all",
+                type === "docker-compose"
+                  ? "bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-zinc-950"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Boxes className="size-3.5" />
+              <span>Compose</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Stepper Wizard Indicator */}
+        <div className="mt-4 grid grid-cols-3 gap-2 border-t border-border/60 pt-3">
           <button
             type="button"
             onClick={() => setStep(1)}
-            className="group flex flex-col gap-1.5 text-left cursor-pointer outline-none active:not-aria-[haspopup]:translate-y-px"
+            className={cn(
+              "flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-xs transition-colors",
+              step === 1
+                ? "bg-muted/80 font-semibold text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <div className="flex items-center justify-between text-xs">
-              <span
-                className={cn(
-                  'font-semibold transition-colors flex items-center gap-2',
-                  step === 1 ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
-                )}
-              >
-                <span
-                  className={cn(
-                    'size-5 rounded-full flex items-center justify-center text-[11px] font-bold font-mono transition-colors',
-                    step === 1
-                      ? 'bg-primary text-primary-foreground'
-                      : step > 1
-                      ? 'bg-status-success/20 text-status-success'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  {step > 1 ? <Check className="size-3 stroke-[2.5]" /> : '1'}
-                </span>
-                <span>Service & Source</span>
-              </span>
-              <span
-                className={cn(
-                  'text-[11px] font-mono transition-colors',
-                  step === 1 ? 'text-primary font-medium' : 'text-status-success font-medium'
-                )}
-              >
-                {step === 1 ? 'In progress' : 'Completed'}
-              </span>
-            </div>
-            <div
+            <span
               className={cn(
-                'h-1 rounded-full transition-all duration-200',
-                step === 1 ? 'bg-primary' : 'bg-status-success/70'
+                "flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold",
+                step === 1
+                  ? "bg-primary text-primary-foreground"
+                  : step > 1
+                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                    : "bg-muted text-muted-foreground"
               )}
-            />
+            >
+              {step > 1 ? <Check className="size-3" /> : "1"}
+            </span>
+            <div className="truncate">
+              <div className="truncate">Source & Repository</div>
+            </div>
           </button>
 
-          {/* Step 2 */}
           <button
             type="button"
             onClick={() => {
-              if (validateStep1()) setStep(2);
+              if (name.trim()) setStep(2)
             }}
-            className="group flex flex-col gap-1.5 text-left cursor-pointer outline-none active:not-aria-[haspopup]:translate-y-px"
+            className={cn(
+              "flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-xs transition-colors",
+              step === 2
+                ? "bg-muted/80 font-semibold text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
           >
-            <div className="flex items-center justify-between text-xs">
-              <span
-                className={cn(
-                  'font-semibold transition-colors flex items-center gap-2',
-                  step === 2 ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'
-                )}
-              >
-                <span
-                  className={cn(
-                    'size-5 rounded-full flex items-center justify-center text-[11px] font-bold font-mono transition-colors',
-                    step === 2
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  2
-                </span>
-                <span>Node & Resources</span>
-              </span>
-              <span
-                className={cn(
-                  'text-[11px] font-mono transition-colors',
-                  step === 2 ? 'text-primary font-medium' : 'text-muted-foreground/60'
-                )}
-              >
-                {step === 2 ? 'In progress' : 'Next step'}
-              </span>
-            </div>
-            <div
+            <span
               className={cn(
-                'h-1 rounded-full transition-all duration-200',
-                step === 2 ? 'bg-primary' : 'bg-muted'
+                "flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold",
+                step === 2
+                  ? "bg-primary text-primary-foreground"
+                  : step > 2
+                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                    : "bg-muted text-muted-foreground"
               )}
-            />
+            >
+              {step > 2 ? <Check className="size-3" /> : "2"}
+            </span>
+            <div className="truncate">
+              <div className="truncate">Node & Specs (RAM/CPU)</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (name.trim()) setStep(3)
+            }}
+            className={cn(
+              "flex items-center gap-2 rounded-sm px-2.5 py-1.5 text-left text-xs transition-colors",
+              step === 3
+                ? "bg-muted/80 font-semibold text-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <span
+              className={cn(
+                "flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold",
+                step === 3
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              3
+            </span>
+            <div className="truncate">
+              <div className="truncate">Environment & Review</div>
+            </div>
           </button>
         </div>
+      </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (step === 1) {
-              handleNextStep();
-            } else {
-              handleSubmit(e);
-            }
-          }}
-          className="space-y-5 pt-1"
-        >
-          {/* ================= STEP 1: SERVICE & SOURCE ================= */}
-          {step === 1 && (
-            <div className="space-y-5">
-              {/* Database Engine & Tag OR Git Source Selection */}
-              {serviceType === 'database' ? (
-                <DatabaseSourceFields
-                  databaseType={databaseType}
-                  databaseVersion={databaseVersion}
-                  onSelectDatabaseType={(type) => {
-                    setDatabaseType(type);
-                    if (!isSlugTouched || name.endsWith('-db')) {
-                      setName(`${type}-db`);
-                      setSlug(`${type}-db`);
-                    }
-                  }}
-                  onSelectDatabaseVersion={setDatabaseVersion}
-                />
-              ) : (
-                <GitSourceFields
-                  sourceMode={sourceMode}
-                  onSourceModeChange={setSourceMode}
-                  selectedAccountId={selectedAccountId}
-                  onSelectAccountId={(accId) => {
-                    setSelectedAccountId(accId);
-                    setSelectedRepoId('');
-                    setRepoError('');
-                    if (!isSlugTouched) {
-                      setName('');
-                      setSlug('');
-                    }
-                  }}
-                  accountOptions={accountOptions}
-                  availableAccounts={availableAccounts}
-                  selectedRepoId={selectedRepoId}
-                  onSelectRepoId={handleRepoChange}
-                  repoOptions={repoOptions}
-                  repoError={repoError}
-                  syncedRepos={syncedRepos}
-                  accountRepos={accountRepos}
-                  customGitUrl={customGitUrl}
-                  onCustomGitUrlChange={handleCustomUrlChange}
-                  urlError={urlError}
-                  branch={branch}
-                  onBranchChange={setBranch}
-                />
-              )}
-
-              {/* 3. Service Identity */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Service Name */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="service-name" className="text-xs font-semibold text-foreground">
-                    Service Name <span className="text-status-danger">*</span>
-                  </Label>
-                  <Input
-                    id="service-name"
-                    value={name}
-                    onChange={(e) => handleNameChange(e.target.value)}
-                    placeholder={serviceType === 'compose' ? 'e.g. backend-stack' : 'e.g. web-frontend'}
-                    error={!!nameError}
-                    className="h-9 text-xs sm:text-sm"
-                  />
-                  <FieldError error={nameError} />
-                </div>
-
-                {/* Service Slug */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="service-slug" className="text-xs font-semibold text-foreground">
-                      Slug Identifier <span className="text-status-danger">*</span>
-                    </Label>
-                    <span className="text-[11px] text-muted-foreground font-mono">auto-generated</span>
-                  </div>
-                  <Input
-                    id="service-slug"
-                    value={slug}
-                    onChange={(e) => {
-                      setIsSlugTouched(true);
-                      setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
-                      if (slugError) setSlugError('');
-                    }}
-                    placeholder="e.g. web-frontend"
-                    error={!!slugError}
-                    className="h-9 text-xs sm:text-sm font-mono"
-                  />
-                  <FieldError error={slugError} />
-                </div>
-              </div>
-
-              {/* 4. Type Specific Settings (Flat Grid matching Service Identity) */}
-              {serviceType === 'app' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Internal Container Port */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="app-port" className="text-xs font-semibold text-foreground">
-                      Container Port
-                    </Label>
-                    <Input
-                      id="app-port"
-                      type="number"
-                      value={port}
-                      onChange={(e) => setPort(e.target.value)}
-                      placeholder="3000"
-                      className="h-9 text-xs sm:text-sm font-mono"
-                    />
-                    <div className="flex items-center space-x-2 pt-1">
-                      <input
-                        type="checkbox"
-                        id="publish-to-host"
-                        checked={publishToHost}
-                        onChange={(e) => setPublishToHost(e.target.checked)}
-                        className="h-4 w-4 rounded border-border text-primary accent-primary cursor-pointer"
-                      />
-                      <label htmlFor="publish-to-host" className="text-[11px] font-medium text-foreground cursor-pointer select-none">
-                        Publish to Host IP (port {port || '3000'})
-                      </label>
+      {/* Modal Scrollable Body */}
+      <form
+        id="create-service-form"
+        onSubmit={handleCreate}
+        noValidate
+        className="max-h-[60vh] overflow-y-auto px-6 py-5"
+      >
+        {/* STEP 1: SOURCE & REPOSITORY */}
+        {step === 1 && (
+          <div className="space-y-5">
+            {/* Source Method Selection Tabs */}
+            <div>
+              <FieldLabel className="mb-2 block text-xs font-medium text-foreground">
+                Source Method
+              </FieldLabel>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <button
+                  type="button"
+                  aria-label="Deploy from GitHub Account"
+                  onClick={() => setSourceMode("github")}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md border p-3 text-left transition-all",
+                    sourceMode === "github"
+                      ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                  )}
+                >
+                  <svg
+                    className="size-4 shrink-0 fill-current text-foreground"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                  </svg>
+                  <div>
+                    <div className="text-xs font-semibold text-foreground">
+                      GitHub Account
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Connected organization / user
                     </div>
                   </div>
+                </button>
 
-                  {/* Dockerfile Path */}
-                  <div className="space-y-1.5">
-                    <Label htmlFor="dockerfile-path" className="text-xs font-semibold text-foreground">
-                      Dockerfile Path
-                    </Label>
-                    <Input
-                      id="dockerfile-path"
-                      value={dockerfilePath}
-                      onChange={(e) => setDockerfilePath(e.target.value)}
-                      placeholder="Dockerfile"
-                      className="h-9 text-xs sm:text-sm font-mono"
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Relative path to Dockerfile in repository root.
-                    </p>
+                <button
+                  type="button"
+                  aria-label="Deploy from Public Git URL"
+                  onClick={() => setSourceMode("public_url")}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md border p-3 text-left transition-all",
+                    sourceMode === "public_url"
+                      ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
+                      : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                  )}
+                >
+                  <Globe className="size-4 shrink-0 text-primary" />
+                  <div>
+                    <div className="text-xs font-semibold text-foreground">
+                      Public Git URL
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Direct public git repository
+                    </div>
                   </div>
+                </button>
+
+                {type === "docker-compose" && (
+                  <button
+                    type="button"
+                    aria-label="Deploy from Stack Template"
+                    onClick={() => setSourceMode("template")}
+                    className={cn(
+                      "flex items-center gap-2.5 rounded-md border p-3 text-left transition-all",
+                      sourceMode === "template"
+                        ? "border-emerald-500 bg-emerald-500/5 text-foreground ring-1 ring-emerald-500"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted/40"
+                    )}
+                  >
+                    <Layers className="size-4 shrink-0 text-emerald-500" />
+                    <div>
+                      <div className="text-xs font-semibold text-foreground">
+                        Stack Template
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Preconfigured compose stack
+                      </div>
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Source Option: GitHub Account & Repo */}
+            {sourceMode === "github" && (
+              <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={Boolean(errors.selectedAccount)}>
+                    <FieldLabel className="text-xs">
+                      GitHub Account / Username
+                    </FieldLabel>
+                    <SearchableSelect
+                      value={selectedAccount}
+                      onChange={handleAccountChange}
+                      options={accountOptions}
+                      placeholder="Select GitHub account..."
+                      searchPlaceholder="Search accounts..."
+                    />
+                    <FieldError
+                      id="service-account-error"
+                      className="text-[11px]"
+                    >
+                      {errors.selectedAccount}
+                    </FieldError>
+                  </Field>
+
+                  <Field data-invalid={Boolean(errors.selectedRepo)}>
+                    <FieldLabel className="text-xs">Repository</FieldLabel>
+                    <SearchableSelect
+                      value={selectedRepo}
+                      onChange={handleRepoChange}
+                      options={repoOptions}
+                      placeholder="Select repository..."
+                      searchPlaceholder="Search repository..."
+                    />
+                    <FieldError id="service-repo-error" className="text-[11px]">
+                      {errors.selectedRepo}
+                    </FieldError>
+                  </Field>
                 </div>
-              ) : serviceType === 'compose' ? (
-                <div className="space-y-1.5">
-                  <Label htmlFor="compose-file-path" className="text-xs font-semibold text-foreground">
-                    Compose File Path
-                  </Label>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={Boolean(errors.gitBranch)}>
+                    <FieldLabel className="text-xs">Git Branch</FieldLabel>
+                    <GitBranchField
+                      value={gitBranch}
+                      onChange={(value) => {
+                        setGitBranch(value)
+                        clearError("gitBranch")
+                      }}
+                    />
+                    <FieldError
+                      id="service-branch-error"
+                      className="text-[11px]"
+                    >
+                      {errors.gitBranch}
+                    </FieldError>
+                  </Field>
+
+                  <Field data-invalid={Boolean(errors.rootDirectory)}>
+                    <FieldLabel className="text-xs">
+                      Root Directory / Build Path
+                    </FieldLabel>
+                    <Input
+                      placeholder="/"
+                      value={rootDirectory}
+                      onChange={(e) => {
+                        setRootDirectory(e.target.value)
+                        clearError("rootDirectory")
+                      }}
+                      aria-invalid={Boolean(errors.rootDirectory)}
+                      aria-describedby={
+                        errors.rootDirectory ? "service-root-error" : undefined
+                      }
+                      className="font-mono text-xs"
+                    />
+                    <FieldError id="service-root-error" className="text-[11px]">
+                      {errors.rootDirectory}
+                    </FieldError>
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {/* Source Option: Public Git URL */}
+            {sourceMode === "public_url" && (
+              <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
+                <Field data-invalid={Boolean(errors.publicGitUrl)}>
+                  <FieldLabel className="text-xs">Public GitHub URL</FieldLabel>
+                  <div className="relative">
+                    <Globe className="absolute top-2.5 left-2.5 size-3.5 text-muted-foreground" />
+                    <Input
+                      required
+                      placeholder="https://github.com/owner/repository"
+                      value={publicGitUrl}
+                      onChange={(e) => handlePublicUrlChange(e.target.value)}
+                      aria-invalid={Boolean(errors.publicGitUrl)}
+                      aria-describedby={
+                        errors.publicGitUrl
+                          ? "service-git-url-error"
+                          : undefined
+                      }
+                      className="pl-8 font-mono text-xs"
+                    />
+                  </div>
+                  <FieldError
+                    id="service-git-url-error"
+                    className="text-[11px]"
+                  >
+                    {errors.publicGitUrl}
+                  </FieldError>
+                  <span className="text-[11px] text-muted-foreground">
+                    Enter any publicly accessible Git repository URL.
+                  </span>
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field data-invalid={Boolean(errors.gitBranch)}>
+                    <FieldLabel className="text-xs">
+                      Branch / Tag / Ref
+                    </FieldLabel>
+                    <GitBranchField
+                      value={gitBranch}
+                      onChange={(value) => {
+                        setGitBranch(value)
+                        clearError("gitBranch")
+                      }}
+                    />
+                    <FieldError
+                      id="service-public-branch-error"
+                      className="text-[11px]"
+                    >
+                      {errors.gitBranch}
+                    </FieldError>
+                  </Field>
+
+                  <Field data-invalid={Boolean(errors.rootDirectory)}>
+                    <FieldLabel className="text-xs">
+                      Build Context Subdirectory
+                    </FieldLabel>
+                    <Input
+                      placeholder="/"
+                      value={rootDirectory}
+                      onChange={(e) => {
+                        setRootDirectory(e.target.value)
+                        clearError("rootDirectory")
+                      }}
+                      aria-invalid={Boolean(errors.rootDirectory)}
+                      aria-describedby={
+                        errors.rootDirectory
+                          ? "service-public-root-error"
+                          : undefined
+                      }
+                      className="font-mono text-xs"
+                    />
+                    <FieldError
+                      id="service-public-root-error"
+                      className="text-[11px]"
+                    >
+                      {errors.rootDirectory}
+                    </FieldError>
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {/* Source Option: Compose Template (For Compose mode) */}
+            {sourceMode === "template" && type === "docker-compose" && (
+              <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
+                <div>
+                  <FieldLabel className="mb-2 block text-xs">
+                    Select Compose Stack Template
+                  </FieldLabel>
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                    {COMPOSE_TEMPLATES.map((tmpl) => (
+                      <button
+                        key={tmpl.id}
+                        type="button"
+                        onClick={() => handleTemplateChange(tmpl.id)}
+                        className={cn(
+                          "rounded-sm border p-2.5 text-left transition-all",
+                          selectedComposeTemplate === tmpl.id
+                            ? "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500"
+                            : "border-border bg-card hover:bg-muted/40"
+                        )}
+                      >
+                        <div className="text-xs font-semibold text-foreground">
+                          {tmpl.title}
+                        </div>
+                        <div className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">
+                          {tmpl.description}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <FieldError
+                    id="service-template-error"
+                    className="text-[11px]"
+                  >
+                    {errors.selectedComposeTemplate}
+                  </FieldError>
+                </div>
+              </div>
+            )}
+
+            {/* Service Identity Configuration */}
+            <div className="space-y-4 pt-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field data-invalid={Boolean(errors.name)}>
+                  <FieldLabel className="text-xs">Service Name</FieldLabel>
                   <Input
-                    id="compose-file-path"
-                    value={composeFilePath}
-                    onChange={(e) => setComposeFilePath(e.target.value)}
-                    placeholder="docker-compose.yml"
-                    className="h-9 text-xs sm:text-sm font-mono"
+                    required
+                    placeholder="e.g. auth-gateway"
+                    value={name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    aria-invalid={Boolean(errors.name)}
+                    aria-describedby={
+                      errors.name ? "service-name-error" : undefined
+                    }
+                    className="text-xs font-medium"
                   />
+                  <FieldError id="service-name-error" className="text-[11px]">
+                    {errors.name}
+                  </FieldError>
+                </Field>
+
+                <Field data-invalid={Boolean(errors.slug)}>
+                  <FieldLabel className="text-xs">Identifier / Slug</FieldLabel>
+                  <Input
+                    required
+                    placeholder="auth-gateway"
+                    value={slug}
+                    onChange={(e) => {
+                      setSlug(e.target.value)
+                      clearError("slug")
+                    }}
+                    aria-invalid={Boolean(errors.slug)}
+                    aria-describedby={
+                      errors.slug ? "service-slug-error" : undefined
+                    }
+                    className="font-mono text-xs"
+                  />
+                  <FieldError id="service-slug-error" className="text-[11px]">
+                    {errors.slug}
+                  </FieldError>
+                </Field>
+              </div>
+
+              <Field data-invalid={Boolean(errors.description)}>
+                <FieldLabel className="text-xs">
+                  Description (Optional)
+                </FieldLabel>
+                <Input
+                  placeholder="Brief workload summary for team telemetry..."
+                  value={description}
+                  onChange={(e) => {
+                    setDescription(e.target.value)
+                    clearError("description")
+                  }}
+                  aria-invalid={Boolean(errors.description)}
+                  aria-describedby={
+                    errors.description ? "service-description-error" : undefined
+                  }
+                  className="text-xs"
+                />
+                <FieldError
+                  id="service-description-error"
+                  className="text-[11px]"
+                >
+                  {errors.description}
+                </FieldError>
+              </Field>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: NODE TARGET & HARDWARE SPECIFICATIONS (RAM / CPU) */}
+        {step === 2 && (
+          <div className="space-y-6">
+            {/* Target Node Selection */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <FieldLabel className="text-xs font-medium text-foreground">
+                  Target Edge Node
+                </FieldLabel>
+                <span className="font-mono text-[11px] text-muted-foreground">
+                  {nodes.length} nodes connected
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+                {nodes.map((node) => {
+                  const isSelected = targetNode === node.id
+                  return (
+                    <button
+                      key={node.id}
+                      type="button"
+                      onClick={() => {
+                        setTargetNode(node.id)
+                        clearError("targetNode")
+                      }}
+                      className={cn(
+                        "flex flex-col justify-between rounded-md border p-3.5 text-left transition-all",
+                        isSelected
+                          ? "border-primary bg-primary/5 text-foreground shadow-xs ring-1 ring-primary"
+                          : "border-border bg-card text-muted-foreground hover:border-border/80 hover:bg-muted/40"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Server
+                            className={cn(
+                              "size-3.5",
+                              isSelected
+                                ? "text-primary"
+                                : "text-muted-foreground"
+                            )}
+                          />
+                          <span className="font-mono text-xs font-semibold text-foreground">
+                            {node.name}
+                          </span>
+                        </div>
+                        <span
+                          className={cn(
+                            "rounded-sm px-1.5 py-0.5 font-mono text-[9px] tracking-wider uppercase",
+                            node.role === "master"
+                              ? "border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              : "border border-border bg-zinc-500/10 text-muted-foreground"
+                          )}
+                        >
+                          {node.role}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 text-[11px] text-muted-foreground">
+                        {node.location.name}
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-border/40 pt-2 font-mono text-[10px]">
+                        <span>CPU: {node.cpuPercent}%</span>
+                        <span>RAM: {node.memoryPercent}%</span>
+                        <span className="text-emerald-500">
+                          {node.grpcLatencyMs}ms
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+              <FieldError
+                id="service-target-node-error"
+                className="text-[11px]"
+              >
+                {errors.targetNode}
+              </FieldError>
+            </div>
+
+            {/* Resource Specifications: CPU & RAM */}
+            <div className="space-y-5 rounded-md border border-border bg-muted/20 p-4">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-3">
+                <Cpu className="size-4 text-primary" />
+                <span className="text-xs font-semibold tracking-wider text-foreground uppercase">
+                  Compute & Memory Allocation
+                </span>
+              </div>
+
+              {/* CPU Limit & Reservation */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <FieldLabel className="text-xs">CPU Limit (vCPU)</FieldLabel>
+                  <span className="font-mono text-xs font-semibold text-primary">
+                    {cpuLimit} vCPU ({cpuLimit * 1000}m)
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {[0.25, 0.5, 1.0, 2.0, 4.0, 8.0].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCpuLimit(preset)}
+                      className={cn(
+                        "rounded-sm border px-2.5 py-1 font-mono text-xs transition-colors",
+                        cpuLimit === preset
+                          ? "border-primary bg-primary font-semibold text-primary-foreground"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      {preset} vCPU
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <Field data-invalid={Boolean(errors.cpuLimit)}>
+                    <FieldLabel className="text-[11px] text-muted-foreground">
+                      Custom CPU Limit
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="32"
+                      value={cpuLimit}
+                      onChange={(e) => {
+                        setCpuLimit(Number.parseFloat(e.target.value) || 0.5)
+                        clearError("cpuLimit")
+                        clearError("cpuReservation")
+                      }}
+                      aria-invalid={Boolean(errors.cpuLimit)}
+                      aria-describedby={
+                        errors.cpuLimit ? "service-cpu-limit-error" : undefined
+                      }
+                      className="h-8 font-mono text-xs"
+                    />
+                    <FieldError
+                      id="service-cpu-limit-error"
+                      className="text-[11px]"
+                    >
+                      {errors.cpuLimit}
+                    </FieldError>
+                  </Field>
+
+                  <Field data-invalid={Boolean(errors.cpuReservation)}>
+                    <FieldLabel className="text-[11px] text-muted-foreground">
+                      Guaranteed Reservation
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      step="0.05"
+                      min="0.05"
+                      max={cpuLimit}
+                      value={cpuReservation}
+                      onChange={(e) => {
+                        setCpuReservation(
+                          Number.parseFloat(e.target.value) || 0.1
+                        )
+                        clearError("cpuReservation")
+                      }}
+                      aria-invalid={Boolean(errors.cpuReservation)}
+                      aria-describedby={
+                        errors.cpuReservation
+                          ? "service-cpu-reservation-error"
+                          : undefined
+                      }
+                      className="h-8 font-mono text-xs"
+                    />
+                    <FieldError
+                      id="service-cpu-reservation-error"
+                      className="text-[11px]"
+                    >
+                      {errors.cpuReservation}
+                    </FieldError>
+                  </Field>
+                </div>
+              </div>
+
+              {/* RAM / Memory Limit & Reservation */}
+              <div className="space-y-3 border-t border-border/40 pt-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <HardDrive className="size-3.5 text-emerald-500" />
+                    <FieldLabel className="text-xs">
+                      RAM Limit (Memory)
+                    </FieldLabel>
+                  </div>
+                  <span className="font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    {memoryLimitMb >= 1024
+                      ? `${(memoryLimitMb / 1024).toFixed(1)} GB (${memoryLimitMb} MB)`
+                      : `${memoryLimitMb} MB`}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "256 MB", val: 256 },
+                    { label: "512 MB", val: 512 },
+                    { label: "1 GB", val: 1024 },
+                    { label: "2 GB", val: 2048 },
+                    { label: "4 GB", val: 4096 },
+                    { label: "8 GB", val: 8192 },
+                  ].map((item) => (
+                    <button
+                      key={item.val}
+                      type="button"
+                      onClick={() => setMemoryLimitMb(item.val)}
+                      className={cn(
+                        "rounded-sm border px-2.5 py-1 font-mono text-xs transition-colors",
+                        memoryLimitMb === item.val
+                          ? "border-emerald-500 bg-emerald-500 font-semibold text-zinc-950"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <Field data-invalid={Boolean(errors.memoryLimitMb)}>
+                    <FieldLabel className="text-[11px] text-muted-foreground">
+                      Custom Memory Limit (MB)
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      step="64"
+                      min="64"
+                      max="65536"
+                      value={memoryLimitMb}
+                      onChange={(e) => {
+                        setMemoryLimitMb(
+                          Number.parseInt(e.target.value, 10) || 512
+                        )
+                        clearError("memoryLimitMb")
+                        clearError("memoryReservationMb")
+                      }}
+                      aria-invalid={Boolean(errors.memoryLimitMb)}
+                      aria-describedby={
+                        errors.memoryLimitMb
+                          ? "service-memory-limit-error"
+                          : undefined
+                      }
+                      className="h-8 font-mono text-xs"
+                    />
+                    <FieldError
+                      id="service-memory-limit-error"
+                      className="text-[11px]"
+                    >
+                      {errors.memoryLimitMb}
+                    </FieldError>
+                  </Field>
+
+                  <Field data-invalid={Boolean(errors.memoryReservationMb)}>
+                    <FieldLabel className="text-[11px] text-muted-foreground">
+                      Memory Reservation (MB)
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      step="64"
+                      min="32"
+                      max={memoryLimitMb}
+                      value={memoryReservationMb}
+                      onChange={(e) => {
+                        setMemoryReservationMb(
+                          Number.parseInt(e.target.value, 10) || 128
+                        )
+                        clearError("memoryReservationMb")
+                      }}
+                      aria-invalid={Boolean(errors.memoryReservationMb)}
+                      aria-describedby={
+                        errors.memoryReservationMb
+                          ? "service-memory-reservation-error"
+                          : undefined
+                      }
+                      className="h-8 font-mono text-xs"
+                    />
+                    <FieldError
+                      id="service-memory-reservation-error"
+                      className="text-[11px]"
+                    >
+                      {errors.memoryReservationMb}
+                    </FieldError>
+                  </Field>
+                </div>
+              </div>
+
+              {/* Networking: Ports, Replicas & Restart Policy */}
+              <div className="grid grid-cols-1 gap-4 border-t border-border/40 pt-2 sm:grid-cols-4">
+                <Field data-invalid={Boolean(errors.hostPort)}>
+                  <FieldLabel className="text-xs">Host Port</FieldLabel>
+                  <Input
+                    type="number"
+                    placeholder="8080"
+                    value={hostPort}
+                    onChange={(e) => {
+                      setHostPort(e.target.value)
+                      clearError("hostPort")
+                    }}
+                    aria-invalid={Boolean(errors.hostPort)}
+                    aria-describedby={
+                      errors.hostPort ? "service-host-port-error" : undefined
+                    }
+                    className="h-8 font-mono text-xs"
+                  />
+                  <FieldError
+                    id="service-host-port-error"
+                    className="text-[11px]"
+                  >
+                    {errors.hostPort}
+                  </FieldError>
+                </Field>
+
+                <Field data-invalid={Boolean(errors.containerPort)}>
+                  <FieldLabel className="text-xs">Container Port</FieldLabel>
+                  <Input
+                    type="number"
+                    placeholder="8080"
+                    value={containerPort}
+                    onChange={(e) => {
+                      setContainerPort(e.target.value)
+                      clearError("containerPort")
+                    }}
+                    aria-invalid={Boolean(errors.containerPort)}
+                    aria-describedby={
+                      errors.containerPort
+                        ? "service-container-port-error"
+                        : undefined
+                    }
+                    className="h-8 font-mono text-xs"
+                  />
+                  <FieldError
+                    id="service-container-port-error"
+                    className="text-[11px]"
+                  >
+                    {errors.containerPort}
+                  </FieldError>
+                </Field>
+
+                <Field data-invalid={Boolean(errors.replicas)}>
+                  <FieldLabel className="text-xs">Replicas</FieldLabel>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="16"
+                    value={replicas}
+                    onChange={(e) => {
+                      setReplicas(Number.parseInt(e.target.value, 10) || 1)
+                      clearError("replicas")
+                    }}
+                    aria-invalid={Boolean(errors.replicas)}
+                    aria-describedby={
+                      errors.replicas ? "service-replicas-error" : undefined
+                    }
+                    className="h-8 font-mono text-xs"
+                  />
+                  <FieldError
+                    id="service-replicas-error"
+                    className="text-[11px]"
+                  >
+                    {errors.replicas}
+                  </FieldError>
+                </Field>
+
+                <Field data-invalid={Boolean(errors.restartPolicy)}>
+                  <FieldLabel className="text-xs">Restart Policy</FieldLabel>
+                  <SearchableSelect
+                    value={restartPolicy}
+                    onChange={(val) => {
+                      setRestartPolicy(
+                        val as "always" | "unless-stopped" | "on-failure"
+                      )
+                      clearError("restartPolicy")
+                    }}
+                    aria-label="Restart Policy"
+                    options={RESTART_POLICY_OPTIONS}
+                    placeholder="Select restart policy..."
+                    searchPlaceholder="Search restart policy..."
+                  />
+                  <FieldError
+                    id="service-restart-policy-error"
+                    className="text-[11px]"
+                  >
+                    {errors.restartPolicy}
+                  </FieldError>
+                </Field>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: ENVIRONMENT VARIABLES & REVIEW */}
+        {step === 3 && (
+          <div className="space-y-6">
+            {/* Environment Variables Table */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <FieldLabel className="text-xs font-semibold text-foreground">
+                    Environment Variables
+                  </FieldLabel>
                   <p className="text-[11px] text-muted-foreground">
-                    Relative path to compose specification file (e.g. <code>docker-compose.yml</code> or <code>compose.yaml</code>).
+                    Runtime configuration injected directly into the container
+                    process.
                   </p>
                 </div>
-              ) : (
-                <div className="p-3 rounded-lg border border-border bg-muted/20 text-xs space-y-1.5">
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Persistent Storage:</span>
-                    <span className="font-mono text-foreground font-medium">tako-data-{slug || 'db'}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Default User:</span>
-                    <span className="font-mono text-foreground font-medium">tako</span>
-                  </div>
-                  <div className="flex items-center justify-between text-muted-foreground">
-                    <span>Credentials & Connection URI:</span>
-                    <span className="text-[11px] text-primary font-medium">Auto-generated & encrypted on deployment</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ================= STEP 2: NODE & RESOURCES ================= */}
-          {step === 2 && (
-            <div className="space-y-5">
-              {/* Select Node as Cards */}
-              <NodePlacementPicker
-                nodes={nodes}
-                selectedNodeId={selectedNodeId}
-                onSelectNode={(id) => {
-                  setSelectedNodeId(id);
-                  setNodeError('');
-                }}
-                disabled={createMutation.isPending}
-                nodeError={nodeError}
-              />
-
-              {/* Resource Allocation Quota */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Cpu className="size-3 text-primary" />
-                    Resource Quota & Limits
-                  </span>
-                  {selectedNode && (
-                    <span className="text-[11px] font-mono text-muted-foreground">
-                      Node Capacity: {maxCpu} vCPU • {Math.round(maxMemoryMb / 1024)} GB
-                    </span>
-                  )}
-                </div>
-
-                <ResourceSliderFields
-                  cpuCores={cpuCores}
-                  setCpuCores={setCpuCores}
-                  memoryMb={memoryMb}
-                  setMemoryMb={setMemoryMb}
-                  maxCpu={maxCpu}
-                  maxMemoryMb={maxMemoryMb}
-                  disabled={createMutation.isPending}
-                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddEnvVar}
+                  className="h-7 gap-1 px-2.5 text-xs font-medium"
+                >
+                  <Plus className="size-3" />
+                  <span>Add Variable</span>
+                </Button>
               </div>
 
-              {/* Deployment Confirmation Summary */}
-              <div className="rounded-xl border border-border bg-muted/20 p-3.5 space-y-2 text-xs">
-                <span className="font-semibold text-foreground flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <CheckCircle2 className="size-3 text-status-success" />
-                  Deployment Summary
+              <div className="space-y-2">
+                {envVars.map((ev, index) => {
+                  const keyError = errors[`envVars.${index}.key`]
+                  return (
+                    <div key={index} className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="KEY_NAME"
+                          value={ev.key}
+                          onChange={(e) =>
+                            handleUpdateEnvVar(index, e.target.value, ev.value)
+                          }
+                          aria-invalid={Boolean(keyError)}
+                          aria-describedby={
+                            keyError
+                              ? `service-env-key-${index}-error`
+                              : undefined
+                          }
+                          className="h-8 flex-1 font-mono text-xs uppercase"
+                        />
+                        <span className="font-mono text-xs text-muted-foreground">
+                          =
+                        </span>
+                        <Input
+                          placeholder="Value"
+                          value={ev.value}
+                          onChange={(e) =>
+                            handleUpdateEnvVar(index, ev.key, e.target.value)
+                          }
+                          className="h-8 flex-1 font-mono text-xs"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleRemoveEnvVar(index)}
+                          className="size-8 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="size-3.5" />
+                          <span className="sr-only">Delete variable</span>
+                        </Button>
+                      </div>
+                      <FieldError
+                        id={`service-env-key-${index}-error`}
+                        className="text-[11px]"
+                      >
+                        {keyError}
+                      </FieldError>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Deployment Checklist Review */}
+            <div className="space-y-3 rounded-md border border-border bg-card p-4">
+              <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                <span className="text-xs font-semibold tracking-wider text-foreground uppercase">
+                  Deployment Review Summary
                 </span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 pt-1 text-xs">
-                  <div>
-                    <span className="text-[11px] text-muted-foreground block">Service Name</span>
-                    <span className="font-semibold text-foreground truncate block">{name}</span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-muted-foreground block">Type</span>
-                    <span className="font-mono text-foreground capitalize">{serviceType}</span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-muted-foreground block">Target Node</span>
-                    <span className="font-mono text-foreground truncate block">
-                      {selectedNode?.name || 'Auto'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-muted-foreground block">Project</span>
-                    <span className="font-semibold text-foreground truncate block">
-                      {currentProject?.name || 'Default'}
-                    </span>
-                  </div>
+                <span className="rounded-sm bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
+                  Ready to Dispatch
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Service Name:</span>
+                  <span className="ml-2 font-semibold text-foreground">
+                    {name || "[UNTITLED]"}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground">Workload Type:</span>
+                  <span className="ml-2 font-mono text-foreground uppercase">
+                    {type === "dockerfile"
+                      ? "Application (Dockerfile)"
+                      : "Docker Compose"}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground">Source:</span>
+                  <span className="ml-2 font-mono text-[11px] text-foreground">
+                    {sourceMode === "github"
+                      ? `${selectedAccount}/${selectedRepo} (${gitBranch})`
+                      : sourceMode === "public_url"
+                        ? `${publicGitUrl} (${gitBranch})`
+                        : `Template: ${selectedComposeTemplate}`}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground">Target Node:</span>
+                  <span className="ml-2 font-mono text-foreground">
+                    {selectedNodeObj.name} ({selectedNodeObj.ipAddress})
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground">CPU Allocation:</span>
+                  <span className="ml-2 font-mono text-foreground">
+                    Limit {cpuLimit} vCPU / Res {cpuReservation} vCPU
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground">
+                    Memory Allocation:
+                  </span>
+                  <span className="ml-2 font-mono text-foreground">
+                    Limit {memoryLimitMb} MB / Res {memoryReservationMb} MB
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground">Exposed Port:</span>
+                  <span className="ml-2 font-mono text-foreground">
+                    {hostPort}:{containerPort} (tcp)
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-muted-foreground">Restart Policy:</span>
+                  <span className="ml-2 font-mono text-foreground">
+                    {restartPolicy}
+                  </span>
                 </div>
               </div>
             </div>
+          </div>
+        )}
+      </form>
+
+      {/* Modal Footer Controls */}
+      <DialogFooter className="flex items-center justify-between border-t border-border bg-card/40 px-6 py-3.5 sm:justify-between">
+        <div className="flex items-center gap-2">
+          <DialogClose
+            render={
+              <Button variant="outline" size="sm" className="text-xs">
+                Cancel
+              </Button>
+            }
+          />
+          {step > 1 && (
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setStep((s) => (s - 1) as 1 | 2)}
+              className="gap-1.5 text-xs"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Back</span>
+            </Button>
           )}
+        </div>
 
-          {/* Dialog Footer with Wizard Navigation */}
-          <DialogFooter className="pt-3.5 border-t border-border flex items-center justify-between gap-3">
-            {step === 1 ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  className="text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleNextStep();
-                  }}
-                  className="text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
-                >
-                  <span>Next: Node & Resources</span>
-                  <ArrowRight className="size-3.5" />
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setStep(1)}
-                  disabled={createMutation.isPending}
-                  className="text-sm h-9 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
-                >
-                  <ArrowLeft className="size-3.5" />
-                  <span>Back to Service</span>
-                </Button>
+        <div className="flex items-center gap-2">
+          {step < 3 ? (
+            <Button
+              key="next-step"
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (!validate(getServiceValues())) return
+                setStep((s) => (s + 1) as 2 | 3)
+              }}
+              className="gap-1.5 text-xs"
+            >
+              <span>
+                Next: {step === 1 ? "Node & Specs" : "Environment & Review"}
+              </span>
+              <ArrowRight className="size-3.5" />
+            </Button>
+          ) : (
+            <Button
+              key="deploy-workload"
+              type="submit"
+              form="create-service-form"
+              size="sm"
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <Plus className="size-3.5" />
+              <span>Deploy Workload</span>
+            </Button>
+          )}
+        </div>
+      </DialogFooter>
+    </>
+  )
+}
 
-                <Button
-                  type="submit"
-                  disabled={createMutation.isPending || !selectedNodeId}
-                  className="text-sm h-9 px-4 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer active:not-aria-[haspopup]:translate-y-px gap-1.5"
-                >
-                  {createMutation.isPending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      <span>Deploying Service...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="size-4" />
-                      <span>
-                        Deploy{' '}
-                        {serviceType === 'database'
-                          ? 'Database'
-                          : serviceType === 'compose'
-                          ? 'Compose Stack'
-                          : 'Application'}
-                      </span>
-                    </>
-                  )}
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </form>
+export function CreateServiceDialog({
+  projectId,
+  children,
+  open,
+  onOpenChange,
+  initialType = "dockerfile",
+}: {
+  projectId: string
+  children?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  initialType?: ServiceType
+}) {
+  const [internalOpen, setInternalOpen] = React.useState(false)
+  const isControlled = open !== undefined
+  const isOpen = isControlled ? open : internalOpen
+  const setIsOpen = isControlled ? onOpenChange! : setInternalOpen
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      {children && <DialogTrigger render={children as React.ReactElement} />}
+      {/* Widen modal as explicitly requested (sm:max-w-3xl md:max-w-4xl) */}
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-3xl md:max-w-4xl">
+        {isOpen && (
+          <CreateServiceContent
+            key={`${projectId}-${initialType}`}
+            projectId={projectId}
+            initialType={initialType}
+            onClose={() => setIsOpen(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
-  );
+  )
 }

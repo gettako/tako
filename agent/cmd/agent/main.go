@@ -23,6 +23,20 @@ func getEnv(key, defaultVal string) string {
 	return defaultVal
 }
 
+func metricsInterval() time.Duration {
+	const fallback = 3 * time.Second
+	raw := getEnv("TAKO_METRICS_INTERVAL", "")
+	if raw == "" {
+		return fallback
+	}
+	interval, err := time.ParseDuration(raw)
+	if err != nil || interval <= 0 {
+		log.Printf("[tako-agent] invalid TAKO_METRICS_INTERVAL %q, using %s", raw, fallback)
+		return fallback
+	}
+	return interval
+}
+
 func detectPublicIP() string {
 	endpoints := []string{
 		"https://ifconfig.co",
@@ -107,7 +121,7 @@ func main() {
 	publicIP := flag.String("public-ip", getEnv("TAKO_PUBLIC_IP", ""), "Public IP address (optional)")
 	stateFile := flag.String("state-file", getEnv("TAKO_STATE_FILE", "/tmp/tako-agent.json"), "Path to persist local agent registration state")
 	insecure := flag.Bool("insecure", getEnv("TAKO_INSECURE", "true") == "true", "Use insecure gRPC connection (no TLS)")
-	heartbeatInterval := flag.Duration("interval", 3*time.Second, "Heartbeat interval")
+	heartbeatInterval := flag.Duration("interval", metricsInterval(), "Heartbeat and metrics interval")
 
 	flag.Parse()
 

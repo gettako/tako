@@ -76,6 +76,31 @@ func TestSystemVersionEndpoint(t *testing.T) {
 	}
 }
 
+func TestSystemVersionCheckEndpoint(t *testing.T) {
+	router, _, database := setupSystemTestRouter(t)
+	defer database.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/system/version/check", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp api.SystemVersionResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode version check response: %v", err)
+	}
+
+	if resp.CurrentVersion == "" {
+		t.Errorf("expected non-empty current version")
+	}
+	if resp.CheckedAt == "" {
+		t.Errorf("expected non-empty checkedAt")
+	}
+}
+
 func TestSystemUpdateEndpoint(t *testing.T) {
 	router, orch, database := setupSystemTestRouter(t)
 	defer database.Close()

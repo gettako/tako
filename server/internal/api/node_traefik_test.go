@@ -478,18 +478,18 @@ func TestNodeOffline_ServicesImpact(t *testing.T) {
 	// 1. Create a node
 	nodeID := "node-vps-test"
 	_, err = orch.Queries().CreateNode(ctx, dbStore.CreateNodeParams{
-		ID:             nodeID,
-		Name:           "vps-worker-01",
-		IpAddress:      "10.0.0.99",
-		PublicIp:       "54.12.34.56",
-		Role:           "worker",
-		CpuTotalCores:  4,
-		MemoryTotalMb:  8192,
-		DiskTotalGb:    100,
-		DockerVersion:  "24.0.5",
-		Os:             "Ubuntu 22.04",
-		KernelVersion:  "5.15.0",
-		EnrollToken:    "token-123",
+		ID:            nodeID,
+		Name:          "vps-worker-01",
+		IpAddress:     "10.0.0.99",
+		PublicIp:      "54.12.34.56",
+		Role:          "worker",
+		CpuTotalCores: 4,
+		MemoryTotalMb: 8192,
+		DiskTotalGb:   100,
+		DockerVersion: "24.0.5",
+		Os:            "Ubuntu 22.04",
+		KernelVersion: "5.15.0",
+		EnrollToken:   "token-123",
 	})
 	if err != nil {
 		t.Fatalf("CreateNode failed: %v", err)
@@ -624,13 +624,13 @@ func TestNodeDeletion_WithWorkloadsAndForce(t *testing.T) {
 	// 1. Create node
 	nodeID := "node-del-test"
 	_, err = orch.Queries().CreateNode(ctx, dbStore.CreateNodeParams{
-		ID:             nodeID,
-		Name:           "node-to-delete",
-		IpAddress:      "10.0.0.77",
-		Role:           "worker",
-		CpuTotalCores:  2,
-		MemoryTotalMb:  4096,
-		DiskTotalGb:    50,
+		ID:            nodeID,
+		Name:          "node-to-delete",
+		IpAddress:     "10.0.0.77",
+		Role:          "worker",
+		CpuTotalCores: 2,
+		MemoryTotalMb: 4096,
+		DiskTotalGb:   50,
 	})
 	if err != nil {
 		t.Fatalf("CreateNode failed: %v", err)
@@ -638,9 +638,9 @@ func TestNodeDeletion_WithWorkloadsAndForce(t *testing.T) {
 
 	// 2. Create project & service on this node
 	prj, _ := orch.Queries().CreateProject(ctx, dbStore.CreateProjectParams{
-		ID:          "prj-del-test",
-		Name:        "Prj Del",
-		Slug:        "prj-del",
+		ID:   "prj-del-test",
+		Name: "Prj Del",
+		Slug: "prj-del",
 	})
 	srvID := "srv-del-test"
 	_, _ = orch.Queries().CreateService(ctx, dbStore.CreateServiceParams{
@@ -769,4 +769,3 @@ func TestTraefikAccessLogsAPI(t *testing.T) {
 		}
 	}
 }
-

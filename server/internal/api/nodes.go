@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -23,13 +24,14 @@ type NodeResponse struct {
 	CPUTotalCores int32             `json:"cpuTotalCores"`
 	MemoryTotalMB int64             `json:"memoryTotalMb"`
 	DiskTotalGB   float64           `json:"diskTotalGb"`
-	Usage         ResourceUsageJSON `json:"usage"`
-	ServicesCount int               `json:"servicesCount"`
-	DockerVersion string            `json:"dockerVersion"`
-	OS            string            `json:"os"`
-	KernelVersion string            `json:"kernelVersion,omitempty"`
-	Uptime        string            `json:"uptime"`
-	LastHeartbeat string            `json:"lastHeartbeat,omitempty"`
+	Usage          ResourceUsageJSON `json:"usage"`
+	ServicesCount  int               `json:"servicesCount"`
+	AgentConnected bool              `json:"agentConnected"`
+	DockerVersion  string            `json:"dockerVersion"`
+	OS             string            `json:"os"`
+	KernelVersion  string            `json:"kernelVersion,omitempty"`
+	Uptime         string            `json:"uptime"`
+	LastHeartbeat  string            `json:"lastHeartbeat,omitempty"`
 }
 
 type ResourceUsageJSON struct {
@@ -43,9 +45,13 @@ type ResourceUsageJSON struct {
 }
 
 func mapNodeToResponse(n db.Node) NodeResponse {
+	return mapNodeToResponseEnriched(n, 0, false)
+}
+
+func mapNodeToResponseEnriched(n db.Node, servicesCount int, agentConnected bool) NodeResponse {
 	lastHB := ""
 	if n.LastHeartbeat.Valid {
-		lastHB = n.LastHeartbeat.Time.Format("2006-01-02T15:04:05Z07:00")
+		lastHB = n.LastHeartbeat.Time.UTC().Format("2006-01-02T15:04:05Z07:00")
 	}
 
 	return NodeResponse{
@@ -67,13 +73,26 @@ func mapNodeToResponse(n db.Node) NodeResponse {
 			NetworkRxKBps: n.NetworkRxKbps,
 			NetworkTxKBps: n.NetworkTxKbps,
 		},
-		ServicesCount: 0,
-		DockerVersion: n.DockerVersion,
-		OS:            n.Os,
-		KernelVersion: n.KernelVersion,
-		Uptime:        n.Uptime,
-		LastHeartbeat: lastHB,
+		ServicesCount:  servicesCount,
+		AgentConnected: agentConnected,
+		DockerVersion:  n.DockerVersion,
+		OS:             n.Os,
+		KernelVersion:  n.KernelVersion,
+		Uptime:         n.Uptime,
+		LastHeartbeat:  lastHB,
 	}
+}
+
+func serviceCountsByNode(ctx context.Context, orch *orchestrator.Orchestrator) map[string]int {
+	counts := make(map[string]int)
+	services, err := orch.Queries().ListAllServices(ctx)
+	if err != nil {
+		return counts
+	}
+	for _, s := range services {
+		counts[s.NodeID]++
+	}
+	return counts
 }
 
 func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
@@ -94,9 +113,10 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
+			counts := serviceCountsByNode(r.Context(), orch)
 			items := make([]NodeResponse, 0, len(nodes))
 			for _, n := range nodes {
-				items = append(items, mapNodeToResponse(n))
+				items = append(items, mapNodeToResponseEnriched(n, counts[n.ID], orch.GetAgentSession(n.ID) != nil))
 			}
 
 			RespondJSON(w, http.StatusOK, items)
@@ -115,7 +135,8 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			RespondJSON(w, http.StatusOK, mapNodeToResponse(node))
+			counts := serviceCountsByNode(r.Context(), orch)
+			RespondJSON(w, http.StatusOK, mapNodeToResponseEnriched(node, counts[node.ID], orch.GetAgentSession(node.ID) != nil))
 		})
 
 		// PATCH /api/v1/nodes/{id}
@@ -274,7 +295,8 @@ func handleUpdateNode(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		RespondJSON(w, http.StatusOK, mapNodeToResponse(updatedNode))
+		counts := serviceCountsByNode(r.Context(), orch)
+		RespondJSON(w, http.StatusOK, mapNodeToResponseEnriched(updatedNode, counts[updatedNode.ID], orch.GetAgentSession(updatedNode.ID) != nil))
 	}
 }
 

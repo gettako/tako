@@ -14,14 +14,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
 	"gettako.dev/tako/agent/internal/client"
 	"gettako.dev/tako/agent/internal/deploy"
 	"gettako.dev/tako/agent/internal/docker"
 	"gettako.dev/tako/agent/internal/metrics"
 	"gettako.dev/tako/agent/internal/traefik"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 )
 
 type Config struct {
@@ -139,18 +139,18 @@ func (d *Daemon) EnsureRegistered(ctx context.Context) error {
 	}
 
 	req := &takov1.RegisterNodeRequest{
-		NodeId:         nodeID,
-		Name:           d.cfg.NodeName,
-		IpAddress:      d.cfg.IPAddress,
-		PublicIp:       d.cfg.PublicIP,
-		Role:           d.cfg.Role,
-		CpuTotalCores:  sysInfo.TotalCPUs,
-		MemoryTotalMb:  sysInfo.TotalMemoryMB,
-		DiskTotalGb:    sysInfo.TotalDiskGB,
-		DockerVersion:  dockerVer,
-		Os:             sysInfo.OS,
-		KernelVersion:  sysInfo.KernelVersion,
-		EnrollToken:    d.cfg.EnrollToken,
+		NodeId:        nodeID,
+		Name:          d.cfg.NodeName,
+		IpAddress:     d.cfg.IPAddress,
+		PublicIp:      d.cfg.PublicIP,
+		Role:          d.cfg.Role,
+		CpuTotalCores: sysInfo.TotalCPUs,
+		MemoryTotalMb: sysInfo.TotalMemoryMB,
+		DiskTotalGb:   sysInfo.TotalDiskGB,
+		DockerVersion: dockerVer,
+		Os:            sysInfo.OS,
+		KernelVersion: sysInfo.KernelVersion,
+		EnrollToken:   d.cfg.EnrollToken,
 	}
 
 	log.Printf("[tako-agent] registering node %s with master %s...", nodeID, d.cfg.MasterURL)
@@ -234,15 +234,15 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 	}
 
 	req := &takov1.HeartbeatRequest{
-		NodeId:         nodeID,
-		CpuPercent:     snap.CPUPercent,
-		MemoryUsedMb:   snap.MemoryUsedMB,
-		DiskUsedGb:     snap.DiskUsedGB,
-		NetworkRxKbps:  snap.NetworkRxKBps,
-		NetworkTxKbps:  snap.NetworkTxKBps,
-		UptimeSeconds:  snap.UptimeSeconds,
-		Timestamp:      snap.Timestamp,
-		Containers:     containers,
+		NodeId:        nodeID,
+		CpuPercent:    snap.CPUPercent,
+		MemoryUsedMb:  snap.MemoryUsedMB,
+		DiskUsedGb:    snap.DiskUsedGB,
+		NetworkRxKbps: snap.NetworkRxKBps,
+		NetworkTxKbps: snap.NetworkTxKBps,
+		UptimeSeconds: snap.UptimeSeconds,
+		Timestamp:     snap.Timestamp,
+		Containers:    containers,
 	}
 
 	// Dedicated RPC context with 5s timeout
@@ -605,4 +605,3 @@ func (d *Daemon) PruneDanglingImages(ctx context.Context) {
 			report.SpaceReclaimed, len(report.ImagesDeleted))
 	}
 }
-

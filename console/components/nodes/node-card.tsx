@@ -1,171 +1,218 @@
-'use client';
+"use client"
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Node } from '@/lib/types';
+import * as React from "react"
+import Link from "next/link"
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardAction,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { ResourceBar } from '@/components/ui/resource-bar';
-import { Server, Copy, Check, Boxes, ChevronRight, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
-import { formatMemoryMb } from '@/lib/utils';
+  Check,
+  ChevronRight,
+  Copy,
+  Cpu,
+  HardDrive,
+  Radio,
+  Server,
+  Trash2,
+} from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
+import { ClusterNode } from "@/types/platform"
+import { copyToClipboard } from "@/lib/clipboard"
+import { activeStatusDotClass } from "@/lib/status"
+import { cn } from "@/lib/utils"
 
 interface NodeCardProps {
-  node: Node;
+  node: ClusterNode
+  onDelete?: (id: string) => void
 }
 
-export function NodeCard({ node }: NodeCardProps) {
-  const [copiedIp, setCopiedIp] = useState(false);
+export function NodeCard({ node, onDelete }: NodeCardProps) {
+  const [copied, setCopied] = React.useState(false)
 
-  const handleCopyIp = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    navigator.clipboard.writeText(node.ipAddress);
-    setCopiedIp(true);
-    toast.success(`IP address ${node.ipAddress} copied`);
-    setTimeout(() => setCopiedIp(false), 2000);
-  };
+  const handleCopyIp = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (await copyToClipboard(node.ipAddress)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
 
-  const isOffline = node.status === 'offline';
-  const cpuVal = node.usage?.cpuPercent ?? 0;
-  const memUsed = node.usage?.memoryUsedMb ?? 0;
-  const memLimit = node.memoryTotalMb || node.usage?.memoryLimitMb || 1;
-  const memPct =
-    node.memoryTotalMb > 0
-      ? Math.min(100, Math.round((memUsed / memLimit) * 100))
-      : 0;
-  const diskUsed = node.usage?.diskUsedGb ?? 0;
-  const diskTotal = node.diskTotalGb || node.usage?.diskTotalGb || 1;
-  const diskPct =
-    node.diskTotalGb > 0
-      ? Math.min(100, Math.round((diskUsed / diskTotal) * 100))
-      : 0;
+  const isOnline = node.status === "online"
 
   return (
-    <Link href={`/nodes/${node.id}`} className="block group outline-hidden min-h-[175px] h-full">
-      <Card
-        size="sm"
-        className="relative min-h-[175px] h-full flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
-      >
-        <div className="p-4 pb-3 space-y-3">
-          {/* Canonical CardHeader with CardAction */}
-          <CardHeader className="p-0">
-            <div className="space-y-0.5 min-w-0 pr-2">
-              <div className="flex items-center gap-1.5">
-                <Server className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                <CardTitle className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors truncate">
-                  {node.name}
-                </CardTitle>
-              </div>
-
-              {/* IP Address & Public IP */}
-              <CardDescription className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
-                <span>{node.ipAddress}</span>
-                <button
-                  type="button"
-                  onClick={handleCopyIp}
-                  className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors active:not-aria-[haspopup]:translate-y-px"
-                  title="Copy IP"
-                  aria-label="Copy IP address"
-                >
-                  {copiedIp ? (
-                    <Check className="size-3 text-status-success" />
-                  ) : (
-                    <Copy className="size-3" />
-                  )}
-                </button>
-                {node.publicIp && (
-                  <span className="text-[10px] text-muted-foreground/70 hidden sm:inline">
-                    ({node.publicIp})
-                  </span>
-                )}
-              </CardDescription>
+    <div className="flex flex-col rounded-lg border border-border bg-card p-5 transition-all hover:border-border/80">
+      {/* Top Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded border border-border bg-muted/40">
+            <Server className="size-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/nodes/${node.id}`}
+                className="truncate text-sm font-semibold text-foreground transition-colors hover:text-primary"
+              >
+                {node.name}
+              </Link>
+              <NodeRoleBadge role={node.role} />
             </div>
-
-            <CardAction>
-              <StatusBadge status={node.status} size="sm" />
-            </CardAction>
-          </CardHeader>
-
-          {/* CardContent: 3 Standard Resource Usage Bars */}
-          <CardContent className="p-0">
-            {isOffline ? (
-              <div className="flex items-center gap-2 rounded-lg bg-status-danger/10 border border-status-danger/25 px-2.5 py-1.5 text-xs text-status-danger font-mono">
-                <AlertCircle className="size-3.5 shrink-0" />
-                <span>Host unreachable • Heartbeat signal lost</span>
-              </div>
-            ) : (
-              <div className="grid grid-cols-3 gap-2.5">
-                {/* CPU Utilization Bar */}
-                <div className="space-y-0.5">
-                  <ResourceBar
-                    label="CPU"
-                    value={cpuVal}
-                    unit="%"
-                    size="sm"
-                    showPercentage={false}
-                    className="space-y-1"
-                  />
-                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
-                    {node.cpuTotalCores} cores
-                  </span>
-                </div>
-
-                {/* RAM Allocation Bar */}
-                <div className="space-y-0.5">
-                  <ResourceBar
-                    label="RAM"
-                    value={memPct}
-                    unit="%"
-                    size="sm"
-                    showPercentage={false}
-                    className="space-y-1"
-                  />
-                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
-                    {formatMemoryMb(node.memoryTotalMb || memLimit, 'GiB')}
-                  </span>
-                </div>
-
-                {/* Disk Storage Bar */}
-                <div className="space-y-0.5">
-                  <ResourceBar
-                    label="Disk"
-                    value={diskPct}
-                    unit="%"
-                    size="sm"
-                    showPercentage={false}
-                    className="space-y-1"
-                  />
-                  <span className="text-[10px] font-mono text-muted-foreground/80 block leading-tight">
-                    {Math.round(diskTotal)} GB
-                  </span>
-                </div>
-              </div>
-            )}
-          </CardContent>
+            <p className="truncate font-mono text-[11px] text-muted-foreground">
+              {node.os}
+            </p>
+          </div>
         </div>
 
-        {/* Canonical CardFooter */}
-        <CardFooter className="px-4 py-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
-          <span className="truncate text-[11px] font-normal pr-2">{node.os}</span>
+        {/* Status Chip */}
+        <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-xs">
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              activeStatusDotClass(isOnline)
+            )}
+          />
+          <span className="text-[11px] font-medium text-foreground capitalize">
+            {node.status}
+          </span>
+        </div>
+      </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/80 text-[10px] font-medium text-foreground">
-              <Boxes className="size-3 text-muted-foreground" />
-              {node.servicesCount} {node.servicesCount === 1 ? 'service' : 'services'}
+      {/* Connection & IP */}
+      <div className="mt-4 flex items-center justify-between border-y border-border/70 py-2.5 font-mono text-xs">
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <span>IP:</span>
+          <code className="text-foreground">{node.ipAddress}</code>
+          <Button
+            type="button"
+            size="icon-xs"
+            variant="ghost"
+            onClick={handleCopyIp}
+            className="size-5 text-muted-foreground hover:text-foreground"
+            title="Copy"
+          >
+            {copied ? (
+              <Check className="size-3 text-emerald-500" />
+            ) : (
+              <Copy className="size-3" />
+            )}
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <Radio
+            className={cn(
+              "size-3",
+              node.agentConnected ? "text-emerald-500" : "text-destructive"
+            )}
+          />
+          <span>Agent:</span>
+          <span className="text-foreground">
+            {node.agentConnected ? "connected" : node.lastHeartbeat}
+          </span>
+        </div>
+      </div>
+
+      {/* Metrics Gauges */}
+      <div className="mt-4 space-y-2.5 text-xs">
+        {/* CPU */}
+        <div>
+          <div className="mb-1 flex justify-between font-mono text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Cpu className="size-3" /> CPU ({node.totalCores} cores)
             </span>
-            <ChevronRight className="size-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-transform" />
+            <span className="font-semibold text-foreground">
+              {node.cpuPercent}%
+            </span>
           </div>
-        </CardFooter>
-      </Card>
-    </Link>
-  );
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                node.cpuPercent > 80
+                  ? "bg-destructive"
+                  : node.cpuPercent > 60
+                    ? "bg-amber-500"
+                    : "bg-primary"
+              )}
+              style={{ width: `${node.cpuPercent}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Memory */}
+        <div>
+          <div className="mb-1 flex justify-between font-mono text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <Server className="size-3" /> Memory ({node.totalMemoryGb} GiB)
+            </span>
+            <span className="font-semibold text-foreground">
+              {node.memoryPercent}%
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all",
+                node.memoryPercent > 80
+                  ? "bg-destructive"
+                  : node.memoryPercent > 60
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
+              )}
+              style={{ width: `${node.memoryPercent}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Disk */}
+        <div>
+          <div className="mb-1 flex justify-between font-mono text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <HardDrive className="size-3" /> Disk
+            </span>
+            <span className="font-semibold text-foreground">
+              {node.diskPercent}%
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-muted-foreground/60 transition-all"
+              style={{ width: `${node.diskPercent}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Info */}
+      <div className="mt-5 flex items-center justify-between border-t border-border pt-3 font-mono text-[11px] text-muted-foreground">
+        <div>
+          <span>Docker: </span>
+          <span className="font-medium text-foreground">
+            {node.dockerVersion}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span>{node.servicesCount} services</span>
+          <Link
+            href={`/nodes/${node.id}`}
+            className="inline-flex items-center gap-1 text-primary hover:underline"
+            title="Inspect node telemetry"
+          >
+            <span>View</span>
+            <ChevronRight className="size-3" />
+          </Link>
+          {onDelete && node.role !== "master" && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={() => onDelete(node.id)}
+              className="size-6 text-muted-foreground hover:text-destructive"
+              title="Remove node"
+            >
+              <Trash2 className="size-3" />
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }

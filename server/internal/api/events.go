@@ -28,9 +28,10 @@ func registerEventsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			// Send initial snapshot
 			nodes, err := orch.Queries().ListNodes(r.Context())
 			if err == nil {
+				counts := serviceCountsByNode(r.Context(), orch)
 				items := make([]NodeResponse, 0, len(nodes))
 				for _, n := range nodes {
-					items = append(items, mapNodeToResponse(n))
+					items = append(items, mapNodeToResponseEnriched(n, counts[n.ID], orch.GetAgentSession(n.ID) != nil))
 				}
 				if snapshotData, err := json.Marshal(items); err == nil {
 					_, _ = fmt.Fprintf(w, "event: snapshot\ndata: %s\n\n", snapshotData)
@@ -57,6 +58,46 @@ func registerEventsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 							_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", ev.Type, data)
 							flusher.Flush()
 						}
+					}
+				}
+			}
+		})
+
+		// GET /api/v1/events/services streams service status changes so the
+		// console can refresh affected workloads without polling.
+		r.Get("/services", func(w http.ResponseWriter, r *http.Request) {
+			flusher, ok := w.(http.Flusher)
+			if !ok {
+				http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("X-Accel-Buffering", "no")
+
+			_, _ = fmt.Fprint(w, "event: ready\ndata: {}\n\n")
+			flusher.Flush()
+
+			sub := orch.Bus().Subscribe()
+			defer orch.Bus().Unsubscribe(sub)
+
+			ctx := r.Context()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case ev, ok := <-sub:
+					if !ok {
+						return
+					}
+					if ev.Type != events.EventServiceUpdated {
+						continue
+					}
+					if data, err := json.Marshal(ev.Payload); err == nil {
+						_, _ = fmt.Fprintf(w, "event: services\ndata: %s\n\n", data)
+						flusher.Flush()
 					}
 				}
 			}

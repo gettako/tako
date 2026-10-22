@@ -709,6 +709,22 @@ paths:
                 type: string
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/events/services:
+    get:
+      summary: Service real-time SSE event stream
+      description: Streams service status changes emitted by deployments, autoscaling, and node liveness transitions.
+      operationId: streamServiceEvents
+      tags:
+      - Events
+      responses:
+        '200':
+          description: SSE text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/v1/services:
     get:
       summary: List services
@@ -1254,6 +1270,38 @@ paths:
                 $ref: '#/components/schemas/Service'
         '400':
           $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/health-check/test:
+    post:
+      summary: Test service health check endpoint
+      description: Sends a probe request to verify the service health check path and port.
+      operationId: testServiceHealthCheck
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                  example: /health
+                port:
+                  type: integer
+                  example: 80
+      responses:
+        '200':
+          description: Health check test probe result
         '401':
           $ref: '#/components/responses/UnauthorizedError'
         '404':
@@ -2292,6 +2340,46 @@ paths:
           description: Domain DNS check results
         '401':
           $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/settings/s3/test:
+    post:
+      summary: Test S3 bucket connection
+      description: Verifies connectivity, authentication credentials, and bucket access for remote backups.
+      operationId: testS3Connection
+      tags:
+      - Settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Connection test successful
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/settings/notifications/test:
+    post:
+      summary: Test notification channel
+      description: Dispatches a sample notification payload to Discord, Slack, or webhook endpoints.
+      operationId: testNotificationChannel
+      tags:
+      - Settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Notification dispatched successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
   /api/v1/system/version:
     get:
       summary: Get Tako system version and update status
@@ -2302,6 +2390,18 @@ paths:
       responses:
         '200':
           description: Version information retrieved successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /api/v1/system/version/check:
+    post:
+      summary: Check for Tako system updates
+      description: Fetches the latest GitHub release and compares against running version.
+      operationId: checkSystemVersion
+      tags:
+      - System
+      responses:
+        '200':
+          description: Version check result
         '401':
           $ref: '#/components/responses/UnauthorizedError'
   /api/v1/system/update:

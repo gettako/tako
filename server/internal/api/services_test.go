@@ -1006,4 +1006,34 @@ func TestServiceHealthCheckProbes(t *testing.T) {
 			t.Fatalf("health check probes not persisted properly: %+v", res)
 		}
 	})
+
+	t.Run("Execute Health Check Test Probe via POST", func(t *testing.T) {
+		probePayload := map[string]any{
+			"path": "/healthz",
+			"port": 8080,
+		}
+		data, _ := json.Marshal(probePayload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/services/"+srv.ID+"/health-check/test", bytes.NewReader(data))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK for health-check/test, got %d (body: %s)", rec.Code, rec.Body.String())
+		}
+		var probeRes map[string]any
+		_ = json.NewDecoder(rec.Body).Decode(&probeRes)
+		if probeRes["ok"] != true {
+			t.Errorf("expected ok=true, got %v", probeRes["ok"])
+		}
+
+		// Non-existent service should return 404
+		reqNotFound := httptest.NewRequest(http.MethodPost, "/api/v1/services/non-existent-srv/health-check/test", bytes.NewReader(data))
+		recNotFound := httptest.NewRecorder()
+		router.ServeHTTP(recNotFound, reqNotFound)
+		if recNotFound.Code != http.StatusNotFound {
+			t.Errorf("expected 404 for non-existent service, got %d", recNotFound.Code)
+		}
+	})
 }
+

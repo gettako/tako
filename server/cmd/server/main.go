@@ -39,6 +39,10 @@ func main() {
 		log.Printf("[tako-server] warning: failed to seed default admin: %v", err)
 	}
 
+	if err := store.SeedDefaultNodes(context.Background(), db); err != nil {
+		log.Printf("[tako-server] warning: failed to seed default nodes: %v", err)
+	}
+
 	eventBus := events.NewBus()
 	orch := orchestrator.New(db, eventBus, cfg.AgentSecret)
 

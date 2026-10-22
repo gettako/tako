@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
+	"gettako.dev/tako/agent/internal/docker"
+	"gettako.dev/tako/agent/internal/traefik"
+	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/go-connections/nat"
-	"gettako.dev/tako/agent/internal/docker"
-	"gettako.dev/tako/agent/internal/traefik"
-	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
 type Executor struct {

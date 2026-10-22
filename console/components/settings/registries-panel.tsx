@@ -1,22 +1,20 @@
-'use client';
+"use client"
 
-import React, { useState, useEffect } from 'react';
+import * as React from "react"
 import {
   Boxes,
-  Plus,
-  Trash2,
   ExternalLink,
-  ShieldCheck,
-  Server,
   Lock,
+  Plus,
+  Server,
+  ShieldAlert,
+  Trash2,
   User,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+} from "lucide-react"
+import { z } from "zod"
+
+import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -24,225 +22,171 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { listRegistries, createRegistry, deleteRegistry } from '@/lib/api/registries';
-import { Registry } from '@/lib/types/registry';
+} from "@/components/ui/dialog"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { usePlatformData } from "@/context/platform-data-context"
+import { useZodForm } from "@/hooks/use-zod-form"
+import { isValidHostname } from "@/lib/validation"
+import { DockerRegistryConfig } from "@/types/platform"
+
+const registrySchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Display name must be at least 2 characters.")
+    .max(60, "Display name must be 60 characters or fewer."),
+  serverUrl: z
+    .string()
+    .trim()
+    .min(1, "Server URL is required.")
+    .refine((value) => {
+      const host = value
+        .replace(/^https?:\/\//i, "")
+        .split("/")[0]
+        .split(":")[0]
+      return isValidHostname(host)
+    }, "Enter a valid registry hostname or URL."),
+  username: z.string().trim().min(1, "Username is required."),
+  password: z.string().min(1, "Password or access token is required."),
+})
 
 export function RegistriesPanel() {
-  const [registries, setRegistries] = useState<Registry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { registries, addDockerRegistry, deleteDockerRegistry } = usePlatformData()
 
-  // Dialog state
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dialogError, setDialogError] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [serverUrl, setServerUrl] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [addModalOpen, setAddModalOpen] = React.useState(false)
+  const [name, setName] = React.useState("")
+  const [serverUrl, setServerUrl] = React.useState("")
+  const [username, setUsername] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const { errors, validate, clearError, setErrors } = useZodForm(registrySchema)
 
-  // Delete state
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [registryToDelete, setRegistryToDelete] =
+    React.useState<DockerRegistryConfig | null>(null)
 
-  const fetchRegistries = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await listRegistries();
-      setRegistries(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load registries');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handleOpenAdd = () => {
+    setName("")
+    setServerUrl("")
+    setUsername("")
+    setPassword("")
+    setErrors({})
+    setAddModalOpen(true)
+  }
 
-  useEffect(() => {
-    fetchRegistries();
-  }, []);
+  const applyPreset = (presetName: string, presetUrl: string) => {
+    setName(presetName)
+    setServerUrl(presetUrl)
+    clearError("name")
+    clearError("serverUrl")
+  }
 
-  const handleOpenDialog = () => {
-    setName('');
-    setServerUrl('');
-    setUsername('');
-    setPassword('');
-    setDialogError(null);
-    setIsDialogOpen(true);
-  };
+  const handleCreateRegistry = (e: React.FormEvent) => {
+    e.preventDefault()
+    const valid = validate({ name, serverUrl, username, password })
+    if (!valid) return
 
-  const applyPreset = (presetName: string, url: string) => {
-    setName(presetName);
-    setServerUrl(url);
-  };
-
-  const handleCreateRegistry = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !serverUrl.trim() || !username.trim() || !password.trim()) {
-      setDialogError('All fields are required.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setDialogError(null);
-    try {
-      await createRegistry({
-        name: name.trim(),
-        serverUrl: serverUrl.trim(),
-        username: username.trim(),
-        password: password.trim(),
-      });
-      setIsDialogOpen(false);
-      setSuccess(`Registry "${name}" successfully connected.`);
-      setTimeout(() => setSuccess(null), 4000);
-      await fetchRegistries();
-    } catch (err: unknown) {
-      setDialogError(err instanceof Error ? err.message : 'Failed to connect registry.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDelete = async (id: string, regName: string) => {
-    if (!confirm(`Are you sure you want to delete registry "${regName}"? Services pulling from it may fail to pull new images.`)) {
-      return;
-    }
-    setDeletingId(id);
-    try {
-      await deleteRegistry(id);
-      setRegistries((prev) => prev.filter((r) => r.id !== id));
-      setSuccess(`Registry "${regName}" deleted.`);
-      setTimeout(() => setSuccess(null), 4000);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete registry');
-    } finally {
-      setDeletingId(null);
-    }
-  };
+    addDockerRegistry({
+      name: name.trim(),
+      serverUrl: serverUrl.trim(),
+      username: username.trim(),
+      password: password.trim(),
+    })
+    setAddModalOpen(false)
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header Card */}
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary mt-0.5">
-              <Boxes className="size-5" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-foreground font-sans">
-                Private Image Registries
-              </h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Manage credentials to pull container images from private Docker Hub, GitHub Packages (ghcr.io), AWS ECR, and self-hosted OCI registries.
-              </p>
-            </div>
-          </div>
+      <div className="space-y-5 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+        <SettingsSectionHeader
+          icon={Boxes}
+          title="Private Container Registries"
+          description="Credentials used by remote edge agents when pulling private Dockerfile base layers or compose images."
+          action={
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleOpenAdd}
+              className="gap-1.5 text-xs"
+            >
+              <Plus className="size-3.5" />
+              <span>Connect Registry</span>
+            </Button>
+          }
+        />
 
-          <Button
-            onClick={handleOpenDialog}
-            className="gap-2 shrink-0 bg-primary hover:bg-primary/90 text-primary-foreground"
-          >
-            <Plus className="size-4" />
-            Add Registry
-          </Button>
-        </div>
-
-        {error && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-            <AlertCircle className="size-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="size-4 shrink-0" />
-            <span>{success}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Registries List */}
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Configured Registries ({registries.length})
-          </h3>
-          <span className="text-xs text-muted-foreground flex items-center gap-1">
-            <ShieldCheck className="size-3.5 text-emerald-500" />
-            Passwords securely encrypted
-          </span>
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
-            <Loader2 className="size-5 animate-spin" />
-            <span>Loading registries...</span>
-          </div>
-        ) : registries.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border py-12 px-4 text-center space-y-3">
+        {registries.length === 0 ? (
+          <div className="space-y-3 rounded-lg border border-dashed border-border px-4 py-12 text-center">
             <Boxes className="mx-auto size-10 text-muted-foreground/60" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">No private registries configured</p>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                Connect your private Docker registries to deploy proprietary containers directly without pushing to public hubs.
+              <p className="text-sm font-medium text-foreground">
+                No private registries configured
+              </p>
+              <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+                Connect private container registries (GHCR, Docker Hub, Quay) to
+                deploy proprietary containers directly.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleOpenDialog} className="gap-1.5 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenAdd}
+              className="mt-2 gap-1.5 text-xs"
+            >
               <Plus className="size-3.5" />
-              Connect your first registry
+              <span>Connect your first registry</span>
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {registries.map((reg) => (
               <div
                 key={reg.id}
-                className="flex flex-col justify-between rounded-lg border border-border bg-muted/20 p-4 transition-colors hover:border-border/80"
+                className="flex flex-col justify-between space-y-3 rounded-lg border border-border bg-muted/10 p-4 transition-colors hover:border-border/80"
               >
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-foreground text-sm flex items-center gap-2">
-                      <Server className="size-4 text-primary shrink-0" />
-                      {reg.name}
+                    <span className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                      <Server className="size-3.5 shrink-0 text-primary" />
+                      <span>{reg.name}</span>
                     </span>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDelete(reg.id, reg.name)}
-                      disabled={deletingId === reg.id}
-                      className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => setRegistryToDelete(reg)}
+                      className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                       title="Delete Registry"
                     >
-                      {deletingId === reg.id ? (
-                        <Loader2 className="size-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="size-3.5" />
-                      )}
+                      <Trash2 className="size-3.5" />
                     </Button>
                   </div>
 
-                  <div className="space-y-1 text-xs font-mono text-muted-foreground">
+                  <div className="space-y-1 font-mono text-xs text-muted-foreground">
                     <div className="flex items-center gap-1.5 truncate">
-                      <ExternalLink className="size-3 text-muted-foreground shrink-0" />
+                      <ExternalLink className="size-3 shrink-0 text-muted-foreground" />
                       <span className="text-foreground">{reg.serverUrl}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <User className="size-3 text-muted-foreground shrink-0" />
+                      <User className="size-3 shrink-0 text-muted-foreground" />
                       <span>{reg.username}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Lock className="size-3 text-muted-foreground shrink-0" />
-                      <span className="tracking-widest text-muted-foreground">••••••••</span>
+                      <Lock className="size-3 shrink-0 text-muted-foreground" />
+                      <span className="tracking-widest text-muted-foreground">
+                        ••••••••••••
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>ID: <code className="font-mono text-[11px]">{reg.id}</code></span>
-                  <span>{new Date(reg.createdAt).toLocaleDateString()}</span>
+                <div className="flex items-center justify-between border-t border-border/50 pt-2 font-mono text-[11px] text-muted-foreground">
+                  <span>ID: {reg.id}</span>
+                  <span>{reg.createdAt}</span>
                 </div>
               </div>
             ))}
@@ -250,119 +194,215 @@ export function RegistriesPanel() {
         )}
       </div>
 
-      {/* Add Registry Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* Add Registry Modal */}
+      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Private Image Registry</DialogTitle>
-            <DialogDescription>
-              Enter credentials for pulling images directly from your private container registry.
+            <DialogTitle className="flex items-center gap-2">
+              <Boxes className="size-4 shrink-0 text-primary" />
+              <span>Connect Private Container Registry</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Provide credentials for pulling private images directly during
+              edge node builds.
             </DialogDescription>
           </DialogHeader>
 
           {/* Quick Presets */}
-          <div className="space-y-1.5">
-            <span className="text-xs text-muted-foreground">Quick Presets:</span>
+          <div className="space-y-1.5 text-xs">
+            <span className="block text-[11px] font-medium text-muted-foreground">
+              Quick Presets:
+            </span>
             <div className="flex flex-wrap gap-2">
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5"
-                onClick={() => applyPreset('GitHub Container Registry', 'ghcr.io')}
+                onClick={() =>
+                  applyPreset("GitHub Container Registry", "ghcr.io")
+                }
+                className="rounded border border-border bg-card px-2.5 py-1 text-xs transition-colors hover:border-primary hover:text-primary"
               >
                 ghcr.io (GitHub)
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5"
-                onClick={() => applyPreset('Docker Hub Private', 'docker.io')}
+                onClick={() => applyPreset("Docker Hub Private", "docker.io")}
+                className="rounded border border-border bg-card px-2.5 py-1 text-xs transition-colors hover:border-primary hover:text-primary"
               >
                 docker.io (Docker Hub)
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5"
-                onClick={() => applyPreset('Quay.io', 'quay.io')}
+                onClick={() => applyPreset("Quay.io Registry", "quay.io")}
+                className="rounded border border-border bg-card px-2.5 py-1 text-xs transition-colors hover:border-primary hover:text-primary"
               >
                 quay.io (Red Hat)
-              </Button>
+              </button>
             </div>
           </div>
 
-          <form onSubmit={handleCreateRegistry} className="space-y-4 pt-2">
-            {dialogError && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
-                {dialogError}
-              </div>
-            )}
+          <form
+            onSubmit={handleCreateRegistry}
+            noValidate
+            className="space-y-4 pt-1"
+          >
+            <FieldGroup className="gap-3">
+              <Field data-invalid={Boolean(errors.name)}>
+                <FieldLabel className="text-xs">Display Name</FieldLabel>
+                <Input
+                  placeholder="e.g. GitHub Packages or Docker Hub Private"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    clearError("name")
+                  }}
+                  aria-invalid={Boolean(errors.name)}
+                  aria-describedby={
+                    errors.name ? "registry-name-error" : undefined
+                  }
+                  className="text-xs"
+                />
+                <FieldError id="registry-name-error" className="text-[11px]">
+                  {errors.name}
+                </FieldError>
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-name" className="text-xs">Display Name</Label>
-              <Input
-                id="reg-name"
-                placeholder="e.g. GitHub Packages or Docker Hub"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
+              <Field data-invalid={Boolean(errors.serverUrl)}>
+                <FieldLabel className="text-xs">Server URL</FieldLabel>
+                <Input
+                  placeholder="e.g. ghcr.io or docker.io"
+                  value={serverUrl}
+                  onChange={(e) => {
+                    setServerUrl(e.target.value)
+                    clearError("serverUrl")
+                  }}
+                  aria-invalid={Boolean(errors.serverUrl)}
+                  aria-describedby={
+                    errors.serverUrl ? "registry-url-error" : undefined
+                  }
+                  className="font-mono text-xs"
+                />
+                <FieldError id="registry-url-error" className="text-[11px]">
+                  {errors.serverUrl}
+                </FieldError>
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-url" className="text-xs">Server URL</Label>
-              <Input
-                id="reg-url"
-                placeholder="e.g. ghcr.io or index.docker.io/v1/"
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                required
-              />
-            </div>
+              <Field data-invalid={Boolean(errors.username)}>
+                <FieldLabel className="text-xs">
+                  Username / Access Key
+                </FieldLabel>
+                <Input
+                  placeholder="e.g. octocat or deployer"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value)
+                    clearError("username")
+                  }}
+                  aria-invalid={Boolean(errors.username)}
+                  aria-describedby={
+                    errors.username ? "registry-username-error" : undefined
+                  }
+                  className="font-mono text-xs"
+                />
+                <FieldError
+                  id="registry-username-error"
+                  className="text-[11px]"
+                >
+                  {errors.username}
+                </FieldError>
+              </Field>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-user" className="text-xs">Username / Access Key</Label>
-              <Input
-                id="reg-user"
-                placeholder="e.g. octocat"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
-            </div>
+              <Field data-invalid={Boolean(errors.password)}>
+                <FieldLabel className="text-xs">
+                  Password / Personal Access Token
+                </FieldLabel>
+                <Input
+                  type="password"
+                  placeholder="••••••••••••••••"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value)
+                    clearError("password")
+                  }}
+                  aria-invalid={Boolean(errors.password)}
+                  aria-describedby={
+                    errors.password ? "registry-password-error" : undefined
+                  }
+                  className="font-mono text-xs"
+                />
+                <FieldError
+                  id="registry-password-error"
+                  className="text-[11px]"
+                >
+                  {errors.password}
+                </FieldError>
+              </Field>
+            </FieldGroup>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="reg-pass" className="text-xs">Password / Personal Access Token</Label>
-              <Input
-                id="reg-pass"
-                type="password"
-                placeholder="••••••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-
-            <DialogFooter className="pt-2">
+            <DialogFooter className="gap-2 pt-2 sm:gap-2.5">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                disabled={isSubmitting}
+                size="sm"
+                onClick={() => setAddModalOpen(false)}
+                className="text-xs"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting} className="gap-2">
-                {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
-                Connect Registry
+              <Button type="submit" size="sm" className="gap-1.5 text-xs">
+                <Boxes className="size-3.5" />
+                <span>Connect Registry</span>
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Registry Confirmation Dialog */}
+      <Dialog
+        open={!!registryToDelete}
+        onOpenChange={(open) => !open && setRegistryToDelete(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="size-4 shrink-0" />
+              <span>Delete Container Registry</span>
+            </DialogTitle>
+            <DialogDescription className="pt-1 text-xs leading-relaxed">
+              Are you sure you want to remove &ldquo;{registryToDelete?.name}
+              &rdquo;? Worker daemons will no longer be able to pull images
+              using these credentials.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 pt-2 sm:gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRegistryToDelete(null)}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                if (registryToDelete) {
+                  deleteDockerRegistry(registryToDelete.id)
+                  setRegistryToDelete(null)
+                }
+              }}
+              className="gap-1.5 text-xs"
+            >
+              <Trash2 className="size-3.5" />
+              <span>Confirm Delete</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  );
+  )
 }

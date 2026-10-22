@@ -1,0 +1,28 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.*
+
+# Build output
+.next
+out
+
+# Local data and tooling
+data
+ref
+state-*
+.git
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+
+# Backend sources are not needed to build the console image
+server
+agent
+api
+deploy
+docs
+old
+
+# Environment files (injected at runtime by Compose)
+.env*

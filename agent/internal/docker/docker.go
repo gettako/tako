@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
+	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
-	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 )
 
 type containerMetricSample struct {

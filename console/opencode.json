@@ -1,0 +1,75 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "sumopod/deepseek-v4.1-flash:netra",
+  "providers": {
+    "sumopod": {
+      "name": "Sumopod",
+      "env": ["SUMOPOD_API_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://ai.sumopod.com/v1"
+      },
+      "models": {
+        "deepseek-v4.1-flash:netra": {
+          "name": "DeepSeek V4.1 Flash (Netra)",
+          "limit": {
+            "context": 1000000,
+            "output": 64000
+          }
+        },
+        "deepseek-v4-flash-0731:netra": {
+          "name": "DeepSeek V4-Flash-0731 (Netra)",
+          "limit": {
+            "context": 1000000,
+            "output": 64000
+          }
+        }
+      }
+    },
+    "openscale": {
+      "name": "OpenScale",
+      "env": ["OPENSCALE_API_KEY"],
+      "package": "@opencode/ai/providers/openai-compatible",
+      "settings": {
+        "baseURL": "https://api.openscale.so/v1",
+        "apiKey": "YOUR_OPENSCALE_API_KEY"
+      },
+      "models": {
+        "deepseek/deepseek-v4.1-flash": {
+          "name": "DeepSeek V4.1 Flash",
+          "capabilities": {
+            "tools": true,
+            "input": ["text", "image"],
+            "reasoning": {
+              "supported": true
+            }
+          },
+          "compatibility": {
+            "reasoningField": "reasoning_content"
+          },
+          "limit": {
+            "context": 1048568,
+            "output": 384000
+          }
+        },
+        "z-ai/glm-5.3-flash": {
+          "name": "GLM-5.3 Flash",
+          "capabilities": {
+            "tools": true,
+            "input": ["text", "image"],
+            "reasoning": {
+              "supported": true
+            }
+          },
+          "compatibility": {
+            "reasoningField": "reasoning_content"
+          },
+          "limit": {
+            "context": 1048576,
+            "output": 131072
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,30 +1,22 @@
-'use client';
+"use client"
 
-import React, { useState } from 'react';
+import * as React from "react"
 import {
-  useBackupSchedule,
-  useUpdateBackupSchedule,
-  useTriggerManualBackup,
-  useBackupSnapshots,
-  useRestoreBackupSnapshot,
-  useS3Buckets,
-} from '@/lib/queries';
-import { ClusterBackupSnapshot } from '@/lib/types';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { SearchableSelect } from '@/components/ui/searchable-select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  AlertTriangle,
+  Archive,
+  Check,
+  CheckCircle2,
+  Copy,
+  FileArchive,
+  Loader2,
+  RotateCcw,
+  RotateCw,
+  Save,
+} from "lucide-react"
+import { z } from "zod"
+
+import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -32,372 +24,559 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog"
 import {
-  Database,
-  CheckCircle2,
-  Play,
-  Save,
-  Loader2,
-  Clock,
-  RotateCcw,
-  Archive,
-  AlertTriangle,
-  FileText,
-} from 'lucide-react';
-import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
-import { toast } from 'sonner';
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import {
+  SearchableSelect,
+  SelectOption,
+} from "@/components/ui/searchable-select"
+import { usePlatformData } from "@/context/platform-data-context"
+import { useZodForm } from "@/hooks/use-zod-form"
+import { copyToClipboard } from "@/lib/clipboard"
+import { isValidTime } from "@/lib/validation"
+import { ClusterSnapshot, S3BucketConfig } from "@/types/platform"
+
+const backupScheduleSchema = z
+  .object({
+    enabled: z.boolean(),
+    frequency: z.enum(["hourly", "daily", "weekly"]),
+    timeUtc: z.string().trim(),
+    retentionDays: z.string().trim(),
+    bucketId: z.string().trim(),
+  })
+  .superRefine((values, context) => {
+    if (!values.enabled) return
+
+    if (values.frequency !== "hourly" && !isValidTime(values.timeUtc)) {
+      context.addIssue({
+        code: "custom",
+        path: ["timeUtc"],
+        message: "Use a valid 24-hour time in HH:MM format.",
+      })
+    }
+
+    if (!/^\d+$/.test(values.retentionDays)) {
+      context.addIssue({
+        code: "custom",
+        path: ["retentionDays"],
+        message: "Retention must be a number.",
+      })
+    } else {
+      const retention = Number(values.retentionDays)
+      if (retention < 1 || retention > 3650) {
+        context.addIssue({
+          code: "custom",
+          path: ["retentionDays"],
+          message: "Retention must be between 1 and 3650 days.",
+        })
+      }
+    }
+
+    if (!values.bucketId) {
+      context.addIssue({
+        code: "custom",
+        path: ["bucketId"],
+        message: "Select a destination storage bucket.",
+      })
+    }
+  })
+
+const EMPTY_BUCKETS: S3BucketConfig[] = []
+
+const FREQUENCY_OPTIONS: SelectOption[] = [
+  {
+    value: "hourly",
+    label: "Hourly Rolling",
+    description: "Automatic snapshot taken every 60 minutes",
+  },
+  {
+    value: "daily",
+    label: "Daily at Scheduled Time",
+    description: "Standard daily cluster backup at scheduled UTC time",
+  },
+  {
+    value: "weekly",
+    label: "Weekly (Sundays)",
+    description: "Full Raft consensus & service state snapshot weekly",
+  },
+]
 
 export function BackupsPanel() {
-  const [isTriggering, setIsTriggering] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
-  const [selectedSnapshot, setSelectedSnapshot] = useState<ClusterBackupSnapshot | null>(null);
-  const [confirmText, setConfirmText] = useState('');
-  const [isRestoring, setIsRestoring] = useState(false);
+  const {
+    settings,
+    snapshots,
+    createSnapshot,
+    restoreSnapshot,
+    updateBackupSchedule,
+  } = usePlatformData()
 
-  const { data: schedule } = useBackupSchedule();
-  const { data: snapshots = [], isLoading: loadingSnapshots } = useBackupSnapshots();
-  const { data: buckets = [] } = useS3Buckets();
+  const s3Buckets = settings.s3Buckets ?? EMPTY_BUCKETS
+  const currentSchedule = settings.backupSchedule || {
+    enabled: true,
+    frequency: "daily",
+    timeUtc: "03:00",
+    retentionDays: 14,
+    destinationBucketId: s3Buckets[0]?.id || "bkt-r2-artifacts",
+  }
 
-  const updateScheduleMutation = useUpdateBackupSchedule();
-  const triggerBackupMutation = useTriggerManualBackup();
-  const restoreSnapshotMutation = useRestoreBackupSnapshot();
+  const bucketOptions: SelectOption[] = React.useMemo(() => {
+    return s3Buckets.map((b) => ({
+      value: b.id,
+      label: `${b.name} (${b.bucket})`,
+      description: `Region: ${b.region} • Endpoint: ${b.endpoint}`,
+      badge: b.isDefault ? "DEFAULT" : undefined,
+    }))
+  }, [s3Buckets])
 
-  const [enabled, setEnabled] = useState(schedule?.enabled ?? true);
-  const [frequency, setFrequency] = useState<'daily' | 'weekly'>(schedule?.frequency ?? 'daily');
-  const [timeUtc, setTimeUtc] = useState(schedule?.timeUtc ?? '03:00');
-  const [retentionDays, setRetentionDays] = useState(schedule?.retentionDays ?? 30);
-  const [bucketId, setBucketId] = useState(schedule?.destinationBucketId ?? (buckets[0]?.id || ''));
+  // Schedule Form State
+  const [enabled, setEnabled] = React.useState(currentSchedule.enabled)
+  const [frequency, setFrequency] = React.useState<
+    "hourly" | "daily" | "weekly"
+  >(currentSchedule.frequency)
+  const [timeUtc, setTimeUtc] = React.useState(currentSchedule.timeUtc)
+  const [retentionDays, setRetentionDays] = React.useState(
+    String(currentSchedule.retentionDays)
+  )
+  const [bucketId, setBucketId] = React.useState(
+    currentSchedule.destinationBucketId
+  )
+  const { errors, validate, clearError } = useZodForm(backupScheduleSchema)
+  const [scheduleSaved, setScheduleSaved] = React.useState(false)
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Manual Backup State
+  const [isCreatingSnapshot, setIsCreatingSnapshot] = React.useState(false)
+  const [snapshotSuccess, setSnapshotSuccess] = React.useState(false)
+
+  // Restore Modal State
+  const [restoreModalOpen, setRestoreModalOpen] = React.useState(false)
+  const [selectedSnapshot, setSelectedSnapshot] =
+    React.useState<ClusterSnapshot | null>(null)
+  const [confirmText, setConfirmText] = React.useState("")
+  const [isRestoring, setIsRestoring] = React.useState(false)
+  const [copiedChecksum, setCopiedChecksum] = React.useState<string | null>(
+    null
+  )
+
+  const handleSaveSchedule = (e: React.FormEvent) => {
+    e.preventDefault()
+    const valid = validate({
+      enabled,
+      frequency,
+      timeUtc,
+      retentionDays,
+      bucketId,
+    })
+    if (!valid) return
+
+    updateBackupSchedule({
+      enabled,
+      frequency,
+      timeUtc,
+      retentionDays: Number(retentionDays),
+      destinationBucketId: bucketId,
+    })
+    setScheduleSaved(true)
+    setTimeout(() => setScheduleSaved(false), 2000)
+  }
+
+  const handleTriggerManualBackup = async () => {
+    setIsCreatingSnapshot(true)
     try {
-      setIsSaving(true);
-      await updateScheduleMutation.mutateAsync({
-        enabled,
-        frequency,
-        timeUtc,
-        retentionDays,
-        destinationBucketId: bucketId,
-      });
+      await createSnapshot()
+      setSnapshotSuccess(true)
+      setTimeout(() => setSnapshotSuccess(false), 2500)
     } finally {
-      setIsSaving(false);
+      setIsCreatingSnapshot(false)
     }
-  };
+  }
 
-  const handleBackupNow = async () => {
-    try {
-      setIsTriggering(true);
-      await triggerBackupMutation.mutateAsync();
-    } finally {
-      setIsTriggering(false);
-    }
-  };
-
-  const handleOpenRestore = (snapshot: ClusterBackupSnapshot) => {
-    setSelectedSnapshot(snapshot);
-    setConfirmText('');
-    setRestoreModalOpen(true);
-  };
+  const handleOpenRestore = (snap: ClusterSnapshot) => {
+    setSelectedSnapshot(snap)
+    setConfirmText("")
+    setRestoreModalOpen(true)
+  }
 
   const handleConfirmRestore = async () => {
-    if (!selectedSnapshot) return;
+    if (!selectedSnapshot) return
+    setIsRestoring(true)
     try {
-      setIsRestoring(true);
-      await restoreSnapshotMutation.mutateAsync(selectedSnapshot.id);
-      setRestoreModalOpen(false);
+      await restoreSnapshot(selectedSnapshot.id)
+      setRestoreModalOpen(false)
     } finally {
-      setIsRestoring(false);
+      setIsRestoring(false)
     }
-  };
+  }
+
+  const handleCopyChecksum = async (id: string, checksum: string) => {
+    if (await copyToClipboard(checksum)) {
+      setCopiedChecksum(id)
+      setTimeout(() => setCopiedChecksum(null), 2000)
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* 1. Automated Schedule & Snapshot Generator */}
-      <Card className="border-border bg-card p-6">
-        <CardHeader className="px-0 pt-0 pb-4">
-          <SettingsSectionHeader
-            icon={Database}
-            title="Tako Control Plane Backups"
-            description="Automate scheduled cryptographic dumps of the internal Tako cluster state, service configs, and encrypted secrets."
-            action={
-              <Button
-                type="button"
-                size="default"
-                onClick={handleBackupNow}
-                disabled={isTriggering}
-                className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
-              >
-                {isTriggering ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <Play className="size-3.5" />
-                )}
-                Backup Now
-              </Button>
-            }
-          />
-        </CardHeader>
-
-        <form onSubmit={handleSave}>
-          <CardContent className="px-0 space-y-5 pt-2 pb-6">
-            {/* Last Backup Status */}
-            {schedule?.lastBackupAt && (
-              <div className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-muted/20 text-sm">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="size-4 text-status-success shrink-0" />
-                  <span className="font-medium text-foreground">Last Successful Snapshot</span>
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground font-mono text-sm">
-                  <span>{new Date(schedule.lastBackupAt).toLocaleString()}</span>
-                  <Badge variant="outline" className="bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs">
-                    200 OK
-                  </Badge>
-                </div>
-              </div>
-            )}
-
-            {/* Schedule Toggle */}
-            <div className="flex items-center justify-between pt-2">
-              <div className="space-y-0.5">
-                <Label htmlFor="snapshot-toggle" className="text-xs font-medium text-foreground cursor-pointer">
-                  Automated Snapshot Schedule
-                </Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Automatically take cluster state snapshots on recurring intervals.
-                </p>
-              </div>
-              <Switch id="snapshot-toggle" checked={enabled} onCheckedChange={setEnabled} />
-            </div>
-
-            {enabled && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border">
-                {/* Frequency */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-foreground">Frequency</Label>
-                  <SearchableSelect
-                    value={frequency}
-                    onValueChange={(val) => setFrequency(val as 'daily' | 'weekly')}
-                    options={[
-                      { value: 'daily', label: 'Daily (Every 24 hours)' },
-                      { value: 'weekly', label: 'Weekly (Every 7 days)' },
-                    ]}
-                    placeholder="Select frequency"
-                    searchPlaceholder="Search frequency..."
-                  />
-                </div>
-
-                {/* Time UTC */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                    <Clock className="size-3.5 text-muted-foreground" />
-                    Time (UTC)
-                  </Label>
-                  <Input
-                    type="time"
-                    value={timeUtc}
-                    onChange={(e) => setTimeUtc(e.target.value)}
-                    className="h-9 font-mono text-sm"
-                  />
-                </div>
-
-                {/* Retention */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-foreground">Retention (Days)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="365"
-                    value={retentionDays}
-                    onChange={(e) => setRetentionDays(Number(e.target.value))}
-                    className="h-9 font-mono text-sm"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Destination Bucket */}
-            <div className="space-y-1.5 pt-4 border-t border-border">
-              <Label className="text-xs font-medium text-foreground">Destination Storage Bucket</Label>
-              <div className="w-full">
-                <SearchableSelect
-                  value={bucketId}
-                  onValueChange={setBucketId}
-                  options={buckets.map((b) => ({
-                    value: b.id,
-                    label: `${b.name} (${b.bucket})`,
-                    description: `Endpoint: ${b.endpoint} • Region: ${b.region}`,
-                  }))}
-                  placeholder="Select destination storage bucket..."
-                  searchPlaceholder="Search buckets by name or region..."
-                />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Encrypted snapshots are stored in this S3 compatible bucket.
-              </p>
-            </div>
-          </CardContent>
-
-          <CardFooter className="px-0 pt-6 pb-0 flex justify-end border-t border-border">
+      {/* 1. Automated Schedule Configuration */}
+      <div className="space-y-5 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+        <SettingsSectionHeader
+          icon={Archive}
+          title="Cluster State Backups & Snapshots"
+          description="Automated encrypted snapshots covering registered edge nodes, project manifests, and telemetry records."
+          action={
             <Button
-              type="submit"
-              size="default"
-              disabled={isSaving}
-              className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleTriggerManualBackup}
+              disabled={isCreatingSnapshot}
+              className="gap-1.5 text-xs"
             >
-              {isSaving ? (
+              {isCreatingSnapshot ? (
                 <>
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Saving...
+                  <Loader2 className="size-3 animate-spin" />
+                  <span>Snapshotting...</span>
+                </>
+              ) : snapshotSuccess ? (
+                <>
+                  <Check className="size-3 text-emerald-500" />
+                  <span>Snapshot Created!</span>
                 </>
               ) : (
                 <>
-                  <Save className="size-3.5" />
-                  Save Schedule
+                  <RotateCw className="size-3" />
+                  <span>Create Snapshot Now</span>
                 </>
               )}
             </Button>
-          </CardFooter>
+          }
+        />
+
+        <form onSubmit={handleSaveSchedule} noValidate className="space-y-4">
+          <FieldGroup className="gap-4">
+            {/* Enable Automated Backups Toggle */}
+            <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 p-3">
+              <div>
+                <span className="text-xs font-semibold text-foreground">
+                  Automated Cluster State Snapshots
+                </span>
+                <p className="text-[11px] text-muted-foreground">
+                  Automatically bundle control plane metadata and push encrypted
+                  archives to S3.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+                className="size-4 cursor-pointer rounded accent-primary"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field data-invalid={Boolean(errors.frequency)}>
+                <FieldLabel className="text-xs">Snapshot Frequency</FieldLabel>
+                <SearchableSelect
+                  value={frequency}
+                  onChange={(val) => {
+                    setFrequency(val as "hourly" | "daily" | "weekly")
+                    clearError("frequency")
+                  }}
+                  options={FREQUENCY_OPTIONS}
+                  disabled={!enabled}
+                  placeholder="Select frequency..."
+                  searchPlaceholder="Search frequency..."
+                />
+                <FieldError id="backup-frequency-error" className="text-[11px]">
+                  {errors.frequency}
+                </FieldError>
+              </Field>
+
+              <Field data-invalid={Boolean(errors.timeUtc)}>
+                <FieldLabel className="text-xs">
+                  Scheduled Time (UTC)
+                </FieldLabel>
+                <Input
+                  value={timeUtc}
+                  onChange={(e) => {
+                    setTimeUtc(e.target.value)
+                    clearError("timeUtc")
+                  }}
+                  disabled={!enabled || frequency === "hourly"}
+                  placeholder="03:00"
+                  aria-invalid={Boolean(errors.timeUtc)}
+                  aria-describedby={
+                    errors.timeUtc ? "backup-time-error" : undefined
+                  }
+                  className="font-mono text-xs disabled:opacity-50"
+                />
+                <FieldError id="backup-time-error" className="text-[11px]">
+                  {errors.timeUtc}
+                </FieldError>
+              </Field>
+
+              <Field data-invalid={Boolean(errors.retentionDays)}>
+                <FieldLabel className="text-xs">
+                  Retention Count (Days)
+                </FieldLabel>
+                <Input
+                  type="number"
+                  value={retentionDays}
+                  onChange={(e) => {
+                    setRetentionDays(e.target.value)
+                    clearError("retentionDays")
+                  }}
+                  disabled={!enabled}
+                  aria-invalid={Boolean(errors.retentionDays)}
+                  aria-describedby={
+                    errors.retentionDays ? "backup-retention-error" : undefined
+                  }
+                  className="font-mono text-xs disabled:opacity-50"
+                />
+                <FieldError id="backup-retention-error" className="text-[11px]">
+                  {errors.retentionDays}
+                </FieldError>
+              </Field>
+            </div>
+
+            {/* Destination Bucket Selector */}
+            <Field data-invalid={Boolean(errors.bucketId)}>
+              <FieldLabel className="text-xs">
+                Destination Storage Bucket
+              </FieldLabel>
+              <SearchableSelect
+                value={bucketId}
+                onChange={(val) => {
+                  setBucketId(val)
+                  clearError("bucketId")
+                }}
+                options={bucketOptions}
+                disabled={!enabled || s3Buckets.length === 0}
+                placeholder={
+                  s3Buckets.length === 0
+                    ? "No S3 buckets configured"
+                    : "Select destination S3 bucket..."
+                }
+                searchPlaceholder="Search storage bucket..."
+              />
+              <FieldError id="backup-bucket-error" className="text-[11px]">
+                {errors.bucketId}
+              </FieldError>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Snapshots are encrypted using AES-256 GCM before streaming to
+                remote S3 storage.
+              </p>
+            </Field>
+
+            <div className="flex justify-end pt-2">
+              <Button type="submit" size="sm" className="gap-1.5 text-xs">
+                {scheduleSaved ? (
+                  <>
+                    <Check className="size-3 text-emerald-500" />
+                    <span>Schedule Saved</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-3" />
+                    <span>Save Snapshot Schedule</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </FieldGroup>
         </form>
-      </Card>
+      </div>
 
-      {/* 2. Cluster Snapshot Files Listing & Restore */}
-      <Card className="border-border bg-card p-6">
-        <CardHeader className="px-0 pt-0 pb-4">
-          <SettingsSectionHeader
-            icon={Archive}
-            title="Cluster Snapshots History"
-            description="Available snapshot archives in storage. You can inspect checksums or validate and restore state."
-          />
-        </CardHeader>
+      {/* 2. Cluster Snapshots History & State Restore */}
+      <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+        <SettingsSectionHeader
+          icon={FileArchive}
+          title="Cluster Snapshots History"
+          description="Available snapshot archives in storage. You can inspect checksums or validate and restore cluster state."
+        />
 
-        <CardContent className="px-0 pt-2 pb-0">
-          <div className="rounded-lg border border-border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[340px]">Snapshot Archive</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Checksum</TableHead>
-                  <TableHead>Created At</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+        <div className="overflow-hidden rounded-lg border border-border">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-mono text-xs">
+              <thead className="border-b border-border bg-muted/40 text-[11px] text-muted-foreground uppercase">
+                <tr>
+                  <th className="px-4 py-2.5 font-semibold">
+                    Snapshot Archive
+                  </th>
+                  <th className="px-4 py-2.5 font-semibold">Size</th>
+                  <th className="px-4 py-2.5 font-semibold">
+                    SHA-256 Checksum
+                  </th>
+                  <th className="px-4 py-2.5 font-semibold">Created</th>
+                  <th className="px-4 py-2.5 font-semibold">Status</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border text-xs">
                 {snapshots.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">
-                      No backup snapshots found. Click &quot;Backup Now&quot; above to create your first snapshot.
-                    </TableCell>
-                  </TableRow>
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-4 py-8 text-center font-sans text-xs text-muted-foreground"
+                    >
+                      No backup snapshots found. Click &ldquo;Create Snapshot
+                      Now&rdquo; to generate your first backup.
+                    </td>
+                  </tr>
                 ) : (
                   snapshots.map((snap) => (
-                    <TableRow key={snap.id} className="hover:bg-muted/40">
-                      <TableCell className="font-mono text-xs font-semibold text-foreground">
+                    <tr
+                      key={snap.id}
+                      className="transition-colors hover:bg-muted/20"
+                    >
+                      <td className="px-4 py-3 font-semibold text-foreground">
                         <div className="flex items-center gap-2">
-                          <FileText className="size-4 text-primary shrink-0" />
+                          <Archive className="size-3.5 shrink-0 text-primary" />
                           <span className="truncate">{snap.filename}</span>
                         </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
+                      </td>
+
+                      <td className="px-4 py-3 text-muted-foreground">
                         {snap.sizeMb.toFixed(1)} MB
-                      </TableCell>
-                      <TableCell className="font-mono text-[11px] text-muted-foreground/80 max-w-[140px] truncate">
-                        {snap.checksum}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {new Date(snap.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className="bg-status-success/10 text-status-success border-status-success/30 font-mono text-[11px]"
-                        >
-                          {snap.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </td>
+
+                      <td
+                        className="max-w-[140px] px-4 py-3 text-muted-foreground/80"
+                        aria-label="SHA-256 Checksum"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate text-[11px]">
+                            {snap.checksum.replace("sha256:", "").slice(0, 16)}
+                            ...
+                          </span>
+                          <button
+                            type="button"
+                            aria-label={`Copy checksum for ${snap.filename}`}
+                            onClick={() =>
+                              handleCopyChecksum(snap.id, snap.checksum)
+                            }
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Copy Checksum"
+                          >
+                            {copiedChecksum === snap.id ? (
+                              <Check className="size-3 text-emerald-500" />
+                            ) : (
+                              <Copy className="size-3" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-3 text-[11px] text-muted-foreground">
+                        {snap.createdAt}
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <span className="py-0.2 inline-flex items-center gap-1 rounded border border-emerald-500/20 bg-emerald-500/10 px-1.5 text-[10px] text-emerald-500">
+                          <CheckCircle2 className="size-2.5" />
+                          <span className="capitalize">{snap.status}</span>
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3 text-right">
                         <Button
+                          type="button"
                           variant="outline"
-                          size="sm"
+                          size="xs"
                           onClick={() => handleOpenRestore(snap)}
-                          className="h-7 text-xs font-medium gap-1 text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10"
+                          className="gap-1 border-amber-500/30 text-[11px] text-amber-500 hover:bg-amber-500/10"
                         >
                           <RotateCcw className="size-3" />
                           <span>Restore</span>
                         </Button>
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ))
                 )}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Restore Snapshot Confirmation Modal */}
       <Dialog open={restoreModalOpen} onOpenChange={setRestoreModalOpen}>
-        <DialogContent className="sm:max-w-md border-amber-500/40">
+        <DialogContent className="border-amber-500/40 sm:max-w-md">
           <DialogHeader>
-            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="size-5 shrink-0" />
-              <DialogTitle className="text-base font-semibold">
-                Confirm Cluster Snapshot Restore
-              </DialogTitle>
-            </div>
-            <DialogDescription className="text-xs leading-relaxed pt-2 space-y-2">
-              <p>
-                You are about to restore the cluster state from snapshot:
-              </p>
-              <div className="p-2.5 rounded-lg bg-muted border border-border font-mono text-xs text-foreground select-all">
+            <DialogTitle className="flex items-center gap-2 text-amber-500">
+              <AlertTriangle className="size-4 shrink-0" />
+              <span>Confirm Cluster Snapshot Restore</span>
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-1 text-xs leading-relaxed">
+              <p>You are about to restore cluster state from archive:</p>
+              <div className="truncate rounded-md border border-border bg-muted/40 p-2.5 font-mono text-xs text-foreground select-all">
                 {selectedSnapshot?.filename}
               </div>
-              <p className="text-destructive font-medium">
-                Warning: Restoring will overwrite control plane database metadata and re-synchronize active services to this snapshot state.
+              <p className="text-[11px] font-medium text-destructive">
+                Warning: Restoring will overwrite control plane database
+                metadata and re-synchronize active services to this snapshot
+                state.
               </p>
               <div className="pt-2">
-                <Label className="text-xs text-muted-foreground">
-                  Type <strong className="text-foreground font-mono">RESTORE</strong> to confirm:
-                </Label>
-                <Input
+                <label
+                  htmlFor="restore-confirm-input"
+                  className="block text-[11px] text-muted-foreground"
+                >
+                  Type{" "}
+                  <strong className="font-mono text-foreground">RESTORE</strong>{" "}
+                  to confirm:
+                </label>
+                <input
+                  id="restore-confirm-input"
+                  type="text"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}
                   placeholder="RESTORE"
-                  className="font-mono text-xs mt-1 h-8"
+                  className="mt-1 h-8 w-full rounded border border-border bg-card px-2.5 font-mono text-xs text-foreground outline-none focus:border-amber-500"
                 />
               </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2.5 pt-2">
+
+          <DialogFooter className="gap-2 pt-2 sm:gap-2.5">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => setRestoreModalOpen(false)}
-              className="text-sm h-9"
+              className="text-xs"
             >
               Cancel
             </Button>
             <Button
               type="button"
               size="sm"
-              disabled={confirmText !== 'RESTORE' || isRestoring}
+              disabled={confirmText !== "RESTORE" || isRestoring}
               onClick={handleConfirmRestore}
-              className="text-sm h-9 bg-amber-600 hover:bg-amber-700 text-white font-medium gap-1.5"
+              className="gap-1.5 bg-amber-600 text-xs text-white hover:bg-amber-700"
             >
               {isRestoring ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Restoring State...</span>
+                </>
               ) : (
-                <RotateCcw className="size-3.5" />
+                <>
+                  <RotateCcw className="size-3.5" />
+                  <span>Confirm Restore</span>
+                </>
               )}
-              Confirm Restore
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }

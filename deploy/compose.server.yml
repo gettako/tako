@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     ports:
       - "50051:50051"
-      - "${TAKO_HTTP_BIND:-127.0.0.1:8080}:8080"
+      - "${TAKO_HTTP_BIND:-0.0.0.0:8080}:8080"
     volumes:
       - ../data/sqlite:/data
       - /etc/tako/traefik:/etc/tako/traefik
@@ -54,7 +54,6 @@ services:
       - "3000:3000"
     environment:
       - TAKO_SERVER_URL=http://tako-server:8080
-      - NEXT_PUBLIC_TAKO_SERVER_URL=http://${TAKO_PUBLIC_IP:-localhost}:3000
     depends_on:
       - server
     networks:

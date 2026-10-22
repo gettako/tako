@@ -31,6 +31,7 @@ data/
 .env
 .env.*
 !.env.example
+!.env.deploy.example
 *.pem
 *.key
 *.crt
@@ -38,6 +39,7 @@ data/
 # Personal deployment scripts & local server configurations
 deploy.sh
 .env.deploy*
+!.env.deploy.example
 
 # Node / Frontend
 node_modules/

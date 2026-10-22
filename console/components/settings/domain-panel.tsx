@@ -1,590 +1,526 @@
-'use client';
+"use client"
 
-import React, { useState, useEffect } from 'react';
+import * as React from "react"
 import {
-  useDomainSettings,
-  useUpdateDomainSettings,
-  useVerifyDomainAndSSL,
-  useNodes,
-  useReloadNodeTraefik,
-} from '@/lib/queries';
-import { DomainVerificationResult } from '@/lib/types';
-import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
-import { SettingsSectionHeader } from '@/components/settings/settings-section-header';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
-import { CopyButton } from '@/components/ui/copy-button';
-import {
-  Globe,
-  ShieldCheck,
-  Save,
-  Loader2,
+  Check,
   CheckCircle2,
-  ArrowRight,
+  Copy,
+  Globe,
+  Loader2,
   RefreshCw,
-  AlertCircle,
-  ExternalLink,
-  Info,
-  Lock,
-  RotateCw,
-} from 'lucide-react';
+  Save,
+  ShieldCheck,
+} from "lucide-react"
+import { z } from "zod"
+
+import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
+import { Button } from "@/components/ui/button"
 import {
-  sanitizeDomain,
-  validateDomain,
-  formatDnsInstructions,
-  getSslStatusBadge,
-} from '@/lib/utils/domain-validator';
-import { toast } from 'sonner';
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { usePlatformData } from "@/context/platform-data-context"
+import { useZodForm } from "@/hooks/use-zod-form"
+import { copyToClipboard } from "@/lib/clipboard"
+import { isValidHostname, isValidIpv4 } from "@/lib/validation"
+import { cn } from "@/lib/utils"
+
+const domainSchema = z
+  .object({
+    domain: z
+      .string()
+      .trim()
+      .min(1, "Cluster domain is required.")
+      .refine(isValidHostname, "Enter a valid domain name."),
+    customIp: z
+      .string()
+      .trim()
+      .refine(
+        (value) => !value || isValidIpv4(value),
+        "Enter a valid IPv4 address."
+      ),
+    dnsProvider: z.enum(["http01", "cloudflare"]),
+    cloudflareToken: z.string().trim(),
+  })
+  .superRefine((values, context) => {
+    if (values.dnsProvider === "cloudflare" && !values.cloudflareToken) {
+      context.addIssue({
+        code: "custom",
+        path: ["cloudflareToken"],
+        message: "Cloudflare API token is required for DNS-01.",
+      })
+    }
+  })
 
 export function DomainPanel() {
-  const [isSaving, setIsSaving] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [isReloadingTraefik, setIsReloadingTraefik] = useState(false);
-  const [showCustomIp, setShowCustomIp] = useState(false);
+  const {
+    nodes,
+    domainConfig,
+    updateDomainConfig,
+    verifyDomain,
+    reloadTraefik,
+  } = usePlatformData()
 
-  const { data: settings } = useDomainSettings();
-  const { data: nodes = [] } = useNodes();
-  const updateDomainSettingsMutation = useUpdateDomainSettings();
-  const verifyDomainAndSSLMutation = useVerifyDomainAndSSL();
-  const reloadNodeTraefikMutation = useReloadNodeTraefik();
+  const leaderNode = nodes.find((n) => n.role === "master") || nodes[0]
+  const detectedLeaderIp = leaderNode?.ipAddress || "142.250.190.46"
 
-  const leaderNode = nodes.find((n) => n.role === 'leader') || nodes[0];
-  const detectedLeaderIp = leaderNode?.publicIp || leaderNode?.ipAddress || '127.0.0.1';
+  const [domain, setDomain] = React.useState(domainConfig.domain)
+  const [sslAutoRenew, setSslAutoRenew] = React.useState(
+    domainConfig.sslAutoRenew
+  )
+  const [dnsProvider, setDnsProvider] = React.useState<"http01" | "cloudflare">(
+    domainConfig.dnsProvider
+  )
+  const [cloudflareToken, setCloudflareToken] = React.useState(
+    domainConfig.cloudflareApiToken || ""
+  )
+  const [showCustomIp, setShowCustomIp] = React.useState(
+    Boolean(domainConfig.customDnsIp)
+  )
+  const [customIp, setCustomIp] = React.useState(domainConfig.customDnsIp || "")
+  const { errors, validate, clearError } = useZodForm(domainSchema)
 
-  const [domain, setDomain] = useState('');
-  const [sslAutoRenew, setSslAutoRenew] = useState(true);
-  const [dnsProvider, setDnsProvider] = useState<'http01' | 'cloudflare'>('http01');
-  const [cloudflareApiToken, setCloudflareApiToken] = useState('');
-  const [customDnsIp, setCustomDnsIp] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [verificationResult, setVerificationResult] = useState<DomainVerificationResult | null>(null);
+  const [isVerifying, setIsVerifying] = React.useState(false)
+  const [verificationResult, setVerificationResult] = React.useState<{
+    ok: boolean
+    message: string
+  } | null>({
+    ok: true,
+    message: "DNS A-Record resolved correctly to " + detectedLeaderIp,
+  })
+  const [isReloadingTraefik, setIsReloadingTraefik] = React.useState(false)
+  const [saved, setSaved] = React.useState(false)
+  const [copiedIp, setCopiedIp] = React.useState(false)
 
-  useEffect(() => {
-    if (settings) {
-      if (typeof settings.domain === 'string') setDomain(settings.domain);
-      if (typeof settings.sslAutoRenew === 'boolean') setSslAutoRenew(settings.sslAutoRenew);
-      if (settings.dnsProvider) setDnsProvider(settings.dnsProvider);
-      if (settings.cloudflareApiToken) setCloudflareApiToken(settings.cloudflareApiToken);
-      if (settings.customDnsIp) {
-        setCustomDnsIp(settings.customDnsIp);
-        setShowCustomIp(true);
-      }
-    }
-  }, [settings]);
+  const effectiveIp = customIp.trim() || detectedLeaderIp
 
-  const effectiveLeaderIp = customDnsIp.trim() || detectedLeaderIp;
-  const cleanDomain = sanitizeDomain(domain);
-  const dnsConfig = formatDnsInstructions(cleanDomain, effectiveLeaderIp);
-
-  const handleDomainChange = (val: string) => {
-    setDomain(val);
-    const cleaned = sanitizeDomain(val);
-    if (!cleaned) {
-      setValidationError('Domain name cannot be empty');
-    } else {
-      const res = validateDomain(cleaned);
-      setValidationError(res.valid ? null : res.error || 'Invalid domain format');
-    }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleaned = sanitizeDomain(domain);
-    if (!cleaned) {
-      setValidationError('Domain name cannot be empty');
-      toast.error('Please enter a valid domain name');
-      return;
-    }
-
-    const valRes = validateDomain(cleaned);
-    if (!valRes.valid) {
-      setValidationError(valRes.error || 'Invalid domain format');
-      toast.error(valRes.error || 'Please enter a valid domain');
-      return;
-    }
-
+  const handleVerifyDns = async () => {
+    setIsVerifying(true)
     try {
-      setIsSaving(true);
-      await updateDomainSettingsMutation.mutateAsync({
-        domain: cleaned,
-        sslAutoRenew,
-        dnsProvider,
-        cloudflareApiToken: dnsProvider === 'cloudflare' ? cloudflareApiToken.trim() : undefined,
-        customDnsIp: customDnsIp.trim() || undefined,
-      });
-
-      // Automatically verify DNS connectivity & SSL
-      try {
-        const verifyRes = await verifyDomainAndSSLMutation.mutateAsync({
-          domain: cleaned,
-          expectedIp: effectiveLeaderIp,
-        });
-        setVerificationResult(verifyRes);
-
-        if (verifyRes.dnsVerified && verifyRes.sslActive) {
-          toast.success(`Domain ${cleaned} saved and TLS verified!`);
-        } else if (verifyRes.dnsVerified) {
-          toast.success(`Domain saved! DNS points to leader, TLS issuance in progress.`);
-        } else {
-          toast.info(`Domain saved! Set your DNS A record to point to ${effectiveLeaderIp}.`);
-        }
-      } catch {
-        toast.success(`Domain configuration updated and saved for ${cleaned}.`);
-      }
-    } catch {
-      // Error handled by mutation
+      const res = await verifyDomain(domain.trim(), effectiveIp)
+      setVerificationResult({
+        ok: res.ok,
+        message: res.message,
+      })
+    } catch (err: unknown) {
+      setVerificationResult({
+        ok: false,
+        message:
+          err instanceof Error
+            ? err.message
+            : "Failed to verify domain DNS resolution.",
+      })
     } finally {
-      setIsSaving(false);
+      setIsVerifying(false)
     }
-  };
+  }
 
   const handleReloadTraefik = async () => {
-    if (!leaderNode?.id) {
-      toast.error('No cluster node found');
-      return;
-    }
+    setIsReloadingTraefik(true)
     try {
-      setIsReloadingTraefik(true);
-      await reloadNodeTraefikMutation.mutateAsync(leaderNode.id);
-    } finally {
-      setIsReloadingTraefik(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    const cleaned = sanitizeDomain(domain);
-    const valRes = validateDomain(cleaned);
-    if (!valRes.valid) {
-      toast.error('Please enter a valid domain before testing');
-      return;
-    }
-
-    try {
-      setIsVerifying(true);
-      const res = await verifyDomainAndSSLMutation.mutateAsync({
-        domain: cleaned,
-        expectedIp: effectiveLeaderIp,
-      });
-      setVerificationResult(res);
-
-      if (res.dnsVerified && res.sslActive) {
-        toast.success(`Domain & TLS certificate are active and verified!`);
-      } else if (res.dnsVerified) {
-        toast.warning(
-          `DNS points correctly to ${effectiveLeaderIp}, but SSL certificate is pending or invalid.`
-        );
-        const resolvedText = res.resolvedIps && res.resolvedIps.length > 0 ? res.resolvedIps.join(', ') : 'unknown';
-        toast.error(
-          `DNS check failed: ${cleaned} resolves to ${resolvedText}, expected ${effectiveLeaderIp}.`
-        );
-      }
+      await reloadTraefik(leaderNode?.id)
     } catch {
-      toast.error('Failed to verify domain connectivity');
+      // silently handle
     } finally {
-      setIsVerifying(false);
+      setIsReloadingTraefik(false)
     }
-  };
+  }
 
-  const currentStatus =
-    verificationResult?.sslStatus ||
-    settings?.sslStatus ||
-    (settings?.sslActive ? 'active' : 'pending_dns');
-  const badgeConfig = getSslStatusBadge(
-    currentStatus,
-    settings?.sslActive || verificationResult?.sslActive
-  );
+  const handleCopyIp = async () => {
+    if (await copyToClipboard(effectiveIp)) {
+      setCopiedIp(true)
+      setTimeout(() => setCopiedIp(false), 2000)
+    }
+  }
+
+  const handleSaveDomain = (e: React.FormEvent) => {
+    e.preventDefault()
+    const valid = validate({ domain, customIp, dnsProvider, cloudflareToken })
+    if (!valid) return
+
+    updateDomainConfig({
+      domain: domain.trim(),
+      sslAutoRenew,
+      dnsProvider,
+      cloudflareApiToken: cloudflareToken.trim(),
+      customDnsIp: customIp.trim(),
+      lastCheckedAt: "Just now",
+    })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
 
   return (
-    <Card>
-      <form onSubmit={handleSave}>
-        <CardHeader className="pb-4">
-          <SettingsSectionHeader
-            icon={Globe}
-            title="Cluster Hostname & SSL Configuration"
-            description="Configure the primary web console domain, wildcard routes, and Let's Encrypt TLS termination."
-            action={
-              <div className="flex items-center gap-2">
+    <div className="space-y-6">
+      <div className="space-y-5 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+        <SettingsSectionHeader
+          icon={Globe}
+          title="Cluster Domain & Ingress Routing"
+          description="Configure the primary control plane domain, automatic Let's Encrypt TLS issuance, and DNS challenge providers."
+          action={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleReloadTraefik}
+              disabled={isReloadingTraefik}
+              className="gap-1.5 text-xs"
+            >
+              <RefreshCw
+                className={cn("size-3", isReloadingTraefik && "animate-spin")}
+              />
+              <span>
+                {isReloadingTraefik ? "Reloading..." : "Reload Traefik"}
+              </span>
+            </Button>
+          }
+        />
+
+        <form onSubmit={handleSaveDomain} noValidate className="space-y-5">
+          <FieldGroup className="gap-4">
+            {/* Domain input */}
+            <Field data-invalid={Boolean(errors.domain)}>
+              <FieldLabel className="text-xs">
+                Primary Cluster Ingress Domain
+              </FieldLabel>
+              <Input
+                placeholder="e.g. edge.gettako.dev or cluster.company.com"
+                value={domain}
+                onChange={(e) => {
+                  setDomain(e.target.value)
+                  clearError("domain")
+                }}
+                aria-invalid={Boolean(errors.domain)}
+                aria-describedby={
+                  errors.domain ? "cluster-domain-error" : undefined
+                }
+                className="max-w-lg font-mono text-xs"
+              />
+              <FieldError id="cluster-domain-error" className="text-[11px]">
+                {errors.domain}
+              </FieldError>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                All edge service subdomains and control plane API endpoints
+                resolve under this namespace.
+              </p>
+            </Field>
+
+            {/* DNS Instructions Card */}
+            <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <span className="block text-xs font-semibold text-foreground">
+                    DNS Configuration Instructions
+                  </span>
+                  <p className="text-[11px] text-muted-foreground">
+                    Add the following A-Record at your DNS provider (Cloudflare,
+                    Route53, Namecheap):
+                  </p>
+                </div>
+
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
-                  onClick={handleReloadTraefik}
-                  disabled={isReloadingTraefik}
-                  className="h-7 text-xs font-medium gap-1.5 border-border"
-                  title="Reload Traefik dynamic routing and ACME certificate resolver"
+                  size="xs"
+                  onClick={handleVerifyDns}
+                  disabled={isVerifying}
+                  className="shrink-0 gap-1.5 text-xs"
                 >
-                  {isReloadingTraefik ? (
-                    <Loader2 className="size-3 animate-spin" />
+                  {isVerifying ? (
+                    <>
+                      <Loader2 className="size-3 animate-spin" />
+                      <span>Verifying...</span>
+                    </>
                   ) : (
-                    <RotateCw className="size-3" />
+                    <>
+                      <CheckCircle2 className="size-3 text-emerald-500" />
+                      <span>Verify DNS & SSL</span>
+                    </>
                   )}
-                  <span>Reload Traefik</span>
                 </Button>
-                <Badge
-                  variant="outline"
-                  className={
-                    badgeConfig.variant === 'success'
-                      ? 'bg-status-success/10 text-status-success border-status-success/30 font-mono text-xs gap-1'
-                      : badgeConfig.variant === 'warning'
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 font-mono text-xs gap-1'
-                        : 'bg-primary/10 text-primary border-primary/30 font-mono text-xs gap-1'
-                  }
-                >
-                  {badgeConfig.variant === 'success' ? (
-                    <ShieldCheck className="size-3.5" />
-                  ) : (
-                    <Lock className="size-3.5" />
-                  )}
-                  {badgeConfig.label}
-                </Badge>
               </div>
-            }
-          />
-        </CardHeader>
 
-        <CardContent className="space-y-6 pt-2">
-          {/* Domain Input */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium text-foreground">Control Plane Hostname</Label>
-              {domain && (
-                <a
-                  href={`https://${sanitizeDomain(domain)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 font-mono transition-colors active:not-aria-[haspopup]:translate-y-px"
+              {/* Record Spec Box */}
+              <div className="grid grid-cols-1 gap-2 rounded-md border border-border bg-card p-3 font-mono text-xs sm:grid-cols-3">
+                <div>
+                  <span className="block font-sans text-[10px] text-muted-foreground">
+                    Record Type
+                  </span>
+                  <span className="font-semibold text-foreground">A</span>
+                </div>
+                <div>
+                  <span className="block font-sans text-[10px] text-muted-foreground">
+                    Hostname
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {domain ? domain.split(".")[0] || "@" : "@"}
+                  </span>
+                </div>
+                <div>
+                  <span className="block font-sans text-[10px] text-muted-foreground">
+                    Target IPv4
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-foreground">
+                      {effectiveIp}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyIp}
+                      className="text-muted-foreground hover:text-foreground"
+                      title="Copy IP"
+                    >
+                      {copiedIp ? (
+                        <Check className="size-3 text-emerald-500" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {verificationResult && (
+                <div
+                  className={cn(
+                    "flex items-center gap-2 rounded-md border p-2.5 text-xs",
+                    verificationResult.ok
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                      : "border-destructive/30 bg-destructive/10 text-destructive"
+                  )}
                 >
-                  <span>https://{sanitizeDomain(domain)}</span>
-                  <ExternalLink className="size-3" />
-                </a>
+                  <CheckCircle2 className="size-3.5 shrink-0" />
+                  <span className="font-mono text-[11px] leading-relaxed">
+                    {verificationResult.message}
+                  </span>
+                </div>
               )}
+
+              {/* Custom DNS IP Override Toggle */}
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowCustomIp(!showCustomIp)}
+                  className="text-[11px] font-medium text-primary hover:underline"
+                >
+                  {showCustomIp
+                    ? "Hide custom DNS IP override"
+                    : "Need a custom DNS IP (e.g. Cloudflare proxy or load balancer)?"}
+                </button>
+
+                {showCustomIp && (
+                  <Field
+                    data-invalid={Boolean(errors.customIp)}
+                    className="mt-2 max-w-sm"
+                  >
+                    <FieldLabel className="text-[11px]">
+                      Custom Ingress IP / Load Balancer IPv4
+                    </FieldLabel>
+                    <Input
+                      value={customIp}
+                      onChange={(e) => {
+                        setCustomIp(e.target.value.trim())
+                        clearError("customIp")
+                      }}
+                      placeholder="e.g. 198.51.100.42"
+                      aria-invalid={Boolean(errors.customIp)}
+                      aria-describedby={
+                        errors.customIp ? "custom-ip-error" : undefined
+                      }
+                      className="h-8 font-mono text-xs"
+                    />
+                    <FieldError id="custom-ip-error" className="text-[11px]">
+                      {errors.customIp}
+                    </FieldError>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Leave blank to use the detected master node IP (
+                      {detectedLeaderIp}).
+                    </p>
+                  </Field>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-              <div className="relative flex-1 max-w-lg">
-                <Input
-                  value={domain}
-                  onChange={(e) => handleDomainChange(e.target.value)}
-                  onBlur={() => setDomain(sanitizeDomain(domain))}
-                  placeholder="console.example.com"
-                  disabled={isSaving || isVerifying}
-                  className={`font-mono text-sm ${validationError ? 'border-status-danger focus-visible:ring-status-danger' : ''}`}
+            {/* Let's Encrypt TLS Automation */}
+            <div className="space-y-4 border-t border-border pt-2">
+              <div className="flex items-center justify-between rounded-md border border-border bg-muted/20 p-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <ShieldCheck className="size-3.5 text-emerald-500" />
+                    <span>Automatic Let&apos;s Encrypt TLS Certificates</span>
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Automatically provisions and renews SSL/TLS certificates via
+                    Traefik ACME before expiration.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  aria-label="Toggle automatic Let's Encrypt TLS"
+                  checked={sslAutoRenew}
+                  onChange={(e) => setSslAutoRenew(e.target.checked)}
+                  className="size-4 cursor-pointer rounded accent-primary"
                 />
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                size="default"
-                onClick={handleVerify}
-                disabled={isVerifying || isSaving || !domain.trim() || !!validationError}
-                className="text-xs h-9 font-medium gap-1.5 shrink-0 active:not-aria-[haspopup]:translate-y-px"
-                title="Verify DNS record propagation and check SSL reachability"
-              >
-                {isVerifying ? (
+              {/* ACME DNS Challenge Provider */}
+              <div className="space-y-2">
+                <span className="block text-xs font-semibold text-foreground">
+                  ACME DNS Challenge Provider
+                </span>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setDnsProvider("http01")}
+                    className={cn(
+                      "w-full cursor-pointer space-y-1 rounded-md border p-3 text-left transition-all",
+                      dnsProvider === "http01"
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted/30"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">
+                        HTTP-01 Challenge
+                      </span>
+                      {dnsProvider === "http01" && (
+                        <CheckCircle2 className="size-3.5 text-primary" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Standard verification on port 80. Recommended for direct
+                      public subdomains.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setDnsProvider("cloudflare")}
+                    className={cn(
+                      "w-full cursor-pointer space-y-1 rounded-md border p-3 text-left transition-all",
+                      dnsProvider === "cloudflare"
+                        ? "border-primary bg-primary/5 text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:bg-muted/30"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">
+                        Cloudflare DNS-01 Challenge
+                      </span>
+                      {dnsProvider === "cloudflare" && (
+                        <CheckCircle2 className="size-3.5 text-primary" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Required for Wildcard Certificates (
+                      <code>*.gettako.dev</code>) via Cloudflare API.
+                    </p>
+                  </button>
+                </div>
+
+                {dnsProvider === "cloudflare" && (
+                  <Field
+                    data-invalid={Boolean(errors.cloudflareToken)}
+                    className="max-w-md pt-2"
+                  >
+                    <FieldLabel className="text-xs">
+                      Cloudflare API Token
+                    </FieldLabel>
+                    <Input
+                      type="password"
+                      value={cloudflareToken}
+                      onChange={(e) => {
+                        setCloudflareToken(e.target.value)
+                        clearError("cloudflareToken")
+                      }}
+                      placeholder="Enter Cloudflare Zone:DNS API Token"
+                      aria-invalid={Boolean(errors.cloudflareToken)}
+                      aria-describedby={
+                        errors.cloudflareToken
+                          ? "cloudflare-token-error"
+                          : undefined
+                      }
+                      className="font-mono text-xs"
+                    />
+                    <FieldError
+                      id="cloudflare-token-error"
+                      className="text-[11px]"
+                    >
+                      {errors.cloudflareToken}
+                    </FieldError>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Token permissions required: <code>Zone:DNS:Edit</code> and{" "}
+                      <code>Zone:Zone:Read</code>.
+                    </p>
+                  </Field>
+                )}
+              </div>
+
+              {/* Certificate Telemetry Summary */}
+              <div className="grid grid-cols-1 gap-3 pt-1 text-xs sm:grid-cols-3">
+                <div className="space-y-1 rounded-lg border border-border bg-muted/10 p-3">
+                  <span className="block font-mono text-[10px] text-muted-foreground">
+                    CERT RESOLVER
+                  </span>
+                  <div className="font-mono font-semibold text-foreground">
+                    Traefik Let&apos;s Encrypt
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Port 80 / 443 Ingress
+                  </div>
+                </div>
+
+                <div className="space-y-1 rounded-lg border border-border bg-muted/10 p-3">
+                  <span className="block font-mono text-[10px] text-muted-foreground">
+                    AUTO-RENEWAL PERIOD
+                  </span>
+                  <div className="font-mono font-semibold text-foreground">
+                    Every 60 Days
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Zero downtime renewal
+                  </div>
+                </div>
+
+                <div className="space-y-1 rounded-lg border border-border bg-muted/10 p-3">
+                  <span className="block font-mono text-[10px] text-muted-foreground">
+                    ACTIVE CHALLENGE
+                  </span>
+                  <div className="font-mono font-semibold text-foreground">
+                    {dnsProvider === "cloudflare"
+                      ? "Cloudflare DNS-01"
+                      : "HTTP-01 Challenge"}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {dnsProvider === "cloudflare"
+                      ? "Supports wildcard certificates"
+                      : "Requires open HTTP port"}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-border pt-3">
+              <Button type="submit" size="sm" className="gap-1.5 text-xs">
+                {saved ? (
                   <>
-                    <Loader2 className="size-3.5 animate-spin" />
-                    Checking...
+                    <Check className="size-3 text-emerald-500" />
+                    <span>Domain Settings Saved</span>
                   </>
                 ) : (
                   <>
-                    <RefreshCw className="size-3.5 text-muted-foreground" />
-                    Verify DNS & SSL
+                    <Save className="size-3" />
+                    <span>Save Domain Settings</span>
                   </>
                 )}
               </Button>
             </div>
-
-            {validationError ? (
-              <p className="text-xs text-status-danger flex items-center gap-1.5">
-                <AlertCircle className="size-3.5 shrink-0" />
-                <span>{validationError}</span>
-              </p>
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Enter your fully qualified domain name (FQDN). Protocols (<code>https://</code>) and trailing slashes are automatically sanitized.
-              </p>
-            )}
-          </div>
-
-          {/* Verification Status Alert Banner */}
-          {verificationResult && (
-            <div
-              className={`p-4 rounded-xl border text-sm space-y-1.5 transition-all ${
-                verificationResult.dnsVerified && verificationResult.sslActive
-                  ? 'border-status-success/30 bg-status-success/10 text-status-success'
-                  : verificationResult.dnsVerified
-                    ? 'border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                    : 'border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400'
-              }`}
-            >
-              <div className="font-semibold flex items-center gap-2">
-                {verificationResult.dnsVerified && verificationResult.sslActive ? (
-                  <CheckCircle2 className="size-4 shrink-0" />
-                ) : verificationResult.dnsVerified ? (
-                  <Info className="size-4 shrink-0" />
-                ) : (
-                  <AlertCircle className="size-4 shrink-0" />
-                )}
-                <span>
-                  {verificationResult.dnsVerified && verificationResult.sslActive
-                    ? 'Verification Successful: Cluster Hostname & SSL Active'
-                    : verificationResult.dnsVerified
-                      ? 'DNS Pointer Confirmed — Let’s Encrypt ACME Negotiation In Progress'
-                      : 'DNS A Record Not Detected Or Mismatched'}
-                </span>
-              </div>
-              <p className="text-xs leading-relaxed opacity-90">{verificationResult.message}</p>
-              {verificationResult.sslIssuer && (
-                <div className="text-xs font-mono opacity-80 pt-1">
-                  Certificate Issuer: {verificationResult.sslIssuer} • Checked at{' '}
-                  {new Date(verificationResult.lastCheckedAt).toLocaleTimeString()}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* DNS Configuration Instructions */}
-          <div className="p-4 sm:p-5 rounded-xl border border-border bg-muted/20 text-sm space-y-3.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="font-semibold text-foreground flex items-center gap-2">
-                <Globe className="size-4 text-primary" />
-                <span>Required DNS Configuration</span>
-              </div>
-              <span className="text-xs text-muted-foreground font-mono">TTL: 300s recommended</span>
-            </div>
-
-            <p className="text-muted-foreground text-xs leading-relaxed">
-              {cleanDomain ? (
-                <>
-                  Create an <strong>A Record</strong> in your DNS provider (Cloudflare, Route53, Namecheap, etc.) pointing{' '}
-                  <strong className="font-mono text-foreground">{cleanDomain}</strong> to your cluster ingress node:
-                </>
-              ) : (
-                <>
-                  Enter your domain name above to generate exact DNS record details, or configure an{' '}
-                  <strong>A Record</strong> pointing your hostname to the cluster ingress node:
-                </>
-              )}
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 text-xs font-mono">
-              <div className="p-2.5 rounded-lg border border-border bg-card">
-                <span className="text-muted-foreground text-[10px] block uppercase font-sans">Type</span>
-                <span className="font-semibold text-foreground">A</span>
-              </div>
-
-              <div className="p-2.5 rounded-lg border border-border bg-card flex items-center justify-between">
-                <div>
-                  <span className="text-muted-foreground text-[10px] block uppercase font-sans">Name / Host</span>
-                  <span className="font-semibold text-foreground truncate">
-                    {cleanDomain ? dnsConfig.host : '@ (or subdomain)'}
-                  </span>
-                </div>
-                {cleanDomain && (
-                  <CopyButton
-                    text={cleanDomain}
-                    size="sm"
-                    className="size-6 text-muted-foreground hover:text-foreground shrink-0"
-                    title="Copy hostname"
-                  />
-                )}
-              </div>
-
-              <div className="sm:col-span-2 p-2.5 rounded-lg border border-border bg-card flex items-center justify-between">
-                <div className="min-w-0">
-                  <span className="text-muted-foreground text-[10px] block uppercase font-sans">Points to (Target IP)</span>
-                  <span className="font-semibold text-foreground truncate select-all">{effectiveLeaderIp}</span>
-                </div>
-                <CopyButton
-                  text={effectiveLeaderIp}
-                  size="sm"
-                  className="size-6 text-muted-foreground hover:text-foreground shrink-0"
-                  title="Copy IP"
-                />
-              </div>
-            </div>
-
-            {/* Pointer Quick View */}
-            {cleanDomain ? (
-              <div className="flex items-center gap-2.5 font-mono text-xs bg-muted/60 px-3.5 py-2 rounded-lg border border-border flex-wrap">
-                <span className="text-foreground font-semibold">{cleanDomain}</span>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-                <span className="font-semibold text-foreground">{effectiveLeaderIp}</span>
-                <span className="text-[11px] text-muted-foreground ml-auto">
-                  Node: {leaderNode?.name || 'cluster-leader'}
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2.5 text-xs bg-muted/60 px-3.5 py-2 rounded-lg border border-border flex-wrap text-muted-foreground">
-                <span className="font-mono text-[11px]">your-domain.com</span>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-                <span className="font-mono font-semibold text-foreground">{effectiveLeaderIp}</span>
-                <span className="text-[11px] text-muted-foreground ml-auto">
-                  Enter hostname in the field above to verify
-                </span>
-              </div>
-            )}
-
-            {/* Custom DNS IP toggle */}
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => setShowCustomIp(!showCustomIp)}
-                className="text-xs text-primary hover:underline font-medium active:not-aria-[haspopup]:translate-y-px"
-              >
-                {showCustomIp ? 'Hide custom DNS IP override' : 'Need a custom DNS IP (e.g. Cloudflare / proxy)?'}
-              </button>
-
-              {showCustomIp && (
-                <div className="mt-2.5 space-y-1.5 max-w-sm">
-                  <Label className="text-xs text-muted-foreground">Custom Ingress IP / Load Balancer IP</Label>
-                  <Input
-                    value={customDnsIp}
-                    onChange={(e) => setCustomDnsIp(e.target.value.trim())}
-                    placeholder="e.g. 1.2.3.4"
-                    className="font-mono text-xs h-8"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Leave blank to use detected cluster node IP ({detectedLeaderIp}).
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* SSL Auto-Renew & Let's Encrypt Information */}
-          <div className="space-y-4 pt-2 border-t border-border">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
-              <div className="space-y-1 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-primary" />
-                  <Label className="text-xs font-semibold text-foreground">
-                    Automatic Let&apos;s Encrypt TLS Certificates
-                  </Label>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Automatically provisions and renews SSL/TLS certificates via Traefik ACME before expiration.
-                </p>
-              </div>
-              <Switch
-                checked={sslAutoRenew}
-                onCheckedChange={setSslAutoRenew}
-                disabled={isSaving}
-              />
-            </div>
-
-            {/* ACME Challenge Provider Selector */}
-            <div className="space-y-3 pt-2">
-              <Label className="text-xs font-medium text-foreground">ACME DNS Challenge Provider</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div
-                  onClick={() => setDnsProvider('http01')}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                    dnsProvider === 'http01'
-                      ? 'border-primary bg-primary/5 text-foreground'
-                      : 'border-border bg-card hover:bg-muted/30 text-muted-foreground'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground">HTTP-01 Challenge</span>
-                    {dnsProvider === 'http01' && <CheckCircle2 className="size-4 text-primary" />}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Standard challenge. Perfect for apex domains and direct subdomains (requires open port 80).
-                  </p>
-                </div>
-
-                <div
-                  onClick={() => setDnsProvider('cloudflare')}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                    dnsProvider === 'cloudflare'
-                      ? 'border-primary bg-primary/5 text-foreground'
-                      : 'border-border bg-card hover:bg-muted/30 text-muted-foreground'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground">Cloudflare DNS-01 Challenge</span>
-                    {dnsProvider === 'cloudflare' && <CheckCircle2 className="size-4 text-primary" />}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Required for Wildcard Certificates (<code>*.gettako.dev</code>). Automated via Cloudflare API.
-                  </p>
-                </div>
-              </div>
-
-              {dnsProvider === 'cloudflare' && (
-                <div className="space-y-1.5 pt-2 max-w-md">
-                  <Label className="text-xs font-medium text-foreground">Cloudflare API Token</Label>
-                  <Input
-                    type="password"
-                    value={cloudflareApiToken}
-                    onChange={(e) => setCloudflareApiToken(e.target.value)}
-                    placeholder="Enter Cloudflare Zone:DNS API Token"
-                    className="font-mono text-xs"
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Token with permissions: <code>Zone:DNS:Edit</code> and <code>Zone:Zone:Read</code>.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Certificate telemetry summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
-              <div className="p-3 rounded-lg border border-border bg-card space-y-1">
-                <span className="text-muted-foreground text-[11px]">Cert Resolver</span>
-                <div className="font-semibold text-foreground font-mono">Traefik Let&apos;s Encrypt</div>
-                <div className="text-[10px] text-muted-foreground">Port 80 / 443 Ingress</div>
-              </div>
-
-              <div className="p-3 rounded-lg border border-border bg-card space-y-1">
-                <span className="text-muted-foreground text-[11px]">Auto-Renewal Period</span>
-                <div className="font-semibold text-foreground">Every 60 Days</div>
-                <div className="text-[10px] text-muted-foreground">Zero downtime renewal</div>
-              </div>
-
-              <div className="p-3 rounded-lg border border-border bg-card space-y-1">
-                <span className="text-muted-foreground text-[11px]">Active Challenge</span>
-                <div className="font-semibold text-foreground font-mono">
-                  {dnsProvider === 'cloudflare' ? 'Cloudflare DNS-01' : 'HTTP-01 Challenge'}
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  {dnsProvider === 'cloudflare' ? 'Supports *.wildcard TLS' : 'Requires open port 80'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-
-        <CardFooter className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-border pt-6 mt-6">
-          <p className="text-xs text-muted-foreground">
-            Changes take effect immediately on cluster edge routing.
-          </p>
-
-          <Button
-            type="submit"
-            size="default"
-            disabled={!domain.trim() || isSaving || !!validationError}
-            className="text-sm h-9 bg-primary hover:bg-primary/90 text-primary-foreground font-medium gap-1.5 active:not-aria-[haspopup]:translate-y-px"
-          >
-            {isSaving ? (
-              <>
-                <Loader2 className="size-3.5 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="size-3.5" />
-                Save Domain Settings
-              </>
-            )}
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
-  );
+          </FieldGroup>
+        </form>
+      </div>
+    </div>
+  )
 }

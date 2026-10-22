@@ -1,26 +1,26 @@
-import { Inter } from "next/font/google"
-
 import type { Metadata } from "next"
+import { Geist_Mono, Inter } from "next/font/google"
 
 import "./globals.css"
+import { PlatformDataProvider } from "@/context/platform-data-context"
 import { ThemeProvider } from "@/components/theme-provider"
-import { QueryProvider } from "@/components/query-provider"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { AppShell } from "@/components/layout/app-shell"
+import { siteConfig } from "@/config/site"
 import { cn } from "@/lib/utils"
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
+
+const fontMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+})
 
 export const metadata: Metadata = {
   title: {
-    default: "Takō Cloud Console",
-    template: "%s — Takō Cloud",
+    default: siteConfig.name,
+    template: `%s | ${siteConfig.name}`,
   },
-  description: "Modern container cloud platform for high-velocity teams",
+  description: siteConfig.description,
 }
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-})
 
 export default function RootLayout({
   children,
@@ -31,15 +31,16 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased font-sans", inter.variable)}
+      className={cn(
+        "antialiased",
+        fontMono.variable,
+        "font-sans",
+        inter.variable
+      )}
     >
       <body>
         <ThemeProvider>
-          <QueryProvider>
-            <TooltipProvider>
-              <AppShell>{children}</AppShell>
-            </TooltipProvider>
-          </QueryProvider>
+          <PlatformDataProvider>{children}</PlatformDataProvider>
         </ThemeProvider>
       </body>
     </html>

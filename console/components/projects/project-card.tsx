@@ -1,144 +1,131 @@
-'use client';
+"use client"
 
-import React from 'react';
-import Link from 'next/link';
-import { Layers, ChevronRight, Trash2, Pencil } from 'lucide-react';
+import * as React from "react"
+import Link from "next/link"
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardAction,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/status-badge';
-import { Project } from '@/lib/types';
+  ArrowRight,
+  CheckCircle2,
+  FolderGit2,
+  Layers,
+  Trash2,
+} from "lucide-react"
 
-export interface ProjectCardProps {
-  project: Project;
-  onEditProject?: (project: Project) => void;
-  onDeleteProject?: (project: Project) => void;
+import { Button } from "@/components/ui/button"
+import { Project } from "@/types/platform"
+import { cn } from "@/lib/utils"
+
+interface ProjectCardProps {
+  project: Project
+  onDelete?: (id: string) => void
 }
 
-
-function formatRelativeTime(dateStr?: string) {
-  if (!dateStr) return '';
-  try {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
-    if (diffSec < 60) return 'just now';
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHours = Math.floor(diffMin / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) return `${diffDays}d ago`;
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-  } catch {
-    return dateStr;
-  }
-}
-
-export function ProjectCard({ project, onEditProject, onDeleteProject }: ProjectCardProps) {
-  const servicesCount = project.servicesCount ?? 0;
-  const healthyServicesCount = project.healthyServicesCount ?? 0;
-  const isStopped = project.status === 'stopped';
-  const issueCount = Math.max(0, servicesCount - healthyServicesCount);
+export function ProjectCard({ project, onDelete }: ProjectCardProps) {
+  const envStyles = {
+    production:
+      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    staging:
+      "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    preview:
+      "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+  }[project.environment]
 
   return (
-    <Link href={`/projects/${project.slug || project.id}`} className="block group outline-hidden min-h-[175px] h-full">
-      <Card
-        size="sm"
-        className="relative min-h-[175px] h-full flex flex-col justify-between overflow-hidden transition-all duration-150 group-hover:border-foreground/40 active:not-aria-[haspopup]:translate-y-px py-0 gap-0"
-      >
-        <div className="p-4 pb-3 space-y-2.5">
-          {/* Header: Project Name, Environment & Status */}
-          <CardHeader className="p-0">
-            <div className="space-y-0.5 min-w-0 pr-2">
-              <CardTitle className="font-semibold text-sm sm:text-base text-foreground group-hover:text-primary transition-colors tracking-tight line-clamp-1">
+    <div className="group relative flex flex-col justify-between rounded-lg border border-border bg-card p-4.5 shadow-xs transition-all hover:border-primary/50 hover:shadow-sm">
+      <div className="min-w-0">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded border border-border bg-muted/40 text-foreground">
+              <FolderGit2 className="size-4 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <Link
+                href={`/projects/${project.id}`}
+                className="block truncate text-sm font-semibold text-foreground transition-colors hover:text-primary hover:underline"
+                title={project.name}
+              >
                 {project.name}
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                <span className="rounded-xs border border-border bg-muted/60 px-1.5 py-0.2 font-mono text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  {project.environment}
-                </span>
+              </Link>
+              <div
+                className="truncate font-mono text-[11px] text-muted-foreground"
+                title={project.slug}
+              >
+                {project.slug}
               </div>
             </div>
+          </div>
 
-            <CardAction className="flex items-center gap-1">
-              <StatusBadge status={project.status} size="sm" />
-              {onEditProject && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onEditProject(project);
-                  }}
-                  className="size-6 inline-flex items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-colors"
-                  title="Edit Project"
-                  aria-label={`Edit ${project.name}`}
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-              )}
-              {onDeleteProject && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDeleteProject(project);
-                  }}
-                  className="size-6 inline-flex items-center justify-center rounded text-muted-foreground/60 hover:text-status-danger hover:bg-status-danger/10 transition-colors"
-                  title="Delete Project"
-                  aria-label={`Delete ${project.name}`}
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              )}
-            </CardAction>
-          </CardHeader>
-
-          {/* Description */}
-          <CardContent className="p-0">
-            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed min-h-[2.25rem]">
-              {project.description || 'No description provided.'}
-            </p>
-          </CardContent>
+          <span
+            className={cn(
+              "shrink-0 rounded border px-2 py-0.5 font-mono text-[10px] tracking-wider uppercase",
+              envStyles
+            )}
+          >
+            {project.environment}
+          </span>
         </div>
 
-        {/* Clean Single-Row Footer */}
-        <CardFooter className="px-4 py-2.5 border-t border-border flex items-center justify-between text-xs text-muted-foreground h-10 shrink-0">
-          <div className="flex items-center gap-1.5 text-muted-foreground text-xs shrink-0">
-            <Layers className="size-3 text-muted-foreground" />
-            <span>
-              {servicesCount} {servicesCount === 1 ? 'service' : 'services'}
+        {/* Description */}
+        <p
+          className="mt-2.5 line-clamp-1 text-xs text-muted-foreground"
+          title={project.description}
+        >
+          {project.description}
+        </p>
+
+        {/* Metadata Metrics */}
+        <div className="mt-3.5 flex items-center gap-2.5 font-mono text-xs">
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Layers className="size-3.5" />
+            <span>Services:</span>
+            <span className="font-semibold text-foreground">
+              {project.servicesCount}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {issueCount > 0 && !isStopped ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-warning/20 bg-status-warning/10 px-2 py-0.5 text-[10px] font-medium text-status-warning">
-                <span className="size-1 rounded-full bg-status-warning" />
-                {issueCount} {issueCount === 1 ? 'issue' : 'issues'}
-              </span>
-            ) : isStopped ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-status-neutral/20 bg-status-neutral/10 px-2 py-0.5 text-[10px] font-medium text-status-neutral">
-                <span className="size-1 rounded-full bg-status-neutral" />
-                stopped
-              </span>
-            ) : project.updatedAt ? (
-              <span className="text-[11px] text-muted-foreground font-mono">
-                Updated {formatRelativeTime(project.updatedAt)}
-              </span>
-            ) : null}
-            <ChevronRight className="size-3.5 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-transform" />
-          </div>
-        </CardFooter>
-      </Card>
-    </Link>
-  );
-}
+          <span className="text-muted-foreground/60">•</span>
 
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <CheckCircle2 className="size-3.5 text-emerald-500" />
+            <span>Healthy:</span>
+            <span className="font-semibold text-foreground">
+              {project.healthyServicesCount}/{project.servicesCount}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between border-t border-border pt-3 text-xs">
+        <span className="font-mono text-[11px] text-muted-foreground">
+          Updated {project.updatedAt}
+        </span>
+
+        <div className="flex items-center gap-1">
+          {onDelete && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(project.id)
+              }}
+              className="size-7 text-muted-foreground hover:text-destructive"
+              title="Delete project"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          )}
+
+          <Link
+            href={`/projects/${project.id}`}
+            className="inline-flex h-7 items-center gap-1 rounded px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+          >
+            <span>View Services</span>
+            <ArrowRight className="size-3" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  )
+}

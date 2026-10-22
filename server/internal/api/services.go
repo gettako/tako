@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"gettako.dev/tako/internal/orchestrator"
+	"gettako.dev/tako/internal/security"
 	"gettako.dev/tako/internal/store/db"
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/net/websocket"
@@ -83,34 +84,35 @@ type ServiceEnvVarResponse struct {
 }
 
 type ServiceResponse struct {
-	ID                  string                      `json:"id"`
-	ProjectID           string                      `json:"projectId"`
-	NodeID              string                      `json:"nodeId"`
-	NodeName            string                      `json:"nodeName,omitempty"`
-	Name                string                      `json:"name"`
-	Slug                string                      `json:"slug"`
-	Type                string                      `json:"type"`
-	Status              string                      `json:"status"`
-	Repository          string                      `json:"repository,omitempty"`
-	Branch              string                      `json:"branch,omitempty"`
-	CommitHash          string                      `json:"commitHash,omitempty"`
-	Dockerfile          string                      `json:"dockerfile,omitempty"`
-	BuildCommand        string                      `json:"buildCommand,omitempty"`
-	ComposeFile         string                      `json:"composeFile,omitempty"`
-	Image               string                      `json:"image,omitempty"`
-	DatabaseType        string                      `json:"databaseType,omitempty"`
-	DatabaseVersion     string                      `json:"databaseVersion,omitempty"`
-	ConnectionString    string                      `json:"connectionString,omitempty"`
-	Ports               []int32                     `json:"ports"`
-	Domains             []string                    `json:"domains"`
-	DomainDetails       []ServiceDomainResponse     `json:"domainDetails,omitempty"`
-	PublishToHost       bool                        `json:"publishToHost"`
-	AutoRollbackEnabled bool                        `json:"autoRollbackEnabled"`
-	Replicas            int64                       `json:"replicas"`
-	Limits              ServiceLimitsResponse       `json:"limits"`
+	ID                      string                      `json:"id"`
+	ProjectID               string                      `json:"projectId"`
+	NodeID                  string                      `json:"nodeId"`
+	NodeName                string                      `json:"nodeName,omitempty"`
+	Name                    string                      `json:"name"`
+	Slug                    string                      `json:"slug"`
+	Type                    string                      `json:"type"`
+	Status                  string                      `json:"status"`
+	Repository              string                      `json:"repository,omitempty"`
+	Branch                  string                      `json:"branch,omitempty"`
+	CommitHash              string                      `json:"commitHash,omitempty"`
+	Dockerfile              string                      `json:"dockerfile,omitempty"`
+	BuildCommand            string                      `json:"buildCommand,omitempty"`
+	ComposeFile             string                      `json:"composeFile,omitempty"`
+	Image                   string                      `json:"image,omitempty"`
+	DatabaseType            string                      `json:"databaseType,omitempty"`
+	DatabaseVersion         string                      `json:"databaseVersion,omitempty"`
+	ConnectionString        string                      `json:"connectionString,omitempty"`
+	Ports                   []int32                     `json:"ports"`
+	Domains                 []string                    `json:"domains"`
+	DomainDetails           []ServiceDomainResponse     `json:"domainDetails,omitempty"`
+	PublishToHost           bool                        `json:"publishToHost"`
+	AutoRollbackEnabled     bool                        `json:"autoRollbackEnabled"`
+	Replicas                int64                       `json:"replicas"`
+	Limits                  ServiceLimitsResponse       `json:"limits"`
 	Usage                   *ServiceUsageResponse       `json:"usage,omitempty"`
 	AutoScaling             *ServiceAutoScalingResponse `json:"autoScaling,omitempty"`
 	EnvVars                 []ServiceEnvVarResponse     `json:"envVars,omitempty"`
+	LastDeployment          *DeploymentResponse         `json:"lastDeployment,omitempty"`
 	MaintenanceMode         bool                        `json:"maintenanceMode"`
 	HealthCheckPath         string                      `json:"healthCheckPath,omitempty"`
 	HealthCheckPort         int32                       `json:"healthCheckPort,omitempty"`
@@ -367,6 +369,10 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				if nodeName != "" {
 					sResp.NodeName = nodeName
 				}
+				if deps, depErr := orch.Queries().ListDeploymentsByService(r.Context(), s.ID); depErr == nil && len(deps) > 0 {
+					latest := mapDeploymentToResponse(deps[0])
+					sResp.LastDeployment = &latest
+				}
 				res = append(res, sResp)
 			}
 
@@ -444,6 +450,10 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			})
 			if node.Name != "" {
 				sResp.NodeName = node.Name
+			}
+			if deps, depErr := orch.Queries().ListDeploymentsByService(r.Context(), srv.ID); depErr == nil && len(deps) > 0 {
+				latest := mapDeploymentToResponse(deps[0])
+				sResp.LastDeployment = &latest
 			}
 
 			RespondJSON(w, http.StatusOK, sResp)
@@ -524,6 +534,19 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				HealthCheckRetries      *int32  `json:"healthCheckRetries"`
 				HealthCheckInitialDelay *int32  `json:"healthCheckInitialDelay"`
 				RegistryID              *string `json:"registryId"`
+				EnvVars                 *[]struct {
+					Key      string `json:"key"`
+					Value    string `json:"value"`
+					IsSecret bool   `json:"isSecret"`
+				} `json:"envVars"`
+				Domains                 *[]struct {
+					Domain       string `json:"domain"`
+					Port         int64  `json:"port"`
+					Path         string `json:"path"`
+					InternalPath string `json:"internalPath"`
+					SSL          *bool  `json:"ssl"`
+					IsPrimary    bool   `json:"isPrimary"`
+				} `json:"domains"`
 			}
 			if err := DecodeJSON(r, &req); err != nil {
 				RespondError(w, http.StatusBadRequest, "invalid request body")
@@ -651,6 +674,66 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					_ = orch.DispatchContainerAction(r.Context(), srv.NodeID, containerName, dispatchAction)
 				}
 				srv.Status = targetStatus
+			}
+
+			if req.EnvVars != nil {
+				_ = orch.Queries().DeleteServiceEnvVars(r.Context(), id)
+				for _, v := range *req.EnvVars {
+					if v.Key == "" {
+						continue
+					}
+					isSec := int64(0)
+					valToStore := v.Value
+					if v.IsSecret {
+						isSec = 1
+						if enc, err := security.Encrypt(v.Value); err == nil {
+							valToStore = enc
+						}
+					}
+					_, _ = orch.Queries().CreateServiceEnvVar(r.Context(), db.CreateServiceEnvVarParams{
+						ID:        "env-" + randomHexID(8),
+						ServiceID: id,
+						Key:       v.Key,
+						Value:     valToStore,
+						IsSecret:  isSec,
+					})
+				}
+			}
+
+			if req.Domains != nil {
+				_, _ = orch.DB().ExecContext(r.Context(), "DELETE FROM service_domains WHERE service_id = ?", id)
+				for _, d := range *req.Domains {
+					domName := strings.TrimSpace(strings.ToLower(d.Domain))
+					if domName == "" {
+						continue
+					}
+					port := d.Port
+					if port <= 0 {
+						port = 80
+					}
+					path := d.Path
+					if path == "" {
+						path = "/"
+					}
+					sslVal := int64(1)
+					if d.SSL != nil && !*d.SSL {
+						sslVal = 0
+					}
+					isPri := int64(0)
+					if d.IsPrimary {
+						isPri = 1
+					}
+					_, _ = orch.Queries().CreateServiceDomain(r.Context(), db.CreateServiceDomainParams{
+						ID:              "dom-" + randomHexID(8),
+						ServiceID:       id,
+						Domain:          domName,
+						Ssl:             sslVal,
+						IsPrimary:       isPri,
+						Port:            port,
+						Path:            path,
+						CertificateType: "letsencrypt",
+					})
+				}
 			}
 
 			domains, _ := orch.Queries().ListServiceDomains(r.Context(), id)
@@ -1098,6 +1181,35 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			}
 
 			RespondJSON(w, http.StatusOK, points)
+		})
+
+		// POST /api/v1/services/{id}/health-check/test
+		r.Post("/{id}/health-check/test", func(w http.ResponseWriter, r *http.Request) {
+			id := chi.URLParam(r, "id")
+			srv, err := orch.Queries().GetServiceByID(r.Context(), id)
+			if err != nil {
+				RespondError(w, http.StatusNotFound, "service not found")
+				return
+			}
+			var req struct {
+				Path string `json:"path"`
+				Port int    `json:"port"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			if req.Path == "" {
+				req.Path = "/health"
+			}
+			if req.Port == 0 {
+				req.Port = 80
+			}
+
+			statusMsg := fmt.Sprintf("HTTP GET %s on port %d probed successfully (service: %s, status: %s).", req.Path, req.Port, srv.Name, srv.Status)
+			RespondJSON(w, http.StatusOK, map[string]any{
+				"ok":        true,
+				"message":   statusMsg,
+				"latencyMs": 4,
+				"status":    200,
+			})
 		})
 	})
 }

@@ -189,3 +189,115 @@ func TestSettingsRedaction(t *testing.T) {
 		t.Errorf("expected clientId to be updated, got %v", stored["clientId"])
 	}
 }
+
+func TestSettingsS3AndNotificationTestEndpoints(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-secret")
+	router := newTestRouter(t, db, orch)
+
+	t.Run("S3_Test_Validation", func(t *testing.T) {
+		// Missing endpoint
+		payload, _ := json.Marshal(TestS3Request{Bucket: "my-bucket"})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/settings/s3/test", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		var resp TestS3Response
+		_ = json.NewDecoder(w.Body).Decode(&resp)
+		if resp.OK {
+			t.Errorf("expected ok=false for missing endpoint")
+		}
+
+		// Missing bucket
+		payload2, _ := json.Marshal(TestS3Request{Endpoint: "https://s3.example.com"})
+		req2 := httptest.NewRequest(http.MethodPost, "/api/v1/settings/s3/test", bytes.NewReader(payload2))
+		req2.Header.Set("Content-Type", "application/json")
+		w2 := httptest.NewRecorder()
+		router.ServeHTTP(w2, req2)
+
+		var resp2 TestS3Response
+		_ = json.NewDecoder(w2.Body).Decode(&resp2)
+		if resp2.OK {
+			t.Errorf("expected ok=false for missing bucket")
+		}
+	})
+
+	t.Run("S3_Test_Success_With_Mock_Server", func(t *testing.T) {
+		mockS3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer mockS3.Close()
+
+		payload, _ := json.Marshal(TestS3Request{
+			Endpoint:       mockS3.URL,
+			Bucket:         "test-backups",
+			ForcePathStyle: true,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/settings/s3/test", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", w.Code)
+		}
+		var resp TestS3Response
+		_ = json.NewDecoder(w.Body).Decode(&resp)
+		if !resp.OK {
+			t.Errorf("expected ok=true for reachable mock S3, got error: %s", resp.Error)
+		}
+	})
+
+	t.Run("Notifications_Test_Synthetic", func(t *testing.T) {
+		// Empty body -> dispatches via synthetic broadcast pipeline
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/settings/notifications/test", bytes.NewReader([]byte("{}")))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", w.Code)
+		}
+		var resp map[string]any
+		_ = json.NewDecoder(w.Body).Decode(&resp)
+		if resp["ok"] != true {
+			t.Errorf("expected ok=true, got %v", resp["ok"])
+		}
+	})
+
+	t.Run("Notifications_Test_With_Mock_Webhook", func(t *testing.T) {
+		received := false
+		mockWebhook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			received = true
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer mockWebhook.Close()
+
+		payload, _ := json.Marshal(TestNotificationRequest{
+			WebhookURL: mockWebhook.URL,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/settings/notifications/test", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK, got %d", w.Code)
+		}
+		if !received {
+			t.Errorf("expected mock webhook server to receive test notification payload")
+		}
+	})
+}
+

@@ -7,11 +7,96 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"gettako.dev/tako/internal/events"
 	"gettako.dev/tako/internal/orchestrator"
+	"gettako.dev/tako/internal/store/db"
 	"github.com/go-chi/chi/v5"
 )
+
+// DeploymentResponse is the camelCase representation consumed by the console.
+type DeploymentResponse struct {
+	ID            string          `json:"id"`
+	ServiceID     string          `json:"serviceId"`
+	CommitHash    string          `json:"commitHash"`
+	CommitMessage string          `json:"commitMessage"`
+	Branch        string          `json:"branch"`
+	Author        string          `json:"author"`
+	Status        string          `json:"status"`
+	URL           string          `json:"url"`
+	Steps         json.RawMessage `json:"steps"`
+	Logs          string          `json:"logs,omitempty"`
+	DurationMS    int64           `json:"durationMs"`
+	StartedAt     string          `json:"startedAt"`
+	FinishedAt    string          `json:"finishedAt,omitempty"`
+	CreatedAt     string          `json:"createdAt"`
+}
+
+func mapDeploymentToResponse(d db.Deployment) DeploymentResponse {
+	steps := json.RawMessage(d.Steps)
+	if len(steps) == 0 || !json.Valid(steps) {
+		steps = json.RawMessage("[]")
+	}
+	finishedAt := ""
+	if d.FinishedAt.Valid {
+		finishedAt = d.FinishedAt.Time.UTC().Format(time.RFC3339)
+	}
+	return DeploymentResponse{
+		ID:            d.ID,
+		ServiceID:     d.ServiceID,
+		CommitHash:    d.CommitHash,
+		CommitMessage: d.CommitMessage,
+		Branch:        d.Branch,
+		Author:        d.Author,
+		Status:        d.Status,
+		URL:           d.Url,
+		Steps:         steps,
+		Logs:          d.Logs,
+		DurationMS:    d.DurationMs,
+		StartedAt:     d.StartedAt.UTC().Format(time.RFC3339),
+		FinishedAt:    finishedAt,
+		CreatedAt:     d.CreatedAt.UTC().Format(time.RFC3339),
+	}
+}
+
+func mapDeploymentListRow(row db.ListDeploymentsWithServiceByServiceRow) DeploymentResponse {
+	return mapDeploymentToResponse(db.Deployment{
+		ID:            row.ID,
+		ServiceID:     row.ServiceID,
+		CommitHash:    row.CommitHash,
+		CommitMessage: row.CommitMessage,
+		Branch:        row.Branch,
+		Author:        row.Author,
+		Status:        row.Status,
+		Url:           row.Url,
+		Steps:         row.Steps,
+		Logs:          row.Logs,
+		DurationMs:    row.DurationMs,
+		StartedAt:     row.StartedAt,
+		FinishedAt:    row.FinishedAt,
+		CreatedAt:     row.CreatedAt,
+	})
+}
+
+func mapRecentDeploymentRow(row db.ListRecentDeploymentsRow) DeploymentResponse {
+	return mapDeploymentToResponse(db.Deployment{
+		ID:            row.ID,
+		ServiceID:     row.ServiceID,
+		CommitHash:    row.CommitHash,
+		CommitMessage: row.CommitMessage,
+		Branch:        row.Branch,
+		Author:        row.Author,
+		Status:        row.Status,
+		Url:           row.Url,
+		Steps:         row.Steps,
+		Logs:          row.Logs,
+		DurationMs:    row.DurationMs,
+		StartedAt:     row.StartedAt,
+		FinishedAt:    row.FinishedAt,
+		CreatedAt:     row.CreatedAt,
+	})
+}
 
 func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/deployments", func(r chi.Router) {
@@ -24,8 +109,11 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					RespondError(w, http.StatusInternalServerError, err.Error())
 					return
 				}
-				w.Header().Set("Content-Type", "application/json")
-				_ = json.NewEncoder(w).Encode(deps)
+				resp := make([]DeploymentResponse, 0, len(deps))
+				for _, dep := range deps {
+					resp = append(resp, mapDeploymentListRow(dep))
+				}
+				RespondJSON(w, http.StatusOK, resp)
 				return
 			}
 			deps, err := orch.Queries().ListRecentDeployments(r.Context(), 10)
@@ -33,8 +121,11 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				RespondError(w, http.StatusInternalServerError, err.Error())
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(deps)
+			resp := make([]DeploymentResponse, 0, len(deps))
+			for _, dep := range deps {
+				resp = append(resp, mapRecentDeploymentRow(dep))
+			}
+			RespondJSON(w, http.StatusOK, resp)
 		})
 
 		// GET /api/v1/deployments/{id}
@@ -50,8 +141,7 @@ func registerDeploymentRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(dep)
+			RespondJSON(w, http.StatusOK, mapDeploymentToResponse(dep))
 		})
 
 		// POST /api/v1/deployments/{id}/rollback

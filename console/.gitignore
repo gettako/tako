@@ -30,7 +30,6 @@ pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-!.env.example
 
 # vercel
 .vercel
@@ -39,10 +38,8 @@ pnpm-debug.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Playwright
-node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
+# xerj / reference coding
+/ref/
+/state-*/
+/.xerj/
+/corpora/

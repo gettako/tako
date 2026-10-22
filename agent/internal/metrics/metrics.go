@@ -25,13 +25,13 @@ type SystemInfo struct {
 }
 
 type Snapshot struct {
-	CPUPercent     float64
-	MemoryUsedMB   int64
-	DiskUsedGB     float64
-	NetworkRxKBps  float64
-	NetworkTxKBps  float64
-	UptimeSeconds  int64
-	Timestamp      int64
+	CPUPercent    float64
+	MemoryUsedMB  int64
+	DiskUsedGB    float64
+	NetworkRxKBps float64
+	NetworkTxKBps float64
+	UptimeSeconds int64
+	Timestamp     int64
 }
 
 type Collector struct {

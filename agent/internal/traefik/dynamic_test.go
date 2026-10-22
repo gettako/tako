@@ -89,4 +89,3 @@ func TestWriteDynamicConfig_MixedDomains(t *testing.T) {
 		t.Fatalf("tako-demo-hello-preview (%d) must appear BEFORE middlewares (%d)\nContent:\n%s", previewIdx, midIdx, s)
 	}
 }
-

@@ -1,0 +1,9 @@
+.git
+.gitignore
+.DS_Store
+old
+docs
+data
+bin
+tako
+*.md

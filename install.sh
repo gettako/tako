@@ -534,7 +534,6 @@ services:
       - "3000:3000"
     environment:
       - TAKO_SERVER_URL=http://tako-server:8080
-      - NEXT_PUBLIC_TAKO_SERVER_URL=http://${SERVER_IP}:3000
     depends_on:
       - server
     networks:

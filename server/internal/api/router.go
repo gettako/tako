@@ -61,6 +61,7 @@ func NewRouter(db *sql.DB, orch *orchestrator.Orchestrator) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
+	r.Use(corsMiddleware)
 	r.Use(middleware.RealIP)
 	r.Use(clientIPMiddleware)
 	r.Use(middleware.Logger)
