@@ -10,3 +10,25 @@ Only an explicit choice of antislop during or after selects a session mode. A re
 If the mode is unresolved, ask during/after and end the response; wait for the answer before any UI review, planning, or concept. For read-only tasks, put the active-mode notice only at the start of the final answer, never in progress messages. For editing tasks, announce before the first edit and omit it from the final answer.
 To update antislop later: `npx antislop-ai --update`, or run `npx antislop-ai` and pick Overwrite them.
 <!-- antislop:end -->
+
+## Engineering Standards
+
+All code contributions must adhere to the following principles:
+- **Optimal & Lean (Ponytail):** Solve the problem completely with the smallest working diff. Skip speculative features, options, and abstractions nobody asked for (YAGNI). Use existing project patterns and standard library first. Deletion beats addition.
+- **Root-Cause Diagnosis:** When fixing bugs, inspect logs, reproduce the failure, and trace the root cause in shared code before editing.
+- **Correctness & Testing (TDD):** Non-trivial logic (concurrency, data mutation, auth, parsing, security, routing) must have automated tests validating behavior and edge cases.
+- **Review Gate:** Verify code for safety, race conditions, memory leaks, and bloat before completion.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical five-role triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context (`GLOSSARY.md` + `docs/adr/`). See `docs/agents/domain.md`.
