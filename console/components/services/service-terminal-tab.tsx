@@ -198,44 +198,54 @@ export function ServiceTerminalTab({
       }
       ws.onmessage = (event) => {
         const text = typeof event.data === "string" ? event.data : ""
-        if (text && !text.includes("Error: service not found")) {
-          // Clean ANSI color codes and control sequences (e.g. \x1b[2J, \x1b[H, \r)
-          let cleanText = text
-            // eslint-disable-next-line no-control-regex
-            .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
-            .replace(/\r/g, "")
-            .trim()
+        if (!text || text.includes("Error: service not found")) return
 
-          // Filter out trailing shell prompt symbols
-          cleanText = cleanText.replace(/[\r\n]*#\s*$/, "").trim()
-          if (!cleanText || cleanText === "#" || cleanText === "/ #") {
-            setIsExecuting(false)
-            return
-          }
+        const isDone = text.includes("__TAKO_EXEC_DONE__")
+        let chunk = text
+          .replace(/[\x00\r\n]*__TAKO_EXEC_DONE__[\x00\r\n]*/g, "")
+          // eslint-disable-next-line no-control-regex
+          .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
+          .replace(/\r/g, "")
 
+        // Filter out trailing shell prompt symbols
+        chunk = chunk.replace(/[\r\n]*#\s*$/, "")
+
+        if (isDone) {
           setIsExecuting(false)
-          setHistoryList((prev) => {
-            if (prev.length > 0) {
-              const last = prev[prev.length - 1]
-              return [
-                ...prev.slice(0, -1),
-                {
-                  ...last,
-                  output: last.output ? `${last.output}\n${cleanText}` : cleanText,
-                },
-              ]
-            }
+        }
+
+        if (!chunk && !isDone) {
+          return
+        }
+
+        setHistoryList((prev) => {
+          if (prev.length === 0) {
+            if (!chunk.trim()) return prev
             return [
               {
                 id: `ws-${Date.now()}-${Math.random()}`,
                 command: "",
-                output: cleanText,
+                output: chunk.trim(),
                 timestamp: new Date().toLocaleTimeString(),
                 cwd: currentCwd,
               },
             ]
-          })
-        }
+          }
+
+          const last = prev[prev.length - 1]
+          let updatedOutput = last.output
+          if (chunk) {
+            updatedOutput = updatedOutput ? `${updatedOutput}${chunk}` : chunk
+          }
+
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...last,
+              output: updatedOutput,
+            },
+          ]
+        })
       }
       ws.onerror = () => {
         setWsConnected(false)
@@ -597,7 +607,10 @@ export function ServiceTerminalTab({
                 >
                   {item.output}
                 </div>
-              ) : item.command && isExecuting ? (
+              ) : null}
+              {item.command &&
+              isExecuting &&
+              item.id === historyList[historyList.length - 1]?.id ? (
                 <div className="flex items-center gap-2 pl-2 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin text-primary" />
                   <span>Executing...</span>

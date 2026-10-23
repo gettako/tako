@@ -207,9 +207,21 @@ func (c *Client) ResolveAllContainers(ctx context.Context, nameOrSlug string) []
 }
 
 // Exec runs a command inside a running container and returns stdout/stderr and exit code.
-func (c *Client) Exec(ctx context.Context, containerName string, cmd string) (string, int, error) {
+type streamChunkWriter struct {
+	onChunk func(chunk string)
+}
+
+func (w *streamChunkWriter) Write(p []byte) (n int, err error) {
+	if len(p) > 0 && w.onChunk != nil {
+		w.onChunk(string(p))
+	}
+	return len(p), nil
+}
+
+// ExecStream executes a command inside a container, streaming stdout/stderr chunks in real time.
+func (c *Client) ExecStream(ctx context.Context, containerName string, cmd string, onChunk func(chunk string)) (int, error) {
 	if c.cli == nil {
-		return "", 1, fmt.Errorf("docker client not available")
+		return 1, fmt.Errorf("docker client not available")
 	}
 
 	target := c.ResolveContainer(ctx, containerName)
@@ -222,17 +234,17 @@ func (c *Client) Exec(ctx context.Context, containerName string, cmd string) (st
 
 	execIDResp, err := c.cli.ContainerExecCreate(ctx, target, execCfg)
 	if err != nil {
-		return "", 1, fmt.Errorf("failed to create exec: %w", err)
+		return 1, fmt.Errorf("failed to create exec: %w", err)
 	}
 
 	resp, err := c.cli.ContainerExecAttach(ctx, execIDResp.ID, types.ExecStartCheck{})
 	if err != nil {
-		return "", 1, fmt.Errorf("failed to attach exec: %w", err)
+		return 1, fmt.Errorf("failed to attach exec: %w", err)
 	}
 	defer resp.Close()
 
-	var outBuf, errBuf bytes.Buffer
-	_, _ = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+	writer := &streamChunkWriter{onChunk: onChunk}
+	_, _ = stdcopy.StdCopy(writer, writer, resp.Reader)
 
 	inspect, err := c.cli.ContainerExecInspect(ctx, execIDResp.ID)
 	exitCode := 0
@@ -240,16 +252,16 @@ func (c *Client) Exec(ctx context.Context, containerName string, cmd string) (st
 		exitCode = inspect.ExitCode
 	}
 
-	output := outBuf.String()
-	if errStr := errBuf.String(); errStr != "" {
-		if output != "" {
-			output += "\n" + errStr
-		} else {
-			output = errStr
-		}
-	}
+	return exitCode, nil
+}
 
-	return output, exitCode, nil
+// Exec executes a command inside a container and buffers the full output.
+func (c *Client) Exec(ctx context.Context, containerName string, cmd string) (string, int, error) {
+	var buf strings.Builder
+	code, err := c.ExecStream(ctx, containerName, cmd, func(chunk string) {
+		buf.WriteString(chunk)
+	})
+	return buf.String(), code, err
 }
 
 // Logs fetches stdout/stderr output from a container.

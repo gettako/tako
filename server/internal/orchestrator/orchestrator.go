@@ -156,6 +156,11 @@ func (o *Orchestrator) DispatchExec(ctx context.Context, nodeID, containerID, cm
 	return o.agents.DispatchExec(ctx, nodeID, containerID, cmd)
 }
 
+// DispatchExecStream executes a terminal command streaming output chunks in real time.
+func (o *Orchestrator) DispatchExecStream(ctx context.Context, nodeID, containerID, cmd string, onChunk func(chunk string)) (int, error) {
+	return o.agents.DispatchExecStream(ctx, nodeID, containerID, cmd, onChunk)
+}
+
 // DispatchContainerLogs retrieves stdout/stderr logs from a container via agent stream.
 func (o *Orchestrator) DispatchContainerLogs(ctx context.Context, nodeID, containerID string, tailLines int) (string, error) {
 	return o.agents.DispatchContainerLogs(ctx, nodeID, containerID, tailLines)

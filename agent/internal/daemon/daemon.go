@@ -427,17 +427,39 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 
 	case *takov1.MasterTask_Exec:
 		execReq := t.Exec
-		out, exitCode, err := "", 1, fmt.Errorf("docker client not available")
-		if d.dockerCli != nil {
-			out, exitCode, err = d.dockerCli.Exec(ctx, execReq.GetContainerId(), execReq.GetCommand())
+		if d.dockerCli == nil {
+			_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_ExecResult{
+					ExecResult: &takov1.ExecCommandResponse{
+						ExitCode: 1,
+						Error:    "docker client not available",
+					},
+				},
+			})
+			return
 		}
+
+		exitCode, err := d.dockerCli.ExecStream(ctx, execReq.GetContainerId(), execReq.GetCommand(), func(chunk string) {
+			_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_ExecResult{
+					ExecResult: &takov1.ExecCommandResponse{
+						ExitCode: -1,
+						Output:   chunk,
+					},
+				},
+			})
+		})
+
 		_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
 			TaskId: taskID,
 			NodeId: nodeID,
 			Result: &takov1.AgentTaskResult_ExecResult{
 				ExecResult: &takov1.ExecCommandResponse{
 					ExitCode: int32(exitCode),
-					Output:   out,
 					Error:    errString(err),
 				},
 			},

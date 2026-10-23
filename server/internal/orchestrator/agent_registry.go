@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ type AgentSession struct {
 	TaskChan        chan *takov1.MasterTask
 	mu              sync.RWMutex
 	logCallbacks    map[string]func(chunk *takov1.DeployLogChunk)
+	execCallbacks   map[string]func(res *takov1.ExecCommandResponse)
 	resultCallbacks map[string]chan *takov1.AgentTaskResult
 }
 
@@ -32,6 +34,18 @@ func (s *AgentSession) UnregisterDeployLogCallback(taskID string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.logCallbacks, taskID)
+}
+
+func (s *AgentSession) RegisterExecCallback(taskID string, cb func(res *takov1.ExecCommandResponse)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.execCallbacks[taskID] = cb
+}
+
+func (s *AgentSession) UnregisterExecCallback(taskID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.execCallbacks, taskID)
 }
 
 func (s *AgentSession) RegisterResultChan(taskID string, ch chan *takov1.AgentTaskResult) {
@@ -54,6 +68,12 @@ func (s *AgentSession) HandleResult(res *takov1.AgentTaskResult) {
 	if chunk := res.GetDeployLog(); chunk != nil {
 		if cb, ok := s.logCallbacks[taskID]; ok {
 			cb(chunk)
+		}
+	}
+
+	if execRes := res.GetExecResult(); execRes != nil {
+		if cb, ok := s.execCallbacks[taskID]; ok {
+			cb(execRes)
 		}
 	}
 
@@ -87,6 +107,7 @@ func (r *AgentRegistry) Register(nodeID string, taskChan chan *takov1.MasterTask
 		NodeID:          nodeID,
 		TaskChan:        taskChan,
 		logCallbacks:    make(map[string]func(chunk *takov1.DeployLogChunk)),
+		execCallbacks:   make(map[string]func(res *takov1.ExecCommandResponse)),
 		resultCallbacks: make(map[string]chan *takov1.AgentTaskResult),
 	}
 	r.agents[nodeID] = sess
@@ -109,17 +130,43 @@ func (r *AgentRegistry) Get(nodeID string) *AgentSession {
 	return r.agents[nodeID]
 }
 
-// DispatchExec sends a command execution request to a container on a worker node and awaits output.
-func (r *AgentRegistry) DispatchExec(ctx context.Context, nodeID, containerID, cmd string) (string, int, error) {
+// DispatchExecStream sends a command execution request to a container and invokes onChunk for each output chunk in real time.
+func (r *AgentRegistry) DispatchExecStream(ctx context.Context, nodeID, containerID, cmd string, onChunk func(chunk string)) (int, error) {
 	sess := r.Get(nodeID)
 	if sess == nil {
-		return "", 1, fmt.Errorf("node agent not connected: %s", nodeID)
+		return 1, fmt.Errorf("node agent not connected: %s", nodeID)
 	}
 
 	taskID := "exec-" + randomHex(8)
-	resCh := make(chan *takov1.AgentTaskResult, 1)
-	sess.RegisterResultChan(taskID, resCh)
-	defer sess.UnregisterResultChan(taskID)
+	doneCh := make(chan struct {
+		exitCode int
+		err      error
+	}, 1)
+
+	sess.RegisterExecCallback(taskID, func(res *takov1.ExecCommandResponse) {
+		if res.ExitCode == -1 {
+			if res.Output != "" && onChunk != nil {
+				onChunk(res.Output)
+			}
+			return
+		}
+
+		if res.Output != "" && onChunk != nil {
+			onChunk(res.Output)
+		}
+		var err error
+		if res.Error != "" {
+			err = fmt.Errorf("%s", res.Error)
+		}
+		select {
+		case doneCh <- struct {
+			exitCode int
+			err      error
+		}{exitCode: int(res.ExitCode), err: err}:
+		default:
+		}
+	})
+	defer sess.UnregisterExecCallback(taskID)
 
 	select {
 	case sess.TaskChan <- &takov1.MasterTask{
@@ -133,24 +180,26 @@ func (r *AgentRegistry) DispatchExec(ctx context.Context, nodeID, containerID, c
 		},
 	}:
 	case <-ctx.Done():
-		return "", 1, ctx.Err()
+		return 1, ctx.Err()
 	}
 
 	select {
-	case res := <-resCh:
-		execRes := res.GetExecResult()
-		if execRes == nil {
-			return "", 1, fmt.Errorf("invalid response from agent")
-		}
-		if execRes.Error != "" && execRes.Output == "" {
-			return "", int(execRes.ExitCode), fmt.Errorf("%s", execRes.Error)
-		}
-		return execRes.Output, int(execRes.ExitCode), nil
-	case <-time.After(30 * time.Second):
-		return "", 1, fmt.Errorf("exec timed out waiting for agent response")
+	case result := <-doneCh:
+		return result.exitCode, result.err
+	case <-time.After(5 * time.Minute):
+		return 1, fmt.Errorf("exec timed out waiting for process completion")
 	case <-ctx.Done():
-		return "", 1, ctx.Err()
+		return 1, ctx.Err()
 	}
+}
+
+// DispatchExec sends a command execution request to a container on a worker node and awaits output.
+func (r *AgentRegistry) DispatchExec(ctx context.Context, nodeID, containerID, cmd string) (string, int, error) {
+	var buf strings.Builder
+	code, err := r.DispatchExecStream(ctx, nodeID, containerID, cmd, func(chunk string) {
+		buf.WriteString(chunk)
+	})
+	return buf.String(), code, err
 }
 
 // DispatchContainerLogs streams recent container logs from a worker node.

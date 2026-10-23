@@ -900,19 +900,16 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 							execCmd = "top -b -n 1"
 						}
 
-						out, code, execErr := orch.DispatchExec(ws.Request().Context(), srv.NodeID, targetContainer, execCmd)
-						if execErr != nil && out == "" {
-							_, _ = ws.Write([]byte(fmt.Sprintf("\x1b[31mError: %v\x1b[0m\r\n", execErr)))
-						} else {
-							formatted := strings.ReplaceAll(out, "\n", "\r\n")
-							if formatted != "" && !strings.HasSuffix(formatted, "\r\n") {
-								formatted += "\r\n"
-							}
+						code, execErr := orch.DispatchExecStream(ws.Request().Context(), srv.NodeID, targetContainer, execCmd, func(chunk string) {
+							formatted := strings.ReplaceAll(chunk, "\n", "\r\n")
 							_, _ = ws.Write([]byte(formatted))
-							if code != 0 && execErr != nil {
-								_, _ = ws.Write([]byte(fmt.Sprintf("\x1b[31mProcess exited with code %d\x1b[0m\r\n", code)))
-							}
+						})
+						if execErr != nil {
+							_, _ = ws.Write([]byte(fmt.Sprintf("\x1b[31mError: %v\x1b[0m\r\n", execErr)))
+						} else if code != 0 {
+							_, _ = ws.Write([]byte(fmt.Sprintf("\x1b[31mProcess exited with code %d\x1b[0m\r\n", code)))
 						}
+						_, _ = ws.Write([]byte("\r\n\x00__TAKO_EXEC_DONE__\r\n"))
 
 					case 3: // Ctrl+C
 						cmdBuf = cmdBuf[:0]
