@@ -5,7 +5,6 @@ const rootDir = resolve(import.meta.dir, "..");
 const srcPath = resolve(rootDir, "api/openapi.yaml");
 const destPaths = [
   resolve(rootDir, "docs/api-reference/openapi.yaml"),
-  resolve(rootDir, "docs/openapi.yaml"),
 ];
 
 const isCheck = process.argv.includes("--check");

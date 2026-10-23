@@ -101,7 +101,6 @@ go test -v -run TestAllServerEndpointsDocumentedInOpenAPI ./internal/api/...
 
 # Sync specification to documentation
 cp ../api/openapi.yaml ../docs/api-reference/openapi.yaml
-cp ../api/openapi.yaml ../docs/openapi.yaml
 ```
 
 ---
