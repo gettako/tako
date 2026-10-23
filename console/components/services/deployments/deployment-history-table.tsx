@@ -25,6 +25,9 @@ export interface DeploymentHistoryTableProps {
   onRequestRollback: (deployment: DeploymentRecord) => void
   isDeploying?: boolean
   activeCommitHash?: string
+  activeDeploymentId?: string
+  isLoading?: boolean
+  onRefresh?: () => void
 }
 
 export function DeploymentHistoryTable({
@@ -34,6 +37,9 @@ export function DeploymentHistoryTable({
   onRequestRollback,
   isDeploying = false,
   activeCommitHash,
+  activeDeploymentId,
+  isLoading = false,
+  onRefresh,
 }: DeploymentHistoryTableProps) {
   const [searchQuery, setSearchQuery] = React.useState("")
 
@@ -68,26 +74,45 @@ export function DeploymentHistoryTable({
           </span>
         </div>
 
-        {/* Quick Filter Search */}
-        <div className="relative flex items-center">
-          <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Filter commits, trigger, message..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-8 w-full bg-background pr-7 pl-8 font-mono text-xs sm:w-64"
-          />
-          {searchQuery && (
-            <button
+        {/* Quick Filter Search & Actions */}
+        <div className="flex items-center gap-2">
+          {onRefresh && (
+            <Button
               type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2 text-muted-foreground transition-colors hover:text-foreground"
-              title="Clear search"
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="h-8 gap-1.5 px-2.5 font-mono text-xs text-muted-foreground hover:text-foreground"
+              title="Refresh deployments"
             >
-              <X className="size-3.5" />
-            </button>
+              <RotateCcw
+                className={cn("size-3.5", isLoading && "animate-spin text-primary")}
+              />
+              <span className="hidden sm:inline">Refresh</span>
+            </Button>
           )}
+
+          <div className="relative flex items-center">
+            <Search className="pointer-events-none absolute left-2.5 size-3.5 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Filter commits, trigger, message..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-8 w-full bg-background pr-7 pl-8 font-mono text-xs sm:w-64"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 text-muted-foreground transition-colors hover:text-foreground"
+                title="Clear search"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -133,7 +158,9 @@ export function DeploymentHistoryTable({
               filteredDeployments.map((dep, index) => {
                 const isSelected = selectedDeploymentId === dep.id
                 const isCurrentActive =
-                  dep.commitHash === activeCommitHash && !isDeploying
+                  (activeDeploymentId
+                    ? dep.id === activeDeploymentId
+                    : dep.commitHash === activeCommitHash) && !isDeploying
                 const isRunning =
                   dep.status === "building" || (isDeploying && index === 0)
 

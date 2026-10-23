@@ -561,7 +561,30 @@ export function PlatformDataProvider({
 
   const refreshServices = React.useCallback(async () => {
     const data = await apiGet<ApiService[]>("/services")
-    setServices(data.map(adaptService))
+    setServices((prev) => {
+      const historyMap = new Map(
+        prev.map((s) => [s.id, s.deploymentHistory])
+      )
+      return data.map((apiSrv) => {
+        const adapted = adaptService(apiSrv)
+        const existing = historyMap.get(apiSrv.id)
+        if (existing && existing.length > 0) {
+          if (
+            apiSrv.lastDeployment &&
+            existing[0] &&
+            apiSrv.lastDeployment.id !== existing[0].id
+          ) {
+            adapted.deploymentHistory = [
+              adaptDeployment(apiSrv.lastDeployment),
+              ...existing.filter((d) => d.id !== apiSrv.lastDeployment?.id),
+            ]
+          } else if (existing.length > 1) {
+            adapted.deploymentHistory = existing
+          }
+        }
+        return adapted
+      })
+    })
   }, [])
 
   const refreshAuditLogs = React.useCallback(async () => {
@@ -1210,7 +1233,13 @@ export function PlatformDataProvider({
       const data = await apiGet<ApiDeployment[]>(
         `/deployments?serviceId=${encodeURIComponent(serviceId)}`
       )
-      return data.map(adaptDeployment)
+      const adapted = data.map(adaptDeployment)
+      setServices((prev) =>
+        prev.map((s) =>
+          s.id === serviceId ? { ...s, deploymentHistory: adapted } : s
+        )
+      )
+      return adapted
     },
     []
   )

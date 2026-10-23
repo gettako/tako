@@ -40,23 +40,65 @@ import {
   STEP_KEYWORDS,
 } from "@/lib/deployment-mock"
 import { cn } from "@/lib/utils"
+import { formatCommitHash } from "@/lib/adapters"
 
 interface ServiceDeploymentsTabProps {
   service: ProjectService
 }
 
 export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
-  const { triggerRollback, activeDeployingId, deploymentLogs } = usePlatformData()
+  const {
+    triggerRollback,
+    activeDeployingId,
+    deploymentLogs,
+    fetchServiceDeployments,
+  } = usePlatformData()
 
   const isDeploying =
     activeDeployingId === service.id || service.status === "deploying"
 
+  const [fetchedDeployments, setFetchedDeployments] = React.useState<
+    DeploymentRecord[] | null
+  >(null)
+  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false)
+
+  const loadDeployments = React.useCallback(async () => {
+    if (!service?.id) return
+    setIsLoadingHistory(true)
+    try {
+      const records = await fetchServiceDeployments(service.id)
+      setFetchedDeployments(records)
+    } catch (err) {
+      console.error("Failed to fetch deployments:", err)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }, [fetchServiceDeployments, service?.id])
+
+  React.useEffect(() => {
+    void loadDeployments()
+  }, [loadDeployments])
+
+  // When deploying status toggles (e.g. starts or finishes), reload full history
+  const prevDeployingRef = React.useRef(isDeploying)
+  React.useEffect(() => {
+    if (prevDeployingRef.current !== isDeploying) {
+      void loadDeployments()
+    }
+    prevDeployingRef.current = isDeploying
+  }, [isDeploying, loadDeployments])
+
   // Deployment history list
   const history = React.useMemo(() => {
+    if (fetchedDeployments && fetchedDeployments.length > 0) {
+      return fetchedDeployments
+    }
     return service.deploymentHistory && service.deploymentHistory.length > 0
       ? service.deploymentHistory
-      : [service.lastDeployment]
-  }, [service.deploymentHistory, service.lastDeployment])
+      : service.lastDeployment && service.lastDeployment.id
+        ? [service.lastDeployment]
+        : []
+  }, [fetchedDeployments, service.deploymentHistory, service.lastDeployment])
 
   // User manual selection state for inspecting historical releases
   const [userSelectedDeploymentId, setUserSelectedDeploymentId] =
@@ -77,8 +119,12 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
     return found || history[0] || service.lastDeployment
   }, [history, selectedDeploymentId, service.lastDeployment])
 
+  const activeDeploymentId = service.lastDeployment?.id || history[0]?.id
+
   const isSelectedActiveRelease =
-    selectedDeployment.commitHash === service.lastDeployment.commitHash &&
+    (selectedDeployment.id
+      ? selectedDeployment.id === activeDeploymentId
+      : selectedDeployment.commitHash === service.lastDeployment?.commitHash) &&
     !isDeploying
   const isSelectedDeploying =
     isDeploying && selectedDeployment.id === history[0]?.id
@@ -216,9 +262,13 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
   const handleConfirmRollback = async () => {
     if (!rollbackTarget) return
     setIsRollingBack(true)
-    await triggerRollback(service.id, rollbackTarget)
-    setIsRollingBack(false)
-    setRollbackTarget(null)
+    try {
+      await triggerRollback(service.id, rollbackTarget)
+      await loadDeployments()
+    } finally {
+      setIsRollingBack(false)
+      setRollbackTarget(null)
+    }
   }
 
   const handleSelectDeploymentFromTable = (dep: DeploymentRecord) => {
@@ -274,8 +324,11 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
               </div>
 
               {/* Commit Hash badge */}
-              <span className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 font-mono text-xs font-semibold text-primary">
-                commit {selectedDeployment.commitHash}
+              <span
+                className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 font-mono text-xs font-semibold text-primary"
+                title={selectedDeployment.commitHash}
+              >
+                commit {formatCommitHash(selectedDeployment.commitHash)}
               </span>
 
               {/* Git Branch badge */}
@@ -396,8 +449,11 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
             <div className="flex flex-col gap-2.5 border-b border-border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <Terminal className="size-4 text-primary" />
-                <span className="font-mono text-xs font-semibold text-foreground">
-                  Logs: commit {selectedDeployment.commitHash}
+                <span
+                  className="font-mono text-xs font-semibold text-foreground"
+                  title={selectedDeployment.commitHash}
+                >
+                  Logs: commit {formatCommitHash(selectedDeployment.commitHash)}
                 </span>
 
                 {selectedStepName && (
@@ -576,7 +632,10 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
         onSelectDeployment={handleSelectDeploymentFromTable}
         onRequestRollback={handleOpenRollbackDialog}
         isDeploying={isDeploying}
-        activeCommitHash={service.lastDeployment.commitHash}
+        activeDeploymentId={activeDeploymentId}
+        activeCommitHash={service.lastDeployment?.commitHash}
+        isLoading={isLoadingHistory}
+        onRefresh={loadDeployments}
       />
 
       {/* Rollback Confirmation Dialog */}
@@ -599,8 +658,11 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
             <div className="space-y-3.5 py-2 text-xs">
               <div className="rounded-md border border-border/80 bg-muted/20 p-3.5">
                 <div className="flex items-center justify-between font-mono">
-                  <span className="font-semibold text-foreground">
-                    Target Revision: commit {rollbackTarget.commitHash}
+                  <span
+                    className="font-semibold text-foreground"
+                    title={rollbackTarget.commitHash}
+                  >
+                    Target Revision: commit {formatCommitHash(rollbackTarget.commitHash)}
                   </span>
                   <span className="text-muted-foreground">
                     {rollbackTarget.startedAt}
@@ -622,8 +684,8 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
                     Rollback will instruct the edge agent on{" "}
                     <strong>{service.targetNodeId}</strong> to swap ingress
                     traffic to container image{" "}
-                    <strong>
-                      tako/{service.slug}:{rollbackTarget.commitHash}
+                    <strong title={rollbackTarget.commitHash}>
+                      tako/{service.slug}:{formatCommitHash(rollbackTarget.commitHash)}
                     </strong>
                     .
                   </div>

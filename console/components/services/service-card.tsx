@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { usePlatformData } from "@/context/platform-data-context"
 import { ProjectService } from "@/types/platform"
 import { activeStatusDotClass } from "@/lib/status"
+import { formatCommitHash } from "@/lib/adapters"
 import { cn } from "@/lib/utils"
 
 interface ServiceCardProps {
@@ -160,7 +161,7 @@ export function ServiceCard({ service, onDelete }: ServiceCardProps) {
             className="font-semibold text-foreground"
             title={service.lastDeployment.commitHash}
           >
-            {service.lastDeployment.commitHash.slice(0, 8)}
+            {formatCommitHash(service.lastDeployment.commitHash)}
           </span>
           <span className="text-muted-foreground/60">•</span>
           <span className="truncate">{service.lastDeployment.startedAt}</span>

@@ -65,6 +65,13 @@ export function formatDateTime(value?: string | null): string {
   })
 }
 
+export function formatCommitHash(hash?: string | null, length = 7): string {
+  if (!hash) return "untracked"
+  const clean = hash.trim()
+  if (clean.length <= length) return clean
+  return clean.slice(0, length)
+}
+
 function normalizeNodeStatus(status: string): NodeStatus {
   if (status === "online") return "online"
   if (status === "degraded") return "degraded"
@@ -188,42 +195,60 @@ function normalizeDeploymentStatus(
 }
 
 function adaptSteps(deployment: ApiDeployment): DeploymentPipelineStep[] {
-  const raw = deployment.steps
+  let raw = deployment.steps
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw)
+    } catch {
+      raw = []
+    }
+  }
   const steps = Array.isArray(raw) ? raw : []
-  return steps.map((step) => ({
-    name: step.name as DeploymentPipelineStep["name"],
-    status:
-      step.status === "success"
-        ? "success"
-        : step.status === "failed"
-          ? "failed"
-          : step.status === "skipped"
-            ? "skipped"
-            : "running",
-    startedAt: step.startedAt,
-    finishedAt: step.finishedAt,
-    durationMs: step.durationMs,
-    duration: formatDuration(step.durationMs),
-    description: step.logs?.length ? step.logs[step.logs.length - 1] : undefined,
-  }))
+  return steps.map((step) => {
+    const s = step as any
+    const durationMs = s.durationMs ?? s.duration_ms
+    return {
+      name: (s.name ?? "Log") as DeploymentPipelineStep["name"],
+      status:
+        s.status === "success"
+          ? "success"
+          : s.status === "failed"
+            ? "failed"
+            : s.status === "skipped"
+              ? "skipped"
+              : "running",
+      startedAt: s.startedAt ?? s.started_at,
+      finishedAt: s.finishedAt ?? s.finished_at,
+      durationMs,
+      duration: formatDuration(durationMs),
+      description: s.logs?.length ? s.logs[s.logs.length - 1] : undefined,
+    }
+  })
 }
 
 export function adaptDeployment(
   deployment: ApiDeployment
 ): DeploymentRecord {
+  const d = deployment as any
+  const durationMs = d.durationMs ?? d.duration_ms ?? 0
+  const startedAt = d.startedAt ?? d.started_at
+  const commitHash = d.commitHash ?? d.commit_hash ?? "untracked"
+  const commitMessage =
+    d.commitMessage ?? d.commit_message ?? "No commit message recorded"
+
   return {
-    id: deployment.id,
-    serviceId: deployment.serviceId,
-    status: normalizeDeploymentStatus(deployment.status),
-    triggerBy: deployment.author || "system",
-    commitHash: deployment.commitHash || "untracked",
-    duration: formatDuration(deployment.durationMs),
-    startedAt: formatRelativeTime(deployment.startedAt),
-    message: deployment.commitMessage || "No commit message recorded",
-    branch: deployment.branch,
-    author: deployment.author,
-    isRollback: deployment.status === "rolled_back",
-    previewUrl: deployment.url || undefined,
+    id: d.id,
+    serviceId: d.serviceId ?? d.service_id ?? "",
+    status: normalizeDeploymentStatus(d.status),
+    triggerBy: d.author || "system",
+    commitHash,
+    duration: formatDuration(durationMs),
+    startedAt: formatRelativeTime(startedAt),
+    message: commitMessage,
+    branch: d.branch,
+    author: d.author,
+    isRollback: d.status === "rolled_back",
+    previewUrl: d.url || undefined,
     steps: adaptSteps(deployment),
   }
 }

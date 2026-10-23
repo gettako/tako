@@ -27,6 +27,7 @@ import {
 } from "@/lib/domain"
 import { ClusterNode, Project, ProjectService } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
+import { formatCommitHash } from "@/lib/adapters"
 import { cn } from "@/lib/utils"
 
 interface ServiceOverviewTabProps {
@@ -372,8 +373,11 @@ export function ServiceOverviewTab({
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="size-4 text-emerald-500" />
-                  <span className="font-mono text-xs font-bold text-foreground">
-                    commit {service.lastDeployment.commitHash}
+                  <span
+                    className="font-mono text-xs font-bold text-foreground"
+                    title={service.lastDeployment.commitHash}
+                  >
+                    commit {formatCommitHash(service.lastDeployment.commitHash)}
                   </span>
                   <span className="py-0.2 rounded bg-emerald-500/10 px-1.5 font-mono text-[10px] font-medium text-emerald-500 uppercase">
                     Live
@@ -474,8 +478,11 @@ export function ServiceOverviewTab({
               <span className="font-medium text-foreground">
                 Deployment Completed Successfully
               </span>
-              <span className="text-muted-foreground">
-                (commit {service.lastDeployment.commitHash})
+              <span
+                className="text-muted-foreground"
+                title={service.lastDeployment.commitHash}
+              >
+                (commit {formatCommitHash(service.lastDeployment.commitHash)})
               </span>
             </div>
             <span className="text-[11px] text-muted-foreground">

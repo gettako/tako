@@ -4,6 +4,7 @@ import {
   adaptNode,
   adaptProject,
   adaptService,
+  formatCommitHash,
   formatDuration,
   formatRelativeTime,
 } from "../lib/adapters"
@@ -23,6 +24,14 @@ describe("Format Utilities", () => {
     expect(formatDuration(450)).toBe("450ms")
     expect(formatDuration(12500)).toBe("12.5s")
     expect(formatDuration(95000)).toBe("1m 35s")
+  })
+
+  it("formats commit hashes correctly to 7 characters", () => {
+    expect(formatCommitHash(null)).toBe("untracked")
+    expect(formatCommitHash("")).toBe("untracked")
+    expect(formatCommitHash("abc")).toBe("abc")
+    expect(formatCommitHash("864369991ebb0ce00cff990fcd80417e216282b6")).toBe("8643699")
+    expect(formatCommitHash("864369991ebb0ce00cff990fcd80417e216282b6", 10)).toBe("864369991e")
   })
 })
 
@@ -146,6 +155,45 @@ describe("Data Adapters", () => {
     expect(adapted.duration).toBe("8.2s")
     expect(adapted.steps?.length).toBe(1)
     expect(adapted.steps?.[0]?.status).toBe("success")
+  })
+
+  it("adapts raw database deployment with snake_case and JSON string steps", () => {
+    const dbDeployment = {
+      id: "dep-2",
+      service_id: "srv-1",
+      commit_hash: "fedcba98",
+      commit_message: "chore: rebuild service",
+      branch: "main",
+      author: "system",
+      status: "live",
+      url: "https://preview.example.com",
+      steps: JSON.stringify([
+        {
+          name: "Queued",
+          status: "success",
+          duration_ms: 300,
+        },
+        {
+          name: "Deploy",
+          status: "success",
+          duration_ms: 1200,
+        },
+      ]),
+      duration_ms: 1500,
+      started_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    }
+
+    const adapted = adaptDeployment(dbDeployment as any)
+    expect(adapted.id).toBe("dep-2")
+    expect(adapted.serviceId).toBe("srv-1")
+    expect(adapted.status).toBe("success")
+    expect(adapted.commitHash).toBe("fedcba98")
+    expect(adapted.message).toBe("chore: rebuild service")
+    expect(adapted.duration).toBe("1.5s")
+    expect(adapted.steps?.length).toBe(2)
+    expect(adapted.steps?.[0]?.name).toBe("Queued")
+    expect(adapted.steps?.[1]?.name).toBe("Deploy")
   })
 
   it("handles environment variables editor parsing and formatting", () => {
