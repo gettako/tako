@@ -38,8 +38,12 @@ data/
 
 # Personal deployment scripts & local server configurations
 deploy.sh
+deploy/deploy.sh
 .env.deploy*
+deploy/.env.deploy*
 !.env.deploy.example
+!deploy/.env.deploy.example
+
 
 # Node / Frontend
 node_modules/

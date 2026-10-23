@@ -97,8 +97,7 @@ gettako/
 ├── api/          Protobuf contracts and generated Go stubs
 ├── deploy/       Docker Compose stacks and Traefik configuration
 ├── install.sh    Master and worker installer
-├── go.work       Go workspace: server, agent, and proto modules
-└── old/          Reference implementation used for the port
+└── go.work       Go workspace: server, agent, and proto modules
 ```
 
 ## Local development
