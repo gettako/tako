@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { ServiceMetricsChart } from "@/components/services/service-metrics-chart"
 import { getServiceContainers, resolveDomainContainer } from "@/lib/container"
 import {
   domainEntryPoint,
@@ -204,6 +205,14 @@ export function ServiceOverviewTab({
           </div>
         </div>
       </div>
+
+      {/* Live Resource Utilization Trend Chart */}
+      <ServiceMetricsChart
+        serviceId={service.id}
+        serviceSlug={service.slug}
+        cpuLimit={specs.cpuLimit}
+        memoryLimitMb={specs.memoryLimitMb}
+      />
 
       {/* Two Column Grid: Endpoints & Deployment Snapshot */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

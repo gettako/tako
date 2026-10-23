@@ -893,6 +893,15 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 					Logs:       curDep.Logs,
 					Url:        previewURL,
 				})
+
+				o.DispatchDeploymentNotification(bgCtx, DeploymentNotificationData{
+					ServiceName: srv.Name,
+					CommitHash:  curDep.CommitHash,
+					Branch:      curDep.Branch,
+					Status:      finalStatus,
+					DurationMs:  durationMs,
+					URL:         previewURL,
+				})
 			}
 
 			// Auto-Rollback on Health Check Failure
@@ -1015,6 +1024,13 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		Steps:      string(stepsBytes),
 		Logs:       errMsg,
 		Url:        previewURL,
+	})
+
+	o.DispatchDeploymentNotification(bgCtx, DeploymentNotificationData{
+		ServiceName: srv.Name,
+		Status:      "failed",
+		DurationMs:  durationMs,
+		ErrorMsg:    errMsg,
 	})
 
 	_ = o.queries.UpdateServiceStatus(bgCtx, db.UpdateServiceStatusParams{
