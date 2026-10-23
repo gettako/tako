@@ -96,17 +96,10 @@ gettako/
 ├── agent/        Worker daemon (Go, Docker Engine SDK, outbound gRPC)
 ├── api/          Protobuf contracts and generated Go stubs
 ├── deploy/       Docker Compose stacks and Traefik configuration
-├── docs/         Architecture and operations documentation
 ├── install.sh    Master and worker installer
 ├── go.work       Go workspace: server, agent, and proto modules
 └── old/          Reference implementation used for the port
 ```
-
-## Documentation
-
-Start with [docs/README.md](docs/README.md). It covers the runtime topology,
-the agent protocol, the deployment lifecycle, edge routing, the data model, the
-REST API, and operations.
 
 ## Local development
 

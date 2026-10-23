@@ -23,12 +23,13 @@ All code contributions must adhere to the following principles:
 
 ### Issue tracker
 
-GitHub Issues via `gh` CLI. See `docs/agents/issue-tracker.md`.
+GitHub Issues via `gh` CLI.
 
 ### Triage labels
 
-Canonical five-role triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+Canonical five-role triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
 
 ### Domain docs
 
-Single-context (`GLOSSARY.md` + `docs/adr/`). See `docs/agents/domain.md`.
+Single-context domain modeling.
+

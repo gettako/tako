@@ -20,7 +20,6 @@ gettako/
 ├── api/         # OpenAPI 3.1 specification (openapi.yaml) & Protocol Buffers (proto/)
 ├── console/     # Next.js 16 dashboard (React 19, Tailwind CSS v4)
 ├── deploy/      # Compose definitions (server/agent) and Traefik configuration
-├── docs/        # Mintlify MDX documentation and synced OpenAPI specifications
 ├── install.sh   # Universal installer script for Master Server and Worker Agent
 └── server/      # Master orchestrator in Go (Chi HTTP router, SQLite WAL, gRPC server)
 ```
@@ -92,15 +91,12 @@ protoc --go_out=. --go_opt=paths=source_relative \
 
 ### 6. Validate OpenAPI Specification & Endpoints
 
-When modifying API routes in `server/internal/api/`, ensure all routes are documented in `api/openapi.yaml` and synchronize the docs:
+When modifying API routes in `server/internal/api/`, ensure all routes are documented in `api/openapi.yaml`:
 
 ```bash
 # Verify all endpoints are documented
 cd server
 go test -v -run TestAllServerEndpointsDocumentedInOpenAPI ./internal/api/...
-
-# Sync specification to documentation
-cp ../api/openapi.yaml ../docs/api-reference/openapi.yaml
 ```
 
 ---
@@ -119,7 +115,7 @@ cp ../api/openapi.yaml ../docs/api-reference/openapi.yaml
 - Use Tailwind CSS v4 utilities according to the design system palette.
 - Verify components render cleanly in dark and light modes.
 
-### Documentation (`docs/`, `README.md`)
+### Documentation (`README.md`)
 - Keep documentation synchronized with active codebase implementations.
 - Write documentation in clear English.
 - Avoid promotional fluff, empty buzzwords, and unsubstantiated claims.

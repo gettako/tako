@@ -26,8 +26,3 @@ bun run lint
 bun run typecheck
 bun run build
 ```
-
-## Documentation
-
-Backend architecture and operations are documented in
-[../docs/README.md](../docs/README.md).

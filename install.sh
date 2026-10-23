@@ -357,6 +357,9 @@ services:
       - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
       - /etc/tako/traefik/acme.json:/acme.json
+    environment:
+      - TAKO_ACME_EMAIL=\${TAKO_ACME_EMAIL:-admin@gettako.dev}
+      - TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL=\${TAKO_ACME_EMAIL:-admin@gettako.dev}
     networks:
       - tako-network
 
@@ -374,14 +377,16 @@ services:
       - ./data/agent:/data
       - /proc/sysrq-trigger:/host-sysrq-trigger
     environment:
-      - TAKO_SERVER_ADDR=${MASTER_URL}
-      - TAKO_MASTER_URL=${MASTER_URL}
-      - TAKO_ENROLL_TOKEN=${AGENT_TOKEN}
-      - TAKO_NODE_NAME=${NODE_NAME}
-      - TAKO_NODE_ROLE=worker
-      - TAKO_PUBLIC_IP=${NODE_IP}
-      - TAKO_IP_ADDRESS=${NODE_PRIVATE_IP}
-      - TAKO_METRICS_INTERVAL=3s
+      - TAKO_SERVER_ADDR=\${TAKO_SERVER_ADDR:-\${TAKO_MASTER_URL:-${MASTER_URL}}}
+      - TAKO_MASTER_URL=\${TAKO_MASTER_URL:-\${TAKO_SERVER_ADDR:-${MASTER_URL}}}
+      - TAKO_ENROLL_TOKEN=\${TAKO_ENROLL_TOKEN:-\${TAKO_AGENT_TOKEN:-${AGENT_TOKEN}}}
+      - TAKO_NODE_ID=\${TAKO_NODE_ID:-}
+      - TAKO_NODE_NAME=\${TAKO_NODE_NAME:-${NODE_NAME}}
+      - TAKO_NODE_ROLE=\${TAKO_NODE_ROLE:-worker}
+      - TAKO_PUBLIC_IP=\${TAKO_PUBLIC_IP:-${NODE_IP}}
+      - TAKO_IP_ADDRESS=\${TAKO_IP_ADDRESS:-\${TAKO_PRIVATE_IP:-${NODE_PRIVATE_IP}}}
+      - TAKO_STATE_FILE=/data/agent.json
+      - TAKO_METRICS_INTERVAL=\${TAKO_METRICS_INTERVAL:-3s}
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
     networks:
       - tako-network
@@ -480,24 +485,6 @@ chmod 600 "${TAKO_DIR}/.env"
 
 cat << EOF > "${TAKO_DIR}/docker-compose.yml"
 services:
-  traefik:
-    image: traefik:latest
-    container_name: tako-traefik
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - /etc/tako/traefik/tako.yml:/etc/traefik/dynamic/tako.yml:ro
-      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
-      - /etc/tako/traefik/acme.json:/acme.json
-    environment:
-      - TAKO_ACME_EMAIL=${ADMIN_EMAIL}
-    networks:
-      - tako-network
-
   server:
     build:
       context: ${TAKO_SRC_DIR}
@@ -539,6 +526,24 @@ services:
     networks:
       - tako-network
 
+  traefik:
+    image: traefik:latest
+    container_name: tako-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/tako/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /etc/tako/traefik/tako.yml:/etc/traefik/dynamic/tako.yml:ro
+      - /etc/tako/traefik/dynamic:/etc/traefik/dynamic
+      - /etc/tako/traefik/acme.json:/acme.json
+    environment:
+      - TAKO_ACME_EMAIL=${ADMIN_EMAIL}
+    networks:
+      - tako-network
+
   agent:
     build:
       context: ${TAKO_SRC_DIR}
@@ -553,19 +558,17 @@ services:
       - ./data/agent:/data
       - /proc/sysrq-trigger:/host-sysrq-trigger
     environment:
-      - TAKO_SERVER_ADDR=tako-server:50051
-      - TAKO_MASTER_URL=tako-server:50051
-      - TAKO_ENROLL_TOKEN=${ENROLL_TOKEN}
-      - TAKO_NODE_ID=tako-master-01
-      - TAKO_NODE_NAME=tako-master-01
-      - TAKO_NODE_ROLE=leader
-      - TAKO_PUBLIC_IP=${SERVER_IP}
-      - TAKO_IP_ADDRESS=${SERVER_PRIVATE_IP}
+      - TAKO_SERVER_ADDR=\${TAKO_SERVER_ADDR:-\${TAKO_MASTER_URL:-tako-server:50051}}
+      - TAKO_MASTER_URL=\${TAKO_MASTER_URL:-\${TAKO_SERVER_ADDR:-tako-server:50051}}
+      - TAKO_ENROLL_TOKEN=\${TAKO_ENROLL_TOKEN:-\${TAKO_AGENT_TOKEN:-${ENROLL_TOKEN}}}
+      - TAKO_NODE_ID=\${TAKO_NODE_ID:-tako-master-01}
+      - TAKO_NODE_NAME=\${TAKO_NODE_NAME:-tako-master-01}
+      - TAKO_NODE_ROLE=\${TAKO_NODE_ROLE:-leader}
+      - TAKO_PUBLIC_IP=\${TAKO_PUBLIC_IP:-${SERVER_IP}}
+      - TAKO_IP_ADDRESS=\${TAKO_IP_ADDRESS:-\${TAKO_PRIVATE_IP:-${SERVER_PRIVATE_IP}}}
       - TAKO_STATE_FILE=/data/agent.json
-      - TAKO_METRICS_INTERVAL=3s
+      - TAKO_METRICS_INTERVAL=\${TAKO_METRICS_INTERVAL:-3s}
       - TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
-    depends_on:
-      - server
     networks:
       - tako-network
 
