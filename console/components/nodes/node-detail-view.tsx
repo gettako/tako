@@ -556,7 +556,11 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
                 placement policy.
               </p>
               <div className="mt-4">
-                <Button size="sm" render={<Link href="/projects" />}>
+                <Button
+                  size="sm"
+                  nativeButton={false}
+                  render={<Link href="/projects" />}
+                >
                   Go to Projects
                 </Button>
               </div>
