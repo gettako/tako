@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"gettako.dev/tako/internal/events"
@@ -246,6 +247,38 @@ func TestAuthLogin(t *testing.T) {
 	router.ServeHTTP(wSess, reqSess)
 	if wSess.Code != http.StatusOK {
 		t.Fatalf("expected 200 for get sessions, got %d", wSess.Code)
+	}
+
+	// Case 10: Logout revokes session and clears cookie
+	reqLogout := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	reqLogout.Header.Set("Authorization", "Bearer "+resp.Token)
+	wLogout := httptest.NewRecorder()
+	router.ServeHTTP(wLogout, reqLogout)
+	if wLogout.Code != http.StatusOK {
+		t.Fatalf("expected 200 for logout, got %d", wLogout.Code)
+	}
+
+	// Verify cookie was cleared
+	setCookieHeader := wLogout.Header().Get("Set-Cookie")
+	if !strings.Contains(setCookieHeader, sessionCookieName) {
+		t.Fatalf("expected Set-Cookie to clear %s, got: %s", sessionCookieName, setCookieHeader)
+	}
+
+	// Session token should no longer be valid for protected endpoints
+	reqAfterLogout := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	reqAfterLogout.Header.Set("Authorization", "Bearer "+resp.Token)
+	wAfterLogout := httptest.NewRecorder()
+	router.ServeHTTP(wAfterLogout, reqAfterLogout)
+	if wAfterLogout.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for /auth/me after logout, got %d", wAfterLogout.Code)
+	}
+
+	// Calling logout again when unauthenticated should still return 200 OK
+	reqLogoutAgain := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	wLogoutAgain := httptest.NewRecorder()
+	router.ServeHTTP(wLogoutAgain, reqLogoutAgain)
+	if wLogoutAgain.Code != http.StatusOK {
+		t.Fatalf("expected 200 for unauthenticated logout, got %d", wLogoutAgain.Code)
 	}
 }
 

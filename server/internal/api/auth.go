@@ -178,13 +178,17 @@ func setSessionCookie(w http.ResponseWriter, r *http.Request, token string) {
 	})
 }
 
-func clearSessionCookie(w http.ResponseWriter) {
+func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
+	secure := r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
+		Expires:  time.Unix(0, 0),
 	})
 }
 
@@ -225,12 +229,12 @@ func registerAuthRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		r.Post("/login", handleLogin(orch))
 		r.Post("/passkey/login", handlePasskeyLogin(orch))
 		r.Post("/invite/accept", handleAcceptInvite(orch))
+		r.Post("/logout", handleLogout(orch))
 
 		// Protected auth endpoints
 		r.Group(func(r chi.Router) {
 			r.Use(Authenticate(orch))
 
-			r.Post("/logout", handleLogout(orch))
 			r.Get("/me", handleGetMe(orch))
 			r.Put("/profile", handleUpdateProfile(orch))
 			r.Put("/password", handleChangePassword(orch))
@@ -327,7 +331,7 @@ func handleLogout(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		if token != "" {
 			orch.RevokeUserSession(token)
 		}
-		clearSessionCookie(w)
+		clearSessionCookie(w, r)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})

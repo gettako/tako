@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { BookOpen, ExternalLink, LogOut, Settings, User } from "lucide-react"
 
 import { usePlatformData } from "@/context/platform-data-context"
@@ -9,8 +10,10 @@ import { getInitials } from "@/lib/user"
 import { cn } from "@/lib/utils"
 
 export function UserMenu() {
-  const { currentUser } = usePlatformData()
+  const { currentUser, logout } = usePlatformData()
+  const router = useRouter()
   const [open, setOpen] = React.useState(false)
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
 
   // Close the dropdown on outside click or Escape
@@ -36,6 +39,20 @@ export function UserMenu() {
       document.removeEventListener("keydown", handleKeyDown)
     }
   }, [open])
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    try {
+      await logout()
+      setOpen(false)
+      router.replace("/login")
+    } catch {
+      setOpen(false)
+      router.replace("/login")
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
 
   const initials = getInitials(currentUser?.name, "SI")
 
@@ -133,15 +150,16 @@ export function UserMenu() {
 
           {/* Logout Row */}
           <div className="border-t border-border pt-1">
-            <Link
-              href="/login"
+            <button
+              type="button"
               role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
             >
               <LogOut className="size-3.5" />
-              <span>Log out</span>
-            </Link>
+              <span>{isLoggingOut ? "Logging out..." : "Log out"}</span>
+            </button>
           </div>
         </div>
       )}
