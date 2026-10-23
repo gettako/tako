@@ -2,6 +2,7 @@ import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  typedRoutes: true,
   env: {
     NEXT_PUBLIC_TAKO_SERVER_URL:
       process.env.NEXT_PUBLIC_TAKO_SERVER_URL ||

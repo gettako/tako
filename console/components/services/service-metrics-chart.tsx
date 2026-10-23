@@ -4,7 +4,7 @@ import * as React from "react"
 import { Activity, ArrowUpRight, Cpu, Network, Server } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { apiGet, API_ROUTES } from "@/lib/api"
+import { apiGet } from "@/lib/api"
 
 const METRICS_POLL_INTERVAL_MS = 10_000
 import {
@@ -74,7 +74,7 @@ export function ServiceMetricsChart({
                 networkTx: number
               }>
             }
-        >(API_ROUTES.SERVICES.METRICS(serviceId, range))
+        >(`/services/${encodeURIComponent(serviceId)}/metrics?range=${range}`)
 
         if (!active) return
 

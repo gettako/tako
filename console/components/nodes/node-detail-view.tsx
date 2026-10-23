@@ -25,7 +25,7 @@ import { CodeHighlighter } from "@/components/ui/code-highlighter"
 import { Flag } from "@/components/ui/flag"
 import { EmptyState } from "@/components/ui/empty-state"
 import { usePlatformData } from "@/context/platform-data-context"
-import { apiGet, apiPost, API_ROUTES } from "@/lib/api"
+import { apiGet, apiPost } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
@@ -136,7 +136,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
     setIsPinging(true)
     const t0 = performance.now()
     try {
-      await apiGet(API_ROUTES.NODES.DETAIL(node.id))
+      await apiGet(`/nodes/${node.id}`)
       const roundtrip = Math.max(1, Math.round(performance.now() - t0))
       setCurrentPing(roundtrip)
     } catch {
@@ -150,7 +150,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const handleRestartAgent = async () => {
     setIsRestartingAgent(true)
     try {
-      await apiPost(API_ROUTES.NODES.UPDATE(node.id), {})
+      await apiPost(`/nodes/${node.id}/update`, {})
       addAuditLog({
         action: "Agent Restart Dispatched",
         category: "node",
@@ -171,7 +171,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const handlePruneDisk = async () => {
     setIsPruning(true)
     try {
-      await apiPost(API_ROUTES.NODES.PRUNE(node.id), {})
+      await apiPost(`/nodes/${node.id}/prune`, {})
       setPruneSuccess(true)
       addAuditLog({
         action: "Node Disk Pruned",

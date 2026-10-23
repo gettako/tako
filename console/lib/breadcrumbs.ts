@@ -1,16 +1,17 @@
+import type { Route } from "next"
 import type { ClusterNode, Project, ProjectService } from "@/types/platform"
 
 export interface BreadcrumbDropdownItem {
   id: string
   label: string
   sublabel?: string
-  href: string
+  href: Route
   isCurrent?: boolean
 }
 
 export interface BreadcrumbItem {
   label: string
-  href: string
+  href: Route
   isCurrent: boolean
   dropdownItems?: BreadcrumbDropdownItem[]
 }
@@ -36,7 +37,7 @@ export function buildBreadcrumbs(
       id: n.id,
       label: n.name,
       sublabel: `${n.location.name} • ${n.ipAddress}`,
-      href: `/nodes/${n.id}`,
+      href: `/nodes/${n.id}` as Route,
       isCurrent: segments[1] === n.id,
     }))
 
@@ -56,7 +57,7 @@ export function buildBreadcrumbs(
       { label: "Nodes", href: "/nodes", isCurrent: false },
       {
         label: foundNode ? foundNode.name : nodeId,
-        href: `/nodes/${nodeId}`,
+        href: `/nodes/${nodeId}` as Route,
         isCurrent: true,
         dropdownItems: nodeDropdownItems,
       },
@@ -69,7 +70,7 @@ export function buildBreadcrumbs(
         id: p.id,
         label: p.name,
         sublabel: `${p.environment} • ${p.servicesCount} services`,
-        href: `/projects/${p.id}`,
+        href: `/projects/${p.id}` as Route,
         isCurrent: segments[1] === p.id,
       })
     )
@@ -99,7 +100,7 @@ export function buildBreadcrumbs(
           id: s.id,
           label: s.name,
           sublabel: s.type === "dockerfile" ? "Dockerfile" : "Docker Compose",
-          href: `/projects/${projId}/services/${s.id}`,
+          href: `/projects/${projId}/services/${s.id}` as Route,
           isCurrent: s.id === srvId,
         }))
 
@@ -107,13 +108,13 @@ export function buildBreadcrumbs(
         { label: "Projects", href: "/projects", isCurrent: false },
         {
           label: projLabel,
-          href: `/projects/${projId}`,
+          href: `/projects/${projId}` as Route,
           isCurrent: false,
           dropdownItems: projectDropdownItems,
         },
         {
           label: srvLabel,
-          href: `/projects/${projId}/services/${srvId}`,
+          href: `/projects/${projId}/services/${srvId}` as Route,
           isCurrent: true,
           dropdownItems: serviceDropdownItems,
         },
@@ -124,7 +125,7 @@ export function buildBreadcrumbs(
       { label: "Projects", href: "/projects", isCurrent: false },
       {
         label: projLabel,
-        href: `/projects/${projId}`,
+        href: `/projects/${projId}` as Route,
         isCurrent: true,
         dropdownItems: projectDropdownItems,
       },
@@ -150,7 +151,7 @@ export function buildBreadcrumbs(
   return [
     {
       label: section.replace("-", " "),
-      href: pathname,
+      href: pathname as Route,
       isCurrent: true,
     },
   ]

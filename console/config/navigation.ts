@@ -1,4 +1,5 @@
 import type { ComponentType } from "react"
+import type { Route } from "next"
 import {
   Activity,
   FolderGit2,
@@ -12,7 +13,7 @@ import {
 
 export interface NavigationItem {
   name: string
-  href: string
+  href: Route
   icon: ComponentType<{ className?: string }>
   commandLabel?: string
   inSidebar?: boolean

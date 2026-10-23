@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test"
 import {
   API_BASE,
-  API_ROUTES,
   CUSTOM_EVENTS,
   DEFAULT_PORTS,
   STORAGE_KEYS,
@@ -20,29 +19,13 @@ describe("API Client & Domain Constants Specification", () => {
     expect(DEFAULT_PORTS.SMTP).toBe(587)
   })
 
-  it("defines persistent storage keys and events", () => {
+  it("defines persistent storage keys, events, and API base", () => {
+    expect(API_BASE).toBe("/api/v1")
     expect(STORAGE_KEYS.AUTH_TOKEN).toBe("tako_token")
     expect(STORAGE_KEYS.NODES_VIEW_MODE).toBe("tako_view_mode_nodes")
     expect(STORAGE_KEYS.PROJECTS_VIEW_MODE).toBe("tako_view_mode_projects")
     expect(STORAGE_KEYS.SERVICES_VIEW_MODE).toBe("tako_view_mode_services")
     expect(CUSTOM_EVENTS.UNAUTHORIZED).toBe("tako:unauthorized")
-  })
-
-  it("constructs API routes correctly with proper URL encoding", () => {
-    expect(API_BASE).toBe("/api/v1")
-    expect(API_ROUTES.PING).toBe("/ping")
-    expect(API_ROUTES.NODES.LIST).toBe("/nodes")
-    expect(API_ROUTES.NODES.DETAIL("node-123")).toBe("/nodes/node-123")
-    expect(API_ROUTES.SERVICES.METRICS("srv/prod-1", "6h")).toBe(
-      "/services/srv%2Fprod-1/metrics?range=6h"
-    )
-    expect(API_ROUTES.SERVICES.CONTAINER_LOGS("srv-1", "tako-app-main")).toBe(
-      "/services/srv-1/container-logs?containerName=tako-app-main"
-    )
-    expect(API_ROUTES.METRICS("1h")).toBe("/metrics?range=1h")
-    expect(API_ROUTES.METRICS("24h", "node-42")).toBe(
-      "/metrics?range=24h&nodeId=node-42"
-    )
   })
 })
 

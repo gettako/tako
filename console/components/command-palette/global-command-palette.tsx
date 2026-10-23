@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { Route } from "next"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
 import { BookOpen, Moon, Sun } from "lucide-react"
@@ -38,7 +39,7 @@ export function GlobalCommandPalette() {
   )
 
   const goTo = React.useCallback(
-    (href: string) => runCommand(() => router.push(href)),
+    (href: Route | string) => runCommand(() => router.push(href as Route)),
     [runCommand, router]
   )
 

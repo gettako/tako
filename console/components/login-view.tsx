@@ -72,19 +72,19 @@ export function LoginView() {
           {/* Footer info */}
           <div className="text-center text-xs text-muted-foreground">
             By clicking continue, you agree to our{" "}
-            <Link
-              href="/terms"
+            <button
+              type="button"
               className="underline underline-offset-4 hover:text-foreground"
             >
               Terms of Service
-            </Link>{" "}
+            </button>{" "}
             and{" "}
-            <Link
-              href="/privacy"
+            <button
+              type="button"
               className="underline underline-offset-4 hover:text-foreground"
             >
               Privacy Policy
-            </Link>
+            </button>
             .
           </div>
         </div>

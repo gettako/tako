@@ -5,11 +5,12 @@ import Link from "next/link"
 import { Check, ChevronDown } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import type { Route } from "next"
 import type { BreadcrumbDropdownItem } from "@/lib/breadcrumbs"
 
 interface BreadcrumbDropdownProps {
   label: string
-  href: string
+  href: Route
   isCurrent: boolean
   items: BreadcrumbDropdownItem[]
 }

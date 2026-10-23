@@ -14,7 +14,7 @@ import {
 import { TelemetryChart } from "@/components/monitor/telemetry-chart"
 import { Button } from "@/components/ui/button"
 import { ClusterNode } from "@/types/platform"
-import { apiGet, API_ROUTES } from "@/lib/api"
+import { apiGet } from "@/lib/api"
 
 const CLUSTER_METRICS_POLL_MS = 10_000
 import {
@@ -155,7 +155,7 @@ export function ClusterCharts({
             disk: number
             diskPercent?: number
           }[]
-        >(API_ROUTES.METRICS(range))
+        >(`/metrics?range=${range}`)
 
         if (!active) return
         if (Array.isArray(points) && points.length > 0) {
