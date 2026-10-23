@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,8 +13,8 @@ import (
 // requests, so CORS is only needed when the API is used directly.
 //
 // TAKO_CORS_ORIGINS is a comma-separated list of exact origins. "*" allows
-// every origin (without credentials). When unset, localhost origins are
-// allowed so `bun run dev` can talk to the server on :8080.
+// every origin (without credentials). When unset, localhost and private LAN
+// origins are allowed so local dev environments can talk to the server on :8080.
 func corsMiddleware(next http.Handler) http.Handler {
 	raw := strings.TrimSpace(os.Getenv("TAKO_CORS_ORIGINS"))
 	allowAll := raw == "*"
@@ -63,13 +64,17 @@ func corsOriginAllowed(origin string, allowed map[string]struct{}, allowAll bool
 		return false
 	}
 
-	// Default development policy: any localhost origin.
+	// Default development policy: any localhost or private LAN origin.
 	u, err := url.Parse(origin)
 	if err != nil {
 		return false
 	}
-	switch strings.ToLower(u.Hostname()) {
+	hostname := strings.ToLower(u.Hostname())
+	switch hostname {
 	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	if ip := net.ParseIP(hostname); ip != nil && (ip.IsPrivate() || ip.IsLoopback()) {
 		return true
 	}
 	return false

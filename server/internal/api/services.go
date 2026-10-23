@@ -829,7 +829,11 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// GET /api/v1/services/{id}/terminal (WebSocket PTY Stream)
-		r.Method(http.MethodGet, "/{id}/terminal", websocket.Handler(func(ws *websocket.Conn) {
+		r.Method(http.MethodGet, "/{id}/terminal", websocket.Server{
+			Handshake: func(config *websocket.Config, req *http.Request) error {
+				return nil
+			},
+			Handler: func(ws *websocket.Conn) {
 			defer ws.Close()
 			user, ok := GetUserFromContext(ws.Request().Context())
 			if !ok || user.Role != "admin" {
@@ -935,7 +939,8 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					}
 				}
 			}
-		}))
+		},
+	})
 
 		// POST /api/v1/services/{id}/exec (Terminal)
 		r.With(RequireAdmin).Post("/{id}/exec", func(w http.ResponseWriter, r *http.Request) {

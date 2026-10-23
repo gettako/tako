@@ -156,11 +156,20 @@ export function ServiceTerminalTab({
     if (!token) return
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    const host =
+    let host =
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1"
         ? `${window.location.hostname}:8080`
         : window.location.host
+
+    const customServer = process.env.NEXT_PUBLIC_TAKO_SERVER_URL
+    if (customServer) {
+      try {
+        host = new URL(customServer).host
+      } catch {
+        // retain default host
+      }
+    }
     const wsUrl = `${protocol}//${host}/api/v1/services/${service.id}/terminal?token=${encodeURIComponent(token)}&container=${encodeURIComponent(selectedContainer)}`
 
     let ws: WebSocket | null = null
