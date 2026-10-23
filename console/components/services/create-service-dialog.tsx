@@ -655,7 +655,12 @@ function CreateServiceContent({
       type,
       repository: gitRepoUrl || "",
       branch: gitBranch || "main",
-      dockerfile: type === "dockerfile" ? SAMPLE_DOCKERFILE : "",
+      dockerfile:
+        type === "dockerfile"
+          ? sourceMode === "template"
+            ? SAMPLE_DOCKERFILE
+            : ""
+          : "",
       image: "",
       composeFile:
         type === "docker-compose"

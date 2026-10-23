@@ -37,16 +37,22 @@ func (e *Executor) handleGitBuild(
 
 	repoURL := req.GetRepository()
 	branch := req.GetBranch()
-	dockerfileName := req.GetDockerfile()
-	if dockerfileName == "" {
+	rawDockerfile := strings.TrimSpace(req.GetDockerfile())
+	var dockerfileName string
+	var customDockerfileContent string
+
+	if strings.Contains(rawDockerfile, "\n") || strings.HasPrefix(strings.ToUpper(rawDockerfile), "FROM ") {
 		dockerfileName = "Dockerfile"
-	} else {
-		cleaned := filepath.Clean(dockerfileName)
+		customDockerfileContent = rawDockerfile
+	} else if rawDockerfile != "" {
+		cleaned := filepath.Clean(rawDockerfile)
 		if strings.HasPrefix(cleaned, "..") || filepath.IsAbs(cleaned) {
 			dockerfileName = "Dockerfile"
 		} else {
 			dockerfileName = cleaned
 		}
+	} else {
+		dockerfileName = "Dockerfile"
 	}
 
 	sendLog("Clone", fmt.Sprintf("Cloning repository %s (branch: %s)...", repoURL, branch), false)
@@ -119,7 +125,9 @@ func (e *Executor) handleGitBuild(
 
 	dockerfilePath := filepath.Join(tmpDir, dockerfileName)
 	if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
-		if _, err := os.Stat(filepath.Join(tmpDir, "package.json")); err == nil {
+		if customDockerfileContent != "" {
+			_ = os.WriteFile(dockerfilePath, []byte(customDockerfileContent), 0o644)
+		} else if _, err := os.Stat(filepath.Join(tmpDir, "package.json")); err == nil {
 			sendLog("Build", "Notice: Dockerfile not found, auto-generated standard Node.js Dockerfile", false)
 			_ = os.WriteFile(dockerfilePath, []byte("FROM node:20-alpine\nWORKDIR /app\nCOPY package*.json ./\nRUN npm install --production\nCOPY . .\nEXPOSE 3000\nCMD [\"npm\", \"start\"]\n"), 0o644)
 		} else if _, err := os.Stat(filepath.Join(tmpDir, "go.mod")); err == nil {
