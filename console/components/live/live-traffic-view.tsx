@@ -85,7 +85,7 @@ export function LiveTrafficView() {
 
           <div className="flex items-center gap-2">
             <Image
-              src="/images/octopy-trim.png"
+              src="/images/tako-trim.png"
               alt={siteConfig.name}
               width={26}
               height={26}

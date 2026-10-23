@@ -401,7 +401,7 @@ export function ClusterCharts({
                 coords: cpuCoords,
                 line: cpuLine,
                 area: cpuArea,
-                color: "#c53d20",
+                color: "#ff552e",
                 gradientId: "cpuGradient",
               },
             ]}

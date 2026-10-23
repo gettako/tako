@@ -29,7 +29,7 @@ export function LoginView() {
           className="flex items-center gap-2.5 font-medium transition-opacity hover:opacity-85"
         >
           <Image
-            src="/images/octopy-trim.png"
+            src="/images/tako-trim.png"
             alt={siteConfig.name}
             width={32}
             height={32}
@@ -49,7 +49,7 @@ export function LoginView() {
         {/* Left Column: Global Edge Network Visualization (Full, large map) */}
         <div className="relative hidden flex-col justify-between overflow-hidden border-r border-border/70 bg-background p-4 pt-20 sm:p-6 lg:col-span-7 lg:flex lg:p-6 xl:col-span-7 xl:p-8 xl:pt-20">
           {/* Subtle ambient radial gradient behind the network canvas */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(197,61,32,0.06),transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(197,61,32,0.06),transparent_70%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,85,46,0.07),transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(255,85,46,0.07),transparent_70%)]" />
 
           {/* Network Canvas Container - Spans full width and height */}
           <div className="relative z-10 flex size-full flex-1 flex-col justify-between">

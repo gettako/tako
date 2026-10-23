@@ -43,7 +43,7 @@ export function MobileNavigation({
             className="flex items-center gap-2 font-semibold"
           >
             <Image
-              src="/images/octopy-trim.png"
+              src="/images/tako-trim.png"
               alt={siteConfig.name}
               width={28}
               height={28}

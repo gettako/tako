@@ -40,7 +40,7 @@ export function AppSidebar({ isCollapsed, navBadges }: AppSidebarProps) {
           title={isCollapsed ? siteConfig.name : undefined}
         >
           <Image
-            src="/images/octopy-trim.png"
+            src="/images/tako-trim.png"
             alt={siteConfig.name}
             width={28}
             height={28}

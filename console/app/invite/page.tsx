@@ -78,7 +78,7 @@ function InviteFormContent() {
         <div className="flex flex-col items-center space-y-2 text-center">
           <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Image
-              src="/images/octopy-trim.png"
+              src="/images/tako-trim.png"
               alt="Tako Logo"
               width={36}
               height={36}

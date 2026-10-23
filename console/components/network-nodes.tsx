@@ -138,7 +138,7 @@ export function NetworkNodesAnimation({
 
       {/* Main Map Canvas - Aceternity Dotted World Map */}
       <div className="relative my-auto flex w-full flex-1 items-center justify-center">
-        <WorldMap dots={mapDots} lineColor="#c53d20" className="w-full">
+        <WorldMap dots={mapDots} lineColor="#ff552e" className="w-full">
           {/* 4 Agent Node Interactive Badges */}
           {AGENT_NODES.map((agent) => {
             const isHovered = activeNode === agent.id

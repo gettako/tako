@@ -3,9 +3,9 @@ version: alpha
 name: Tako
 description: High-performance edge infrastructure, agent telemetry, and self-hosted control plane design system.
 colors:
-  primary: "#c53d20"
+  primary: "#ff552e"
   on-primary: "#ffffff"
-  primary-container: "#a83218"
+  primary-container: "#e04600"
   secondary: "#18181b"
   on-secondary: "#f4f4f5"
   tertiary: "#10b981"
@@ -147,7 +147,7 @@ The visual direction draws from the iconic Japanese Tako (octopus) vermilion cor
 
 The color palette is rooted in deep neutral carbon foundations, structured boundary accents, and an iconic Tako vermilion coral primary balanced by emerald status telemetry.
 
-- **Primary (#c53d20):** Deep Tako Coral Vermilion (derived from `oklch(0.555 0.177 33.57)`). Represents the signature identity of Tako. Used for primary interactive controls, active navigation items, and focus indicators. Paired with crisp white text (`#ffffff`) for a certified 5.17:1 WCAG AA contrast ratio.
+- **Primary (#ff552e):** Electric Tangerine Coral (derived from `oklch(0.64 0.22 42)` / `oklch(0.58 0.22 41)`). Represents the modern, high-energy signature identity of Tako without conflicting with error or destructive states. Used for primary interactive controls, active navigation items, and focus indicators.
 - **Secondary (#18181b):** Deep slate and zinc tone. Used for subtle panels, structural subheadings, secondary interactive surfaces, and utilitarian borders.
 - **Tertiary (#10b981):** Pure emerald signal. Serves as the dedicated telemetry status driver for healthy nodes, active streams, and low-latency metrics.
 - **Neutral (#0b0c14 & #ffffff):** Deep midnight obsidian carbon (`#0b0c14`) for dark mode foundations and crisp, balanced neutral white for light mode backgrounds.
@@ -203,7 +203,7 @@ The system provides consistent token definitions for atomic UI primitives integr
 
 ### Do's
 
-- Do use the Tako vermilion coral (`#c53d20`) for primary interactive controls and key action triggers.
+- Do use the Tako electric tangerine coral (`#ff552e`) for primary interactive controls and key action triggers.
 - Do reserve emerald strictly for live telemetry health, active packet streams, and low-latency status.
 - Do display real telemetry figures or explicit honest placeholders (`[LIVE METRIC]`, `[REAL DATA]`) rather than fabricated marketing statistics.
 - Do ensure both light mode and dark mode are tested, fully readable, and verified for WCAG AA compliance.

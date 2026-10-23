@@ -20,7 +20,7 @@ export interface MapProps {
 
 export function WorldMap({
   dots = [],
-  lineColor = "#c53d20",
+  lineColor = "#ff552e",
   className = "",
   children,
 }: MapProps) {
