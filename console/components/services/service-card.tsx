@@ -156,11 +156,14 @@ export function ServiceCard({ service, onDelete }: ServiceCardProps) {
         {/* Last Deployment Meta */}
         <div className="mt-2.5 flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
           <GitCommit className="size-3 shrink-0 text-muted-foreground" />
-          <span className="font-semibold text-foreground">
-            {service.lastDeployment.commitHash}
+          <span
+            className="font-semibold text-foreground"
+            title={service.lastDeployment.commitHash}
+          >
+            {service.lastDeployment.commitHash.slice(0, 8)}
           </span>
           <span className="text-muted-foreground/60">•</span>
-          <span>{service.lastDeployment.startedAt}</span>
+          <span className="truncate">{service.lastDeployment.startedAt}</span>
         </div>
       </div>
 

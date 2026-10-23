@@ -857,8 +857,8 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				targetContainer = cName
 			}
 
-			// Send connected banner and prompt
-			welcome := fmt.Sprintf("\r\n\x1b[32mConnected to container %s\x1b[0m\r\n# ", targetContainer)
+			// Send connected banner
+			welcome := fmt.Sprintf("\r\n\x1b[32mConnected to container %s\x1b[0m\r\n", targetContainer)
 			_, _ = ws.Write([]byte(welcome))
 
 			buf := make([]byte, 4096)
@@ -877,14 +877,12 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					case '\r', '\n':
 						cmd := strings.TrimSpace(string(cmdBuf))
 						cmdBuf = cmdBuf[:0]
-						_, _ = ws.Write([]byte("\r\n"))
 
 						if cmd == "" {
-							_, _ = ws.Write([]byte("# "))
 							continue
 						}
 						if cmd == "clear" {
-							_, _ = ws.Write([]byte("\x1b[2J\x1b[H# "))
+							_, _ = ws.Write([]byte("\x1b[2J\x1b[H"))
 							continue
 						}
 						if cmd == "exit" {
@@ -892,7 +890,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 							return
 						}
 						if cmd == "sh" || cmd == "bash" {
-							_, _ = ws.Write([]byte("BusyBox v1.36.1 (2026-06-15 08:35:10 UTC) built-in shell (ash)\r\nEnter 'help' for a list of built-in commands.\r\n/ # "))
+							_, _ = ws.Write([]byte("BusyBox v1.36.1 (2026-06-15 08:35:10 UTC) built-in shell (ash)\r\nEnter 'help' for a list of built-in commands.\r\n"))
 							continue
 						}
 
@@ -915,11 +913,9 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 								_, _ = ws.Write([]byte(fmt.Sprintf("\x1b[31mProcess exited with code %d\x1b[0m\r\n", code)))
 							}
 						}
-						_, _ = ws.Write([]byte("# "))
 
 					case 3: // Ctrl+C
 						cmdBuf = cmdBuf[:0]
-						_, _ = ws.Write([]byte("^C\r\n# "))
 
 					case 4: // Ctrl+D
 						if len(cmdBuf) == 0 {
@@ -930,12 +926,10 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					case 127, 8: // Backspace
 						if len(cmdBuf) > 0 {
 							cmdBuf = cmdBuf[:len(cmdBuf)-1]
-							_, _ = ws.Write([]byte("\b \b"))
 						}
 
 					default:
 						cmdBuf = append(cmdBuf, b)
-						_, _ = ws.Write([]byte{b})
 					}
 				}
 			}

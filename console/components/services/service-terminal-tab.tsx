@@ -155,20 +155,36 @@ export function ServiceTerminalTab({
     const token = localStorage.getItem("tako_token") || ""
     if (!token) return
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    let host =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1"
-        ? `${window.location.hostname}:8080`
-        : window.location.host
+    let protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
+    let host = window.location.host
 
-    const customServer = process.env.NEXT_PUBLIC_TAKO_SERVER_URL
-    if (customServer) {
+    const customServer =
+      process.env.NEXT_PUBLIC_TAKO_SERVER_URL ||
+      localStorage.getItem("tako_server_url") ||
+      ""
+
+    if (customServer && customServer.trim()) {
       try {
-        host = new URL(customServer).host
+        const parsed = new URL(customServer)
+        host = parsed.host
+        if (parsed.protocol === "https:") {
+          protocol = "wss:"
+        } else if (parsed.protocol === "http:") {
+          protocol = "ws:"
+        }
       } catch {
-        // retain default host
+        // retain default host and protocol
       }
+    } else if (
+      window.location.port === "3000" ||
+      window.location.port === "3001" ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      /^192\.168\./.test(window.location.hostname) ||
+      /^10\./.test(window.location.hostname) ||
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname)
+    ) {
+      host = `${window.location.hostname}:8080`
     }
     const wsUrl = `${protocol}//${host}/api/v1/services/${service.id}/terminal?token=${encodeURIComponent(token)}&container=${encodeURIComponent(selectedContainer)}`
 
@@ -182,12 +198,15 @@ export function ServiceTerminalTab({
         const text = typeof event.data === "string" ? event.data : ""
         if (text && !text.includes("Error: service not found")) {
           // Clean ANSI color codes and control sequences (e.g. \x1b[2J, \x1b[H, \r)
-          const cleanText = text
+          let cleanText = text
             // eslint-disable-next-line no-control-regex
-            .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
+            .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
             .replace(/\r/g, "")
             .trim()
-          if (!cleanText) return
+
+          // Filter out trailing shell prompt symbols
+          cleanText = cleanText.replace(/[\r\n]*#\s*$/, "").trim()
+          if (!cleanText || cleanText === "#" || cleanText === "/ #") return
 
           setHistoryList((prev) => {
             if (prev.length > 0) {
