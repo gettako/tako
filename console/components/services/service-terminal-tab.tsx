@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   Check,
   Copy,
+  Loader2,
   Maximize2,
   Minimize2,
   RefreshCw,
@@ -64,7 +65,7 @@ function TerminalPrompt({
 
   return (
     <div className="space-y-0.5 font-mono text-[12px]">
-      <div className="flex flex-wrap items-center leading-none text-muted-foreground/60">
+      <div className="flex flex-wrap items-center leading-none text-muted-foreground/60 select-none">
         <span>┌─[</span>
         <span className="font-semibold text-emerald-700 dark:text-emerald-400">
           {meta.user}
@@ -84,8 +85,8 @@ function TerminalPrompt({
       </div>
 
       <div className="flex items-center gap-2 text-foreground dark:text-zinc-200">
-        <span className="text-muted-foreground/60">└─</span>
-        <span className="text-primary">➣</span>
+        <span className="text-muted-foreground/60 select-none">└─</span>
+        <span className="text-primary select-none">➣</span>
         {children}
       </div>
     </div>
@@ -145,6 +146,7 @@ export function ServiceTerminalTab({
   const [historyList, setHistoryList] = React.useState<CommandOutput[]>([])
   const [copiedBuffer, setCopiedBuffer] = React.useState(false)
   const [isReconnecting, setIsReconnecting] = React.useState(false)
+  const [isExecuting, setIsExecuting] = React.useState(false)
   const [wsConnected, setWsConnected] = React.useState(false)
   const [reconnectKey, setReconnectKey] = React.useState(0)
   const wsRef = React.useRef<WebSocket | null>(null)
@@ -206,8 +208,12 @@ export function ServiceTerminalTab({
 
           // Filter out trailing shell prompt symbols
           cleanText = cleanText.replace(/[\r\n]*#\s*$/, "").trim()
-          if (!cleanText || cleanText === "#" || cleanText === "/ #") return
+          if (!cleanText || cleanText === "#" || cleanText === "/ #") {
+            setIsExecuting(false)
+            return
+          }
 
+          setIsExecuting(false)
           setHistoryList((prev) => {
             if (prev.length > 0) {
               const last = prev[prev.length - 1]
@@ -233,9 +239,11 @@ export function ServiceTerminalTab({
       }
       ws.onerror = () => {
         setWsConnected(false)
+        setIsExecuting(false)
       }
       ws.onclose = () => {
         setWsConnected(false)
+        setIsExecuting(false)
       }
       wsRef.current = ws
     } catch {
@@ -250,6 +258,22 @@ export function ServiceTerminalTab({
 
   const terminalRef = React.useRef<HTMLDivElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
+
+  // Auto-focus input when command execution finishes
+  React.useEffect(() => {
+    if (!isExecuting) {
+      inputRef.current?.focus()
+    }
+  }, [isExecuting])
+
+  // Safety fallback: reset isExecuting if no response after 35 seconds
+  React.useEffect(() => {
+    if (!isExecuting) return
+    const timeout = setTimeout(() => {
+      setIsExecuting(false)
+    }, 35000)
+    return () => clearTimeout(timeout)
+  }, [isExecuting])
 
   // Keep the viewport pinned to the latest output after layout settles.
   React.useEffect(() => {
@@ -307,6 +331,7 @@ export function ServiceTerminalTab({
       wsConnected &&
       wsRef.current.readyState === WebSocket.OPEN
     ) {
+      setIsExecuting(true)
       setHistoryList((prev) => [
         ...prev,
         {
@@ -385,6 +410,7 @@ export function ServiceTerminalTab({
 
   const handleReconnect = async () => {
     setIsReconnecting(true)
+    setIsExecuting(false)
     if (wsRef.current) {
       wsRef.current.close()
       wsRef.current = null
@@ -553,36 +579,52 @@ export function ServiceTerminalTab({
         <div className="space-y-3">
           {historyList.map((item) => (
             <div key={item.id} className="space-y-1">
-              <TerminalPrompt service={service} cwd={item.cwd || "/app"}>
-                <span className="min-w-0 flex-1 font-medium break-all text-foreground dark:text-zinc-100">
-                  {item.command}
-                </span>
-              </TerminalPrompt>
-              {item.output && (
-                <div className="pl-2 font-mono leading-normal whitespace-pre-wrap text-foreground/90 dark:text-zinc-300">
+              {item.command ? (
+                <TerminalPrompt service={service} cwd={item.cwd || "/app"}>
+                  <span className="min-w-0 flex-1 font-medium break-all text-foreground dark:text-zinc-100">
+                    {item.command}
+                  </span>
+                </TerminalPrompt>
+              ) : null}
+              {item.output ? (
+                <div
+                  className={cn(
+                    "font-mono leading-normal whitespace-pre-wrap",
+                    item.command
+                      ? "pl-2 text-foreground/90 dark:text-zinc-300"
+                      : "text-emerald-600 dark:text-emerald-400 font-semibold"
+                  )}
+                >
                   {item.output}
                 </div>
-              )}
+              ) : item.command && isExecuting ? (
+                <div className="flex items-center gap-2 pl-2 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin text-primary" />
+                  <span>Executing...</span>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
 
         {/* Active Command Input Line */}
-        <div className="mt-3">
-          <TerminalPrompt service={service} cwd={currentCwd}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              onKeyDown={handleKeyDown}
-              spellCheck={false}
-              autoComplete="off"
-              className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-foreground caret-emerald-500 outline-hidden [caret-shape:underscore] placeholder:text-muted-foreground dark:text-zinc-100 dark:caret-emerald-400 dark:placeholder:text-zinc-600"
-              placeholder="Type command here (e.g. ls, ps, env, top)..."
-            />
-          </TerminalPrompt>
-        </div>
+        {!isExecuting && (
+          <div className="mt-3">
+            <TerminalPrompt service={service} cwd={currentCwd}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                onKeyDown={handleKeyDown}
+                spellCheck={false}
+                autoComplete="off"
+                className="min-w-0 flex-1 bg-transparent font-mono text-[12px] text-foreground caret-emerald-500 outline-hidden [caret-shape:underscore] placeholder:text-muted-foreground dark:text-zinc-100 dark:caret-emerald-400 dark:placeholder:text-zinc-600"
+                placeholder="Type command here (e.g. ls, ps, env, top)..."
+              />
+            </TerminalPrompt>
+          </div>
+        )}
       </div>
 
       {/* Terminal Status Footer */}
