@@ -171,7 +171,7 @@ export function LoginForm({
           <div className="flex flex-col items-center gap-1 text-center">
             <h1 className="text-2xl font-bold">Login to your account</h1>
             <p className="text-sm text-balance text-muted-foreground">
-              Enter your email below to login to your account
+              Enter your credentials to access the console
             </p>
           </div>
 
@@ -305,7 +305,7 @@ export function LoginForm({
               >
                 {isCopied ? (
                   <>
-                    <CheckIcon className="size-3.5 text-emerald-400" />
+                    <CheckIcon className="size-3.5 text-primary" />
                     <span>Copied</span>
                   </>
                 ) : (

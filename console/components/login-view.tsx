@@ -25,7 +25,7 @@ export function LoginView() {
       {/* Top Header: Logo on the left, Theme Toggle on the right */}
       <header className="absolute inset-x-0 top-0 z-20 flex h-16 items-center justify-between px-6 lg:px-10">
         <Link
-          href="/"
+          href="/login"
           className="flex items-center gap-2.5 font-medium transition-opacity hover:opacity-85"
         >
           <Image
@@ -49,7 +49,7 @@ export function LoginView() {
         {/* Left Column: Global Edge Network Visualization (Full, large map) */}
         <div className="relative hidden flex-col justify-between overflow-hidden border-r border-border/70 bg-background p-4 pt-20 sm:p-6 lg:col-span-7 lg:flex lg:p-6 xl:col-span-7 xl:p-8 xl:pt-20">
           {/* Subtle ambient radial gradient behind the network canvas */}
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.08),transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.08),transparent_70%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(197,61,32,0.06),transparent_70%)] dark:bg-[radial-gradient(ellipse_at_center,rgba(197,61,32,0.06),transparent_70%)]" />
 
           {/* Network Canvas Container - Spans full width and height */}
           <div className="relative z-10 flex size-full flex-1 flex-col justify-between">
@@ -71,21 +71,7 @@ export function LoginView() {
 
           {/* Footer info */}
           <div className="text-center text-xs text-muted-foreground">
-            By clicking continue, you agree to our{" "}
-            <button
-              type="button"
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              Terms of Service
-            </button>{" "}
-            and{" "}
-            <button
-              type="button"
-              className="underline underline-offset-4 hover:text-foreground"
-            >
-              Privacy Policy
-            </button>
-            .
+            Tako Self-Hosted Platform
           </div>
         </div>
       </div>

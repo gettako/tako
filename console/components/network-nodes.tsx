@@ -97,15 +97,6 @@ export function NetworkNodesAnimation({
   className?: string
 }) {
   const [activeNode, setActiveNode] = React.useState<string | null>(null)
-  const [streamEvents, setStreamEvents] = React.useState<number>(38420)
-
-  // Live stream events ticker to represent continuous outbound telemetry
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setStreamEvents((prev) => prev + Math.floor(Math.random() * 6) + 2)
-    }, 1100)
-    return () => clearInterval(interval)
-  }, [])
 
   const mapDots = React.useMemo(
     () =>
@@ -132,14 +123,14 @@ export function NetworkNodesAnimation({
       {/* Top Header: Flat, clean information bar */}
       <div className="mb-4 flex items-center justify-between px-1">
         <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-          <RadioIcon className="size-3.5 animate-pulse text-emerald-500" />
+          <RadioIcon className="size-3.5 animate-pulse text-primary" />
           <span className="font-semibold text-foreground">
             Golang gRPC Mesh
           </span>
           <span className="hidden sm:inline">• Outbound Reverse Stream</span>
         </div>
 
-        <div className="flex items-center gap-1 font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-center gap-1 font-mono text-[11px] text-muted-foreground">
           <LockIcon className="size-3" />
           <span>Outbound Only • No SSH</span>
         </div>
@@ -147,7 +138,7 @@ export function NetworkNodesAnimation({
 
       {/* Main Map Canvas - Aceternity Dotted World Map */}
       <div className="relative my-auto flex w-full flex-1 items-center justify-center">
-        <WorldMap dots={mapDots} lineColor="#10b981" className="w-full">
+        <WorldMap dots={mapDots} lineColor="#c53d20" className="w-full">
           {/* 4 Agent Node Interactive Badges */}
           {AGENT_NODES.map((agent) => {
             const isHovered = activeNode === agent.id
@@ -164,7 +155,7 @@ export function NetworkNodesAnimation({
                 }}
                 className={`absolute z-20 flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-all duration-200 select-none ${
                   isHovered
-                    ? "scale-105 border-emerald-500 bg-white shadow-md ring-2 shadow-emerald-500/15 ring-emerald-500/20 dark:border-emerald-400 dark:bg-card"
+                    ? "scale-105 border-primary bg-white shadow-md ring-2 shadow-primary/15 ring-primary/20 dark:border-primary dark:bg-card"
                     : "border-zinc-200/90 bg-white/95 text-zinc-900 shadow-xs backdrop-blur-sm hover:border-zinc-400 dark:border-border/70 dark:bg-background/85 dark:text-foreground dark:hover:border-foreground/40"
                 }`}
               >
@@ -180,7 +171,7 @@ export function NetworkNodesAnimation({
                     <span className="text-xs font-semibold text-zinc-900 dark:text-foreground">
                       {agent.city}
                     </span>
-                    <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                    <span className="size-1.5 animate-pulse rounded-full bg-primary" />
                   </div>
                   <div className="flex items-center gap-1.5 font-mono text-[9px] text-zinc-500 dark:text-muted-foreground">
                     <span className="flex items-center text-muted-foreground">
@@ -188,7 +179,7 @@ export function NetworkNodesAnimation({
                       <span>Outbound</span>
                     </span>
                     <span>•</span>
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    <span className="font-semibold text-primary">
                       {agent.latency}
                     </span>
                   </div>
@@ -206,7 +197,7 @@ export function NetworkNodesAnimation({
             }}
             className="absolute z-20 flex flex-col items-center select-none"
           >
-            <div className="relative flex items-center gap-2.5 rounded-lg border border-emerald-500/50 bg-white/95 px-3 py-1.5 shadow-xs backdrop-blur-sm dark:border-emerald-500/40 dark:bg-background/85">
+            <div className="relative flex items-center gap-2.5 rounded-lg border border-primary/40 bg-white/95 px-3 py-1.5 shadow-xs backdrop-blur-sm dark:border-primary/30 dark:bg-background/85">
               <Flag
                 src={MASTER_HUB.flag}
                 alt={`${MASTER_HUB.country} flag`}
@@ -219,12 +210,12 @@ export function NetworkNodesAnimation({
                   <span className="text-xs font-bold tracking-tight text-zinc-900 dark:text-foreground">
                     {MASTER_HUB.name}
                   </span>
-                  <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 font-mono text-[8.5px] font-bold text-primary">
                     MASTER
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 font-mono text-[9.5px] text-zinc-500 dark:text-muted-foreground">
-                  <span className="flex items-center gap-0.5 font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="flex items-center gap-0.5 font-medium text-primary">
                     <ShieldCheckIcon className="size-2.5" />
                     <span>:{DEFAULT_PORTS.GRPC}</span>
                   </span>
@@ -237,17 +228,17 @@ export function NetworkNodesAnimation({
         </WorldMap>
       </div>
 
-      {/* Bottom Telemetry Ticker (Flat, minimal) */}
+      {/* Bottom Bar: Architecture Overview */}
       <div className="mt-4 flex items-center justify-between px-1 font-mono text-[11px] text-muted-foreground">
         <div className="flex items-center gap-2">
-          <span className="size-1.5 rounded-full bg-emerald-500" />
-          <span className="font-medium text-foreground">Nodes:</span>
-          <span>4 Agents Active (Golang daemon)</span>
+          <span className="size-1.5 rounded-full bg-primary" />
+          <span className="font-medium text-foreground">Topology:</span>
+          <span>Global Edge Network Topology</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span>Telemetry Streamed:</span>
-          <span className="font-bold text-foreground dark:text-primary">
-            {streamEvents.toLocaleString()}
+          <span>Control Plane:</span>
+          <span className="font-semibold text-foreground">
+            Distributed gRPC
           </span>
         </div>
       </div>
