@@ -44,7 +44,7 @@ type Orchestrator struct {
 
 // New initializes an Orchestrator with database, event bus, and session stores.
 func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
-	return &Orchestrator{
+	o := &Orchestrator{
 		db:          database,
 		queries:     db.New(database),
 		bus:         bus,
@@ -55,6 +55,21 @@ func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
 		retention:   NewRetentionCleaner(database),
 		nodeTokens:  make(map[string]string),
 	}
+
+	// Restore known node auth tokens from database on startup so restarts don't drop agent sessions
+	if database != nil {
+		if rows, err := database.Query("SELECT id, enroll_token FROM nodes WHERE enroll_token != ''"); err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var nID, token string
+				if err := rows.Scan(&nID, &token); err == nil && token != "" {
+					o.nodeTokens[token] = nID
+				}
+			}
+		}
+	}
+
+	return o
 }
 
 // RegisterUserSession tracks an active logged-in console user session by auth token.
@@ -85,12 +100,25 @@ func (o *Orchestrator) RegisterNodeAuthToken(token, nodeID string) {
 // ValidateNodeAuthToken checks if a bearer token corresponds to an active enrolled agent.
 func (o *Orchestrator) ValidateNodeAuthToken(token string) (string, bool) {
 	o.nodeTokensMu.RLock()
-	defer o.nodeTokensMu.RUnlock()
-	if o.nodeTokens == nil {
-		return "", false
+	if o.nodeTokens != nil {
+		if nodeID, ok := o.nodeTokens[token]; ok {
+			o.nodeTokensMu.RUnlock()
+			return nodeID, true
+		}
 	}
-	nodeID, ok := o.nodeTokens[token]
-	return nodeID, ok
+	o.nodeTokensMu.RUnlock()
+
+	// Fallback to database check in case token was saved or memory cleared
+	if o.db != nil {
+		var nodeID string
+		err := o.db.QueryRow("SELECT id FROM nodes WHERE enroll_token = ?", token).Scan(&nodeID)
+		if err == nil && nodeID != "" {
+			o.RegisterNodeAuthToken(token, nodeID)
+			return nodeID, true
+		}
+	}
+
+	return "", false
 }
 
 // Queries returns the sqlc database queries interface.
@@ -224,6 +252,7 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 
 	authToken := fmt.Sprintf("tako-agent-%s-%s", nodeID, randomHex(16))
 	o.RegisterNodeAuthToken(authToken, nodeID)
+	_, _ = o.db.ExecContext(ctx, "UPDATE nodes SET enroll_token = ?, status = 'online', last_heartbeat = CURRENT_TIMESTAMP WHERE id = ?", authToken, nodeID)
 	registeredAt := time.Now().UTC().Format(time.RFC3339)
 
 	o.bus.Publish(events.Event{

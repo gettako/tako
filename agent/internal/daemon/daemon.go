@@ -22,6 +22,8 @@ import (
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Config defines agent startup configuration including master connection parameters,
@@ -267,6 +269,10 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 		if !errors.Is(err, context.Canceled) {
 			log.Printf("[tako-agent] warning: heartbeat failed: %v", err)
 		}
+		if status.Code(err) == codes.Unauthenticated {
+			log.Printf("[tako-agent] heartbeat unauthenticated, re-registering with master...")
+			_ = d.EnsureRegistered(ctx)
+		}
 		return
 	}
 
@@ -331,6 +337,10 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 			if !errors.Is(err, context.Canceled) {
 				log.Printf("[tako-agent] warning: failed to connect task stream: %v (retrying in 3s)", err)
 			}
+			if status.Code(err) == codes.Unauthenticated {
+				log.Printf("[tako-agent] task stream unauthenticated, re-registering with master...")
+				_ = d.EnsureRegistered(ctx)
+			}
 			select {
 			case <-ctx.Done():
 				return
@@ -352,6 +362,10 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
 					log.Printf("[tako-agent] task stream interrupted: %v (reconnecting...)", err)
+				}
+				if status.Code(err) == codes.Unauthenticated {
+					log.Printf("[tako-agent] task stream session unauthenticated, re-registering with master...")
+					_ = d.EnsureRegistered(ctx)
 				}
 				break
 			}
