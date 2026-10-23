@@ -114,6 +114,13 @@ func detectPrivateIP() string {
 	return ""
 }
 
+// Agent configuration default values.
+const (
+	DefaultMasterServerAddr = "127.0.0.1:50051"
+	DefaultRole             = "worker"
+	DefaultStateFile        = "/tmp/tako-agent.json"
+)
+
 // main initializes daemon configuration, probes networking, and starts the agent worker process.
 func main() {
 	defaultHost, _ := os.Hostname()
@@ -121,15 +128,15 @@ func main() {
 		defaultHost = "tako-worker"
 	}
 
-	serverAddr := getEnv("TAKO_MASTER_URL", getEnv("TAKO_SERVER_ADDR", "127.0.0.1:50051"))
+	serverAddr := getEnv("TAKO_MASTER_URL", getEnv("TAKO_SERVER_ADDR", DefaultMasterServerAddr))
 	masterURL := flag.String("master-url", serverAddr, "Master gRPC server address (host:port)")
 	enrollToken := flag.String("token", getEnv("TAKO_ENROLL_TOKEN", ""), "Master enrollment token for agent")
 	nodeID := flag.String("node-id", getEnv("TAKO_NODE_ID", ""), "Node ID (auto-generated if empty)")
 	nodeName := flag.String("node-name", getEnv("TAKO_NODE_NAME", defaultHost), "Human-readable name for this node")
-	role := flag.String("role", getEnv("TAKO_NODE_ROLE", "worker"), "Node role: leader or worker")
+	role := flag.String("role", getEnv("TAKO_NODE_ROLE", DefaultRole), "Node role: leader or worker")
 	ipAddress := flag.String("ip-address", getEnv("TAKO_IP_ADDRESS", getEnv("TAKO_PRIVATE_IP", "")), "Node IP address")
 	publicIP := flag.String("public-ip", getEnv("TAKO_PUBLIC_IP", ""), "Public IP address (optional)")
-	stateFile := flag.String("state-file", getEnv("TAKO_STATE_FILE", "/tmp/tako-agent.json"), "Path to persist local agent registration state")
+	stateFile := flag.String("state-file", getEnv("TAKO_STATE_FILE", DefaultStateFile), "Path to persist local agent registration state")
 	insecure := flag.Bool("insecure", getEnv("TAKO_INSECURE", "true") == "true", "Use insecure gRPC connection (no TLS)")
 	heartbeatInterval := flag.Duration("interval", metricsInterval(), "Heartbeat and metrics interval")
 

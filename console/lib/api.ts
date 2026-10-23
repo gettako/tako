@@ -1,4 +1,105 @@
-const API_BASE = "/api/v1"
+export const DEFAULT_PORTS = {
+  HTTP: 8080,
+  GRPC: 50051,
+  CONSOLE: 3000,
+  TRAEFIK_WEB: 80,
+  TRAEFIK_WEBSECURE: 443,
+  SMTP: 587,
+} as const
+
+export const STORAGE_KEYS = {
+  AUTH_TOKEN: "tako_token",
+  NODES_VIEW_MODE: "tako_view_mode_nodes",
+  PROJECTS_VIEW_MODE: "tako_view_mode_projects",
+  SERVICES_VIEW_MODE: "tako_view_mode_services",
+} as const
+
+export const CUSTOM_EVENTS = {
+  UNAUTHORIZED: "tako:unauthorized",
+} as const
+
+export const API_BASE = "/api/v1" as const
+
+function formatMetricsRoute(range: string, nodeId?: string): string {
+  if (nodeId && nodeId !== "cluster") {
+    return `/metrics?range=${range}&nodeId=${encodeURIComponent(nodeId)}`
+  }
+  return `/metrics?range=${range}`
+}
+
+export const API_ROUTES = {
+  BASE: API_BASE,
+  PING: "/ping",
+  AUTH: {
+    LOGIN: "/auth/login",
+    LOGOUT: "/auth/logout",
+    ME: "/auth/me",
+    SETUP: "/auth/setup",
+    SETUP_STATUS: "/auth/setup/status",
+    GITHUB: "/auth/github",
+    GITHUB_CALLBACK: "/auth/github/callback",
+    PASSKEYS: "/auth/passkeys",
+    SESSIONS: "/auth/sessions",
+    PASSWORD: "/auth/password",
+    TWO_FACTOR: "/auth/2fa",
+  },
+  NODES: {
+    LIST: "/nodes",
+    DETAIL: (id: string) => `/nodes/${id}`,
+    PRUNE: (id: string) => `/nodes/${id}/prune`,
+    UPDATE: (id: string) => `/nodes/${id}/update`,
+    ENROLL_TOKEN: (id: string) => `/nodes/${id}/enroll-token`,
+  },
+  PROJECTS: {
+    LIST: "/projects",
+    DETAIL: (id: string) => `/projects/${id}`,
+  },
+  SERVICES: {
+    LIST: "/services",
+    DETAIL: (id: string) => `/services/${id}`,
+    DEPLOY: (id: string) => `/services/${id}/deploy`,
+    ROLLBACK: (id: string) => `/services/${id}/rollback`,
+    LOGS: (id: string) => `/services/${id}/logs`,
+    CONTAINER_LOGS: (id: string, containerName: string) =>
+      `/services/${id}/container-logs?containerName=${encodeURIComponent(containerName)}`,
+    METRICS: (id: string, range = "1h") =>
+      `/services/${encodeURIComponent(id)}/metrics?range=${range}`,
+    DEPLOYMENTS: (id: string) => `/services/${id}/deployments`,
+    ENV: (id: string) => `/services/${id}/env`,
+    HEALTH_CHECK_TEST: (id: string) => `/services/${id}/health-check/test`,
+    ACCESS_LOGS: (id: string) => `/services/${id}/access-logs`,
+  },
+  METRICS: (range = "1h", nodeId?: string) => formatMetricsRoute(range, nodeId),
+  EVENTS: "/events",
+  SETTINGS: {
+    LIST: "/settings",
+    KEY: (key: string) => `/settings/${key}`,
+  },
+  REGISTRIES: {
+    LIST: "/registries",
+    DETAIL: (id: string) => `/registries/${id}`,
+  },
+  BACKUPS: {
+    LIST: "/backups",
+    RESTORE: (id: string) => `/backups/${id}/restore`,
+  },
+  SNAPSHOTS: {
+    LIST: "/snapshots",
+    DETAIL: (id: string) => `/snapshots/${id}`,
+    DOWNLOAD: (id: string) => `/snapshots/${id}/download`,
+    UPLOAD: "/snapshots/upload",
+  },
+  SYSTEM: {
+    VERSION: "/version",
+    VERSION_CHECK: "/version/check",
+    UPDATE: "/version/update",
+  },
+  CRONS: {
+    LIST: (serviceId: string) => `/services/${serviceId}/crons`,
+    DETAIL: (serviceId: string, id: string) => `/services/${serviceId}/crons/${id}`,
+    TRIGGER: (serviceId: string, id: string) => `/services/${serviceId}/crons/${id}/trigger`,
+  },
+} as const
 
 export class ApiError extends Error {
   status: number
@@ -319,16 +420,16 @@ function errorMessage(status: number, body: unknown): string {
 export function setAuthToken(token: string | null) {
   if (typeof window !== "undefined") {
     if (token) {
-      localStorage.setItem("tako_token", token)
+      localStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, token)
     } else {
-      localStorage.removeItem("tako_token")
+      localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN)
     }
   }
 }
 
 export function getAuthToken(): string | null {
   if (typeof window !== "undefined") {
-    return localStorage.getItem("tako_token")
+    return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
   }
   return null
 }
@@ -363,7 +464,7 @@ export async function apiRequest<T>(
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
       setAuthToken(null)
-      window.dispatchEvent(new Event("tako:unauthorized"))
+      window.dispatchEvent(new Event(CUSTOM_EVENTS.UNAUTHORIZED))
     }
     let body: unknown = null
     const contentType = response.headers.get("content-type") ?? ""

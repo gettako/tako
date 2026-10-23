@@ -17,6 +17,7 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
+import { DEFAULT_PORTS } from "@/lib/api"
 import { getServiceContainers } from "@/lib/container"
 import { ProjectService } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -182,11 +183,11 @@ export function ServiceTerminalTab({
       window.location.port === "3001" ||
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1" ||
-      /^192\.168\./.test(window.location.hostname) ||
-      /^10\./.test(window.location.hostname) ||
+      window.location.hostname.startsWith("192.168.") ||
+      window.location.hostname.startsWith("10.") ||
       /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(window.location.hostname)
     ) {
-      host = `${window.location.hostname}:8080`
+      host = `${window.location.hostname}:${DEFAULT_PORTS.HTTP}`
     }
     const wsUrl = `${protocol}//${host}/api/v1/services/${service.id}/terminal?token=${encodeURIComponent(token)}&container=${encodeURIComponent(selectedContainer)}`
 
@@ -202,7 +203,9 @@ export function ServiceTerminalTab({
 
         const isDone = text.includes("__TAKO_EXEC_DONE__")
         let chunk = text
-          .replace(/[\x00\r\n]*__TAKO_EXEC_DONE__[\x00\r\n]*/g, "")
+          .split("\0")
+          .join("")
+          .replace(/[\r\n]*__TAKO_EXEC_DONE__[\r\n]*/g, "")
           // eslint-disable-next-line no-control-regex
           .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
           .replace(/\r/g, "")

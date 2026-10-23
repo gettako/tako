@@ -14,7 +14,9 @@ import {
 import { TelemetryChart } from "@/components/monitor/telemetry-chart"
 import { Button } from "@/components/ui/button"
 import { ClusterNode } from "@/types/platform"
-import { apiGet } from "@/lib/api"
+import { apiGet, API_ROUTES } from "@/lib/api"
+
+const CLUSTER_METRICS_POLL_MS = 10_000
 import {
   buildChartArea,
   buildChartLine,
@@ -136,9 +138,10 @@ export function ClusterCharts({
   )
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
 
-  // Fetch real cluster telemetry points from API
+  // Fetch real cluster telemetry points from API and poll periodically during streaming
   React.useEffect(() => {
     let active = true
+
     async function loadMetrics() {
       try {
         const points = await apiGet<
@@ -152,7 +155,7 @@ export function ClusterCharts({
             disk: number
             diskPercent?: number
           }[]
-        >(`/metrics?range=${range}`)
+        >(API_ROUTES.METRICS(range))
 
         if (!active) return
         if (Array.isArray(points) && points.length > 0) {
@@ -177,8 +180,8 @@ export function ClusterCharts({
               rxMb,
               txMb,
               diskPercent,
-              diskReadMb: Math.max(1, Math.round(rxMb * 0.5)),
-              diskWriteMb: Math.max(1, Math.round(txMb * 0.5)),
+              diskReadMb: Number((rxMb * 0.5).toFixed(1)),
+              diskWriteMb: Number((txMb * 0.5).toFixed(1)),
             }
           })
           if (mapped.length > 0) {
@@ -186,63 +189,28 @@ export function ClusterCharts({
           }
         }
       } catch {
-        // Fallback to local points
+        // Retain current points on fetch error
       }
     }
 
     void loadMetrics()
+
+    let timer: NodeJS.Timeout | undefined
+    if (isStreaming) {
+      timer = setInterval(() => {
+        void loadMetrics()
+      }, CLUSTER_METRICS_POLL_MS)
+    }
+
     return () => {
       active = false
+      if (timer) clearInterval(timer)
     }
-  }, [range, nodes])
+  }, [range, nodes, isStreaming])
 
   const handleRangeChange = (newRange: TimeRange) => {
     setRange(newRange)
   }
-
-  // Live tick effect to simulate real-time ingestion when streaming is active
-  React.useEffect(() => {
-    if (!isStreaming) return
-
-    const interval = setInterval(() => {
-      const { totalMem, baseCpu, baseMem, baseDisk } = getClusterBases(nodes)
-      const now = new Date()
-      const timeStr = now.toTimeString().slice(0, 5)
-      const jitter = (Math.random() - 0.5) * 10
-      const cpu = Math.max(15, Math.min(95, Math.round(baseCpu + jitter)))
-      const ramPercent = Math.max(
-        25,
-        Math.min(90, Math.round(baseMem + jitter * 0.3))
-      )
-      const ramGb = Number(((totalMem * ramPercent) / 100).toFixed(1))
-      const rxMb = Math.max(10, Math.round(32 + Math.random() * 30))
-      const txMb = Math.max(15, Math.round(52 + Math.random() * 45))
-      const diskPercent = Math.max(
-        15,
-        Math.min(95, Math.round(baseDisk + (Math.random() - 0.5) * 3))
-      )
-      const diskReadMb = Math.max(4, Math.round(12 + Math.random() * 20))
-      const diskWriteMb = Math.max(8, Math.round(25 + Math.random() * 35))
-
-      setData((prev) => {
-        const next = prev.slice(1)
-        next.push({
-          time: timeStr,
-          cpu,
-          ramGb,
-          ramPercent,
-          rxMb,
-          txMb,
-          diskPercent,
-          diskReadMb,
-          diskWriteMb,
-        })
-        return next
-      })
-    }, 4000)
-
-    return () => clearInterval(interval)
-  }, [isStreaming, nodes])
 
   const totalCapacityGb =
     nodes.reduce((acc, n) => acc + n.totalMemoryGb, 0) || 64

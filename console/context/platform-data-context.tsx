@@ -4,6 +4,8 @@ import * as React from "react"
 
 import {
   ApiError,
+  DEFAULT_PORTS,
+  STORAGE_KEYS,
   apiDelete,
   apiGet,
   apiPatch,
@@ -238,7 +240,7 @@ interface PlatformDataContextType {
 
 const DEFAULT_SETTINGS: PlatformSettings = {
   masterGrpcHost: "",
-  masterGrpcPort: 50051,
+  masterGrpcPort: DEFAULT_PORTS.GRPC,
   clusterToken: "",
   telemetryIntervalSec: 3,
   dockerHubUsername: "",
@@ -258,7 +260,7 @@ const DEFAULT_SETTINGS: PlatformSettings = {
   backupIntervalHours: 24,
   backupRetentionCount: 14,
   telegramEnabled: false,
-  smtpPort: 587,
+  smtpPort: DEFAULT_PORTS.SMTP,
   dnsProvider: "http01",
   backupSchedule: {
     enabled: false,
@@ -461,15 +463,15 @@ export function PlatformDataProvider({
   const [error, setError] = React.useState<string | null>(null)
 
   const [nodesViewMode, setNodesViewMode] = usePersistentViewMode(
-    "tako_view_mode_nodes",
+    STORAGE_KEYS.NODES_VIEW_MODE,
     "grid"
   )
   const [projectsViewMode, setProjectsViewMode] = usePersistentViewMode(
-    "tako_view_mode_projects",
+    STORAGE_KEYS.PROJECTS_VIEW_MODE,
     "grid"
   )
   const [servicesViewMode, setServicesViewMode] = usePersistentViewMode(
-    "tako_view_mode_services",
+    STORAGE_KEYS.SERVICES_VIEW_MODE,
     "grid"
   )
 

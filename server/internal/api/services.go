@@ -1039,31 +1039,8 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				timeRange = "1h"
 			}
 
-			count := 24
-			step := time.Minute * 2
-			switch timeRange {
-			case "15m":
-				count = 15
-				step = time.Minute
-			case "1h":
-				count = 24
-				step = time.Minute * 2
-			case "6h":
-				count = 36
-				step = time.Minute * 10
-			case "24h":
-				count = 48
-				step = time.Minute * 30
-			case "7d":
-				count = 42
-				step = time.Hour * 4
-			}
-
+			count, step := RangeToStepConfig(timeRange)
 			now := time.Now().UTC()
-			baseMem := srv.MemoryLimitMb / 4
-			if baseMem <= 0 {
-				baseMem = 128
-			}
 			memLimit := srv.MemoryLimitMb
 			if memLimit <= 0 {
 				memLimit = 1024
@@ -1099,87 +1076,55 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 						DiskWrite:     0,
 					})
 				}
-			} else {
-				baseCpu := 2.5
-				baseMemVal := baseMem
-				baseNetRx := 120.0
-				baseNetTx := 260.0
-				if hasLatest {
-					baseCpu = latestPt.CPUPercent
-					if latestPt.MemoryUsedMB > 0 {
-						baseMemVal = latestPt.MemoryUsedMB
-					}
-					if latestPt.NetworkRxKBps > 0 {
-						baseNetRx = latestPt.NetworkRxKBps
-					}
-					if latestPt.NetworkTxKBps > 0 {
-						baseNetTx = latestPt.NetworkTxKBps
-					}
-				}
-
-				if len(hist) > 0 {
-					histLen := len(hist)
-					for i := count; i >= 0; i-- {
-						t := now.Add(-time.Duration(i) * step)
-						var pt orchestrator.ServiceTelemetryPoint
-						if i == 0 && hasLatest {
+			} else if len(hist) > 0 {
+				histLen := len(hist)
+				for i := count; i >= 0; i-- {
+					t := now.Add(-time.Duration(i) * step)
+					var pt orchestrator.ServiceTelemetryPoint
+					if i == 0 && hasLatest {
+						pt = latestPt
+					} else {
+						idx := histLen - 1 - i
+						if idx >= 0 && idx < histLen {
+							pt = hist[idx]
+						} else if hasLatest {
 							pt = latestPt
-						} else {
-							idx := histLen - 1 - i
-							if idx >= 0 && idx < histLen {
-								pt = hist[idx]
-							} else {
-								jitter := math.Sin(float64(i)*0.8) * 0.4
-								pt = orchestrator.ServiceTelemetryPoint{
-									CPUPercent:    math.Max(0.5, baseCpu+jitter),
-									MemoryUsedMB:  baseMemVal + int64(jitter*12.0),
-									NetworkRxKBps: math.Max(0, baseNetRx+jitter*15.0),
-									NetworkTxKBps: math.Max(0, baseNetTx+jitter*25.0),
-								}
-							}
 						}
-
-						memPct := int64(0)
-						if memLimit > 0 {
-							memPct = (pt.MemoryUsedMB * 100) / memLimit
-						}
-
-						points = append(points, ServiceMetricItem{
-							Timestamp:     t.Format(time.RFC3339),
-							CPU:           math.Round(pt.CPUPercent*100) / 100,
-							Memory:        pt.MemoryUsedMB,
-							MemoryPercent: memPct,
-							NetworkRx:     math.Round(pt.NetworkRxKBps*100) / 100,
-							NetworkTx:     math.Round(pt.NetworkTxKBps*100) / 100,
-							DiskRead:      int64(12 + (i % 4)),
-							DiskWrite:     int64(6 + (i % 3)),
-						})
 					}
-				} else {
-					for i := count; i >= 0; i-- {
-						t := now.Add(-time.Duration(i) * step)
-						jitter := math.Sin(float64(i*17)/5.0)*1.2 + math.Cos(float64(i*7)/3.0)*0.8
-						curCpu := math.Max(0.5, math.Round((baseCpu+jitter)*100)/100)
-						curMem := baseMemVal + int64(jitter*8.0)
-						if i == 0 && hasLatest {
-							curCpu = latestPt.CPUPercent
-							curMem = latestPt.MemoryUsedMB
-						}
-						memPct := int64(0)
-						if memLimit > 0 {
-							memPct = (curMem * 100) / memLimit
-						}
-						points = append(points, ServiceMetricItem{
-							Timestamp:     t.Format(time.RFC3339),
-							CPU:           curCpu,
-							Memory:        curMem,
-							MemoryPercent: memPct,
-							NetworkRx:     math.Round(math.Max(0, baseNetRx+jitter*10.0)*10) / 10,
-							NetworkTx:     math.Round(math.Max(0, baseNetTx+jitter*20.0)*10) / 10,
-							DiskRead:      int64(14 + (i % 5)),
-							DiskWrite:     int64(8 + (i % 3)),
-						})
+
+					memPct := int64(0)
+					if memLimit > 0 {
+						memPct = (pt.MemoryUsedMB * 100) / memLimit
 					}
+
+					points = append(points, ServiceMetricItem{
+						Timestamp:     t.Format(time.RFC3339),
+						CPU:           math.Round(pt.CPUPercent*100) / 100,
+						Memory:        pt.MemoryUsedMB,
+						MemoryPercent: memPct,
+						NetworkRx:     math.Round(pt.NetworkRxKBps*100) / 100,
+						NetworkTx:     math.Round(pt.NetworkTxKBps*100) / 100,
+						DiskRead:      pt.DiskReadBytes,
+						DiskWrite:     pt.DiskWriteBytes,
+					})
+				}
+			} else if hasLatest {
+				memPct := int64(0)
+				if memLimit > 0 {
+					memPct = (latestPt.MemoryUsedMB * 100) / memLimit
+				}
+				for i := count; i >= 0; i-- {
+					t := now.Add(-time.Duration(i) * step)
+					points = append(points, ServiceMetricItem{
+						Timestamp:     t.Format(time.RFC3339),
+						CPU:           math.Round(latestPt.CPUPercent*100) / 100,
+						Memory:        latestPt.MemoryUsedMB,
+						MemoryPercent: memPct,
+						NetworkRx:     math.Round(latestPt.NetworkRxKBps*100) / 100,
+						NetworkTx:     math.Round(latestPt.NetworkTxKBps*100) / 100,
+						DiskRead:      latestPt.DiskReadBytes,
+						DiskWrite:     latestPt.DiskWriteBytes,
+					})
 				}
 			}
 

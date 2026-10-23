@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { BookOpen, ExternalLink, Radio } from "lucide-react"
 import { motion } from "motion/react"
 
+import { DEFAULT_PORTS } from "@/lib/api"
 import { sidebarNavigationGroups } from "@/config/navigation"
 import { siteConfig } from "@/config/site"
 import { isNavigationItemActive } from "@/lib/navigation"
@@ -159,7 +160,7 @@ export function AppSidebar({ isCollapsed, navBadges }: AppSidebarProps) {
         {isCollapsed ? (
           <div
             className="flex justify-center rounded-md border border-border bg-muted/40 p-2"
-            title="Master Daemon: gRPC Transport Online (Port 50051)"
+            title={`Master Daemon: gRPC Transport Online (Port ${DEFAULT_PORTS.GRPC})`}
           >
             <Radio className="size-4 animate-pulse text-emerald-500" />
           </div>
@@ -176,7 +177,7 @@ export function AppSidebar({ isCollapsed, navBadges }: AppSidebarProps) {
               <span>gRPC Transport Online</span>
             </div>
             <div className="mt-1.5 font-mono text-[11px] text-muted-foreground">
-              Port: <span className="text-foreground">50051</span> (mTLS active)
+              Port: <span className="text-foreground">{DEFAULT_PORTS.GRPC}</span> (mTLS active)
             </div>
           </div>
         )}

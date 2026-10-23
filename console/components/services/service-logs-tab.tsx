@@ -20,7 +20,7 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
-import { apiGet } from "@/lib/api"
+import { apiGet, API_ROUTES } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 import type { ProjectService } from "@/types/platform"
@@ -224,7 +224,7 @@ export function ServiceLogsTab({ service }: ServiceLogsTabProps) {
     try {
       const targetContainer = containerFilter === "all" ? main : containerFilter
       const res = await apiGet<{ logs: string }>(
-        `/services/${service.id}/container-logs?containerName=${encodeURIComponent(targetContainer)}`
+        API_ROUTES.SERVICES.CONTAINER_LOGS(service.id, targetContainer)
       )
       if (res && typeof res.logs === "string" && res.logs.trim().length > 0) {
         const parsed = parseRawContainerLogs(res.logs, targetContainer)

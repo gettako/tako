@@ -4,7 +4,9 @@ import * as React from "react"
 import { Activity, ArrowUpRight, Cpu, Network, Server } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { apiGet } from "@/lib/api"
+import { apiGet, API_ROUTES } from "@/lib/api"
+
+const METRICS_POLL_INTERVAL_MS = 10_000
 import {
   CHART_HEIGHT,
   CHART_INNER_HEIGHT,
@@ -53,21 +55,32 @@ export function ServiceMetricsChart({
 
     async function loadMetrics() {
       try {
-        const res = await apiGet<{
-          points?: Array<{
-            timestamp: string
-            cpu: number
-            memory: number
-            memoryPercent?: number
-            networkRx: number
-            networkTx: number
-          }>
-        }>(`/services/${encodeURIComponent(serviceId)}/metrics?range=${range}`)
+        const res = await apiGet<
+          | Array<{
+              timestamp: string
+              cpu: number
+              memory: number
+              memoryPercent?: number
+              networkRx: number
+              networkTx: number
+            }>
+          | {
+              points?: Array<{
+                timestamp: string
+                cpu: number
+                memory: number
+                memoryPercent?: number
+                networkRx: number
+                networkTx: number
+              }>
+            }
+        >(API_ROUTES.SERVICES.METRICS(serviceId, range))
 
         if (!active) return
 
-        if (res && Array.isArray(res.points) && res.points.length > 0) {
-          const mapped: ServicePoint[] = res.points.map((p) => {
+        const rawList = Array.isArray(res) ? res : res?.points
+        if (Array.isArray(rawList)) {
+          const mapped: ServicePoint[] = rawList.map((p) => {
             const d = new Date(p.timestamp)
             const timeStr = !isNaN(d.getTime())
               ? d.toTimeString().slice(0, 5)
@@ -78,7 +91,10 @@ export function ServiceMetricsChart({
               memoryMb: Math.max(0, p.memory),
               memoryPercent:
                 p.memoryPercent ??
-                Math.min(100, Math.round((p.memory / memoryLimitMb) * 100)),
+                Math.min(
+                  100,
+                  Math.round((p.memory / (memoryLimitMb || 1024)) * 100)
+                ),
               networkRx: Math.max(0, Math.round(p.networkRx * 10) / 10),
               networkTx: Math.max(0, Math.round(p.networkTx * 10) / 10),
             }
@@ -97,7 +113,7 @@ export function ServiceMetricsChart({
     void loadMetrics()
     const timer = setInterval(() => {
       void loadMetrics()
-    }, 10000)
+    }, METRICS_POLL_INTERVAL_MS)
 
     return () => {
       active = false
@@ -307,6 +323,10 @@ export function ServiceMetricsChart({
         {isLoading && points.length === 0 ? (
           <div className="flex h-44 w-full items-center justify-center font-mono text-xs text-muted-foreground">
             Loading telemetry metrics stream...
+          </div>
+        ) : points.length === 0 ? (
+          <div className="flex h-44 w-full items-center justify-center font-mono text-xs text-muted-foreground">
+            No telemetry data recorded yet for this service.
           </div>
         ) : (
           <svg

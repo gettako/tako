@@ -43,7 +43,7 @@ export function formatRelativeTime(value?: string | null): string {
 }
 
 export function formatDuration(durationMs?: number): string {
-  if (!durationMs || durationMs <= 0) return "—"
+  if (!durationMs || durationMs <= 0) return "-"
   if (durationMs < 1000) return `${durationMs}ms`
   const seconds = durationMs / 1000
   if (seconds < 60) return `${seconds.toFixed(1)}s`
@@ -53,9 +53,9 @@ export function formatDuration(durationMs?: number): string {
 }
 
 export function formatDateTime(value?: string | null): string {
-  if (!value) return "—"
+  if (!value) return "-"
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return "—"
+  if (Number.isNaN(date.getTime())) return "-"
   return date.toLocaleString(undefined, {
     year: "numeric",
     month: "short",
@@ -258,10 +258,10 @@ function emptyDeployment(serviceId: string): DeploymentRecord {
     id: "",
     serviceId,
     status: "pending",
-    triggerBy: "—",
+    triggerBy: "-",
     commitHash: "untracked",
-    duration: "—",
-    startedAt: "—",
+    duration: "-",
+    startedAt: "-",
     message: "No deployment has run for this service yet.",
     steps: [],
   }
@@ -348,8 +348,8 @@ export function adaptService(service: ApiService): ProjectService {
       cpuPercent: Math.round((usage?.cpuPercent || 0) * 10) / 10,
       memoryMb: usage?.memoryUsedMb || 0,
       memoryLimitMb,
-      networkRxMb: Math.round((usage?.networkRxKbps || 0) / 1024),
-      networkTxMb: Math.round((usage?.networkTxKbps || 0) / 1024),
+      networkRxMb: Number(((usage?.networkRxKbps || 0) / 1024).toFixed(2)),
+      networkTxMb: Number(((usage?.networkTxKbps || 0) / 1024).toFixed(2)),
     },
     restartPolicy: "unless-stopped",
     domains: domainDetails,

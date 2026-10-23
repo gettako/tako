@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { usePlatformData } from "@/context/platform-data-context"
+import { cn } from "@/lib/utils"
 
 export function DashboardView() {
   const {
@@ -31,21 +32,37 @@ export function DashboardView() {
   const [addNodeOpen, setAddNodeOpen] = React.useState(false)
   const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
 
-  // Aggregates
+  // Aggregates computed accurately from online edge nodes
+  const onlineNodes = React.useMemo(
+    () => nodes.filter((n) => n.status === "online"),
+    [nodes]
+  )
   const totalCores = nodes.reduce((acc, n) => acc + n.totalCores, 0)
   const totalMemory = nodes.reduce((acc, n) => acc + n.totalMemoryGb, 0)
   const avgCpu =
-    nodes.length > 0
+    onlineNodes.length > 0
       ? Math.round(
-          nodes.reduce((acc, n) => acc + n.cpuPercent, 0) / nodes.length
+          onlineNodes.reduce((acc, n) => acc + n.cpuPercent, 0) /
+            onlineNodes.length
         )
       : 0
   const avgMem =
-    nodes.length > 0
+    onlineNodes.length > 0
       ? Math.round(
-          nodes.reduce((acc, n) => acc + n.memoryPercent, 0) / nodes.length
+          onlineNodes.reduce((acc, n) => acc + n.memoryPercent, 0) /
+            onlineNodes.length
         )
       : 0
+  const avgLatency =
+    onlineNodes.length > 0
+      ? Math.max(
+          1,
+          Math.round(
+            onlineNodes.reduce((acc, n) => acc + (n.grpcLatencyMs || 0), 0) /
+              onlineNodes.length
+          )
+        )
+      : null
 
   const hasData = nodes.length > 0 || projects.length > 0
 
@@ -136,7 +153,7 @@ export function DashboardView() {
               {services.length}
             </span>
             <span className="font-mono text-xs text-muted-foreground">
-              workloads
+              ({services.filter((s) => s.status === "running").length} running)
             </span>
           </div>
           <div className="mt-2 font-mono text-[11px] text-muted-foreground">
@@ -148,18 +165,30 @@ export function DashboardView() {
         <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
           <div className="flex items-center justify-between font-mono text-xs text-muted-foreground">
             <span>gRPC Telemetry</span>
-            <Radio className="size-4 animate-pulse text-emerald-500" />
+            <Radio
+              className={cn(
+                "size-4",
+                onlineNodes.length > 0
+                  ? "animate-pulse text-emerald-500"
+                  : "text-muted-foreground"
+              )}
+            />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="font-mono text-2xl font-bold text-foreground">
-              {nodes.length > 0 ? "4ms" : "Idle"}
+              {avgLatency !== null ? `${avgLatency}ms` : "Offline"}
             </span>
-            <span className="font-mono text-xs text-emerald-500">
-              {nodes.length > 0 ? "Stream live" : "No nodes"}
+            <span
+              className={cn(
+                "font-mono text-xs",
+                onlineNodes.length > 0 ? "text-emerald-500" : "text-muted-foreground"
+              )}
+            >
+              {onlineNodes.length > 0 ? "Stream live" : "No active nodes"}
             </span>
           </div>
           <div className="mt-2 font-mono text-[11px] text-muted-foreground">
-            {nodes.length > 0
+            {onlineNodes.length > 0
               ? `Avg load: ${avgCpu}% CPU, ${avgMem}% RAM`
               : "Avg latency to edge agents"}
           </div>

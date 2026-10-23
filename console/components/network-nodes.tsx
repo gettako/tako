@@ -8,6 +8,7 @@ import {
   LockIcon,
 } from "lucide-react"
 
+import { DEFAULT_PORTS } from "@/lib/api"
 import { Flag } from "@/components/ui/flag"
 import { WorldMap } from "@/components/ui/world-map"
 
@@ -225,7 +226,7 @@ export function NetworkNodesAnimation({
                 <div className="flex items-center gap-1.5 font-mono text-[9.5px] text-zinc-500 dark:text-muted-foreground">
                   <span className="flex items-center gap-0.5 font-medium text-emerald-600 dark:text-emerald-400">
                     <ShieldCheckIcon className="size-2.5" />
-                    <span>:50051</span>
+                    <span>:{DEFAULT_PORTS.GRPC}</span>
                   </span>
                   <span>•</span>
                   <span>4 Inbound Streams</span>

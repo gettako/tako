@@ -37,15 +37,26 @@ func getEnvAny(keys []string, defaultVal string) string {
 	return defaultVal
 }
 
+// Configuration default values.
+const (
+	DefaultHTTPPort      = "8080"
+	DefaultGRPCPort      = "50051"
+	DefaultDBPath        = "tako.db"
+	DefaultEnv           = "development"
+	DefaultAdminEmail    = "admin@gettako.dev"
+	DefaultAdminPassword = "admin123456"
+)
+
 // Load reads all Tako server configurations from environment variables.
 func Load() *Config {
 	return &Config{
-		Port:          getEnvAny([]string{"TAKO_HTTP_PORT", "TAKO_PORT"}, "8080"),
-		GRPCPort:      getEnv("TAKO_GRPC_PORT", "50051"),
-		DBPath:        getEnv("TAKO_DB_PATH", "tako.db"),
-		Env:           getEnv("TAKO_ENV", "development"),
+		Port:          getEnvAny([]string{"TAKO_HTTP_PORT", "TAKO_PORT"}, DefaultHTTPPort),
+		GRPCPort:      getEnv("TAKO_GRPC_PORT", DefaultGRPCPort),
+		DBPath:        getEnv("TAKO_DB_PATH", DefaultDBPath),
+		Env:           getEnv("TAKO_ENV", DefaultEnv),
 		AgentSecret:   os.Getenv("TAKO_AGENT_SECRET"),
-		AdminEmail:    getEnvAny([]string{"TAKO_INITIAL_ADMIN_EMAIL", "TAKO_ADMIN_EMAIL"}, "admin@gettako.dev"),
-		AdminPassword: getEnvAny([]string{"TAKO_INITIAL_ADMIN_PASSWORD", "TAKO_ADMIN_PASSWORD"}, "admin123456"),
+		AdminEmail:    getEnvAny([]string{"TAKO_INITIAL_ADMIN_EMAIL", "TAKO_ADMIN_EMAIL"}, DefaultAdminEmail),
+		AdminPassword: getEnvAny([]string{"TAKO_INITIAL_ADMIN_PASSWORD", "TAKO_ADMIN_PASSWORD"}, DefaultAdminPassword),
 	}
 }
+

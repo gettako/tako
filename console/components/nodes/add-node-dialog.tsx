@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { DEFAULT_PORTS } from "@/lib/api"
 import { usePlatformData } from "@/context/platform-data-context"
 
 export function AddNodeDialog({
@@ -40,7 +41,7 @@ export function AddNodeDialog({
   const grpcHost =
     settings.masterGrpcHost ||
     (typeof window !== "undefined" ? window.location.hostname : "127.0.0.1")
-  const grpcPort = settings.masterGrpcPort || 50051
+  const grpcPort = settings.masterGrpcPort || DEFAULT_PORTS.GRPC
 
   const requestToken = React.useCallback(async () => {
     setIsLoading(true)

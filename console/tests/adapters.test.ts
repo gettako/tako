@@ -19,8 +19,8 @@ describe("Format Utilities", () => {
   })
 
   it("formats durations accurately", () => {
-    expect(formatDuration(undefined)).toBe("—")
-    expect(formatDuration(0)).toBe("—")
+    expect(formatDuration(undefined)).toBe("-")
+    expect(formatDuration(0)).toBe("-")
     expect(formatDuration(450)).toBe("450ms")
     expect(formatDuration(12500)).toBe("12.5s")
     expect(formatDuration(95000)).toBe("1m 35s")

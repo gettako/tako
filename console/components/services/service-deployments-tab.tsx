@@ -62,31 +62,39 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
   >(null)
   const [isLoadingHistory, setIsLoadingHistory] = React.useState(false)
 
+  const serviceId = service.id
+
   const loadDeployments = React.useCallback(async () => {
-    if (!service?.id) return
+    if (!serviceId) return
     setIsLoadingHistory(true)
     try {
-      const records = await fetchServiceDeployments(service.id)
+      const records = await fetchServiceDeployments(serviceId)
       setFetchedDeployments(records)
     } catch (err) {
       console.error("Failed to fetch deployments:", err)
     } finally {
       setIsLoadingHistory(false)
     }
-  }, [fetchServiceDeployments, service?.id])
+  }, [fetchServiceDeployments, serviceId])
 
   React.useEffect(() => {
-    void loadDeployments()
-  }, [loadDeployments])
+    let active = true
+    if (!serviceId) return
 
-  // When deploying status toggles (e.g. starts or finishes), reload full history
-  const prevDeployingRef = React.useRef(isDeploying)
-  React.useEffect(() => {
-    if (prevDeployingRef.current !== isDeploying) {
-      void loadDeployments()
+    fetchServiceDeployments(serviceId)
+      .then((records) => {
+        if (active) {
+          setFetchedDeployments(records)
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch deployments:", err)
+      })
+
+    return () => {
+      active = false
     }
-    prevDeployingRef.current = isDeploying
-  }, [isDeploying, loadDeployments])
+  }, [fetchServiceDeployments, serviceId, isDeploying])
 
   // Deployment history list
   const history = React.useMemo(() => {

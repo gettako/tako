@@ -13,6 +13,51 @@ import (
 	"gettako.dev/tako/internal/store/db"
 )
 
+// Time range identifiers for telemetry queries.
+const (
+	TimeRange15m = "15m"
+	TimeRange1h  = "1h"
+	TimeRange6h  = "6h"
+	TimeRange24h = "24h"
+	TimeRange7d  = "7d"
+)
+
+// RangeToSeconds maps standard UI time range filters to negative seconds strings for SQLite datetime queries.
+func RangeToSeconds(timeRange string) string {
+	switch timeRange {
+	case TimeRange15m:
+		return "-900"
+	case TimeRange6h:
+		return "-21600"
+	case TimeRange24h:
+		return "-86400"
+	case TimeRange7d:
+		return "-604800"
+	case TimeRange1h:
+		fallthrough
+	default:
+		return "-3600"
+	}
+}
+
+// RangeToStepConfig maps time range to sample count and time interval for service telemetry buckets.
+func RangeToStepConfig(timeRange string) (count int, step time.Duration) {
+	switch timeRange {
+	case TimeRange15m:
+		return 15, time.Minute
+	case TimeRange6h:
+		return 36, time.Minute * 10
+	case TimeRange24h:
+		return 48, time.Minute * 30
+	case TimeRange7d:
+		return 42, time.Hour * 4
+	case TimeRange1h:
+		fallthrough
+	default:
+		return 24, time.Minute * 2
+	}
+}
+
 // MetricPointResponse formats aggregated time-series telemetry for console dashboard graphs.
 type MetricPointResponse struct {
 	Timestamp     string  `json:"timestamp"`
@@ -34,18 +79,7 @@ func registerMetricsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				timeRange = "1h"
 			}
 
-			// Map range to negative seconds for SQLite datetime('now', ? || ' seconds')
-			rangeSeconds := "-3600"
-			switch timeRange {
-			case "15m":
-				rangeSeconds = "-900"
-			case "6h":
-				rangeSeconds = "-21600"
-			case "24h":
-				rangeSeconds = "-86400"
-			case "7d":
-				rangeSeconds = "-604800"
-			}
+			rangeSeconds := RangeToSeconds(timeRange)
 
 			var points []MetricPointResponse
 

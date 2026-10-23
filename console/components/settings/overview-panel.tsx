@@ -22,6 +22,7 @@ import {
   Users,
 } from "lucide-react"
 
+import { DEFAULT_PORTS } from "@/lib/api"
 import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
 import type { SettingsSection } from "@/components/settings/settings-nav"
 import { Button } from "@/components/ui/button"
@@ -205,7 +206,7 @@ export function OverviewPanel({ onNavigateToTab }: OverviewPanelProps) {
       id: "network" as SettingsSection,
       title: "Daemon & Security",
       icon: Radio,
-      headline: `gRPC Port ${settings.masterGrpcPort || 50051}`,
+      headline: `gRPC Port ${settings.masterGrpcPort || DEFAULT_PORTS.GRPC}`,
       subline: `Heartbeat ${settings.telemetryIntervalSec || 5}s interval with root mTLS`,
       status: "healthy",
       statusText: "Strict mTLS",
@@ -257,7 +258,7 @@ export function OverviewPanel({ onNavigateToTab }: OverviewPanelProps) {
               gRPC Transport
             </span>
             <span className="font-semibold text-foreground">
-              Port {settings.masterGrpcPort || 50051}
+              Port {settings.masterGrpcPort || DEFAULT_PORTS.GRPC}
             </span>
             <span className="flex items-center gap-1 text-[10px] text-emerald-500">
               <ShieldCheck className="size-3" />

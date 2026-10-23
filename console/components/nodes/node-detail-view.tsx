@@ -25,10 +25,12 @@ import { CodeHighlighter } from "@/components/ui/code-highlighter"
 import { Flag } from "@/components/ui/flag"
 import { EmptyState } from "@/components/ui/empty-state"
 import { usePlatformData } from "@/context/platform-data-context"
-import { apiGet, apiPost } from "@/lib/api"
+import { apiGet, apiPost, API_ROUTES } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
+
+const STATUS_RESET_MS = 3000
 
 interface NodeContainer {
   id: string
@@ -134,12 +136,12 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
     setIsPinging(true)
     const t0 = performance.now()
     try {
-      await apiGet(`/nodes/${node.id}`)
-      const roundtrip = Math.max(2, Math.round(performance.now() - t0))
+      await apiGet(API_ROUTES.NODES.DETAIL(node.id))
+      const roundtrip = Math.max(1, Math.round(performance.now() - t0))
       setCurrentPing(roundtrip)
     } catch {
-      const jitter = Math.floor(Math.random() * 6) - 3
-      setCurrentPing(Math.max(2, (currentPing || node.grpcLatencyMs || 8) + jitter))
+      // If node is unreachable, accurately reflect null latency rather than fabricating fake numbers
+      setCurrentPing(null)
     } finally {
       setIsPinging(false)
     }
@@ -148,7 +150,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const handleRestartAgent = async () => {
     setIsRestartingAgent(true)
     try {
-      await apiPost(`/nodes/${node.id}/update`, {})
+      await apiPost(API_ROUTES.NODES.UPDATE(node.id), {})
       addAuditLog({
         action: "Agent Restart Dispatched",
         category: "node",
@@ -158,10 +160,9 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
         status: "success",
       })
       setAgentRestartSuccess(true)
-      setTimeout(() => setAgentRestartSuccess(false), 3000)
+      setTimeout(() => setAgentRestartSuccess(false), STATUS_RESET_MS)
     } catch {
-      setAgentRestartSuccess(true)
-      setTimeout(() => setAgentRestartSuccess(false), 3000)
+      setAgentRestartSuccess(false)
     } finally {
       setIsRestartingAgent(false)
     }
@@ -170,7 +171,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const handlePruneDisk = async () => {
     setIsPruning(true)
     try {
-      await apiPost(`/nodes/${node.id}/prune`, {})
+      await apiPost(API_ROUTES.NODES.PRUNE(node.id), {})
       setPruneSuccess(true)
       addAuditLog({
         action: "Node Disk Pruned",
@@ -180,10 +181,9 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
         details: `Cleaned up dangling images, dead build cache, and reclaimed disk on ${node.ipAddress}`,
         status: "success",
       })
-      setTimeout(() => setPruneSuccess(false), 3000)
+      setTimeout(() => setPruneSuccess(false), STATUS_RESET_MS)
     } catch {
-      setPruneSuccess(true)
-      setTimeout(() => setPruneSuccess(false), 3000)
+      setPruneSuccess(false)
     } finally {
       setIsPruning(false)
     }

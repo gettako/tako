@@ -13,6 +13,7 @@ import {
 } from "lucide-react"
 import { z } from "zod"
 
+import { DEFAULT_PORTS } from "@/lib/api"
 import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
 import { Button } from "@/components/ui/button"
 import {
@@ -85,7 +86,7 @@ export function NetworkPanel() {
     settings.masterGrpcHost || "0.0.0.0"
   )
   const [masterPort, setMasterPort] = React.useState(
-    (settings.masterGrpcPort || 50051).toString()
+    (settings.masterGrpcPort || DEFAULT_PORTS.GRPC).toString()
   )
   const [token, setToken] = React.useState(
     settings.clusterToken || "tako_clst_9f8a2b3c4d5e6f7a8b9c0d1e2f3a4b5c"
@@ -138,7 +139,7 @@ export function NetworkPanel() {
 
     updateSettings({
       masterGrpcHost: masterHost.trim(),
-      masterGrpcPort: Number.parseInt(masterPort, 10) || 50051,
+      masterGrpcPort: Number.parseInt(masterPort, 10) || DEFAULT_PORTS.GRPC,
       clusterToken: token.trim(),
       telemetryIntervalSec: Number.parseInt(interval, 10) || 5,
       ipAllowlist: ipAllowlist.trim(),
