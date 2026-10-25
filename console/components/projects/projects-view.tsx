@@ -4,6 +4,7 @@ import * as React from "react"
 import { FolderGit2, Plus, Search } from "lucide-react"
 
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
+import { DeleteProjectDialog } from "@/components/projects/delete-project-dialog"
 import { ProjectCard } from "@/components/projects/project-card"
 import { ProjectTable } from "@/components/projects/project-table"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { usePlatformData } from "@/context/platform-data-context"
+import { Project } from "@/types/platform"
 
 export function ProjectsView() {
   const {
@@ -22,6 +24,9 @@ export function ProjectsView() {
   } = usePlatformData()
 
   const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
+  const [projectToDelete, setProjectToDelete] = React.useState<Project | null>(
+    null
+  )
   const [searchQuery, setSearchQuery] = React.useState("")
 
   const filteredProjects = projects.filter(
@@ -103,17 +108,26 @@ export function ProjectsView() {
             <ProjectCard
               key={project.id}
               project={project}
-              onDelete={deleteProject}
+              onDelete={setProjectToDelete}
             />
           ))}
         </div>
       ) : (
-        <ProjectTable projects={filteredProjects} onDelete={deleteProject} />
+        <ProjectTable
+          projects={filteredProjects}
+          onDelete={setProjectToDelete}
+        />
       )}
 
       <CreateProjectDialog
         open={createProjectOpen}
         onOpenChange={setCreateProjectOpen}
+      />
+      <DeleteProjectDialog
+        project={projectToDelete}
+        open={!!projectToDelete}
+        onOpenChange={(open) => !open && setProjectToDelete(null)}
+        onConfirm={deleteProject}
       />
     </div>
   )

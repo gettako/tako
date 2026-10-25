@@ -2,12 +2,14 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ArrowLeft, FolderGit2, Layers, Search } from "lucide-react"
+import { ArrowLeft, FolderGit2, Layers, Search, Trash2 } from "lucide-react"
 
+import { DeleteProjectDialog } from "@/components/projects/delete-project-dialog"
 import { CreateServiceDialog } from "@/components/services/create-service-dialog"
 import { CreateServiceDropdown } from "@/components/services/create-service-dropdown"
 import { ServiceCard } from "@/components/services/service-card"
 import { ServiceTable } from "@/components/services/service-table"
+import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
@@ -26,6 +28,7 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
     servicesViewMode,
     setServicesViewMode,
     deleteService,
+    deleteProject,
     setDataMode,
   } = usePlatformData()
 
@@ -33,6 +36,7 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
   const projectServices = services.filter((s) => s.projectId === projectId)
 
   const [createServiceOpen, setCreateServiceOpen] = React.useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [createServiceType, setCreateServiceType] =
     React.useState<ServiceType>("dockerfile")
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -100,6 +104,26 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <Button
+            size="md"
+            variant="outline"
+            onClick={() => setDeleteDialogOpen(true)}
+            className={cn(
+              "gap-1.5 text-xs transition-colors",
+              projectServices.length > 0
+                ? "text-muted-foreground/70 hover:text-amber-500"
+                : "text-destructive hover:bg-destructive/10 hover:text-destructive"
+            )}
+            title={
+              projectServices.length > 0
+                ? "Cannot delete project with active services"
+                : "Delete project"
+            }
+          >
+            <Trash2 className="size-3.5" />
+            <span>Delete Project</span>
+          </Button>
+
           <CreateServiceDropdown
             onSelectType={(type) => {
               setCreateServiceType(type)
@@ -171,6 +195,15 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
         open={createServiceOpen}
         onOpenChange={setCreateServiceOpen}
         initialType={createServiceType}
+      />
+      <DeleteProjectDialog
+        project={project}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={async (id) => {
+          await deleteProject(id)
+          window.location.assign("/projects")
+        }}
       />
     </div>
   )

@@ -1043,7 +1043,7 @@ export function PlatformDataProvider({
 
   const deleteProject = React.useCallback(
     async (id: string) => {
-      await apiDelete(`/projects/${id}?cascade=true`)
+      await apiDelete(`/projects/${id}`)
       await Promise.all([refreshProjects(), refreshServices()])
     },
     [refreshProjects, refreshServices]

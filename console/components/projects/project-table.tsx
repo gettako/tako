@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 
 interface ProjectTableProps {
   projects: Project[]
-  onDelete?: (id: string) => void
+  onDelete?: (project: Project) => void
 }
 
 export function ProjectTable({ projects, onDelete }: ProjectTableProps) {
@@ -107,9 +107,18 @@ export function ProjectTable({ projects, onDelete }: ProjectTableProps) {
                     <Button
                       size="icon-xs"
                       variant="ghost"
-                      onClick={() => onDelete(project.id)}
-                      className="size-7 text-muted-foreground hover:text-destructive"
-                      title="Delete project"
+                      onClick={() => onDelete(project)}
+                      className={cn(
+                        "size-7 transition-colors",
+                        project.servicesCount > 0
+                          ? "text-muted-foreground/60 hover:text-amber-500"
+                          : "text-muted-foreground hover:text-destructive"
+                      )}
+                      title={
+                        project.servicesCount > 0
+                          ? "Cannot delete project with active services"
+                          : "Delete project"
+                      }
                     >
                       <Trash2 className="size-3.5" />
                     </Button>

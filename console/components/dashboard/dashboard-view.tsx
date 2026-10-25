@@ -7,6 +7,7 @@ import { AddNodeDialog } from "@/components/nodes/add-node-dialog"
 import { NodeCard } from "@/components/nodes/node-card"
 import { NodeTable } from "@/components/nodes/node-table"
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
+import { DeleteProjectDialog } from "@/components/projects/delete-project-dialog"
 import { ProjectCard } from "@/components/projects/project-card"
 import { ProjectTable } from "@/components/projects/project-table"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
+import { Project } from "@/types/platform"
 
 export function DashboardView() {
   const {
@@ -31,6 +33,9 @@ export function DashboardView() {
 
   const [addNodeOpen, setAddNodeOpen] = React.useState(false)
   const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
+  const [projectToDelete, setProjectToDelete] = React.useState<Project | null>(
+    null
+  )
 
   // Aggregates computed accurately from online edge nodes
   const onlineNodes = React.useMemo(
@@ -258,12 +263,12 @@ export function DashboardView() {
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  onDelete={deleteProject}
+                  onDelete={setProjectToDelete}
                 />
               ))}
             </div>
           ) : (
-            <ProjectTable projects={projects} onDelete={deleteProject} />
+            <ProjectTable projects={projects} onDelete={setProjectToDelete} />
           )}
         </section>
       )}
@@ -273,6 +278,12 @@ export function DashboardView() {
       <CreateProjectDialog
         open={createProjectOpen}
         onOpenChange={setCreateProjectOpen}
+      />
+      <DeleteProjectDialog
+        project={projectToDelete}
+        open={!!projectToDelete}
+        onOpenChange={(open) => !open && setProjectToDelete(null)}
+        onConfirm={deleteProject}
       />
     </div>
   )

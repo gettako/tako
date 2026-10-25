@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 
 interface ProjectCardProps {
   project: Project
-  onDelete?: (id: string) => void
+  onDelete?: (project: Project) => void
 }
 
 export function ProjectCard({ project, onDelete }: ProjectCardProps) {
@@ -108,10 +108,19 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                onDelete(project.id)
+                onDelete(project)
               }}
-              className="size-7 text-muted-foreground hover:text-destructive"
-              title="Delete project"
+              className={cn(
+                "size-7 transition-colors",
+                project.servicesCount > 0
+                  ? "text-muted-foreground/60 hover:text-amber-500"
+                  : "text-muted-foreground hover:text-destructive"
+              )}
+              title={
+                project.servicesCount > 0
+                  ? "Cannot delete project with active services"
+                  : "Delete project"
+              }
             >
               <Trash2 className="size-3.5" />
             </Button>
