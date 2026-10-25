@@ -147,7 +147,7 @@ func TestRegisterNodeRejectsLeaderRoleAndExecFailsClosed(t *testing.T) {
 	containerClient := takov1.NewContainerServiceClient(conn)
 	ctx := context.Background()
 
-	// 1. Attempt to register node with leader role must be rejected
+	// 1. Attempt to register arbitrary node with leader role must be rejected
 	_, err = agentClient.RegisterNode(ctx, &takov1.RegisterNodeRequest{
 		NodeId: "malicious-node",
 		Name:   "Malicious Node",
@@ -158,6 +158,19 @@ func TestRegisterNodeRejectsLeaderRoleAndExecFailsClosed(t *testing.T) {
 	}
 	if st, ok := status.FromError(err); !ok || st.Code() != codes.PermissionDenied {
 		t.Errorf("expected codes.PermissionDenied for role=leader, got: %v", err)
+	}
+
+	// 1b. Master node registration as leader must be accepted
+	regResp, err := agentClient.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+		NodeId: "tako-master-01",
+		Name:   "tako-master-01",
+		Role:   "leader",
+	})
+	if err != nil {
+		t.Fatalf("expected master node to successfully register with role=leader, got err: %v", err)
+	}
+	if regResp.GetStatus() != "registered" {
+		t.Errorf("expected status 'registered', got: %s", regResp.GetStatus())
 	}
 
 	// 2. ExecCommand on unknown container must fail closed with error

@@ -20,6 +20,7 @@ import (
 type ServerConfig struct {
 	AgentSecret  string
 	Orchestrator *orchestrator.Orchestrator
+	MasterNodeID string
 }
 
 // AgentHandler implements takov1.AgentServiceServer for agent handshakes,
@@ -27,17 +28,23 @@ type ServerConfig struct {
 type AgentHandler struct {
 	takov1.UnimplementedAgentServiceServer
 	orchestrator *orchestrator.Orchestrator
+	masterNodeID string
 	tokenStore   map[string]string
 	tokenStoreMu sync.RWMutex
 }
 
 // RegisterNode authenticates agent enroll tokens and provisions permanent node auth tokens.
 func (h *AgentHandler) RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error) {
-	if req.GetRole() == "leader" {
-		return nil, status.Error(codes.PermissionDenied, "cannot register node with leader role")
-	}
 	if h.orchestrator != nil {
 		return h.orchestrator.RegisterNode(ctx, req)
+	}
+	masterID := h.masterNodeID
+	if masterID == "" {
+		masterID = "tako-master-01"
+	}
+	isMasterNode := req.GetNodeId() == masterID || req.GetName() == masterID
+	if req.GetRole() == "leader" && !isMasterNode {
+		return nil, status.Error(codes.PermissionDenied, "cannot register node with leader role")
 	}
 	token := "tako-agent-" + req.GetNodeId() + "-token"
 	h.tokenStoreMu.Lock()
@@ -141,8 +148,13 @@ func (h *AgentHandler) StreamTasks(stream takov1.AgentService_StreamTasksServer)
 // NewServer initializes and configures a gRPC server with authentication and service stubs.
 func NewServer(cfg ServerConfig) *grpc.Server {
 	fallbackTokens := make(map[string]string)
+	mid := cfg.MasterNodeID
+	if mid == "" && cfg.Orchestrator != nil {
+		mid = cfg.Orchestrator.MasterNodeID()
+	}
 	agentHandler := &AgentHandler{
 		orchestrator: cfg.Orchestrator,
+		masterNodeID: mid,
 		tokenStore:   fallbackTokens,
 	}
 

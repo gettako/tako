@@ -15,6 +15,7 @@ type Config struct {
 	AgentSecret   string
 	AdminEmail    string
 	AdminPassword string
+	NodeName      string
 }
 
 // getEnv returns the environment variable for key or defaultVal if empty.
@@ -57,6 +58,7 @@ func Load() *Config {
 		AgentSecret:   os.Getenv("TAKO_AGENT_SECRET"),
 		AdminEmail:    getEnvAny([]string{"TAKO_INITIAL_ADMIN_EMAIL", "TAKO_ADMIN_EMAIL"}, DefaultAdminEmail),
 		AdminPassword: getEnvAny([]string{"TAKO_INITIAL_ADMIN_PASSWORD", "TAKO_ADMIN_PASSWORD"}, DefaultAdminPassword),
+		NodeName:      getEnvAny([]string{"TAKO_NODE_NAME", "TAKO_NODE_ID"}, "tako-master-01"),
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,22 +39,29 @@ type Orchestrator struct {
 	agents    *AgentRegistry
 	retention *RetentionCleaner
 
+	masterNodeID string
+
 	nodeTokensMu sync.RWMutex
 	nodeTokens   map[string]string
 }
 
 // New initializes an Orchestrator with database, event bus, and session stores.
-func New(database *sql.DB, bus *events.Bus, enrollToken string) *Orchestrator {
+func New(database *sql.DB, bus *events.Bus, enrollToken string, masterNodeID ...string) *Orchestrator {
+	mid := "tako-master-01"
+	if len(masterNodeID) > 0 && masterNodeID[0] != "" {
+		mid = masterNodeID[0]
+	}
 	o := &Orchestrator{
-		db:          database,
-		queries:     db.New(database),
-		bus:         bus,
-		enrollToken: enrollToken,
-		sessions:    NewSessionStore(),
-		telemetry:   NewTelemetryStore(),
-		agents:      NewAgentRegistry(),
-		retention:   NewRetentionCleaner(database),
-		nodeTokens:  make(map[string]string),
+		db:           database,
+		queries:      db.New(database),
+		bus:          bus,
+		enrollToken:  enrollToken,
+		masterNodeID: mid,
+		sessions:     NewSessionStore(),
+		telemetry:    NewTelemetryStore(),
+		agents:       NewAgentRegistry(),
+		retention:    NewRetentionCleaner(database),
+		nodeTokens:   make(map[string]string),
 	}
 
 	// Restore known node auth tokens from database on startup so restarts don't drop agent sessions
@@ -131,6 +139,48 @@ func (o *Orchestrator) DB() *sql.DB {
 	return o.db
 }
 
+// MasterNodeID returns the configured identity of the cluster leader/master node.
+func (o *Orchestrator) MasterNodeID() string {
+	if o.masterNodeID != "" {
+		return o.masterNodeID
+	}
+	return "tako-master-01"
+}
+
+// EnsureMasterNode ensures the primary control plane node exists in the database.
+func (o *Orchestrator) EnsureMasterNode(ctx context.Context, masterIP, publicIP string) error {
+	masterID := o.MasterNodeID()
+	if _, err := o.queries.GetNodeByID(ctx, masterID); err == nil {
+		return nil
+	}
+	if masterIP == "" {
+		masterIP = "127.0.0.1"
+	}
+	if publicIP == "" {
+		publicIP = masterIP
+	}
+	_, err := o.queries.CreateNode(ctx, db.CreateNodeParams{
+		ID:            masterID,
+		Name:          masterID,
+		IpAddress:     masterIP,
+		PublicIp:      publicIP,
+		Role:          "leader",
+		Status:        "online",
+		CpuTotalCores: 1,
+		MemoryTotalMb: 1024,
+		DiskTotalGb:   10,
+		DockerVersion: "unknown",
+		Os:            "Linux",
+		KernelVersion: "",
+		EnrollToken:   o.enrollToken,
+	})
+	if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		return err
+	}
+	_, _ = o.db.ExecContext(ctx, "UPDATE nodes SET last_heartbeat = CURRENT_TIMESTAMP WHERE id = ?", masterID)
+	return nil
+}
+
 // Bus returns the central event bus for publishing SSE and audit events.
 func (o *Orchestrator) Bus() *events.Bus {
 	return o.bus
@@ -188,10 +238,13 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 	}
 
 	role := req.GetRole()
-	if role == "leader" {
+	isMasterNode := nodeID == o.MasterNodeID() || req.GetName() == o.MasterNodeID()
+	if role == "leader" && !isMasterNode {
 		return nil, status.Error(codes.PermissionDenied, "cannot register node with leader role")
 	}
-	if role == "" {
+	if isMasterNode {
+		role = "leader"
+	} else if role == "" {
 		role = "worker"
 	}
 
@@ -280,7 +333,22 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 
 	uptimeStr := formatUptime(req.GetUptimeSeconds())
 
-	err := o.queries.UpdateNodeHeartbeat(ctx, db.UpdateNodeHeartbeatParams{
+	// Ensure node exists; auto-heal master node if missing
+	node, err := o.queries.GetNodeByID(ctx, nodeID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			if nodeID == o.MasterNodeID() {
+				_ = o.EnsureMasterNode(ctx, "127.0.0.1", "")
+				node, _ = o.queries.GetNodeByID(ctx, nodeID)
+			} else {
+				return nil, status.Errorf(codes.NotFound, "node %s not found, re-registration required", nodeID)
+			}
+		} else {
+			return nil, status.Errorf(codes.Internal, "database error: %v", err)
+		}
+	}
+
+	err = o.queries.UpdateNodeHeartbeat(ctx, db.UpdateNodeHeartbeatParams{
 		ID:            nodeID,
 		Status:        "online",
 		CpuPercent:    req.GetCpuPercent(),
@@ -296,13 +364,11 @@ func (o *Orchestrator) Heartbeat(ctx context.Context, req *takov1.HeartbeatReque
 
 	memTotal := int64(8192)
 	diskTotal := int64(100)
-	if node, err := o.queries.GetNodeByID(ctx, nodeID); err == nil {
-		if node.MemoryTotalMb > 0 {
-			memTotal = node.MemoryTotalMb
-		}
-		if node.DiskTotalGb > 0 {
-			diskTotal = int64(node.DiskTotalGb)
-		}
+	if node.MemoryTotalMb > 0 {
+		memTotal = node.MemoryTotalMb
+	}
+	if node.DiskTotalGb > 0 {
+		diskTotal = int64(node.DiskTotalGb)
 	}
 
 	_, _ = o.queries.RecordNodeMetric(ctx, db.RecordNodeMetricParams{

@@ -678,6 +678,25 @@ func TestNodeDeletion_WithWorkloadsAndForce(t *testing.T) {
 	if !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("expected orphaned service to be cleaned up, got err: %v", err)
 	}
+
+	// 7. Master node deletion must be rejected with 400 Bad Request
+	masterID := "node-leader-immortal"
+	_, err = orch.Queries().CreateNode(ctx, dbStore.CreateNodeParams{
+		ID:        masterID,
+		Name:      "master-node",
+		IpAddress: "10.0.0.1",
+		Role:      "leader",
+	})
+	if err != nil {
+		t.Fatalf("CreateNode failed for master node: %v", err)
+	}
+
+	masterDelReq := httptest.NewRequest(http.MethodDelete, "/api/v1/nodes/"+masterID+"?force=true", nil)
+	masterDelW := httptest.NewRecorder()
+	router.ServeHTTP(masterDelW, masterDelReq)
+	if masterDelW.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 Bad Request when deleting master node, got %d: %s", masterDelW.Code, masterDelW.Body.String())
+	}
 }
 
 func TestTraefikAccessLogsAPI(t *testing.T) {

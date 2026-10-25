@@ -91,7 +91,7 @@ export function adaptNode(node: ApiNode): ClusterNode {
   return {
     id: node.id,
     name: node.name,
-    role: node.role === "leader" ? "master" : "worker",
+    role: node.role === "leader" || node.role === "master" ? "master" : "worker",
     status: normalizeNodeStatus(node.status),
     ipAddress: node.ipAddress,
     publicIp: node.publicIp || undefined,

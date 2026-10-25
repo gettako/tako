@@ -269,8 +269,8 @@ func (d *Daemon) sendHeartbeat(ctx context.Context) {
 		if !errors.Is(err, context.Canceled) {
 			log.Printf("[tako-agent] warning: heartbeat failed: %v", err)
 		}
-		if status.Code(err) == codes.Unauthenticated {
-			log.Printf("[tako-agent] heartbeat unauthenticated, re-registering with master...")
+		if status.Code(err) == codes.Unauthenticated || status.Code(err) == codes.NotFound {
+			log.Printf("[tako-agent] heartbeat unauthenticated/not found, re-registering with master...")
 			_ = d.EnsureRegistered(ctx)
 		}
 		return

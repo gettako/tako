@@ -49,7 +49,16 @@ func main() {
 	}
 
 	eventBus := events.NewBus()
-	orch := orchestrator.New(db, eventBus, cfg.AgentSecret)
+	orch := orchestrator.New(db, eventBus, cfg.AgentSecret, cfg.NodeName)
+
+	// Ensure master node exists in cluster topology
+	masterIP := os.Getenv("TAKO_PRIVATE_IP")
+	if masterIP == "" {
+		masterIP = os.Getenv("TAKO_PUBLIC_IP")
+	}
+	if err := orch.EnsureMasterNode(context.Background(), masterIP, os.Getenv("TAKO_PUBLIC_IP")); err != nil {
+		log.Printf("[tako-server] warning: failed to ensure master node: %v", err)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -77,6 +86,7 @@ func main() {
 	grpcSrv := internalgrpc.NewServer(internalgrpc.ServerConfig{
 		AgentSecret:  cfg.AgentSecret,
 		Orchestrator: orch,
+		MasterNodeID: cfg.NodeName,
 	})
 
 	grpcLis, err := net.Listen("tcp", ":"+cfg.GRPCPort)

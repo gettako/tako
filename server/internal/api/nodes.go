@@ -166,6 +166,11 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
+			if node.Role == "master" || node.Role == "leader" || node.ID == orch.MasterNodeID() {
+				RespondError(w, http.StatusBadRequest, "cannot delete master node: master node is required for cluster operation")
+				return
+			}
+
 			services, _ := orch.Queries().ListServicesByNode(r.Context(), id)
 			force := r.URL.Query().Get("force") == "true"
 			if len(services) > 0 && !force {

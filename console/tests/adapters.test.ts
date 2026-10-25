@@ -68,6 +68,12 @@ describe("Data Adapters", () => {
     expect(adapted.memoryPercent).toBe(50) // 8192 / 16384 * 100
     expect(adapted.diskPercent).toBe(25) // 125 / 500 * 100
     expect(adapted.totalMemoryGb).toBe(16)
+
+    const masterNodeAdapted = adaptNode({ ...rawNode, role: "master" })
+    expect(masterNodeAdapted.role).toBe("master")
+
+    const workerNodeAdapted = adaptNode({ ...rawNode, role: "worker" })
+    expect(workerNodeAdapted.role).toBe("worker")
   })
 
   it("adapts ApiProject with valid environment fallback", () => {

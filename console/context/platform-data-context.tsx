@@ -1015,10 +1015,14 @@ export function PlatformDataProvider({
 
   const deleteNode = React.useCallback(
     async (id: string) => {
+      const node = nodes.find((n) => n.id === id)
+      if (node?.role === "master") {
+        throw new Error("Master node cannot be deleted")
+      }
       await apiDelete(`/nodes/${id}?force=true`)
       await Promise.all([refreshNodes(), refreshServices()])
     },
-    [refreshNodes, refreshServices]
+    [nodes, refreshNodes, refreshServices]
   )
 
   const generateEnrollToken = React.useCallback(async () => {
