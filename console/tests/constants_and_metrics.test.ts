@@ -7,6 +7,13 @@ import {
   type ApiService,
 } from "@/lib/api"
 import { adaptService } from "@/lib/adapters"
+import {
+  CHART_PADDING,
+  CHART_WIDTH,
+  buildChartArea,
+  buildChartLine,
+  getChartCoordinates,
+} from "@/lib/chart"
 import type { ClusterNode } from "@/types/platform"
 
 describe("API Client & Domain Constants Specification", () => {
@@ -154,5 +161,32 @@ describe("Cluster Stats & Telemetry Calculations", () => {
     expect(adapted.metrics.memoryMb).toBe(256)
     expect(adapted.metrics.networkRxMb).toBe(0.34)
     expect(adapted.metrics.networkTxMb).toBe(0.78)
+  })
+})
+
+describe("Telemetry & Responsive Chart Geometry", () => {
+  it("defaults to standard CHART_WIDTH when width is omitted", () => {
+    const values = [0, 50, 100]
+    const coords = getChartCoordinates(values, 0, 100)
+    expect(coords.length).toBe(3)
+    expect(coords[0].x).toBe(CHART_PADDING.left)
+    expect(coords[2].x).toBe(CHART_WIDTH - CHART_PADDING.right)
+  })
+
+  it("scales coordinates to full custom width dynamically", () => {
+    const values = [10, 50, 90]
+    const customWidth = 1200
+    const coords = getChartCoordinates(values, 0, 100, customWidth)
+
+    expect(coords.length).toBe(3)
+    expect(coords[0].x).toBe(CHART_PADDING.left)
+    expect(coords[2].x).toBe(customWidth - CHART_PADDING.right)
+
+    const line = buildChartLine(coords, customWidth)
+    expect(line).toContain(`M ${CHART_PADDING.left}`)
+    expect(line).toContain(`L ${customWidth - CHART_PADDING.right}`)
+
+    const area = buildChartArea(coords, customWidth)
+    expect(area).toContain(`L ${customWidth - CHART_PADDING.right}`)
   })
 })

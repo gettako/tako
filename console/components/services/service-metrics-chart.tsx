@@ -10,7 +10,6 @@ const METRICS_POLL_INTERVAL_MS = 10_000
 import {
   CHART_HEIGHT,
   CHART_INNER_HEIGHT,
-  CHART_INNER_WIDTH,
   CHART_PADDING,
   CHART_WIDTH,
   buildChartArea,
@@ -49,6 +48,31 @@ export function ServiceMetricsChart({
   const [points, setPoints] = React.useState<ServicePoint[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
+
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = React.useState<number>(CHART_WIDTH)
+
+  React.useEffect(() => {
+    if (!containerRef.current) return
+    const updateSize = () => {
+      if (containerRef.current) {
+        const clientWidth = containerRef.current.clientWidth
+        if (clientWidth > 0) {
+          setContainerWidth(clientWidth)
+        }
+      }
+    }
+    updateSize()
+    const ro = new ResizeObserver(updateSize)
+    ro.observe(containerRef.current)
+    return () => ro.disconnect()
+  }, [])
+
+  const chartWidth = Math.max(containerWidth, 320)
+  const innerChartWidth = Math.max(
+    1,
+    chartWidth - CHART_PADDING.left - CHART_PADDING.right
+  )
 
   React.useEffect(() => {
     let active = true
@@ -182,13 +206,16 @@ export function ServiceMetricsChart({
     }, [values, mode, memoryLimitMb])
 
   const coords = React.useMemo(() => {
-    return getChartCoordinates(values, minVal, maxVal)
-  }, [values, minVal, maxVal])
+    return getChartCoordinates(values, minVal, maxVal, chartWidth)
+  }, [values, minVal, maxVal, chartWidth])
 
-  const linePath = React.useMemo(() => buildChartLine(coords), [coords])
+  const linePath = React.useMemo(
+    () => buildChartLine(coords, chartWidth),
+    [coords, chartWidth]
+  )
   const areaPath = React.useMemo(
-    () => buildChartArea(coords),
-    [coords]
+    () => buildChartArea(coords, chartWidth),
+    [coords, chartWidth]
   )
 
   const activePoint =
@@ -319,7 +346,7 @@ export function ServiceMetricsChart({
       </div>
 
       {/* SVG Interactive Chart */}
-      <div className="relative mt-4 w-full">
+      <div ref={containerRef} className="relative mt-4 w-full">
         {isLoading && points.length === 0 ? (
           <div className="flex h-44 w-full items-center justify-center font-mono text-xs text-muted-foreground">
             Loading telemetry metrics stream...
@@ -330,7 +357,7 @@ export function ServiceMetricsChart({
           </div>
         ) : (
           <svg
-            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
+            viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`}
             className="h-44 w-full overflow-hidden select-none"
             onMouseLeave={() => setHoverIndex(null)}
           >
@@ -377,7 +404,7 @@ export function ServiceMetricsChart({
                   <line
                     x1={CHART_PADDING.left}
                     y1={y}
-                    x2={CHART_PADDING.left + CHART_INNER_WIDTH}
+                    x2={chartWidth - CHART_PADDING.right}
                     y2={y}
                     stroke="var(--color-border)"
                     strokeDasharray="3 3"
@@ -455,7 +482,7 @@ export function ServiceMetricsChart({
 
             {/* Hover detection transparent columns */}
             {coords.map((c, idx) => {
-              const colWidth = CHART_INNER_WIDTH / Math.max(1, coords.length)
+              const colWidth = innerChartWidth / Math.max(1, coords.length)
               const colX = Math.max(
                 CHART_PADDING.left,
                 c.x - colWidth / 2
@@ -482,12 +509,12 @@ export function ServiceMetricsChart({
             className="pointer-events-none absolute top-1 rounded-md border border-border/80 bg-popover/95 px-2.5 py-1.5 font-mono text-[11px] text-popover-foreground shadow-md backdrop-blur-xs"
             style={{
               left: `${Math.max(
-                10,
+                48,
                 Math.min(
-                  80,
-                  ((activeCoord.x - CHART_PADDING.left) / CHART_INNER_WIDTH) * 100
+                  chartWidth - 48,
+                  activeCoord.x
                 )
-              )}%`,
+              )}px`,
               transform: "translateX(-50%)",
             }}
           >
