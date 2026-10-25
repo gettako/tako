@@ -187,15 +187,12 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 		nodeID = req.GetName()
 	}
 
-	// Clean up any stale or dummy unmanaged master nodes (e.g. 'node-master-01' from earlier dummy seed)
-	if req.GetRole() == "leader" {
-		if allNodes, err := o.queries.ListNodes(ctx); err == nil {
-			for _, n := range allNodes {
-				if n.ID != nodeID && (n.Role == "leader" || n.ID == "node-master-01") {
-					_ = o.queries.DeleteNode(ctx, n.ID)
-				}
-			}
-		}
+	role := req.GetRole()
+	if role == "leader" {
+		return nil, status.Error(codes.PermissionDenied, "cannot register node with leader role")
+	}
+	if role == "" {
+		role = "worker"
 	}
 
 	// Check if node exists
@@ -210,7 +207,7 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 			Name:          req.GetName(),
 			IpAddress:     req.GetIpAddress(),
 			PublicIp:      req.GetPublicIp(),
-			Role:          req.GetRole(),
+			Role:          role,
 			Status:        "online",
 			CpuTotalCores: int64(req.GetCpuTotalCores()),
 			MemoryTotalMb: req.GetMemoryTotalMb(),
@@ -244,7 +241,7 @@ func (o *Orchestrator) RegisterNode(ctx context.Context, req *takov1.RegisterNod
 			req.GetName(),
 			req.GetIpAddress(),
 			req.GetPublicIp(),
-			req.GetRole(),
+			role,
 			int64(req.GetCpuTotalCores()),
 			req.GetMemoryTotalMb(),
 			req.GetDiskTotalGb(),

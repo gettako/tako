@@ -139,14 +139,25 @@ func registerAuditLogRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			ip := req.IPAddress
-			if ip == "" {
-				ip = extractRequestIP(r)
+			ip := extractRequestIP(r)
+			actorID := req.ActorID
+			actorName := req.ActorName
+			actorEmail := req.ActorEmail
+
+			if u, ok := GetUserFromContext(r.Context()); ok {
+				actorID = u.ID
+				actorName = u.Name
+				actorEmail = u.Email
+			} else if u, err := resolveAuthUser(r, orch); err == nil {
+				actorID = u.ID
+				actorName = u.Name
+				actorEmail = u.Email
 			}
+
 			log, err := orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
-				ActorID:    req.ActorID,
-				ActorName:  req.ActorName,
-				ActorEmail: req.ActorEmail,
+				ActorID:    actorID,
+				ActorName:  actorName,
+				ActorEmail: actorEmail,
 				Action:     req.Action,
 				TargetType: req.TargetType,
 				TargetID:   req.TargetID,

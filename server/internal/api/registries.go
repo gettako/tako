@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"gettako.dev/tako/internal/orchestrator"
+	"gettako.dev/tako/internal/security"
 	"gettako.dev/tako/internal/store/db"
 	"github.com/go-chi/chi/v5"
 )
@@ -90,12 +91,18 @@ func registerRegistryRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			_, _ = rand.Read(b)
 			regID := "reg-" + hex.EncodeToString(b)
 
+			encPassword, err := security.Encrypt(req.Password)
+			if err != nil {
+				RespondError(w, http.StatusInternalServerError, "failed to encrypt credentials")
+				return
+			}
+
 			created, err := orch.Queries().CreateRegistry(r.Context(), db.CreateRegistryParams{
 				ID:        regID,
 				Name:      req.Name,
 				ServerUrl: req.ServerURL,
 				Username:  req.Username,
-				Password:  req.Password,
+				Password:  encPassword,
 			})
 			if err != nil {
 				RespondError(w, http.StatusInternalServerError, err.Error())

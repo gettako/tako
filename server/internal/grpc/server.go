@@ -33,6 +33,9 @@ type AgentHandler struct {
 
 // RegisterNode authenticates agent enroll tokens and provisions permanent node auth tokens.
 func (h *AgentHandler) RegisterNode(ctx context.Context, req *takov1.RegisterNodeRequest) (*takov1.RegisterNodeResponse, error) {
+	if req.GetRole() == "leader" {
+		return nil, status.Error(codes.PermissionDenied, "cannot register node with leader role")
+	}
 	if h.orchestrator != nil {
 		return h.orchestrator.RegisterNode(ctx, req)
 	}
@@ -176,7 +179,7 @@ type ContainerHandler struct {
 // resolveNodeID dynamically determines which worker or leader node hosts the given container.
 func (h *ContainerHandler) resolveNodeID(ctx context.Context, containerID string) string {
 	if h.orchestrator == nil {
-		return "tako-master-01"
+		return ""
 	}
 	clean := strings.TrimPrefix(containerID, "/")
 	slug := clean
@@ -194,15 +197,7 @@ func (h *ContainerHandler) resolveNodeID(ctx context.Context, containerID string
 			}
 		}
 	}
-	if nodes, err := h.orchestrator.Queries().ListNodes(ctx); err == nil && len(nodes) > 0 {
-		for _, n := range nodes {
-			if n.Role == "leader" {
-				return n.ID
-			}
-		}
-		return nodes[0].ID
-	}
-	return "tako-master-01"
+	return ""
 }
 
 // ExecCommand runs a command inside a specified container on a worker node.
@@ -211,6 +206,9 @@ func (h *ContainerHandler) ExecCommand(ctx context.Context, req *takov1.ExecComm
 		return &takov1.ExecCommandResponse{ExitCode: 1, Error: "orchestrator not configured"}, nil
 	}
 	nodeID := h.resolveNodeID(ctx, req.GetContainerId())
+	if nodeID == "" {
+		return &takov1.ExecCommandResponse{ExitCode: 1, Error: "target container or host node not found"}, nil
+	}
 	out, code, err := h.orchestrator.DispatchExec(ctx, nodeID, req.GetContainerId(), req.GetCommand())
 	errStr := ""
 	if err != nil {
@@ -233,6 +231,9 @@ func (h *ContainerHandler) GetContainerLogs(ctx context.Context, req *takov1.Get
 		tail = 100
 	}
 	nodeID := h.resolveNodeID(ctx, req.GetContainerId())
+	if nodeID == "" {
+		return &takov1.ContainerLogsResponse{Error: "target container or host node not found"}, nil
+	}
 	logs, err := h.orchestrator.DispatchContainerLogs(ctx, nodeID, req.GetContainerId(), tail)
 	errStr := ""
 	if err != nil {

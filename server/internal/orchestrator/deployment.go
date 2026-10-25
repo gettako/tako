@@ -818,9 +818,10 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		}
 		if srv.RegistryID != "" {
 			if reg, err := o.queries.GetRegistryByID(bgCtx, srv.RegistryID); err == nil {
+				regPassword, _ := security.Decrypt(reg.Password)
 				authConfig := map[string]string{
 					"username":      reg.Username,
-					"password":      reg.Password,
+					"password":      regPassword,
 					"serveraddress": reg.ServerUrl,
 				}
 				if authBytes, err := json.Marshal(authConfig); err == nil {

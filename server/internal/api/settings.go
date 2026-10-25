@@ -80,13 +80,13 @@ type VerifyDomainResponse struct {
 func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 	r.Route("/settings", func(r chi.Router) {
 		// Domain verification & SSL check
-		r.Post("/domain/verify", handleVerifyDomain(orch))
+		r.With(RequireAdmin).Post("/domain/verify", handleVerifyDomain(orch))
 
 		// S3 Bucket Connectivity Test
-		r.Post("/s3/test", handleTestS3(orch))
+		r.With(RequireAdmin).Post("/s3/test", handleTestS3(orch))
 
 		// Notification Webhook / Alert Test
-		r.Post("/notifications/test", handleTestNotifications(orch))
+		r.With(RequireAdmin).Post("/notifications/test", handleTestNotifications(orch))
 
 		// GET /api/v1/settings
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +133,7 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// PUT /api/v1/settings/{key}
-		r.Put("/{key}", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Put("/{key}", func(w http.ResponseWriter, r *http.Request) {
 			key := chi.URLParam(r, "key")
 			var req UpdateSettingRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -191,7 +191,7 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		// POST /api/v1/settings (batch save)
-		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
+		r.With(RequireAdmin).Post("/", func(w http.ResponseWriter, r *http.Request) {
 			var batch map[string]any
 			if err := json.NewDecoder(r.Body).Decode(&batch); err != nil {
 				http.Error(w, "invalid request body", http.StatusBadRequest)

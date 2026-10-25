@@ -12,6 +12,7 @@ import (
 	"gettako.dev/tako/internal/events"
 	"gettako.dev/tako/internal/orchestrator"
 	"gettako.dev/tako/internal/store"
+	"gettako.dev/tako/internal/store/db"
 )
 
 func TestAuthLogin(t *testing.T) {
@@ -434,4 +435,172 @@ func TestAuthRateLimit(t *testing.T) {
 	// Reset for test cleanup
 	globalLoginTracker.reset("192.168.10.55:target@gettako.dev")
 	globalLoginTracker.reset("192.168.10.56:target@gettako.dev")
+}
+
+
+func TestAcceptInviteStrictValidation(t *testing.T) {
+	db, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer db.Close()
+
+	if err := store.Migrate(db); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(db, bus, "test-secret")
+	router := NewRouter(db, orch)
+
+	// 1. Accept invite when no user_invites setting exists -> 400 Bad Request
+	body1, _ := json.Marshal(AcceptInvitePayload{
+		Token:    "random-token-123",
+		Email:    "newuser@gettako.dev",
+		Name:     "New User",
+		Password: "password123456",
+	})
+	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/auth/invite/accept", bytes.NewReader(body1))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	router.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for missing invites setting, got %d", w1.Code)
+	}
+
+	// 2. Set user_invites with a valid invite
+	invites := []map[string]any{
+		{
+			"token":     "valid-invite-token-abc",
+			"email":     "invited@gettako.dev",
+			"role":      "member",
+			"expiresAt": "2099-01-01T00:00:00Z",
+		},
+	}
+	invBytes, _ := json.Marshal(invites)
+	_, _ = db.Exec("INSERT INTO cluster_settings (key, value) VALUES (?, ?)", "user_invites", string(invBytes))
+
+	// 3. Attempt with wrong token -> 400
+	bodyWrongTok, _ := json.Marshal(AcceptInvitePayload{
+		Token:    "wrong-token",
+		Email:    "invited@gettako.dev",
+		Name:     "Invited User",
+		Password: "password123456",
+	})
+	reqWrongTok := httptest.NewRequest(http.MethodPost, "/api/v1/auth/invite/accept", bytes.NewReader(bodyWrongTok))
+	reqWrongTok.Header.Set("Content-Type", "application/json")
+	wWrongTok := httptest.NewRecorder()
+	router.ServeHTTP(wWrongTok, reqWrongTok)
+	if wWrongTok.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for wrong token, got %d", wWrongTok.Code)
+	}
+
+	// 4. Attempt with valid token but mismatched email -> 400
+	bodyWrongEmail, _ := json.Marshal(AcceptInvitePayload{
+		Token:    "valid-invite-token-abc",
+		Email:    "attacker@gettako.dev",
+		Name:     "Attacker",
+		Password: "password123456",
+	})
+	reqWrongEmail := httptest.NewRequest(http.MethodPost, "/api/v1/auth/invite/accept", bytes.NewReader(bodyWrongEmail))
+	reqWrongEmail.Header.Set("Content-Type", "application/json")
+	wWrongEmail := httptest.NewRecorder()
+	router.ServeHTTP(wWrongEmail, reqWrongEmail)
+	if wWrongEmail.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for mismatched email, got %d", wWrongEmail.Code)
+	}
+
+	// 5. Attempt with valid token and email, client specifies role admin -> role must remain member from invite record
+	bodyGood, _ := json.Marshal(AcceptInvitePayload{
+		Token:    "valid-invite-token-abc",
+		Email:    "invited@gettako.dev",
+		Name:     "Valid Member",
+		Password: "password123456",
+		Role:     "admin", // client tries to elevate to admin
+	})
+	reqGood := httptest.NewRequest(http.MethodPost, "/api/v1/auth/invite/accept", bytes.NewReader(bodyGood))
+	reqGood.Header.Set("Content-Type", "application/json")
+	wGood := httptest.NewRecorder()
+	router.ServeHTTP(wGood, reqGood)
+	if wGood.Code != http.StatusOK {
+		t.Fatalf("expected 200 for valid invite acceptance, got %d: %s", wGood.Code, wGood.Body.String())
+	}
+
+	var resp LoginResponse
+	_ = json.Unmarshal(wGood.Body.Bytes(), &resp)
+	if resp.User.Role != "member" {
+		t.Errorf("expected member role enforced from invite record, got %s", resp.User.Role)
+	}
+
+	// 6. Token should now be consumed (redeemed) -> second attempt fails with 400
+	wReused := httptest.NewRecorder()
+	reqReused := httptest.NewRequest(http.MethodPost, "/api/v1/auth/invite/accept", bytes.NewReader(bodyGood))
+	reqReused.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(wReused, reqReused)
+	if wReused.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for already redeemed invite token, got %d", wReused.Code)
+	}
+}
+
+func TestProfileUpdateScopedToAuthenticatedUser(t *testing.T) {
+	sqlDB, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer sqlDB.Close()
+
+	if err := store.Migrate(sqlDB); err != nil {
+		t.Fatalf("Migrate failed: %v", err)
+	}
+
+	// Seed admin
+	if err := store.SeedDefaultAdmin(context.Background(), sqlDB, "admin@gettako.dev", "secret123"); err != nil {
+		t.Fatalf("SeedDefaultAdmin failed: %v", err)
+	}
+
+	bus := events.NewBus()
+	orch := orchestrator.New(sqlDB, bus, "test-secret")
+	router := NewRouter(sqlDB, orch)
+
+	// Create member user
+	memberUser, err := orch.Queries().CreateUser(context.Background(), db.CreateUserParams{
+		ID:           "usr-member-456",
+		Name:         "Original Member",
+		Email:        "member@gettako.dev",
+		PasswordHash: "hashed",
+		Role:         "member",
+	})
+	if err != nil {
+		t.Fatalf("CreateUser failed: %v", err)
+	}
+
+	// Register session for member user
+	memberToken := "token-member-456"
+	orch.RegisterUserSession(memberToken, memberUser)
+
+	// Member updates profile
+	updateBody, _ := json.Marshal(UpdateProfileRequest{
+		Name:  "Updated Member Name",
+		Email: "newmemberemail@gettako.dev",
+	})
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/profile", bytes.NewReader(updateBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+memberToken)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for member profile update, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Verify member was updated
+	updatedMember, err := orch.Queries().GetUserByID(context.Background(), memberUser.ID)
+	if err != nil || updatedMember.Name != "Updated Member Name" {
+		t.Errorf("expected member name to be updated, got: %+v", updatedMember)
+	}
+
+	// Verify admin was NOT touched
+	adminUser, err := orch.Queries().GetUserByEmail(context.Background(), "admin@gettako.dev")
+	if err != nil || adminUser.Name == "Updated Member Name" {
+		t.Errorf("admin user should not have been updated! got: %+v", adminUser)
+	}
 }

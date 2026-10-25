@@ -395,13 +395,11 @@ func handleUpdateProfile(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		users, err := orch.Queries().ListUsers(r.Context())
-		if err != nil || len(users) == 0 {
+		targetUser, err := resolveAuthUser(r, orch)
+		if err != nil {
 			http.Error(w, `{"error":"No authenticated user found"}`, http.StatusNotFound)
 			return
 		}
-
-		targetUser := users[0]
 		updated, err := orch.Queries().UpdateUserProfile(r.Context(), db.UpdateUserProfileParams{
 			ID:    targetUser.ID,
 			Name:  req.Name,
@@ -452,13 +450,11 @@ func handleChangePassword(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		users, err := orch.Queries().ListUsers(r.Context())
-		if err != nil || len(users) == 0 {
+		targetUser, err := resolveAuthUser(r, orch)
+		if err != nil {
 			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
 			return
 		}
-
-		targetUser := users[0]
 		dbUser, err := orch.Queries().GetUserByID(r.Context(), targetUser.ID)
 		if err != nil {
 			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
@@ -1109,58 +1105,61 @@ func handleAcceptInvite(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			}
 		}
 
-		// Verify invitation token from user_invites setting if available
-		assignedRole := "member"
-		if req.Role != "" && req.Role != "admin" {
-			assignedRole = req.Role
+		// Strictly verify invitation token from user_invites setting
+		s, err := orch.Queries().GetSetting(r.Context(), "user_invites")
+		if err != nil || s.Value == "" {
+			http.Error(w, `{"error":"Invalid or already redeemed invitation token"}`, http.StatusBadRequest)
+			return
 		}
 
-		if s, err := orch.Queries().GetSetting(r.Context(), "user_invites"); err == nil && s.Value != "" {
-			var invites []map[string]any
-			if err := json.Unmarshal([]byte(s.Value), &invites); err == nil && len(invites) > 0 {
-				var matched map[string]any
-				var remaining []map[string]any
-				for _, inv := range invites {
-					code, _ := inv["inviteCode"].(string)
-					tok, _ := inv["token"].(string)
-					if (code != "" && code == req.Token) || (tok != "" && tok == req.Token) {
-						matched = inv
-					} else {
-						remaining = append(remaining, inv)
-					}
-				}
+		var invites []map[string]any
+		if err := json.Unmarshal([]byte(s.Value), &invites); err != nil || len(invites) == 0 {
+			http.Error(w, `{"error":"Invalid or already redeemed invitation token"}`, http.StatusBadRequest)
+			return
+		}
 
-				if matched == nil {
-					http.Error(w, `{"error":"Invalid or already redeemed invitation token"}`, http.StatusBadRequest)
-					return
-				}
-
-				if expStr, ok := matched["expiresAt"].(string); ok && expStr != "" {
-					if expTime, err := time.Parse(time.RFC3339, expStr); err == nil && time.Now().After(expTime) {
-						http.Error(w, `{"error":"This invitation has expired"}`, http.StatusBadRequest)
-						return
-					}
-				}
-
-				if invEmail, ok := matched["email"].(string); ok && invEmail != "" {
-					if !strings.EqualFold(invEmail, req.Email) {
-						http.Error(w, `{"error":"Email does not match invitation recipient"}`, http.StatusBadRequest)
-						return
-					}
-				}
-
-				if invRole, ok := matched["role"].(string); ok && invRole != "" {
-					assignedRole = invRole
-				}
-
-				// Consume invite
-				newJSON, _ := json.Marshal(remaining)
-				_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
-					Key:   "user_invites",
-					Value: string(newJSON),
-				})
+		var matched map[string]any
+		var remaining []map[string]any
+		for _, inv := range invites {
+			code, _ := inv["inviteCode"].(string)
+			tok, _ := inv["token"].(string)
+			if (code != "" && code == req.Token) || (tok != "" && tok == req.Token) {
+				matched = inv
+			} else {
+				remaining = append(remaining, inv)
 			}
 		}
+
+		if matched == nil {
+			http.Error(w, `{"error":"Invalid or already redeemed invitation token"}`, http.StatusBadRequest)
+			return
+		}
+
+		if expStr, ok := matched["expiresAt"].(string); ok && expStr != "" {
+			if expTime, err := time.Parse(time.RFC3339, expStr); err == nil && time.Now().After(expTime) {
+				http.Error(w, `{"error":"This invitation has expired"}`, http.StatusBadRequest)
+				return
+			}
+		}
+
+		if invEmail, ok := matched["email"].(string); ok && invEmail != "" {
+			if !strings.EqualFold(invEmail, req.Email) {
+				http.Error(w, `{"error":"Email does not match invitation recipient"}`, http.StatusBadRequest)
+				return
+			}
+		}
+
+		assignedRole := "member"
+		if invRole, ok := matched["role"].(string); ok && invRole != "" && invRole != "admin" {
+			assignedRole = invRole
+		}
+
+		// Consume invite
+		newJSON, _ := json.Marshal(remaining)
+		_, _ = orch.Queries().SetSetting(r.Context(), db.SetSettingParams{
+			Key:   "user_invites",
+			Value: string(newJSON),
+		})
 
 		hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {

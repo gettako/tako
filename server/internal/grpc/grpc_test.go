@@ -118,3 +118,58 @@ func TestMasterGRPCServerAuthAndHandlers(t *testing.T) {
 		t.Errorf("expected codes.PermissionDenied for node mismatch, got %v", err)
 	}
 }
+
+func TestRegisterNodeRejectsLeaderRoleAndExecFailsClosed(t *testing.T) {
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	defer lis.Close()
+
+	srv := internalgrpc.NewServer(internalgrpc.ServerConfig{
+		AgentSecret: "secret-abc",
+	})
+	go func() {
+		_ = srv.Serve(lis)
+	}()
+	defer srv.Stop()
+
+	conn, err := grpc.NewClient(
+		lis.Addr().String(),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Fatalf("failed to dial: %v", err)
+	}
+	defer conn.Close()
+
+	agentClient := takov1.NewAgentServiceClient(conn)
+	containerClient := takov1.NewContainerServiceClient(conn)
+	ctx := context.Background()
+
+	// 1. Attempt to register node with leader role must be rejected
+	_, err = agentClient.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+		NodeId: "malicious-node",
+		Name:   "Malicious Node",
+		Role:   "leader",
+	})
+	if err == nil {
+		t.Fatalf("expected error when registering with role=leader, got nil")
+	}
+	if st, ok := status.FromError(err); !ok || st.Code() != codes.PermissionDenied {
+		t.Errorf("expected codes.PermissionDenied for role=leader, got: %v", err)
+	}
+
+	// 2. ExecCommand on unknown container must fail closed with error
+	authedCtx := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer secret-abc")
+	execResp, err := containerClient.ExecCommand(authedCtx, &takov1.ExecCommandRequest{
+		ContainerId: "non-existent-container",
+		Command:     "whoami",
+	})
+	if err != nil {
+		t.Fatalf("ExecCommand RPC failed: %v", err)
+	}
+	if execResp.GetExitCode() == 0 || execResp.GetError() == "" {
+		t.Errorf("expected non-zero exit code and error for unknown container, got code=%d, err=%s", execResp.GetExitCode(), execResp.GetError())
+	}
+}

@@ -340,8 +340,8 @@ func registerProjectRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		})
 
 		r.Get("/{id}/env", handleListProjectEnvVars(orch))
-		r.Post("/{id}/env", handleUpdateProjectEnvVars(orch))
-		r.Delete("/{id}/env/{key}", handleDeleteProjectEnvVar(orch))
+		r.With(RequireAdmin).Post("/{id}/env", handleUpdateProjectEnvVars(orch))
+		r.With(RequireAdmin).Delete("/{id}/env/{key}", handleDeleteProjectEnvVar(orch))
 	})
 }
 
