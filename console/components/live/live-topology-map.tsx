@@ -10,6 +10,9 @@ import {
   Cpu,
   ExternalLink,
   Layers,
+  LocateFixed,
+  Minus,
+  Plus,
   X,
 } from "lucide-react"
 
@@ -120,6 +123,15 @@ export function LiveTopologyMap({
   const [hoveredNodeId, setHoveredNodeId] = React.useState<string | null>(null)
   const cardRef = React.useRef<HTMLDivElement>(null)
 
+  // Currently selected node and geo metadata
+  const selectedNode = React.useMemo(() => {
+    return nodes.find((n) => n.id === selectedNodeId) || null
+  }, [nodes, selectedNodeId])
+
+  const selectedGeo = React.useMemo(() => {
+    return selectedNode ? getNodeGeo(selectedNode) : null
+  }, [selectedNode])
+
   // Auto-dismiss floating node inspection card when clicking outside or pressing Escape
   React.useEffect(() => {
     if (!selectedNodeId) return
@@ -149,11 +161,171 @@ export function LiveTopologyMap({
     }
   }, [selectedNodeId, onSelectNode])
 
+  // Camera Zoom & Pan State
+  const [zoom, setZoom] = React.useState<number>(1)
+  const [pan, setPan] = React.useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = React.useState<boolean>(false)
+  const viewportRef = React.useRef<HTMLDivElement>(null)
+
+  // Centroid of all active cluster nodes
+  const nodeCentroid = React.useMemo(() => {
+    if (nodeGeoList.length === 0) return { x: 50, y: 50 }
+    const sumX = nodeGeoList.reduce((acc, n) => acc + n.geo.percentX, 0)
+    const sumY = nodeGeoList.reduce((acc, n) => acc + n.geo.percentY, 0)
+    return {
+      x: sumX / nodeGeoList.length,
+      y: sumY / nodeGeoList.length,
+    }
+  }, [nodeGeoList])
+
+  // Center & focus camera on cluster nodes
+  const centerToNodes = React.useCallback(
+    (targetZoom = 1.45) => {
+      if (!viewportRef.current || nodeGeoList.length === 0) {
+        setZoom(targetZoom)
+        setPan({ x: 0, y: 0 })
+        return
+      }
+      const rect = viewportRef.current.getBoundingClientRect()
+      const containerAspect = rect.width / (rect.height || 1)
+      const mapAspect = 198 / 100
+      let mapW = rect.width
+      let mapH = rect.width / mapAspect
+      if (containerAspect > mapAspect) {
+        mapH = rect.height
+        mapW = rect.height * mapAspect
+      }
+
+      const offsetX = -((nodeCentroid.x - 50) / 100) * mapW * targetZoom
+      const offsetY = -((nodeCentroid.y - 50) / 100) * mapH * targetZoom
+
+      setZoom(targetZoom)
+      setPan({ x: Math.round(offsetX), y: Math.round(offsetY) })
+    },
+    [nodeCentroid, nodeGeoList.length]
+  )
+
+  // Auto-center on nodes on initial mobile mount
+  const didInitialCenter = React.useRef(false)
+  React.useEffect(() => {
+    if (didInitialCenter.current || nodeGeoList.length === 0) return
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      const timer = setTimeout(() => {
+        centerToNodes(1.45)
+        didInitialCenter.current = true
+      }, 150)
+      return () => clearTimeout(timer)
+    }
+  }, [nodeGeoList, centerToNodes])
+
+  // Pointer & Touch gesture handlers for Pan and Pinch-to-zoom
+  const activePointers = React.useRef<Map<number, { x: number; y: number }>>(
+    new Map()
+  )
+  const dragStartRef = React.useRef<{
+    panX: number
+    panY: number
+    startX: number
+    startY: number
+    initialPinchDist?: number
+    initialZoom?: number
+  }>({ panX: 0, panY: 0, startX: 0, startY: 0 })
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement | null
+    if (target?.closest("button") || target?.closest('[role="combobox"]')) {
+      return
+    }
+
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {}
+
+    if (activePointers.current.size === 1) {
+      dragStartRef.current = {
+        panX: pan.x,
+        panY: pan.y,
+        startX: e.clientX,
+        startY: e.clientY,
+      }
+      setIsDragging(true)
+    } else if (activePointers.current.size === 2) {
+      const pts = Array.from(activePointers.current.values())
+      dragStartRef.current = {
+        panX: pan.x,
+        panY: pan.y,
+        startX: (pts[0].x + pts[1].x) / 2,
+        startY: (pts[0].y + pts[1].y) / 2,
+        initialPinchDist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y),
+        initialZoom: zoom,
+      }
+      setIsDragging(true)
+    }
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!activePointers.current.has(e.pointerId)) return
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    if (activePointers.current.size === 1) {
+      const deltaX = e.clientX - dragStartRef.current.startX
+      const deltaY = e.clientY - dragStartRef.current.startY
+      setPan({
+        x: Math.round(dragStartRef.current.panX + deltaX),
+        y: Math.round(dragStartRef.current.panY + deltaY),
+      })
+    } else if (activePointers.current.size === 2) {
+      const pts = Array.from(activePointers.current.values())
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+      if (
+        dragStartRef.current.initialPinchDist &&
+        dragStartRef.current.initialZoom
+      ) {
+        const ratio = dist / dragStartRef.current.initialPinchDist
+        const nextZoom = Math.max(
+          0.8,
+          Math.min(3.5, Number((dragStartRef.current.initialZoom * ratio).toFixed(2)))
+        )
+        setZoom(nextZoom)
+      }
+    }
+  }
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    activePointers.current.delete(e.pointerId)
+    if (activePointers.current.size === 0) {
+      setIsDragging(false)
+    }
+  }
+
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-card/70 shadow-lg backdrop-blur-md select-none">
       {/* Top Map Status Overlay */}
       <div className="absolute top-2 left-2 z-40 flex flex-wrap items-center gap-1.5 sm:top-3 sm:left-4 sm:gap-2">
-        <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-[10.5px] shadow-xs backdrop-blur-md sm:gap-2 sm:px-2.5 sm:text-xs">
+        {/* Mobile Combined Status Pill (< sm) */}
+        <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-[10.5px] font-mono shadow-xs backdrop-blur-md sm:hidden">
+          <span className="flex size-2">
+            <span
+              className={cn(
+                "size-2 rounded-full",
+                isStreaming ? "animate-pulse bg-emerald-500" : "bg-amber-500"
+              )}
+            />
+          </span>
+          <span className="font-bold text-foreground">
+            {typeof onlineNodes === "number" ? `${onlineNodes}/${totalNodes}` : "LIVE"}
+          </span>
+          {typeof avgLatency === "number" && (
+            <>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-foreground">{avgLatency}ms</span>
+            </>
+          )}
+        </div>
+
+        {/* Desktop Status Pill (sm+) */}
+        <div className="hidden items-center gap-2 rounded-md border border-border/80 bg-background/90 px-2.5 py-1 text-xs shadow-xs backdrop-blur-md sm:flex">
           <span className="flex size-2">
             <span
               className={cn(
@@ -163,37 +335,13 @@ export function LiveTopologyMap({
             />
           </span>
           <span className="font-mono font-medium text-foreground">
-            {isStreaming ? (
-              <>
-                <span className="sm:hidden">STREAM ACTIVE</span>
-                <span className="hidden sm:inline">gRPC AGENT STREAM ONLINE</span>
-              </>
-            ) : (
-              "STREAM PAUSED"
-            )}
+            {isStreaming ? "gRPC AGENT STREAM ONLINE" : "STREAM PAUSED"}
           </span>
-          <span className="hidden font-mono text-muted-foreground sm:inline">•</span>
-          <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
+          <span className="font-mono text-muted-foreground">•</span>
+          <span className="font-mono text-[11px] text-muted-foreground">
             mTLS :50051
           </span>
         </div>
-
-        {/* Mobile Cluster Nodes & Latency Pill (moved from header) */}
-        {typeof onlineNodes === "number" && typeof totalNodes === "number" && (
-          <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-[10.5px] font-mono shadow-xs backdrop-blur-md md:hidden">
-            <span
-              className={cn(
-                "size-1.5 rounded-full",
-                offlineNodes > 0 ? "bg-red-500" : "bg-emerald-500"
-              )}
-            />
-            <span className="font-semibold text-foreground">
-              {onlineNodes}/{totalNodes}
-            </span>
-            <span className="text-muted-foreground">•</span>
-            <span className="text-foreground">{avgLatency}ms</span>
-          </div>
-        )}
 
         <div className="hidden items-center gap-2 rounded-md border border-border/80 bg-background/90 px-2.5 py-1 text-xs shadow-xs backdrop-blur-md sm:flex">
           <span className="font-mono text-muted-foreground">Master Hub:</span>
@@ -257,8 +405,27 @@ export function LiveTopologyMap({
       </div>
 
       {/* Dotted World Map Base */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4">
-        <div className="relative aspect-[198/100] w-full max-w-6xl">
+      <div
+        ref={viewportRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        className={cn(
+          "relative flex flex-1 items-center justify-center overflow-hidden p-2 sm:p-4 touch-none select-none",
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        )}
+      >
+        <div
+          style={{
+            transform: `translate3d(${pan.x}px, ${pan.y}px, 0px) scale(${zoom})`,
+            transformOrigin: "center center",
+            transition: isDragging
+              ? "none"
+              : "transform 250ms cubic-bezier(0.16, 1, 0.3, 1)",
+          }}
+          className="relative aspect-[198/100] w-full max-w-6xl will-change-transform"
+        >
           {/* Light Theme Dotted Map */}
           <Image
             src={`data:image/svg+xml;utf8,${encodeURIComponent(svgMapLight)}`}
@@ -445,12 +612,12 @@ export function LiveTopologyMap({
                   showCard ? "z-50" : "z-20"
                 )}
               >
-                {/* Node Beacon Dot: Touch-friendly 40px tap target */}
+                {/* Node Beacon Dot: Touch-friendly 44px tap target */}
                 <button
                   type="button"
                   onClick={() => onSelectNode(isSelected ? null : node.id)}
                   aria-label={`Node ${node.name} in ${geo.city}`}
-                  className="group pointer-events-auto absolute flex size-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center focus:outline-hidden sm:size-7"
+                  className="group pointer-events-auto absolute flex size-11 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center focus:outline-hidden sm:size-8"
                 >
                   {/* Radar pulse aura */}
                   <span
@@ -472,46 +639,50 @@ export function LiveTopologyMap({
                   />
                 </button>
 
-                {/* Micro-label: Positioned cleanly beside the dot */}
+                {/* Micro-label: Positioned cleanly beside the dot with zoom counter-scaling */}
                 <button
                   type="button"
                   onClick={() => onSelectNode(isSelected ? null : node.id)}
+                  aria-label={`Select node ${node.name}`}
                   className={cn(
                     "pointer-events-auto absolute top-0 -translate-y-1/2 cursor-pointer whitespace-nowrap focus:outline-hidden",
                     placeLabelLeft ? "-left-2 sm:-left-3.5 -translate-x-full" : "left-2 sm:left-3.5"
                   )}
                 >
-                  {isDead ? (
-                    <span className="flex items-center gap-1.5 rounded border border-red-500/80 bg-red-950/90 px-1.5 py-0.5 font-mono text-[9.5px] font-semibold text-red-200 shadow-sm backdrop-blur-xs hover:border-red-400 sm:text-[10.5px]">
-                      <span>{geo.city}</span>
-                      <span className="font-bold text-red-400 uppercase">
-                        DEAD
-                      </span>
-                    </span>
-                  ) : (
+                  <span
+                    style={{
+                      transform: `scale(${Math.min(1.15, Math.max(0.75, 1 / (zoom * 0.85)))})`,
+                      transformOrigin: placeLabelLeft ? "right center" : "left center",
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 font-mono text-[9.5px] font-medium shadow-2xs backdrop-blur-xs transition-all sm:text-[10.5px]",
+                      isSelected
+                        ? "border-primary bg-card text-foreground ring-2 ring-primary/40 shadow-sm font-semibold"
+                        : isDead
+                          ? "border-red-500/80 bg-red-950/90 text-red-200"
+                          : "border-border/80 bg-background/90 text-foreground hover:border-foreground/40"
+                    )}
+                  >
                     <span
                       className={cn(
-                        "flex items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono text-[9.5px] font-medium shadow-2xs backdrop-blur-xs transition-all sm:text-[10.5px]",
-                        showCard
-                          ? "scale-105 border-emerald-500 bg-card text-foreground ring-1 ring-emerald-500/30"
-                          : "border-border/70 bg-background/85 text-muted-foreground hover:border-border hover:text-foreground"
+                        "size-1.5 rounded-full shrink-0",
+                        isDead ? "bg-red-500" : "bg-emerald-500 animate-pulse"
                       )}
-                    >
-                      <span>{geo.city}</span>
-                      {isMaster ? (
-                        <span className="py-0.2 rounded bg-primary/20 px-1 font-mono text-[9px] font-bold text-primary">
-                          MASTER
-                        </span>
-                      ) : (
-                        <span className="font-semibold text-emerald-500">
-                          {node.grpcLatencyMs}ms
-                        </span>
-                      )}
-                    </span>
-                  )}
+                    />
+                    <span>{geo.city}</span>
+                    {isMaster ? (
+                      <span className="rounded bg-primary/20 px-1 py-0.2 font-mono text-[9px] font-bold text-primary">
+                        MASTER
+                      </span>
+                    ) : (
+                      <span className={cn("font-semibold", isDead ? "text-red-400" : "text-emerald-500")}>
+                        {isDead ? "DEAD" : `${node.grpcLatencyMs}ms`}
+                      </span>
+                    )}
+                  </span>
                 </button>
 
-                {/* Inspection Card: Responsive bottom sheet on mobile, anchored popup on desktop */}
+                {/* Inspection Card: Anchored popup on desktop only */}
                 {showCard && (
                   <motion.div
                     ref={isSelected ? cardRef : undefined}
@@ -520,8 +691,8 @@ export function LiveTopologyMap({
                     exit={{ opacity: 0, scale: 0.95, y: isNearTop ? -4 : 4 }}
                     transition={{ duration: 0.15 }}
                     className={cn(
-                      "pointer-events-auto z-50 p-3 text-left shadow-2xl backdrop-blur-md select-text",
-                      "fixed inset-x-2 bottom-2 mx-auto max-w-sm rounded-xl sm:absolute sm:inset-auto sm:w-72 sm:rounded-lg",
+                      "pointer-events-auto z-50 hidden p-3 text-left shadow-2xl backdrop-blur-md select-text",
+                      "sm:block sm:absolute sm:inset-auto sm:w-72 sm:rounded-lg",
                       isNearTop ? "sm:top-7" : "sm:-top-5 sm:-translate-y-full",
                       isNearRight
                         ? "sm:-left-4 sm:-translate-x-full"
@@ -533,8 +704,6 @@ export function LiveTopologyMap({
                         : "border border-border/90 bg-card/98 text-foreground ring-1 ring-border/50"
                     )}
                   >
-                    {/* Mobile drag indicator handle */}
-                    <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-muted-foreground/30 sm:hidden" />
                     {/* Header */}
                     <div className="flex items-start justify-between border-b border-border/70 pb-2">
                       <div className="flex items-center gap-2">
@@ -663,6 +832,206 @@ export function LiveTopologyMap({
           })}
         </div>
       </div>
+
+      {/* Floating Map Zoom & Center Controls */}
+      <div className="absolute bottom-2 right-2 z-40 flex items-center gap-1 rounded-lg border border-border/80 bg-background/90 p-1 shadow-md backdrop-blur-md sm:bottom-3 sm:right-4">
+        {/* Zoom In */}
+        <button
+          type="button"
+          onClick={() =>
+            setZoom((z) => Math.min(3.5, Number((z + 0.25).toFixed(2))))
+          }
+          className="flex size-7 items-center justify-center rounded-md text-foreground transition-transform hover:bg-muted active:scale-95"
+          title="Zoom In (+)"
+          aria-label="Zoom In"
+        >
+          <Plus className="size-3.5" />
+        </button>
+
+        {/* Zoom Out */}
+        <button
+          type="button"
+          onClick={() =>
+            setZoom((z) => Math.max(0.8, Number((z - 0.25).toFixed(2))))
+          }
+          className="flex size-7 items-center justify-center rounded-md text-foreground transition-transform hover:bg-muted active:scale-95"
+          title="Zoom Out (-)"
+          aria-label="Zoom Out"
+        >
+          <Minus className="size-3.5" />
+        </button>
+
+        <div className="h-4 w-px bg-border/80" />
+
+        {/* Center / Focus on Nodes */}
+        <button
+          type="button"
+          onClick={() =>
+            centerToNodes(
+              typeof window !== "undefined" && window.innerWidth < 768
+                ? 1.45
+                : 1.25
+            )
+          }
+          className="flex size-7 items-center justify-center rounded-md text-foreground transition-transform hover:bg-muted active:scale-95"
+          title="Focus & Center on cluster nodes"
+          aria-label="Center on cluster nodes"
+        >
+          <LocateFixed className="size-3.5 text-primary" />
+        </button>
+
+        {/* Reset Zoom & Pan */}
+        <button
+          type="button"
+          onClick={() => {
+            setZoom(1)
+            setPan({ x: 0, y: 0 })
+          }}
+          className="flex size-7 items-center justify-center rounded-md font-mono text-[10px] text-muted-foreground transition-transform hover:text-foreground active:scale-95"
+          title="Reset to 1x view"
+          aria-label="Reset to 1x view"
+        >
+          1x
+        </button>
+      </div>
+
+      {/* Mobile Responsive Node Detail Modal Sheet (Rendered outside transformed container) */}
+      {selectedNode && selectedGeo && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-xs sm:hidden">
+          {/* Backdrop to dismiss */}
+          <div
+            className="absolute inset-0"
+            onClick={() => onSelectNode(null)}
+            aria-hidden="true"
+          />
+
+          {/* Modal Sheet Content */}
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 26, stiffness: 280 }}
+            className="relative z-10 w-full max-w-lg rounded-t-2xl border-t border-x border-border/80 bg-card/98 p-4 pb-6 shadow-2xl backdrop-blur-xl select-text"
+          >
+            {/* Top Drag Indicator Handle */}
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-border/70 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Flag
+                  src={selectedGeo.flag}
+                  alt={`${selectedGeo.country} flag`}
+                  width={24}
+                  height={16}
+                  className="h-4 rounded-xs shadow-2xs"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-bold text-foreground">
+                      {selectedNode.name}
+                    </h3>
+                    <span
+                      className={cn(
+                        "rounded px-1.5 py-0.2 font-mono text-[9px] font-bold uppercase",
+                        selectedNode.role === "master"
+                          ? "bg-primary/15 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {selectedNode.role}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[10.5px] text-muted-foreground">
+                    {selectedNode.ipAddress} • {selectedGeo.city}, {selectedGeo.country}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase",
+                    selectedNode.status === "offline"
+                      ? "bg-red-500/15 text-red-500"
+                      : "bg-emerald-500/15 text-emerald-500"
+                  )}
+                >
+                  {selectedNode.status}
+                </span>
+                <Button
+                  type="button"
+                  size="icon-xs"
+                  variant="ghost"
+                  onClick={() => onSelectNode(null)}
+                  className="size-8 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label="Close modal"
+                >
+                  <X className="size-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Offline Alert Banner */}
+            {selectedNode.status === "offline" && (
+              <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2 font-mono text-xs text-red-600 dark:text-red-300">
+                <AlertTriangle className="size-4 shrink-0 text-red-500" />
+                <span>Connection dropped. Failover cluster re-route active.</span>
+              </div>
+            )}
+
+            {/* Telemetry Metrics Grid */}
+            <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs">
+              <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
+                <span className="text-[10px] text-muted-foreground">gRPC Latency</span>
+                <div className="mt-0.5 text-sm font-bold text-foreground">
+                  {selectedNode.status === "offline" ? "TIMEOUT" : `${selectedNode.grpcLatencyMs} ms`}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Cpu className="size-3" /> CPU Load
+                </span>
+                <div className="mt-0.5 text-sm font-bold text-foreground">
+                  {selectedNode.status === "offline" ? "N/A" : `${selectedNode.cpuPercent}%`}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Layers className="size-3" /> Containers
+                </span>
+                <div className="mt-0.5 text-sm font-bold text-foreground">
+                  {selectedNode.status === "offline" ? "0 active" : `${selectedNode.runningContainers} active`}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
+                <span className="text-[10px] text-muted-foreground">Memory Load</span>
+                <div className="mt-0.5 text-sm font-bold text-foreground">
+                  {selectedNode.status === "offline" ? "N/A" : `${selectedNode.memoryPercent}%`}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-4 flex gap-2">
+              <Link href={`/nodes/${selectedNode.id}`} className="flex-1">
+                <Button className="h-10 w-full gap-2 text-xs font-semibold">
+                  <ExternalLink className="size-4" />
+                  <span>Manage Node & Details</span>
+                </Button>
+              </Link>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onSelectNode(null)}
+                className="h-10 px-4 text-xs font-medium"
+              >
+                Close
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }
