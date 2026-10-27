@@ -105,8 +105,13 @@ const notificationsSchema = z
   })
 
 export function NotificationsPanel() {
-  const { settings, currentUser, updateSettings, addAuditLog, testNotifications } =
-    usePlatformData()
+  const {
+    settings,
+    currentUser,
+    updateSettings,
+    addAuditLog,
+    testNotifications,
+  } = usePlatformData()
 
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(
     settings.notificationsEnabled ?? true

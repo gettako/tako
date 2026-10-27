@@ -132,13 +132,17 @@ export function LoginForm({
         return
       }
     } else {
-      setPasskeyStatus("Passkeys are not supported in this browser environment.")
+      setPasskeyStatus(
+        "Passkeys are not supported in this browser environment."
+      )
       setIsPasskeyLoading(false)
       return
     }
 
     if (!credentialId) {
-      setPasskeyStatus("No credential ID received. Sign in with password first.")
+      setPasskeyStatus(
+        "No credential ID received. Sign in with password first."
+      )
       setIsPasskeyLoading(false)
       return
     }
@@ -233,7 +237,11 @@ export function LoginForm({
             </FieldError>
           </Field>
           <Field>
-            <Button type="submit" disabled={isSubmitting || isPasskeyLoading} className="w-full">
+            <Button
+              type="submit"
+              disabled={isSubmitting || isPasskeyLoading}
+              className="w-full"
+            >
               {isSubmitting ? (
                 <>
                   <Loader2Icon className="mr-2 size-4 animate-spin" />
@@ -256,7 +264,7 @@ export function LoginForm({
               {isPasskeyLoading ? (
                 <Loader2Icon className="mr-2 size-4 animate-spin" />
               ) : (
-                <FingerprintIcon className="size-4 mr-2" />
+                <FingerprintIcon className="mr-2 size-4" />
               )}
               Sign in with Passkey
             </Button>

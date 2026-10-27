@@ -50,7 +50,8 @@ export function ServiceMetricsChart({
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
 
   const containerRef = React.useRef<HTMLDivElement>(null)
-  const [containerWidth, setContainerWidth] = React.useState<number>(CHART_WIDTH)
+  const [containerWidth, setContainerWidth] =
+    React.useState<number>(CHART_WIDTH)
 
   React.useEffect(() => {
     if (!containerRef.current) return
@@ -231,7 +232,7 @@ export function ServiceMetricsChart({
   return (
     <div className="rounded-lg border border-border bg-card p-5 shadow-xs">
       {/* Header and Controls */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3.5">
+      <div className="flex flex-col gap-3 border-b border-border pb-3.5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Activity className="size-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">
@@ -299,7 +300,7 @@ export function ServiceMetricsChart({
                   setIsLoading(true)
                 }}
                 className={cn(
-                  "h-6 px-2 font-mono text-[11px] rounded transition-colors",
+                  "h-6 rounded px-2 font-mono text-[11px] transition-colors",
                   range === r
                     ? "bg-card font-semibold text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -313,7 +314,7 @@ export function ServiceMetricsChart({
       </div>
 
       {/* Summary KPI Badges */}
-      <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 font-mono text-xs">
+      <div className="mt-3.5 grid grid-cols-2 gap-2 font-mono text-xs sm:grid-cols-4">
         <div className="rounded border border-border/70 bg-muted/15 p-2.5">
           <span className="text-[11px] text-muted-foreground">Current</span>
           <div className="mt-0.5 font-bold text-foreground">
@@ -322,7 +323,7 @@ export function ServiceMetricsChart({
         </div>
         <div className="rounded border border-border/70 bg-muted/15 p-2.5">
           <span className="text-[11px] text-muted-foreground">Peak</span>
-          <div className="mt-0.5 font-bold text-primary flex items-center gap-1">
+          <div className="mt-0.5 flex items-center gap-1 font-bold text-primary">
             <ArrowUpRight className="size-3" />
             {peakVal} {unit}
           </div>
@@ -334,13 +335,15 @@ export function ServiceMetricsChart({
           </div>
         </div>
         <div className="rounded border border-border/70 bg-muted/15 p-2.5">
-          <span className="text-[11px] text-muted-foreground">Allocation Limit</span>
+          <span className="text-[11px] text-muted-foreground">
+            Allocation Limit
+          </span>
           <div className="mt-0.5 font-bold text-muted-foreground">
             {mode === "cpu"
               ? `${cpuLimit} vCPU`
               : mode === "memory"
-              ? `${memoryLimitMb} MB`
-              : "Unlimited"}
+                ? `${memoryLimitMb} MB`
+                : "Unlimited"}
           </div>
         </div>
       </div>
@@ -375,8 +378,8 @@ export function ServiceMetricsChart({
                     mode === "cpu"
                       ? "var(--color-primary)"
                       : mode === "memory"
-                      ? "#10b981"
-                      : "#60a5fa"
+                        ? "#10b981"
+                        : "#60a5fa"
                   }
                   stopOpacity="0.32"
                 />
@@ -386,8 +389,8 @@ export function ServiceMetricsChart({
                     mode === "cpu"
                       ? "var(--color-primary)"
                       : mode === "memory"
-                      ? "#10b981"
-                      : "#60a5fa"
+                        ? "#10b981"
+                        : "#60a5fa"
                   }
                   stopOpacity="0.0"
                 />
@@ -396,8 +399,7 @@ export function ServiceMetricsChart({
 
             {/* Horizontal Grid lines */}
             {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
-              const y =
-                CHART_PADDING.top + CHART_INNER_HEIGHT * (1 - pct)
+              const y = CHART_PADDING.top + CHART_INNER_HEIGHT * (1 - pct)
               const val = Math.round(minVal + (maxVal - minVal) * pct)
               return (
                 <g key={pct}>
@@ -426,10 +428,7 @@ export function ServiceMetricsChart({
 
             {/* Area fill */}
             {areaPath && (
-              <path
-                d={areaPath}
-                fill={`url(#gradient-${mode}-${serviceId})`}
-              />
+              <path d={areaPath} fill={`url(#gradient-${mode}-${serviceId})`} />
             )}
 
             {/* Primary stroke line */}
@@ -441,8 +440,8 @@ export function ServiceMetricsChart({
                   mode === "cpu"
                     ? "var(--color-primary)"
                     : mode === "memory"
-                    ? "#10b981"
-                    : "#60a5fa"
+                      ? "#10b981"
+                      : "#60a5fa"
                 }
                 strokeWidth="2"
                 strokeLinecap="round"
@@ -472,8 +471,8 @@ export function ServiceMetricsChart({
                     mode === "cpu"
                       ? "var(--color-primary)"
                       : mode === "memory"
-                      ? "#10b981"
-                      : "#60a5fa"
+                        ? "#10b981"
+                        : "#60a5fa"
                   }
                   strokeWidth="2.5"
                 />
@@ -483,10 +482,7 @@ export function ServiceMetricsChart({
             {/* Hover detection transparent columns */}
             {coords.map((c, idx) => {
               const colWidth = innerChartWidth / Math.max(1, coords.length)
-              const colX = Math.max(
-                CHART_PADDING.left,
-                c.x - colWidth / 2
-              )
+              const colX = Math.max(CHART_PADDING.left, c.x - colWidth / 2)
               return (
                 <rect
                   key={idx}
@@ -510,10 +506,7 @@ export function ServiceMetricsChart({
             style={{
               left: `${Math.max(
                 48,
-                Math.min(
-                  chartWidth - 48,
-                  activeCoord.x
-                )
+                Math.min(chartWidth - 48, activeCoord.x)
               )}px`,
               transform: "translateX(-50%)",
             }}

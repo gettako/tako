@@ -61,7 +61,13 @@ export function ServiceDetailView({
   const targetNode = nodes.find((n) => n.id === service?.targetNodeId)
 
   const [activeTab, setActiveTab] = React.useState<
-    "overview" | "deployments" | "terminal" | "logs" | "crons" | "config" | "settings"
+    | "overview"
+    | "deployments"
+    | "terminal"
+    | "logs"
+    | "crons"
+    | "config"
+    | "settings"
   >("overview")
 
   // Code editor state

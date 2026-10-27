@@ -174,6 +174,29 @@ const KNOWN_LOCATIONS: Record<
 }
 
 export function getNodeGeo(node: ClusterNode): NodeGeo {
+  // 1. Precise coordinates from live GeoIP if available
+  if (
+    typeof node.location?.lat === "number" &&
+    typeof node.location?.lng === "number"
+  ) {
+    const { percentX, percentY, pinX, pinY } = projectCoordinatesToPercent(
+      node.location.lat,
+      node.location.lng
+    )
+    return {
+      lat: node.location.lat,
+      lng: node.location.lng,
+      city: node.location.city || node.location.name,
+      country: node.location.name,
+      flag: node.location.flag,
+      percentX,
+      percentY,
+      pinX,
+      pinY,
+    }
+  }
+
+  // 2. Known static coordinates by country code
   const code = (node.location?.code || "").toUpperCase()
   if (KNOWN_LOCATIONS[code]) {
     const loc = KNOWN_LOCATIONS[code]
@@ -186,7 +209,7 @@ export function getNodeGeo(node: ClusterNode): NodeGeo {
       lng: loc.lng,
       city: loc.city,
       country: loc.country,
-      flag: node.location.flag || loc.flag,
+      flag: node.location?.flag || loc.flag,
       percentX,
       percentY,
       pinX,

@@ -7,8 +7,8 @@ import {
   formatCommitHash,
   formatDuration,
   formatRelativeTime,
-} from "../lib/adapters"
-import type { ApiNode, ApiProject, ApiService } from "../lib/api"
+} from "@/lib/adapters"
+import type { ApiNode, ApiProject, ApiService } from "@/lib/api"
 
 describe("Format Utilities", () => {
   it("formats relative time correctly", () => {
@@ -30,8 +30,12 @@ describe("Format Utilities", () => {
     expect(formatCommitHash(null)).toBe("untracked")
     expect(formatCommitHash("")).toBe("untracked")
     expect(formatCommitHash("abc")).toBe("abc")
-    expect(formatCommitHash("864369991ebb0ce00cff990fcd80417e216282b6")).toBe("8643699")
-    expect(formatCommitHash("864369991ebb0ce00cff990fcd80417e216282b6", 10)).toBe("864369991e")
+    expect(formatCommitHash("864369991ebb0ce00cff990fcd80417e216282b6")).toBe(
+      "8643699"
+    )
+    expect(
+      formatCommitHash("864369991ebb0ce00cff990fcd80417e216282b6", 10)
+    ).toBe("864369991e")
   })
 })
 

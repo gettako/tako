@@ -9,6 +9,7 @@ import type {
   ApiUser,
   ApiRegistry,
 } from "@/lib/api"
+import { getGeoIpSync, isPrivateIp, resolveGeoIp } from "@/lib/geoip"
 import type {
   AuditCategory,
   AuditLogEntry,
@@ -88,10 +89,39 @@ export function adaptNode(node: ApiNode): ClusterNode {
   const diskPercent =
     diskTotalGb > 0 ? Math.min(100, (diskUsedGb / diskTotalGb) * 100) : 0
 
+  const targetIp = (node.publicIp || node.ipAddress || "").trim()
+  const geo = getGeoIpSync(targetIp)
+
+  if (!geo && !isPrivateIp(targetIp)) {
+    void resolveGeoIp(targetIp)
+  }
+
+  const location = geo
+    ? {
+        code: geo.code,
+        name: geo.city ? `${geo.city}, ${geo.country}` : geo.country,
+        flag: geo.flag,
+        city: geo.city,
+        lat: geo.lat,
+        lng: geo.lng,
+      }
+    : isPrivateIp(targetIp)
+      ? {
+          code: "LOCAL",
+          name: "Local Network",
+          flag: "/images/flags/UN.png",
+        }
+      : {
+          code: "GLOBAL",
+          name: node.name || "Edge Host",
+          flag: "/images/flags/UN.png",
+        }
+
   return {
     id: node.id,
     name: node.name,
-    role: node.role === "leader" || node.role === "master" ? "master" : "worker",
+    role:
+      node.role === "leader" || node.role === "master" ? "master" : "worker",
     status: normalizeNodeStatus(node.status),
     ipAddress: node.ipAddress,
     publicIp: node.publicIp || undefined,
@@ -110,11 +140,7 @@ export function adaptNode(node: ApiNode): ClusterNode {
     uptime: node.uptime || "—",
     lastHeartbeat: formatRelativeTime(node.lastHeartbeat),
     lastHeartbeatAt: node.lastHeartbeat,
-    location: {
-      code: "SG",
-      name: node.name || "Edge Host",
-      flag: "/images/flags/SG.png",
-    },
+    location,
     grpcLatencyMs: 4,
     grpcVersion: "1.62.0",
   }
@@ -171,9 +197,7 @@ function normalizeServiceStatus(status: string): ServiceStatus {
   }
 }
 
-function normalizeDeploymentStatus(
-  status: string
-): DeploymentRecord["status"] {
+function normalizeDeploymentStatus(status: string): DeploymentRecord["status"] {
   switch (status) {
     case "live":
     case "healthy":
@@ -226,9 +250,7 @@ function adaptSteps(deployment: ApiDeployment): DeploymentPipelineStep[] {
   })
 }
 
-export function adaptDeployment(
-  deployment: ApiDeployment
-): DeploymentRecord {
+export function adaptDeployment(deployment: ApiDeployment): DeploymentRecord {
   const d = deployment as any
   const durationMs = d.durationMs ?? d.duration_ms ?? 0
   const startedAt = d.startedAt ?? d.started_at
@@ -307,8 +329,7 @@ export function adaptService(service: ApiService): ProjectService {
       }))
 
   const usage = service.usage
-  const memoryLimitMb =
-    service.limits?.memoryMb || usage?.memoryLimitMb || 0
+  const memoryLimitMb = service.limits?.memoryMb || usage?.memoryLimitMb || 0
 
   return {
     id: service.id,

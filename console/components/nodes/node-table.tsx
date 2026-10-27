@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Check, ChevronRight, Copy, Radio, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Flag } from "@/components/ui/flag"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
 import { ClusterNode } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -64,7 +65,9 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                         {node.name}
                       </Link>
                       <div className="font-mono text-[11px] text-muted-foreground">
-                        {node.os}
+                        {node.location?.name
+                          ? `${node.location.name} • ${node.os}`
+                          : node.os}
                       </div>
                     </div>
                   </div>
@@ -90,7 +93,16 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                   className="px-4 py-3 font-mono text-muted-foreground"
                   aria-label={`IP ${node.ipAddress}`}
                 >
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
+                    {node.location?.flag && (
+                      <Flag
+                        src={node.location.flag}
+                        alt={node.location.name}
+                        width={16}
+                        height={11}
+                        className="h-3 shrink-0 rounded-[1px]"
+                      />
+                    )}
                     <span className="text-foreground">{node.ipAddress}</span>
                     <Button
                       type="button"

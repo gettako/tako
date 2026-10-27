@@ -132,30 +132,33 @@ export function GitPanel() {
     const params = new URLSearchParams(window.location.search)
     const code = params.get("code")
     const setup = params.get("setup")
-    if (code && (setup === "github" || window.location.search.includes("setup="))) {
+    if (
+      code &&
+      (setup === "github" || window.location.search.includes("setup="))
+    ) {
       const timer = setTimeout(() => {
         setIsProcessingCode(true)
         completeGitHubAppSetup(code)
           .then(() => {
             setSetupSuccessMessage(
-            "GitHub App configured, verified, and authenticated successfully!"
-          )
-          const url = new URL(window.location.href)
-          url.searchParams.delete("code")
-          url.searchParams.delete("setup")
-          url.searchParams.delete("state")
-          window.history.replaceState({}, "", url.toString())
-        })
-        .catch((err: unknown) => {
-          setSetupErrorMessage(
-            err instanceof Error
-              ? err.message
-              : "Failed to exchange GitHub App authorization code."
-          )
-        })
-        .finally(() => {
-          setIsProcessingCode(false)
-        })
+              "GitHub App configured, verified, and authenticated successfully!"
+            )
+            const url = new URL(window.location.href)
+            url.searchParams.delete("code")
+            url.searchParams.delete("setup")
+            url.searchParams.delete("state")
+            window.history.replaceState({}, "", url.toString())
+          })
+          .catch((err: unknown) => {
+            setSetupErrorMessage(
+              err instanceof Error
+                ? err.message
+                : "Failed to exchange GitHub App authorization code."
+            )
+          })
+          .finally(() => {
+            setIsProcessingCode(false)
+          })
       }, 0)
       return () => clearTimeout(timer)
     }
@@ -276,8 +279,11 @@ export function GitPanel() {
       {/* GitHub App setup feedback alerts */}
       {isProcessingCode && (
         <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 p-3.5 text-xs text-primary">
-          <RefreshCw className="size-4 animate-spin shrink-0" />
-          <span>Finalizing GitHub App registration and exchanging manifest credentials...</span>
+          <RefreshCw className="size-4 shrink-0 animate-spin" />
+          <span>
+            Finalizing GitHub App registration and exchanging manifest
+            credentials...
+          </span>
         </div>
       )}
 
@@ -665,7 +671,8 @@ export function GitPanel() {
                     <span>Launch GitHub 1-Click App Registration</span>
                   </Button>
                   <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-                    Redirects to GitHub to register the app with pre-filled scopes and returns here automatically.
+                    Redirects to GitHub to register the app with pre-filled
+                    scopes and returns here automatically.
                   </p>
                 </div>
               </FieldGroup>

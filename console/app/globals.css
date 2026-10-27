@@ -182,19 +182,6 @@
   @apply bg-muted-foreground/50;
 }
 
-/* Flag images: a 1px hairline keeps white sections of a flag from
-   disappearing into light cards and popovers. */
-.flag-image {
-  box-shadow:
-    0 0 0 1px oklch(0 0 0 / 12%),
-    0 1px 1.5px oklch(0 0 0 / 14%);
-}
-.dark .flag-image {
-  box-shadow:
-    0 0 0 1px oklch(1 0 0 / 18%),
-    0 1px 1.5px oklch(0 0 0 / 40%);
-}
-
 /* Syntax Highlighter (Prism) Light & Dark Mode Tokens */
 .syntax-highlighter {
   @apply font-mono leading-relaxed;

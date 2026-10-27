@@ -3,10 +3,9 @@ import { NextRequest } from "next/server"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const SERVER_URL = (process.env.TAKO_SERVER_URL || "http://127.0.0.1:8080").replace(
-  /\/$/,
-  ""
-)
+const SERVER_URL = (
+  process.env.TAKO_SERVER_URL || "http://127.0.0.1:8080"
+).replace(/\/$/, "")
 
 const DROP_REQUEST_HEADERS = new Set([
   "connection",

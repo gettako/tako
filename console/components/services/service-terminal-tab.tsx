@@ -605,7 +605,7 @@ export function ServiceTerminalTab({
                     "font-mono leading-normal whitespace-pre-wrap",
                     item.command
                       ? "pl-2 text-foreground/90 dark:text-zinc-300"
-                      : "text-emerald-600 dark:text-emerald-400 font-semibold"
+                      : "font-semibold text-emerald-600 dark:text-emerald-400"
                   )}
                 >
                   {item.output}

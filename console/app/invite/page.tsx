@@ -21,7 +21,11 @@ import { useZodForm } from "@/hooks/use-zod-form"
 const acceptInviteSchema = z.object({
   token: z.string().trim().min(1, "Invitation token is required."),
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
-  email: z.string().trim().min(1, "Email is required.").email("Enter a valid email address."),
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required.")
+    .email("Enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
 })
 
@@ -65,7 +69,8 @@ function InviteFormContent() {
         router.push("/dashboard")
       }, 1000)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to accept invitation"
+      const msg =
+        err instanceof Error ? err.message : "Failed to accept invitation"
       setErrorMsg(msg)
     } finally {
       setIsSubmitting(false)
@@ -97,7 +102,7 @@ function InviteFormContent() {
         <div className="rounded-xl border border-border bg-card p-6 shadow-xs">
           {isSuccess ? (
             <div className="flex flex-col items-center space-y-3 py-4 text-center">
-              <CheckCircle2 className="size-10 text-emerald-500 animate-in zoom-in-75 duration-300" />
+              <CheckCircle2 className="size-10 animate-in text-emerald-500 duration-300 zoom-in-75" />
               <p className="text-sm font-semibold text-foreground">
                 Invitation Accepted!
               </p>
@@ -129,7 +134,9 @@ function InviteFormContent() {
                     placeholder="tok_..."
                     required
                   />
-                  <FieldError className="text-[11px]">{errors.token}</FieldError>
+                  <FieldError className="text-[11px]">
+                    {errors.token}
+                  </FieldError>
                 </Field>
 
                 <Field data-invalid={Boolean(errors.name)}>
@@ -163,7 +170,9 @@ function InviteFormContent() {
                     placeholder="operator@company.com"
                     required
                   />
-                  <FieldError className="text-[11px]">{errors.email}</FieldError>
+                  <FieldError className="text-[11px]">
+                    {errors.email}
+                  </FieldError>
                 </Field>
 
                 <Field data-invalid={Boolean(errors.password)}>
@@ -180,7 +189,9 @@ function InviteFormContent() {
                     placeholder="••••••••••••"
                     required
                   />
-                  <FieldError className="text-[11px]">{errors.password}</FieldError>
+                  <FieldError className="text-[11px]">
+                    {errors.password}
+                  </FieldError>
                 </Field>
 
                 <Button

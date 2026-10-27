@@ -57,7 +57,8 @@ const registrySchema = z.object({
 })
 
 export function RegistriesPanel() {
-  const { registries, addDockerRegistry, deleteDockerRegistry } = usePlatformData()
+  const { registries, addDockerRegistry, deleteDockerRegistry } =
+    usePlatformData()
 
   const [addModalOpen, setAddModalOpen] = React.useState(false)
   const [name, setName] = React.useState("")

@@ -26,6 +26,7 @@ import {
   type ApiSystemVersion,
   type ApiUser,
 } from "@/lib/api"
+import { subscribeGeoIp } from "@/lib/geoip"
 import {
   adaptAuditLog,
   adaptDeployment,
@@ -137,10 +138,7 @@ interface PlatformDataContextType {
   deleteProject: (id: string) => Promise<void>
 
   addService: (service: CreateServiceInput) => Promise<ProjectService>
-  updateService: (
-    id: string,
-    updates: Record<string, unknown>
-  ) => Promise<void>
+  updateService: (id: string, updates: Record<string, unknown>) => Promise<void>
   deleteService: (id: string) => Promise<void>
 
   triggerDeploy: (
@@ -200,9 +198,7 @@ interface PlatformDataContextType {
   ) => Promise<void>
 
   domainConfig: ClusterDomainConfig
-  updateDomainConfig: (
-    updates: Partial<ClusterDomainConfig>
-  ) => Promise<void>
+  updateDomainConfig: (updates: Partial<ClusterDomainConfig>) => Promise<void>
   verifyDomain: (
     domain: string,
     expectedIp?: string
@@ -210,9 +206,7 @@ interface PlatformDataContextType {
   reloadTraefik: (nodeId?: string) => Promise<void>
 
   currentUser: CurrentUserProfile
-  updateCurrentUser: (
-    updates: Partial<CurrentUserProfile>
-  ) => Promise<void>
+  updateCurrentUser: (updates: Partial<CurrentUserProfile>) => Promise<void>
   updatePassword: (
     currentPassword: string,
     newPassword: string
@@ -227,7 +221,12 @@ interface PlatformDataContextType {
 
   testS3Bucket: (
     bucket: Partial<S3BucketConfig>
-  ) => Promise<{ ok: boolean; message: string; latencyMs?: number; error?: string }>
+  ) => Promise<{
+    ok: boolean
+    message: string
+    latencyMs?: number
+    error?: string
+  }>
   testNotifications: (
     config?: Record<string, unknown>
   ) => Promise<{ ok: boolean; message: string; error?: string }>
@@ -359,7 +358,9 @@ function mapCurrentUser(
   extra: Partial<CurrentUserProfile> = {}
 ): CurrentUserProfile {
   const cleanExtra = Object.fromEntries(
-    Object.entries(extra).filter(([, value]) => value !== undefined && value !== "")
+    Object.entries(extra).filter(
+      ([, value]) => value !== undefined && value !== ""
+    )
   ) as Partial<CurrentUserProfile>
 
   return {
@@ -431,7 +432,8 @@ function mapSettings(
         schedule.retentionDays ?? stored.backupSchedule?.retentionDays ?? 14
       ),
       lastBackupAt:
-        (schedule.lastBackupAt as string) || stored.backupSchedule?.lastBackupAt,
+        (schedule.lastBackupAt as string) ||
+        stored.backupSchedule?.lastBackupAt,
       lastBackupStatus: schedule.lastBackupStatus as
         | "success"
         | "failed"
@@ -482,15 +484,18 @@ export function PlatformDataProvider({
   const [auditLogs, setAuditLogs] = React.useState<AuditLogEntry[]>([])
   const [settings, setSettings] =
     React.useState<PlatformSettings>(DEFAULT_SETTINGS)
-  const [domainConfig, setDomainConfig] =
-    React.useState<ClusterDomainConfig>(DEFAULT_DOMAIN_CONFIG)
+  const [domainConfig, setDomainConfig] = React.useState<ClusterDomainConfig>(
+    DEFAULT_DOMAIN_CONFIG
+  )
   const [users, setUsers] = React.useState<PlatformUser[]>([])
   const [invites, setInvites] = React.useState<PlatformUserInvite[]>([])
   const [registries, setRegistries] = React.useState<DockerRegistryConfig[]>([])
   const [snapshots, setSnapshots] = React.useState<ClusterSnapshot[]>([])
   const [sessions, setSessions] = React.useState<UserSession[]>([])
   const [passkeys, setPasskeys] = React.useState<UserPasskey[]>([])
-  const [gitProviders, setGitProviders] = React.useState<GitProviderConfig[]>([])
+  const [gitProviders, setGitProviders] = React.useState<GitProviderConfig[]>(
+    []
+  )
   const [syncedRepos, setSyncedRepos] = React.useState<SyncedGitRepo[]>([])
   const [currentUser, setCurrentUser] =
     React.useState<CurrentUserProfile>(DEFAULT_USER)
@@ -531,9 +536,9 @@ export function PlatformDataProvider({
     servicesRef.current = services
   }, [services])
   const deployCloseRef = React.useRef<(() => void) | null>(null)
-  const serviceRefreshTimer = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  )
+  const serviceRefreshTimer = React.useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null)
   const nodeRefreshTimer = React.useRef<ReturnType<typeof setTimeout> | null>(
     null
   )
@@ -564,9 +569,7 @@ export function PlatformDataProvider({
   const refreshServices = React.useCallback(async () => {
     const data = await apiGet<ApiService[]>("/services")
     setServices((prev) => {
-      const historyMap = new Map(
-        prev.map((s) => [s.id, s.deploymentHistory])
-      )
+      const historyMap = new Map(prev.map((s) => [s.id, s.deploymentHistory]))
       return data.map((apiSrv) => {
         const adapted = adaptService(apiSrv)
         const existing = historyMap.get(apiSrv.id)
@@ -606,9 +609,7 @@ export function PlatformDataProvider({
       domain: String(domain.domain || mapped.clusterDomain || ""),
       sslActive: Boolean(domain.sslActive),
       sslAutoRenew:
-        domain.sslAutoRenew !== undefined
-          ? Boolean(domain.sslAutoRenew)
-          : true,
+        domain.sslAutoRenew !== undefined ? Boolean(domain.sslAutoRenew) : true,
       dnsProvider:
         (domain.dnsProvider as "http01" | "cloudflare") ||
         mapped.dnsProvider ||
@@ -616,8 +617,7 @@ export function PlatformDataProvider({
       cloudflareApiToken: String(domain.cloudflareApiToken || ""),
       customDnsIp: String(domain.customDnsIp || ""),
       sslStatus:
-        (domain.sslStatus as ClusterDomainConfig["sslStatus"]) ||
-        "pending_dns",
+        (domain.sslStatus as ClusterDomainConfig["sslStatus"]) || "pending_dns",
       sslIssuer: domain.sslIssuer ? String(domain.sslIssuer) : undefined,
       sslExpiresAt: domain.sslExpiresAt
         ? String(domain.sslExpiresAt)
@@ -797,7 +797,9 @@ export function PlatformDataProvider({
         title: (extra.title as string) || undefined,
         bio: (extra.bio as string) || undefined,
         timezone: (extra.timezone as string) || undefined,
-        defaultLanding: (extra.defaultLanding as CurrentUserProfile["defaultLanding"]) || undefined,
+        defaultLanding:
+          (extra.defaultLanding as CurrentUserProfile["defaultLanding"]) ||
+          undefined,
         gpgKeyId: (extra.gpgKeyId as string) || undefined,
       })
     )
@@ -814,7 +816,10 @@ export function PlatformDataProvider({
         await refreshAll()
       } catch (err) {
         if (cancelled) return
-        if (err instanceof ApiError && (err.status === 401 || err.status === 0)) {
+        if (
+          err instanceof ApiError &&
+          (err.status === 401 || err.status === 0)
+        ) {
           setStatus("unauthenticated")
         } else {
           setStatus("error")
@@ -928,6 +933,29 @@ export function PlatformDataProvider({
     }
   }, [])
 
+  React.useEffect(() => {
+    const unsubscribe = subscribeGeoIp((ip, geo) => {
+      setNodes((current) =>
+        current.map((node) => {
+          const targetIp = (node.publicIp || node.ipAddress || "").trim()
+          if (targetIp !== ip) return node
+          return {
+            ...node,
+            location: {
+              code: geo.code,
+              name: geo.city ? `${geo.city}, ${geo.country}` : geo.country,
+              flag: geo.flag,
+              city: geo.city,
+              lat: geo.lat,
+              lng: geo.lng,
+            },
+          }
+        })
+      )
+    })
+    return unsubscribe
+  }, [])
+
   const login = React.useCallback(
     async (email: string, password: string) => {
       setError(null)
@@ -943,8 +971,7 @@ export function PlatformDataProvider({
         setStatus("authenticated")
         await refreshAll()
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Unable to sign in"
+        const message = err instanceof Error ? err.message : "Unable to sign in"
         setError(message)
         throw err
       }
@@ -1172,9 +1199,7 @@ export function PlatformDataProvider({
         return
       }
 
-      const source = new EventSource(
-        `/api/v1/deployments/${deploymentId}/logs`
-      )
+      const source = new EventSource(`/api/v1/deployments/${deploymentId}/logs`)
       let finished = false
 
       const finish = async () => {
@@ -1192,8 +1217,9 @@ export function PlatformDataProvider({
 
       source.addEventListener("log", (event) => {
         try {
-          const payload = JSON.parse((event as MessageEvent<string>).data) as
-            Record<string, unknown>
+          const payload = JSON.parse(
+            (event as MessageEvent<string>).data
+          ) as Record<string, unknown>
           setDeploymentLogs((current) => [
             ...current,
             adaptDeploymentLog(payload),
@@ -1267,7 +1293,9 @@ export function PlatformDataProvider({
       return lines.map((line, index): DeploymentLogEntry => ({
         id: `${deploymentId}-log-${index}`,
         timestamp: "",
-        level: (/error|failed/i.test(line) ? "error" : "info") as DeploymentLogEntry["level"],
+        level: (/error|failed/i.test(line)
+          ? "error"
+          : "info") as DeploymentLogEntry["level"],
         step: "Log",
         message: line,
       }))
@@ -1432,8 +1460,7 @@ export function PlatformDataProvider({
       }
 
       const id =
-        input.id ||
-        `git-${input.type || "github"}-${Date.now().toString(36)}`
+        input.id || `git-${input.type || "github"}-${Date.now().toString(36)}`
       const newProv: GitProviderConfig = {
         id,
         type: input.type || "github",
@@ -1446,9 +1473,9 @@ export function PlatformDataProvider({
         connectedAt: new Date().toISOString(),
       }
 
-      const existingRaw = await apiGet<Record<string, unknown>>("/settings").catch(
-        () => ({} as Record<string, unknown>)
-      )
+      const existingRaw = await apiGet<Record<string, unknown>>(
+        "/settings"
+      ).catch(() => ({}) as Record<string, unknown>)
       const storedProviders = Array.isArray(existingRaw.git_providers)
         ? (existingRaw.git_providers as Record<string, unknown>[])
         : []
@@ -1528,9 +1555,9 @@ export function PlatformDataProvider({
         }
       }
 
-      const existingRaw = await apiGet<Record<string, unknown>>("/settings").catch(
-        () => ({} as Record<string, unknown>)
-      )
+      const existingRaw = await apiGet<Record<string, unknown>>(
+        "/settings"
+      ).catch(() => ({}) as Record<string, unknown>)
       const storedProviders = Array.isArray(existingRaw.git_providers)
         ? (existingRaw.git_providers as Record<string, unknown>[])
         : []
@@ -1603,10 +1630,7 @@ export function PlatformDataProvider({
 
   const checkSystemVersion = React.useCallback(async () => {
     try {
-      const data = await apiPost<ApiSystemVersion>(
-        "/system/version/check",
-        {}
-      )
+      const data = await apiPost<ApiSystemVersion>("/system/version/check", {})
       setSystemVersion(data)
       return data
     } catch {
@@ -1622,22 +1646,34 @@ export function PlatformDataProvider({
     return adaptSnapshot(response.snapshot)
   }, [refreshSnapshots])
 
-  const restoreSnapshot = React.useCallback(async (id: string) => {
-    await apiPost("/backups/restore", { snapshotId: id })
-    await Promise.allSettled([
-      refreshNodes(),
-      refreshProjects(),
-      refreshServices(),
-      refreshAuditLogs(),
-      refreshSettings(),
-    ])
-  }, [refreshNodes, refreshProjects, refreshServices, refreshAuditLogs, refreshSettings])
+  const restoreSnapshot = React.useCallback(
+    async (id: string) => {
+      await apiPost("/backups/restore", { snapshotId: id })
+      await Promise.allSettled([
+        refreshNodes(),
+        refreshProjects(),
+        refreshServices(),
+        refreshAuditLogs(),
+        refreshSettings(),
+      ])
+    },
+    [
+      refreshNodes,
+      refreshProjects,
+      refreshServices,
+      refreshAuditLogs,
+      refreshSettings,
+    ]
+  )
 
   const updateBackupSchedule = React.useCallback(
-    async (schedule: Partial<NonNullable<PlatformSettings["backupSchedule"]>>) => {
+    async (
+      schedule: Partial<NonNullable<PlatformSettings["backupSchedule"]>>
+    ) => {
       await updateSettings({
         backupSchedule: {
-          ...(settingsRef.current.backupSchedule || DEFAULT_SETTINGS.backupSchedule!),
+          ...(settingsRef.current.backupSchedule ||
+            DEFAULT_SETTINGS.backupSchedule!),
           ...schedule,
         },
       })
@@ -1696,9 +1732,7 @@ export function PlatformDataProvider({
 
   const reloadTraefik = React.useCallback(
     async (nodeId?: string) => {
-      const targets = nodeId
-        ? [nodeId]
-        : nodes.map((node) => node.id)
+      const targets = nodeId ? [nodeId] : nodes.map((node) => node.id)
       await Promise.allSettled(
         targets.map((id) => apiPost(`/nodes/${id}/traefik/reload`))
       )
@@ -1790,9 +1824,7 @@ export function PlatformDataProvider({
         Math.random().toString(36).substring(2, 10) +
         Math.random().toString(36).substring(2, 10)
       const now = new Date()
-      const expires = new Date(
-        now.getTime() + expiryDays * 24 * 60 * 60 * 1000
-      )
+      const expires = new Date(now.getTime() + expiryDays * 24 * 60 * 60 * 1000)
       const newInvite: PlatformUserInvite = {
         id: "inv-" + Date.now(),
         email,
@@ -1801,9 +1833,9 @@ export function PlatformDataProvider({
         expiresAt: expires.toISOString(),
         createdAt: now.toISOString(),
       }
-      const existingRaw = await apiGet<Record<string, unknown>>("/settings").catch(
-        () => ({} as Record<string, unknown>)
-      )
+      const existingRaw = await apiGet<Record<string, unknown>>(
+        "/settings"
+      ).catch(() => ({}) as Record<string, unknown>)
       const currentList = Array.isArray(existingRaw.user_invites)
         ? (existingRaw.user_invites as Record<string, unknown>[])
         : []
@@ -1817,9 +1849,9 @@ export function PlatformDataProvider({
 
   const revokeUserInvite = React.useCallback(
     async (id: string) => {
-      const existingRaw = await apiGet<Record<string, unknown>>("/settings").catch(
-        () => ({} as Record<string, unknown>)
-      )
+      const existingRaw = await apiGet<Record<string, unknown>>(
+        "/settings"
+      ).catch(() => ({}) as Record<string, unknown>)
       const currentList = Array.isArray(existingRaw.user_invites)
         ? (existingRaw.user_invites as Record<string, unknown>[])
         : []
@@ -2094,7 +2126,9 @@ export function PlatformDataProvider({
 export function usePlatformData() {
   const context = React.useContext(PlatformDataContext)
   if (!context) {
-    throw new Error("usePlatformData must be used within a PlatformDataProvider")
+    throw new Error(
+      "usePlatformData must be used within a PlatformDataProvider"
+    )
   }
   return context
 }

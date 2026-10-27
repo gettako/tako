@@ -1,14 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  Check,
-  Clock,
-  Copy,
-  Globe,
-  Mail,
-  ShieldCheck,
-} from "lucide-react"
+import { Check, Clock, Copy, Globe, Mail, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { usePlatformData } from "@/context/platform-data-context"

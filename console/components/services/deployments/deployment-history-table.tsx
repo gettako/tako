@@ -87,7 +87,10 @@ export function DeploymentHistoryTable({
               title="Refresh deployments"
             >
               <RotateCcw
-                className={cn("size-3.5", isLoading && "animate-spin text-primary")}
+                className={cn(
+                  "size-3.5",
+                  isLoading && "animate-spin text-primary"
+                )}
               />
               <span className="hidden sm:inline">Refresh</span>
             </Button>

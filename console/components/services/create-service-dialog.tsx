@@ -644,7 +644,9 @@ function CreateServiceContent({
     })
 
     const parsedPorts: number[] = [
-      Number.parseInt(containerPort, 10) || Number.parseInt(hostPort, 10) || 8080,
+      Number.parseInt(containerPort, 10) ||
+        Number.parseInt(hostPort, 10) ||
+        8080,
     ]
 
     await addService({

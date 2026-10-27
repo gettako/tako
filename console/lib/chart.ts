@@ -18,19 +18,24 @@ export function getChartCoordinates(
   width: number = CHART_WIDTH
 ): ChartPoint[] {
   const safeMin = Number.isFinite(minVal) ? minVal : 0
-  const safeMax = Number.isFinite(maxVal) && maxVal > safeMin ? maxVal : safeMin + 1
+  const safeMax =
+    Number.isFinite(maxVal) && maxVal > safeMin ? maxVal : safeMin + 1
   const rangeVal = Math.max(1e-6, safeMax - safeMin)
 
   if (!values || values.length === 0) {
     return []
   }
 
-  const innerWidth = Math.max(1, width - CHART_PADDING.left - CHART_PADDING.right)
+  const innerWidth = Math.max(
+    1,
+    width - CHART_PADDING.left - CHART_PADDING.right
+  )
   const count = values.length
   const divisor = Math.max(1, count - 1)
 
   return values.map((rawVal, idx) => {
-    const num = typeof rawVal === "number" && Number.isFinite(rawVal) ? rawVal : safeMin
+    const num =
+      typeof rawVal === "number" && Number.isFinite(rawVal) ? rawVal : safeMin
     // Strictly clamp value between min and max
     const clampedVal = Math.max(safeMin, Math.min(safeMax, num))
 
@@ -38,7 +43,8 @@ export function getChartCoordinates(
     const x = CHART_PADDING.left + xRatio * innerWidth
 
     const yRatio = (clampedVal - safeMin) / rangeVal
-    const rawY = CHART_PADDING.top + CHART_INNER_HEIGHT - yRatio * CHART_INNER_HEIGHT
+    const rawY =
+      CHART_PADDING.top + CHART_INNER_HEIGHT - yRatio * CHART_INNER_HEIGHT
     // Strictly clamp Y inside the chart plot area
     const y = Math.max(
       CHART_PADDING.top,
@@ -52,11 +58,17 @@ export function getChartCoordinates(
   })
 }
 
-export function buildChartLine(coords: ChartPoint[], width: number = CHART_WIDTH) {
+export function buildChartLine(
+  coords: ChartPoint[],
+  width: number = CHART_WIDTH
+) {
   if (!coords || coords.length === 0) return ""
   if (coords.length === 1) {
     const p = coords[0]
-    const innerWidth = Math.max(1, width - CHART_PADDING.left - CHART_PADDING.right)
+    const innerWidth = Math.max(
+      1,
+      width - CHART_PADDING.left - CHART_PADDING.right
+    )
     return `M ${CHART_PADDING.left} ${p.y} L ${CHART_PADDING.left + innerWidth} ${p.y}`
   }
 
@@ -67,14 +79,20 @@ export function buildChartLine(coords: ChartPoint[], width: number = CHART_WIDTH
   }, "")
 }
 
-export function buildChartArea(coords: ChartPoint[], width: number = CHART_WIDTH) {
+export function buildChartArea(
+  coords: ChartPoint[],
+  width: number = CHART_WIDTH
+) {
   if (!coords || coords.length === 0) return ""
 
   const bottomY = CHART_PADDING.top + CHART_INNER_HEIGHT
 
   if (coords.length === 1) {
     const line = buildChartLine(coords, width)
-    const innerWidth = Math.max(1, width - CHART_PADDING.left - CHART_PADDING.right)
+    const innerWidth = Math.max(
+      1,
+      width - CHART_PADDING.left - CHART_PADDING.right
+    )
     const rightX = CHART_PADDING.left + innerWidth
     const leftX = CHART_PADDING.left
     return `${line} L ${rightX} ${bottomY} L ${leftX} ${bottomY} Z`

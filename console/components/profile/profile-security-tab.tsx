@@ -407,7 +407,8 @@ export function ProfileSecurityTab() {
               </span>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Manage master operator credentials and login authentication requirements.
+              Manage master operator credentials and login authentication
+              requirements.
             </p>
           </div>
         </div>
@@ -487,7 +488,9 @@ export function ProfileSecurityTab() {
                   placeholder="Enter new strong password"
                   aria-invalid={Boolean(passwordErrors.newPassword)}
                   aria-describedby={
-                    passwordErrors.newPassword ? "new-password-error" : undefined
+                    passwordErrors.newPassword
+                      ? "new-password-error"
+                      : undefined
                   }
                   className="pr-9 font-mono text-xs"
                   required
@@ -611,7 +614,8 @@ export function ProfileSecurityTab() {
                   <span>Password Requirements</span>
                 </span>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  All cluster operator passwords must satisfy security complexity standards.
+                  All cluster operator passwords must satisfy security
+                  complexity standards.
                 </p>
               </div>
 
@@ -710,7 +714,9 @@ export function ProfileSecurityTab() {
             <div className="rounded-md border border-border bg-card/60 p-2.5 text-[11px] text-muted-foreground">
               <p className="font-medium text-foreground">Credential Security</p>
               <p className="mt-0.5 text-[10px] leading-relaxed">
-                Changing your password takes effect immediately and will invalidate previous operator session tokens across other devices.
+                Changing your password takes effect immediately and will
+                invalidate previous operator session tokens across other
+                devices.
               </p>
             </div>
           </div>

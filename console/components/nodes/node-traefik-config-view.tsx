@@ -143,7 +143,8 @@ export function NodeTraefikConfigView({
   const isMaster = node.role === "master"
 
   const [files, setFiles] = React.useState<TraefikConfigFileMeta[]>([])
-  const [selectedFileName, setSelectedFileName] = React.useState<string>("traefik.yml")
+  const [selectedFileName, setSelectedFileName] =
+    React.useState<string>("traefik.yml")
   const [fileContent, setFileContent] = React.useState<string>("")
   const [savedContent, setSavedContent] = React.useState<string>("")
   const [isLoadingList, setIsLoadingList] = React.useState(true)
@@ -307,7 +308,8 @@ export function NodeTraefikConfigView({
         `Reloaded Traefik dynamic provider and ingress routers on ${node.ipAddress}`
       )
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to reload Traefik"
+      const msg =
+        err instanceof Error ? err.message : "Failed to reload Traefik"
       setErrorMessage(msg)
     } finally {
       setIsReloading(false)
@@ -316,12 +318,18 @@ export function NodeTraefikConfigView({
 
   const handleDeleteFile = async (filename: string) => {
     if (filename === "traefik.yml") return
-    if (!confirm(`Are you sure you want to delete ${filename}? This action will immediately remove its routing rules from Traefik.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete ${filename}? This action will immediately remove its routing rules from Traefik.`
+      )
+    ) {
       return
     }
 
     try {
-      await apiDelete(`/nodes/${node.id}/traefik/files/${encodeURIComponent(filename)}`)
+      await apiDelete(
+        `/nodes/${node.id}/traefik/files/${encodeURIComponent(filename)}`
+      )
       onAuditLog?.(
         "Traefik File Deleted",
         `${node.name} (${filename})`,
@@ -384,7 +392,8 @@ export function NodeTraefikConfigView({
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Manage static entrypoints and live dynamic routing configurations deployed on this edge node.
+            Manage static entrypoints and live dynamic routing configurations
+            deployed on this edge node.
           </p>
         </div>
 
@@ -397,7 +406,9 @@ export function NodeTraefikConfigView({
             className="gap-1.5 text-xs"
             title="Refresh files"
           >
-            <RefreshCw className={cn("size-3.5", isLoadingList && "animate-spin")} />
+            <RefreshCw
+              className={cn("size-3.5", isLoadingList && "animate-spin")}
+            />
             <span>Refresh</span>
           </Button>
 
@@ -409,7 +420,12 @@ export function NodeTraefikConfigView({
             className="gap-1.5 text-xs text-foreground hover:bg-muted"
             title="Trigger Traefik dynamic provider reload"
           >
-            <RotateCw className={cn("size-3.5", isReloading && "animate-spin text-primary")} />
+            <RotateCw
+              className={cn(
+                "size-3.5",
+                isReloading && "animate-spin text-primary"
+              )}
+            />
             <span>{reloadSuccess ? "Reloaded!" : "Reload Traefik"}</span>
           </Button>
 
@@ -464,7 +480,7 @@ export function NodeTraefikConfigView({
                 <FileCode2 className="size-3.5 shrink-0 text-muted-foreground" />
                 <span className="truncate">traefik.yml</span>
               </div>
-              <span className="shrink-0 rounded border border-border bg-muted px-1.5 py-0.2 text-[9px] font-normal text-muted-foreground uppercase">
+              <span className="py-0.2 shrink-0 rounded border border-border bg-muted px-1.5 text-[9px] font-normal text-muted-foreground uppercase">
                 Static
               </span>
             </button>
@@ -519,16 +535,18 @@ export function NodeTraefikConfigView({
                             className="flex min-w-0 flex-1 items-center gap-2 text-left"
                           >
                             <FileCode2 className="size-3.5 shrink-0 text-muted-foreground" />
-                            <span className="truncate text-xs">{file.name}</span>
+                            <span className="truncate text-xs">
+                              {file.name}
+                            </span>
                           </button>
 
                           <div className="flex items-center gap-1.5">
                             {isTako ? (
-                              <span className="shrink-0 rounded border border-primary/30 bg-primary/10 px-1 py-0.2 text-[9px] font-normal text-primary">
+                              <span className="py-0.2 shrink-0 rounded border border-primary/30 bg-primary/10 px-1 text-[9px] font-normal text-primary">
                                 Console
                               </span>
                             ) : (
-                              <span className="shrink-0 rounded border border-border bg-muted px-1 py-0.2 text-[9px] font-normal text-muted-foreground">
+                              <span className="py-0.2 shrink-0 rounded border border-border bg-muted px-1 text-[9px] font-normal text-muted-foreground">
                                 Service
                               </span>
                             )}
@@ -540,7 +558,7 @@ export function NodeTraefikConfigView({
                                   e.stopPropagation()
                                   handleDeleteFile(file.name)
                                 }}
-                                className="hidden text-muted-foreground opacity-60 hover:text-destructive group-hover:block"
+                                className="hidden text-muted-foreground opacity-60 group-hover:block hover:text-destructive"
                                 title={`Delete ${file.name}`}
                               >
                                 <Trash2 className="size-3" />
@@ -571,7 +589,7 @@ export function NodeTraefikConfigView({
                       : `/etc/tako/traefik/dynamic/${selectedFileName}`)}
                 </span>
                 {isDirty && (
-                  <span className="rounded bg-amber-500/10 px-1.5 py-0.2 font-mono text-[10px] font-medium text-amber-500">
+                  <span className="py-0.2 rounded bg-amber-500/10 px-1.5 font-mono text-[10px] font-medium text-amber-500">
                     Unsaved
                   </span>
                 )}
@@ -673,7 +691,9 @@ export function NodeTraefikConfigView({
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   Suggested format:{" "}
-                  <code className="text-foreground">&lt;project&gt;-&lt;service&gt;.yml</code>
+                  <code className="text-foreground">
+                    &lt;project&gt;-&lt;service&gt;.yml
+                  </code>
                 </p>
               </div>
 
@@ -694,11 +714,7 @@ export function NodeTraefikConfigView({
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={!newFileName.trim()}
-              >
+              <Button type="submit" size="sm" disabled={!newFileName.trim()}>
                 Create File
               </Button>
             </DialogFooter>

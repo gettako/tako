@@ -186,7 +186,9 @@ export function DashboardView() {
             <span
               className={cn(
                 "font-mono text-xs",
-                onlineNodes.length > 0 ? "text-emerald-500" : "text-muted-foreground"
+                onlineNodes.length > 0
+                  ? "text-emerald-500"
+                  : "text-muted-foreground"
               )}
             >
               {onlineNodes.length > 0 ? "Stream live" : "No active nodes"}

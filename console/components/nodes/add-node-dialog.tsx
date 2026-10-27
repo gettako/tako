@@ -1,7 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, Loader2, RefreshCw, Server, Terminal } from "lucide-react"
+import {
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  Server,
+  Terminal,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { CodeHighlighter } from "@/components/ui/code-highlighter"

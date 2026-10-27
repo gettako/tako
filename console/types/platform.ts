@@ -12,6 +12,9 @@ export interface ClusterNode {
     code: string
     name: string
     flag: string
+    city?: string
+    lat?: number
+    lng?: number
   }
   grpcLatencyMs: number
   grpcVersion?: string

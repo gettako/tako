@@ -195,7 +195,10 @@ export function ProfileGeneralTab() {
                       required
                     />
                   </div>
-                  <FieldError id="operator-handle-error" className="text-[11px]">
+                  <FieldError
+                    id="operator-handle-error"
+                    className="text-[11px]"
+                  >
                     {errors.handle}
                   </FieldError>
                 </Field>

@@ -61,14 +61,17 @@ export function DeleteProjectDialog({
             <div className="space-y-4 text-xs">
               <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-muted-foreground">
                 <p className="leading-relaxed">
-                  <strong className="text-foreground">{project.name}</strong> currently has{" "}
+                  <strong className="text-foreground">{project.name}</strong>{" "}
+                  currently has{" "}
                   <strong className="text-foreground">
-                    {project.servicesCount} installed {project.servicesCount === 1 ? "service" : "services"}
+                    {project.servicesCount} installed{" "}
+                    {project.servicesCount === 1 ? "service" : "services"}
                   </strong>
                   .
                 </p>
                 <p className="mt-1.5 leading-relaxed">
-                  To prevent unintended data loss or downtime, you must delete or move all services before removing this project.
+                  To prevent unintended data loss or downtime, you must delete
+                  or move all services before removing this project.
                 </p>
               </div>
 
@@ -135,8 +138,12 @@ export function DeleteProjectDialog({
                 </span>
                 <div className="rounded border border-border/80 bg-muted/20 px-3 py-2">
                   <div className="flex items-center justify-between font-mono text-xs">
-                    <span className="font-semibold text-foreground">{project.name}</span>
-                    <span className="text-muted-foreground">{project.slug}</span>
+                    <span className="font-semibold text-foreground">
+                      {project.name}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {project.slug}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -171,7 +178,9 @@ export function DeleteProjectDialog({
                     handleOpenChange(false)
                   } catch (err) {
                     setError(
-                      err instanceof Error ? err.message : "Failed to delete project"
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to delete project"
                     )
                   } finally {
                     setIsDeleting(false)

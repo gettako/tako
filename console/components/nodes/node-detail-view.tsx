@@ -51,7 +51,14 @@ interface NodeDetailViewProps {
 type TabType = "containers" | "telemetry" | "traefik"
 
 export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
-  const { nodes, services, currentUser, updateService, deleteNode, addAuditLog } = usePlatformData()
+  const {
+    nodes,
+    services,
+    currentUser,
+    updateService,
+    deleteNode,
+    addAuditLog,
+  } = usePlatformData()
   const node = nodes.find((n) => n.id === nodeId)
   const actorName = currentUser.email || currentUser.name || "admin@gettako.dev"
 
@@ -87,12 +94,8 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
                 .map((p) => `${p.host || p.container}:${p.container}`)
                 .join(", ")
             : "8080",
-        cpuPercent:
-          s.metrics?.cpuPercent ??
-          (s.status === "running" ? 0.8 : 0),
-        memoryMb:
-          s.metrics?.memoryMb ??
-          (s.status === "running" ? 18 : 0),
+        cpuPercent: s.metrics?.cpuPercent ?? (s.status === "running" ? 0.8 : 0),
+        memoryMb: s.metrics?.memoryMb ?? (s.status === "running" ? 18 : 0),
       }))
   }, [services, nodeId])
 

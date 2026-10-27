@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Flag } from "@/components/ui/flag"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
 import { ClusterNode } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -57,7 +58,9 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
               <NodeRoleBadge role={node.role} />
             </div>
             <p className="truncate font-mono text-[11px] text-muted-foreground">
-              {node.os}
+              {node.location?.name
+                ? `${node.location.name} • ${node.os}`
+                : node.os}
             </p>
           </div>
         </div>
@@ -77,17 +80,26 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
       </div>
 
       {/* Connection & IP */}
-      <div className="mt-4 flex items-center justify-between border-y border-border/70 py-2.5 font-mono text-xs">
-        <div className="flex items-center gap-1.5 text-muted-foreground">
-          <span>IP:</span>
-          <code className="text-foreground">{node.ipAddress}</code>
+      <div className="mt-4 flex items-center justify-between gap-2 border-y border-border/70 py-2.5 font-mono text-xs">
+        <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+          {node.location?.flag && (
+            <Flag
+              src={node.location.flag}
+              alt={node.location.name}
+              width={16}
+              height={11}
+              className="h-3 shrink-0 rounded-[1px]"
+            />
+          )}
+          <span className="shrink-0">IP:</span>
+          <code className="truncate text-foreground">{node.ipAddress}</code>
           <Button
             type="button"
             size="icon-xs"
             variant="ghost"
             onClick={handleCopyIp}
-            className="size-5 text-muted-foreground hover:text-foreground"
-            title="Copy"
+            className="size-5 shrink-0 text-muted-foreground hover:text-foreground"
+            title="Copy IP"
           >
             {copied ? (
               <Check className="size-3 text-emerald-500" />
@@ -97,17 +109,28 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
           </Button>
         </div>
 
-        <div className="flex items-center gap-1.5 text-muted-foreground">
+        <div
+          className="flex shrink-0 items-center gap-1.5 text-muted-foreground"
+          title={
+            node.agentConnected
+              ? "Agent connected"
+              : `Agent disconnected (${node.lastHeartbeat})`
+          }
+          aria-label={
+            node.agentConnected
+              ? "Agent connected"
+              : `Last heartbeat ${node.lastHeartbeat}`
+          }
+        >
           <Radio
             className={cn(
-              "size-3",
+              "size-3.5",
               node.agentConnected ? "text-emerald-500" : "text-destructive"
             )}
           />
-          <span>Agent:</span>
-          <span className="text-foreground">
-            {node.agentConnected ? "connected" : node.lastHeartbeat}
-          </span>
+          {!node.agentConnected && (
+            <span className="text-foreground">{node.lastHeartbeat}</span>
+          )}
         </div>
       </div>
 

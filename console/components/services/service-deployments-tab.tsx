@@ -670,7 +670,8 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
                     className="font-semibold text-foreground"
                     title={rollbackTarget.commitHash}
                   >
-                    Target Revision: commit {formatCommitHash(rollbackTarget.commitHash)}
+                    Target Revision: commit{" "}
+                    {formatCommitHash(rollbackTarget.commitHash)}
                   </span>
                   <span className="text-muted-foreground">
                     {rollbackTarget.startedAt}
@@ -693,7 +694,8 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
                     <strong>{service.targetNodeId}</strong> to swap ingress
                     traffic to container image{" "}
                     <strong title={rollbackTarget.commitHash}>
-                      tako/{service.slug}:{formatCommitHash(rollbackTarget.commitHash)}
+                      tako/{service.slug}:
+                      {formatCommitHash(rollbackTarget.commitHash)}
                     </strong>
                     .
                   </div>

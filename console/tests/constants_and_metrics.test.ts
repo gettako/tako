@@ -118,13 +118,15 @@ describe("Cluster Stats & Telemetry Calculations", () => {
 
     // Memory average: (50 + 60) / 2 = 55%
     const avgMem = Math.round(
-      onlineNodes.reduce((acc, n) => acc + n.memoryPercent, 0) / onlineNodes.length
+      onlineNodes.reduce((acc, n) => acc + n.memoryPercent, 0) /
+        onlineNodes.length
     )
     expect(avgMem).toBe(55)
 
     // Average latency: (4 + 12) / 2 = 8ms
     const avgLatency = Math.round(
-      onlineNodes.reduce((acc, n) => acc + n.grpcLatencyMs, 0) / onlineNodes.length
+      onlineNodes.reduce((acc, n) => acc + n.grpcLatencyMs, 0) /
+        onlineNodes.length
     )
     expect(avgLatency).toBe(8)
   })

@@ -10,7 +10,8 @@ export async function generateMetadata({
   const { serviceId } = await params
   return {
     title: `Service Details · ${serviceId}`,
-    description: "Edge service telemetry, container status, and deployment controls.",
+    description:
+      "Edge service telemetry, container status, and deployment controls.",
   }
 }
 

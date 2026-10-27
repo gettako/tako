@@ -1,12 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  Activity,
-  Laptop,
-  ShieldCheck,
-  User,
-} from "lucide-react"
+import { Activity, Laptop, ShieldCheck, User } from "lucide-react"
 
 import { ProfileActivityTab } from "@/components/profile/profile-activity-tab"
 import { ProfileGeneralTab } from "@/components/profile/profile-general-tab"
@@ -17,11 +12,7 @@ import { siteConfig } from "@/config/site"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
 
-export type ProfileTab =
-  | "general"
-  | "security"
-  | "sessions"
-  | "activity"
+export type ProfileTab = "general" | "security" | "sessions" | "activity"
 
 export const PROFILE_TABS: ProfileTab[] = [
   "general",

@@ -177,7 +177,9 @@ export function AppSidebar({ isCollapsed, navBadges }: AppSidebarProps) {
               <span>gRPC Transport Online</span>
             </div>
             <div className="mt-1.5 font-mono text-[11px] text-muted-foreground">
-              Port: <span className="text-foreground">{DEFAULT_PORTS.GRPC}</span> (mTLS active)
+              Port:{" "}
+              <span className="text-foreground">{DEFAULT_PORTS.GRPC}</span>{" "}
+              (mTLS active)
             </div>
           </div>
         )}

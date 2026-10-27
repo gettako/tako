@@ -100,7 +100,7 @@ export function ServiceSettingsTabs({
                 "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                 isActive
                   ? isDanger
-                    ? "bg-destructive text-white font-semibold shadow-xs"
+                    ? "bg-destructive font-semibold text-white shadow-xs"
                     : "bg-primary font-semibold text-primary-foreground shadow-xs"
                   : isDanger
                     ? "border border-destructive/40 bg-card text-destructive hover:bg-destructive/10"
@@ -136,7 +136,7 @@ export function ServiceSettingsTabs({
                 "flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
                 isActive
                   ? isDanger
-                    ? "bg-destructive text-white font-semibold shadow-xs"
+                    ? "bg-destructive font-semibold text-white shadow-xs"
                     : "bg-primary font-semibold text-primary-foreground shadow-xs"
                   : isDanger
                     ? "text-destructive hover:bg-destructive/10"

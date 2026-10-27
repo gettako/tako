@@ -55,7 +55,9 @@ describe("Profile General Form Validation (profileSchema)", () => {
     const tooShort = profileSchema.safeParse({ ...validData, name: "A" })
     expect(tooShort.success).toBe(false)
     if (!tooShort.success) {
-      expect(tooShort.error.issues[0].message).toContain("at least 2 characters")
+      expect(tooShort.error.issues[0].message).toContain(
+        "at least 2 characters"
+      )
     }
 
     // Too long (> 80 chars)
@@ -65,13 +67,15 @@ describe("Profile General Form Validation (profileSchema)", () => {
     })
     expect(tooLong.success).toBe(false)
     if (!tooLong.success) {
-      expect(tooLong.error.issues[0].message).toContain("80 characters or fewer")
+      expect(tooLong.error.issues[0].message).toContain(
+        "80 characters or fewer"
+      )
     }
 
     // Valid boundary lengths (2 and 80 chars)
-    expect(
-      profileSchema.safeParse({ ...validData, name: "Al" }).success
-    ).toBe(true)
+    expect(profileSchema.safeParse({ ...validData, name: "Al" }).success).toBe(
+      true
+    )
     expect(
       profileSchema.safeParse({ ...validData, name: "A".repeat(80) }).success
     ).toBe(true)
@@ -101,20 +105,21 @@ describe("Profile General Form Validation (profileSchema)", () => {
     ).toBe(false)
 
     // Rejects too short (< 2 chars)
-    expect(
-      profileSchema.safeParse({ ...validData, handle: "s" }).success
-    ).toBe(false)
+    expect(profileSchema.safeParse({ ...validData, handle: "s" }).success).toBe(
+      false
+    )
   })
 
   it("validates alert email addresses", () => {
     expect(
       profileSchema.safeParse({ ...validData, email: "invalid-email" }).success
     ).toBe(false)
+    expect(profileSchema.safeParse({ ...validData, email: "" }).success).toBe(
+      false
+    )
     expect(
-      profileSchema.safeParse({ ...validData, email: "" }).success
-    ).toBe(false)
-    expect(
-      profileSchema.safeParse({ ...validData, email: "test@domain.com" }).success
+      profileSchema.safeParse({ ...validData, email: "test@domain.com" })
+        .success
     ).toBe(true)
   })
 
@@ -166,7 +171,9 @@ describe("Profile Security Password Validation (passwordSchema)", () => {
     })
     expect(result.success).toBe(false)
     if (!result.success) {
-      expect(result.error.issues.some((i) => i.path.includes("currentPassword"))).toBe(true)
+      expect(
+        result.error.issues.some((i) => i.path.includes("currentPassword"))
+      ).toBe(true)
     }
   })
 
@@ -195,9 +202,7 @@ describe("Profile Security Password Validation (passwordSchema)", () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       expect(
-        result.error.issues.some((i) =>
-          i.message.includes("uppercase letter")
-        )
+        result.error.issues.some((i) => i.message.includes("uppercase letter"))
       ).toBe(true)
     }
   })
@@ -227,9 +232,7 @@ describe("Profile Security Password Validation (passwordSchema)", () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       expect(
-        result.error.issues.some((i) =>
-          i.message.includes("special character")
-        )
+        result.error.issues.some((i) => i.message.includes("special character"))
       ).toBe(true)
     }
   })
@@ -243,9 +246,10 @@ describe("Profile Security Password Validation (passwordSchema)", () => {
     expect(result.success).toBe(false)
     if (!result.success) {
       expect(
-        result.error.issues.some((i) =>
-          i.message.includes("Passwords do not match") ||
-          i.message.includes("do not match")
+        result.error.issues.some(
+          (i) =>
+            i.message.includes("Passwords do not match") ||
+            i.message.includes("do not match")
         )
       ).toBe(true)
     }
@@ -254,17 +258,31 @@ describe("Profile Security Password Validation (passwordSchema)", () => {
 
 describe("Profile Security 2FA TOTP Validation (twoFactorSchema)", () => {
   it("accepts valid 6-digit TOTP verification codes", () => {
-    expect(twoFactorSchema.safeParse({ verifyCode: "123456" }).success).toBe(true)
-    expect(twoFactorSchema.safeParse({ verifyCode: "000000" }).success).toBe(true)
-    expect(twoFactorSchema.safeParse({ verifyCode: "999888" }).success).toBe(true)
+    expect(twoFactorSchema.safeParse({ verifyCode: "123456" }).success).toBe(
+      true
+    )
+    expect(twoFactorSchema.safeParse({ verifyCode: "000000" }).success).toBe(
+      true
+    )
+    expect(twoFactorSchema.safeParse({ verifyCode: "999888" }).success).toBe(
+      true
+    )
   })
 
   it("rejects non-digit or wrong length codes", () => {
-    expect(twoFactorSchema.safeParse({ verifyCode: "12345" }).success).toBe(false)
-    expect(twoFactorSchema.safeParse({ verifyCode: "1234567" }).success).toBe(false)
-    expect(twoFactorSchema.safeParse({ verifyCode: "12345a" }).success).toBe(false)
+    expect(twoFactorSchema.safeParse({ verifyCode: "12345" }).success).toBe(
+      false
+    )
+    expect(twoFactorSchema.safeParse({ verifyCode: "1234567" }).success).toBe(
+      false
+    )
+    expect(twoFactorSchema.safeParse({ verifyCode: "12345a" }).success).toBe(
+      false
+    )
     expect(twoFactorSchema.safeParse({ verifyCode: "" }).success).toBe(false)
-    expect(twoFactorSchema.safeParse({ verifyCode: "abcdef" }).success).toBe(false)
+    expect(twoFactorSchema.safeParse({ verifyCode: "abcdef" }).success).toBe(
+      false
+    )
   })
 
   it("verifies default backup recovery codes format and count", () => {

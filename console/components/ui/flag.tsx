@@ -18,7 +18,7 @@ export function Flag({ src, alt, width, height, className }: FlagProps) {
       width={width}
       height={height}
       unoptimized
-      className={cn("flag-image w-auto shrink-0 rounded-[2px]", className)}
+      className={cn("w-auto shrink-0 rounded-[2px]", className)}
     />
   )
 }
