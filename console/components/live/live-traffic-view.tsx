@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
+import type { Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   Activity,
   AlertTriangle,
@@ -26,6 +28,11 @@ import { isPrivateIp } from "@/lib/geoip"
 import { cn } from "@/lib/utils"
 
 export function LiveTrafficView() {
+  const searchParams = useSearchParams()
+  const fromParam = searchParams?.get("from")
+  const backHref = (fromParam === "nodes" ? "/nodes" : "/monitor?tab=topology") as Route
+  const backLabel = fromParam === "nodes" ? "Nodes" : "Monitor"
+
   const { nodes, services } = usePlatformData()
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(
     null
@@ -167,16 +174,16 @@ export function LiveTrafficView() {
       <header className="z-30 flex h-13 shrink-0 items-center justify-between border-b border-border bg-card/80 px-2.5 backdrop-blur-md sm:h-14 sm:px-4">
         {/* Left: Back Button & Branding */}
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link href="/nodes">
+          <Link href={backHref}>
             <Button
               size="sm"
               variant="outline"
               className="h-8 gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-foreground sm:px-2.5"
-              title="Back to Nodes"
-              aria-label="Back to Nodes"
+              title={`Back to ${backLabel}`}
+              aria-label={`Back to ${backLabel}`}
             >
               <ArrowLeft className="size-3.5" />
-              <span className="hidden sm:inline">Nodes</span>
+              <span className="hidden sm:inline">{backLabel}</span>
             </Button>
           </Link>
 

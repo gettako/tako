@@ -2,11 +2,13 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Activity,
-  ChevronRight,
   Cpu,
+  Globe,
   Layers,
+  Maximize2,
   Pause,
   Play,
   Radio,
@@ -19,7 +21,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { CodeHighlighter } from "@/components/ui/code-highlighter"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Flag } from "@/components/ui/flag"
 import { Input } from "@/components/ui/input"
 import {
   SearchableSelect,
@@ -27,7 +28,10 @@ import {
 } from "@/components/ui/searchable-select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClusterCharts } from "@/components/monitor/cluster-charts"
+import { LiveTopologyMap } from "@/components/live/live-topology-map"
 import { usePlatformData } from "@/context/platform-data-context"
+import { calculateRealisticLatency } from "@/lib/node-geo"
+import { isPrivateIp } from "@/lib/geoip"
 import { cn } from "@/lib/utils"
 
 interface TelemetryPacket {
@@ -120,6 +124,30 @@ const INITIAL_PACKETS: TelemetryPacket[] = [
 ]
 
 export function ClusterMonitorView() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get("tab")
+  const [mainTab, setMainTab] = React.useState<"metrics" | "topology">(
+    tabParam === "topology" ? "topology" : "metrics"
+  )
+
+  React.useEffect(() => {
+    if (tabParam === "topology" && mainTab !== "topology") {
+      setMainTab("topology")
+    } else if (tabParam !== "topology" && mainTab === "topology" && !tabParam) {
+      setMainTab("metrics")
+    }
+  }, [tabParam, mainTab])
+
+  const handleMainTabChange = (next: "metrics" | "topology") => {
+    setMainTab(next)
+    if (next === "topology") {
+      router.replace("/monitor?tab=topology", { scroll: false })
+    } else {
+      router.replace("/monitor", { scroll: false })
+    }
+  }
+
   const { nodes, refresh, setDataMode } = usePlatformData()
   const [isStreaming, setIsStreaming] = React.useState(true)
   const [selectedNodeFilter, setSelectedNodeFilter] = React.useState("all")
@@ -128,6 +156,63 @@ export function ClusterMonitorView() {
   const [packets, setPackets] =
     React.useState<TelemetryPacket[]>(INITIAL_PACKETS)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
+
+  // Topology state
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null)
+  const [latencyJitter, setLatencyJitter] = React.useState<
+    Record<string, number>
+  >({})
+
+  // Periodic micro-jitter for live roundtrip telemetry while stream is active and in topology tab
+  React.useEffect(() => {
+    if (!isStreaming || nodes.length === 0 || mainTab !== "topology") return
+
+    const interval = setInterval(() => {
+      setLatencyJitter(() => {
+        const next: Record<string, number> = {}
+        for (const n of nodes) {
+          if (n.status === "online") {
+            const isLocal =
+              n.role === "master" ||
+              n.ipAddress === "127.0.0.1" ||
+              n.ipAddress === "localhost" ||
+              isPrivateIp(n.ipAddress)
+            const maxJitter = isLocal ? 1 : 3
+            next[n.id] =
+              Math.floor(Math.random() * (maxJitter * 2 + 1)) - maxJitter
+          }
+        }
+        return next
+      })
+    }, 2800)
+
+    return () => clearInterval(interval)
+  }, [isStreaming, nodes, mainTab])
+
+  // Resolve realistic distance-based latency for all nodes with live jitter
+  const liveNodes = React.useMemo(() => {
+    const master = nodes.find((n) => n.role === "master") || nodes[0]
+    return nodes.map((node) => {
+      const jitter = latencyJitter[node.id] || 0
+      const realisticLatency = calculateRealisticLatency(node, master, jitter)
+      return {
+        ...node,
+        grpcLatencyMs: realisticLatency,
+      }
+    })
+  }, [nodes, latencyJitter])
+
+  const totalNodes = liveNodes.length
+  const onlineNodes = liveNodes.filter((n) => n.status === "online").length
+  const offlineNodes = liveNodes.filter((n) => n.status === "offline").length
+  const avgLatency =
+    onlineNodes > 0
+      ? Math.round(
+          liveNodes
+            .filter((n) => n.status === "online")
+            .reduce((acc, n) => acc + (n.grpcLatencyMs || 0), 0) / onlineNodes
+        )
+      : 0
 
   // Periodic simulated packet streaming
   React.useEffect(() => {
@@ -277,22 +362,35 @@ export function ClusterMonitorView() {
             Cluster Telemetry Monitor
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Continuous real-time edge telemetry, aggregate cluster compute, and
-            gRPC transport health.
+            {mainTab === "topology"
+              ? "Geographic node topology distribution, edge connection latencies, and stream telemetry."
+              : "Continuous real-time edge telemetry, aggregate cluster compute, and gRPC transport health."}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Link href="/live">
+          {mainTab === "topology" ? (
+            <Link href="/live?from=monitor">
+              <Button
+                size="md"
+                variant="outline"
+                className="gap-1.5 text-xs text-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
+              >
+                <Maximize2 className="size-3.5 text-emerald-500" />
+                <span>Fullscreen Live Wall</span>
+              </Button>
+            </Link>
+          ) : (
             <Button
               size="md"
               variant="outline"
+              onClick={() => handleMainTabChange("topology")}
               className="gap-1.5 text-xs text-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
             >
               <Radio className="size-3.5 animate-pulse text-emerald-500" />
-              <span>Live Topology Wall</span>
+              <span>Live Topology Map</span>
             </Button>
-          </Link>
+          )}
 
           <Button
             size="md"
@@ -328,7 +426,125 @@ export function ClusterMonitorView() {
         </div>
       </div>
 
-      {/* Cluster Aggregate KPIs */}
+      {/* Primary Monitor Navigation Tabs */}
+      <div className="flex items-center justify-between border-b border-border pb-3">
+        <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-1 font-mono text-xs shadow-xs">
+          <button
+            type="button"
+            onClick={() => handleMainTabChange("metrics")}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-all cursor-pointer",
+              mainTab === "metrics"
+                ? "bg-card text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Activity className="size-3.5" />
+            <span>Metrics & Telemetry</span>
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[10px]",
+                mainTab === "metrics"
+                  ? "bg-muted text-foreground font-semibold"
+                  : "bg-muted/80 text-muted-foreground"
+              )}
+            >
+              {nodes.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleMainTabChange("topology")}
+            className={cn(
+              "flex items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-all cursor-pointer",
+              mainTab === "topology"
+                ? "bg-card text-foreground shadow-xs font-semibold"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Radio
+              className={cn(
+                "size-3.5 text-emerald-500",
+                isStreaming && "animate-pulse"
+              )}
+            />
+            <span>Live Topology</span>
+            <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-500">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              LIVE
+            </span>
+          </button>
+        </div>
+
+        {mainTab === "topology" && (
+          <div className="hidden items-center gap-3 font-mono text-xs text-muted-foreground sm:flex">
+            <span>
+              Online: <strong className="text-emerald-500">{onlineNodes}</strong>/{totalNodes}
+            </span>
+            <span>•</span>
+            <span>
+              Avg Latency: <strong className="text-foreground">{avgLatency}ms</strong>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {mainTab === "topology" ? (
+        <div className="space-y-4">
+          {/* Topology Control Banner */}
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-lg border border-border/80 bg-muted/60">
+                <Globe className="size-4.5 text-primary" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                    Cluster Geographic Topology
+                  </h2>
+                  <span className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-500">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    gRPC STREAM ACTIVE
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Interactive real-time map displaying master hub and edge nodes with geodesic latency arcs. Click any node pin to inspect details.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link href="/live?from=monitor">
+                <Button
+                  size="sm"
+                  className="gap-1.5 text-xs font-medium"
+                >
+                  <Maximize2 className="size-3.5" />
+                  <span>Open Fullscreen Live View</span>
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Embedded Map Canvas */}
+          <div className="relative h-[640px] w-full min-h-[520px] overflow-hidden">
+            <LiveTopologyMap
+              nodes={liveNodes}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+              isStreaming={isStreaming}
+              onlineNodes={onlineNodes}
+              totalNodes={totalNodes}
+              offlineNodes={offlineNodes}
+              avgLatency={avgLatency}
+              fullscreenHref="/live?from=monitor"
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Cluster Aggregate KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total Cluster CPU */}
         <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
@@ -466,10 +682,6 @@ export function ClusterMonitorView() {
               <Activity className="size-3.5" />
               <span>Resource Charts & Trends</span>
             </TabsTrigger>
-            <TabsTrigger value="nodes" className="gap-2 px-3 py-1.5 text-xs">
-              <Server className="size-3.5" />
-              <span>Node Matrix ({nodes.length})</span>
-            </TabsTrigger>
             <TabsTrigger value="stream" className="gap-2 px-3 py-1.5 text-xs">
               <Terminal className="size-3.5" />
               <span>Live Telemetry Stream</span>
@@ -480,110 +692,6 @@ export function ClusterMonitorView() {
         {/* Tab 1: Resource Charts & Trends */}
         <TabsContent value="charts" className="mt-0">
           <ClusterCharts nodes={nodes} isStreaming={isStreaming} />
-        </TabsContent>
-
-        {/* Tab 2: Edge Node Telemetry Matrix */}
-        <TabsContent value="nodes" className="mt-0">
-          <div>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                Edge Node Telemetry Matrix
-              </h2>
-              <span className="font-mono text-xs text-muted-foreground">
-                {nodes.length} Nodes Online
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-              {nodes.map((node) => (
-                <Link
-                  key={node.id}
-                  href={`/nodes/${node.id}`}
-                  className="group flex flex-col rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <Flag
-                        src={node.location.flag}
-                        alt={node.location.name}
-                        width={24}
-                        height={16}
-                        className="h-4"
-                      />
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-xs font-semibold text-foreground transition-colors group-hover:text-primary">
-                            {node.name}
-                          </span>
-                          <span className="py-0.2 rounded bg-muted px-1 font-mono text-[9px] text-muted-foreground uppercase">
-                            {node.role}
-                          </span>
-                        </div>
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          {node.location.name}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-1.5 font-mono text-xs">
-                      <Radio className="size-3 text-emerald-500" />
-                      <span className="font-medium text-foreground">
-                        {node.grpcLatencyMs}ms
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Progress bars */}
-                  <div className="mt-4 space-y-2 font-mono text-xs">
-                    <div>
-                      <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
-                        <span>CPU</span>
-                        <span className="text-foreground">
-                          {node.cpuPercent}%
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-all",
-                            node.cpuPercent > 80
-                              ? "bg-destructive"
-                              : node.cpuPercent > 60
-                                ? "bg-amber-500"
-                                : "bg-primary"
-                          )}
-                          style={{ width: `${node.cpuPercent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-1 flex justify-between text-[11px] text-muted-foreground">
-                        <span>Memory</span>
-                        <span className="text-foreground">
-                          {node.memoryPercent}%
-                        </span>
-                      </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-emerald-500 transition-all"
-                          style={{ width: `${node.memoryPercent}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-2.5 font-mono text-[11px] text-muted-foreground">
-                    <span>{node.runningContainers} containers</span>
-                    <span className="inline-flex items-center gap-1 text-primary transition-transform group-hover:translate-x-0.5">
-                      <span>Inspect</span>
-                      <ChevronRight className="size-3" />
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
         </TabsContent>
 
         {/* Tab 3: Live gRPC Stream Feed Section */}
@@ -686,6 +794,8 @@ export function ClusterMonitorView() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </>
+  )}
+</div>
   )
 }

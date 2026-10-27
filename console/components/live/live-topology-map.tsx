@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import type { Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import DottedMap from "dotted-map"
@@ -11,6 +12,7 @@ import {
   ExternalLink,
   Layers,
   LocateFixed,
+  Maximize2,
   Minus,
   Plus,
   X,
@@ -39,6 +41,7 @@ interface LiveTopologyMapProps {
   totalNodes?: number
   offlineNodes?: number
   avgLatency?: number
+  fullscreenHref?: Route | string
 }
 
 export function LiveTopologyMap({
@@ -52,6 +55,7 @@ export function LiveTopologyMap({
   totalNodes,
   offlineNodes = 0,
   avgLatency = 0,
+  fullscreenHref,
 }: LiveTopologyMapProps) {
   const map = React.useMemo(
     () => new DottedMap({ height: 100, grid: "diagonal" }),
@@ -368,8 +372,8 @@ export function LiveTopologyMap({
         </div>
       </div>
 
-      {/* Top-Right: Mobile View Switcher (< md) & Desktop Legend (md+) */}
-      <div className="absolute top-2 right-2 z-40 sm:top-3 sm:right-4">
+      {/* Top-Right: Mobile View Switcher (< md), Desktop Legend (md+), & Fullscreen Action */}
+      <div className="absolute top-2 right-2 z-40 flex items-center gap-2 sm:top-3 sm:right-4">
         {/* Mobile Segmented View Switcher */}
         {onMobileViewChange && mobileView && (
           <div className="flex items-center rounded-md border border-border/70 bg-background/90 p-0.5 font-mono text-[10.5px] shadow-xs backdrop-blur-md md:hidden">
@@ -402,6 +406,20 @@ export function LiveTopologyMap({
             <span className="font-medium text-red-400">Dead / Outage</span>
           </div>
         </div>
+
+        {/* Direct Fullscreen Wallboard Link */}
+        {fullscreenHref && (
+          <Link href={fullscreenHref as Route} title="Open in Fullscreen Live Wall">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 rounded-md border-border/80 bg-background/90 px-2.5 font-mono text-xs shadow-xs backdrop-blur-md hover:border-emerald-500/50 hover:bg-background"
+            >
+              <Maximize2 className="size-3 text-emerald-500" />
+              <span className="hidden sm:inline">Fullscreen</span>
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Dotted World Map Base */}

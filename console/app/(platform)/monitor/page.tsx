@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { Metadata } from "next"
 
 import { ClusterMonitorView } from "@/components/monitor/cluster-monitor-view"
@@ -9,5 +10,9 @@ export const metadata: Metadata = {
 }
 
 export default function MonitorPage() {
-  return <ClusterMonitorView />
+  return (
+    <Suspense fallback={null}>
+      <ClusterMonitorView />
+    </Suspense>
+  )
 }
