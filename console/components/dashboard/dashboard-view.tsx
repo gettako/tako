@@ -4,6 +4,7 @@ import * as React from "react"
 import { FolderGit2, Layers, Plus, Radio, Server } from "lucide-react"
 
 import { AddNodeDialog } from "@/components/nodes/add-node-dialog"
+import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
 import { NodeCard } from "@/components/nodes/node-card"
 import { NodeTable } from "@/components/nodes/node-table"
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog"
@@ -15,7 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
-import { Project } from "@/types/platform"
+import { ClusterNode, Project } from "@/types/platform"
 
 export function DashboardView() {
   const {
@@ -34,6 +35,9 @@ export function DashboardView() {
   const [addNodeOpen, setAddNodeOpen] = React.useState(false)
   const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
   const [projectToDelete, setProjectToDelete] = React.useState<Project | null>(
+    null
+  )
+  const [nodeToDelete, setNodeToDelete] = React.useState<ClusterNode | null>(
     null
   )
 
@@ -234,11 +238,15 @@ export function DashboardView() {
           {nodesViewMode === "grid" ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
               {nodes.map((node) => (
-                <NodeCard key={node.id} node={node} onDelete={deleteNode} />
+                <NodeCard
+                  key={node.id}
+                  node={node}
+                  onDelete={setNodeToDelete}
+                />
               ))}
             </div>
           ) : (
-            <NodeTable nodes={nodes} onDelete={deleteNode} />
+            <NodeTable nodes={nodes} onDelete={setNodeToDelete} />
           )}
         </section>
       )}
@@ -286,6 +294,12 @@ export function DashboardView() {
         open={!!projectToDelete}
         onOpenChange={(open) => !open && setProjectToDelete(null)}
         onConfirm={deleteProject}
+      />
+      <DeleteNodeDialog
+        node={nodeToDelete}
+        open={!!nodeToDelete}
+        onOpenChange={(open) => !open && setNodeToDelete(null)}
+        onConfirm={deleteNode}
       />
     </div>
   )

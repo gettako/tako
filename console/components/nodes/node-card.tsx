@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils"
 
 interface NodeCardProps {
   node: ClusterNode
-  onDelete?: (id: string) => void
+  onDelete?: (node: ClusterNode) => void
 }
 
 export function NodeCard({ node, onDelete }: NodeCardProps) {
@@ -316,8 +316,9 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
               size="icon-xs"
               variant="ghost"
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
-                onDelete(node.id)
+                onDelete(node)
               }}
               className="size-6 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               title="Remove node"

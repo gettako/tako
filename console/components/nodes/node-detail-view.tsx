@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button"
 import { CodeHighlighter } from "@/components/ui/code-highlighter"
 import { Flag } from "@/components/ui/flag"
 import { EmptyState } from "@/components/ui/empty-state"
+import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
 import { NodeTraefikConfigView } from "@/components/nodes/node-traefik-config-view"
 import { usePlatformData } from "@/context/platform-data-context"
 import { apiGet, apiPost } from "@/lib/api"
@@ -72,6 +73,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const [agentRestartSuccess, setAgentRestartSuccess] = React.useState(false)
   const [isPruning, setIsPruning] = React.useState(false)
   const [pruneSuccess, setPruneSuccess] = React.useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [restartingContainerId, setRestartingContainerId] = React.useState<
     string | null
   >(null)
@@ -353,12 +355,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
             <Button
               size="md"
               variant="outline"
-              onClick={() => {
-                if (confirm(`Remove edge node ${node.name} from cluster?`)) {
-                  deleteNode(node.id)
-                  window.location.assign("/nodes")
-                }
-              }}
+              onClick={() => setDeleteDialogOpen(true)}
               className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <Trash2 className="size-3.5" />
@@ -703,6 +700,16 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
           }}
         />
       )}
+
+      <DeleteNodeDialog
+        node={node}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={async (id) => {
+          await deleteNode(id)
+          window.location.assign("/nodes")
+        }}
+      />
     </div>
   )
 }

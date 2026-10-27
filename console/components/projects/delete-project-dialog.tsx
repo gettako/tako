@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Project } from "@/types/platform"
 
 interface DeleteProjectDialogProps {
@@ -28,13 +29,16 @@ export function DeleteProjectDialog({
   onOpenChange,
   onConfirm,
 }: DeleteProjectDialogProps) {
+  const [confirmationName, setConfirmationName] = React.useState("")
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
   const handleOpenChange = (nextOpen: boolean) => {
+    if (isDeleting) return
     if (!nextOpen) {
       setError(null)
       setIsDeleting(false)
+      setConfirmationName("")
     }
     onOpenChange(nextOpen)
   }
@@ -42,6 +46,7 @@ export function DeleteProjectDialog({
   if (!project) return null
 
   const hasServices = project.servicesCount > 0
+  const isConfirmed = confirmationName.trim() === project.name.trim()
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -92,7 +97,7 @@ export function DeleteProjectDialog({
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-2.5">
               <Button
                 type="button"
                 variant="outline"
@@ -148,6 +153,28 @@ export function DeleteProjectDialog({
                 </div>
               </div>
 
+              <div className="space-y-1.5 pt-1">
+                <label
+                  htmlFor="project-confirmation-input"
+                  className="block text-xs text-foreground"
+                >
+                  Please type{" "}
+                  <span className="font-mono font-semibold text-destructive">
+                    {project.name}
+                  </span>{" "}
+                  to confirm:
+                </label>
+                <Input
+                  id="project-confirmation-input"
+                  value={confirmationName}
+                  onChange={(e) => setConfirmationName(e.target.value)}
+                  placeholder={project.name}
+                  disabled={isDeleting}
+                  autoComplete="off"
+                  className="font-mono text-xs"
+                />
+              </div>
+
               {error && (
                 <div className="rounded border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
                   {error}
@@ -155,7 +182,7 @@ export function DeleteProjectDialog({
               )}
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-2.5">
               <Button
                 type="button"
                 variant="outline"
@@ -169,8 +196,9 @@ export function DeleteProjectDialog({
                 type="button"
                 variant="destructive"
                 size="sm"
-                disabled={isDeleting}
+                disabled={!isConfirmed || isDeleting}
                 onClick={async () => {
+                  if (!isConfirmed) return
                   try {
                     setIsDeleting(true)
                     setError(null)

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Plus, Radio, Search, Server } from "lucide-react"
 
 import { AddNodeDialog } from "@/components/nodes/add-node-dialog"
+import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
 import { NodeCard } from "@/components/nodes/node-card"
 import { NodeTable } from "@/components/nodes/node-table"
 import { Button } from "@/components/ui/button"
@@ -12,12 +13,14 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { usePlatformData } from "@/context/platform-data-context"
+import { ClusterNode } from "@/types/platform"
 
 export function NodesView() {
   const { nodes, nodesViewMode, setNodesViewMode, deleteNode } =
     usePlatformData()
 
   const [addNodeOpen, setAddNodeOpen] = React.useState(false)
+  const [nodeToDelete, setNodeToDelete] = React.useState<ClusterNode | null>(null)
   const [searchQuery, setSearchQuery] = React.useState("")
 
   const filteredNodes = nodes.filter(
@@ -107,14 +110,20 @@ export function NodesView() {
       ) : nodesViewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {filteredNodes.map((node) => (
-            <NodeCard key={node.id} node={node} onDelete={deleteNode} />
+            <NodeCard key={node.id} node={node} onDelete={setNodeToDelete} />
           ))}
         </div>
       ) : (
-        <NodeTable nodes={filteredNodes} onDelete={deleteNode} />
+        <NodeTable nodes={filteredNodes} onDelete={setNodeToDelete} />
       )}
 
       <AddNodeDialog open={addNodeOpen} onOpenChange={setAddNodeOpen} />
+      <DeleteNodeDialog
+        node={nodeToDelete}
+        open={!!nodeToDelete}
+        onOpenChange={(open) => !open && setNodeToDelete(null)}
+        onConfirm={deleteNode}
+      />
     </div>
   )
 }

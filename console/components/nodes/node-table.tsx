@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils"
 
 interface NodeTableProps {
   nodes: ClusterNode[]
-  onDelete?: (id: string) => void
+  onDelete?: (node: ClusterNode) => void
 }
 
 export function NodeTable({ nodes, onDelete }: NodeTableProps) {
@@ -202,6 +202,22 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
 
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1.5">
+                    {onDelete && node.role !== "master" && (
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onDelete(node)
+                        }}
+                        className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        title="Remove node"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    )}
                     <Link
                       href={`/nodes/${node.id}`}
                       className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-muted"
@@ -210,17 +226,6 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                       <span>View</span>
                       <ChevronRight className="size-3" />
                     </Link>
-                    {onDelete && node.role !== "master" && (
-                      <Button
-                        size="icon-xs"
-                        variant="ghost"
-                        onClick={() => onDelete(node.id)}
-                        className="size-7 text-muted-foreground hover:text-destructive"
-                        title="Remove node"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
-                    )}
                   </div>
                 </td>
               </tr>
