@@ -9,6 +9,7 @@ import {
   Download,
   GitBranch,
   Loader2,
+  Rocket,
   RotateCcw,
   Search,
   Terminal,
@@ -48,6 +49,7 @@ interface ServiceDeploymentsTabProps {
 
 export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
   const {
+    triggerDeploy,
     triggerRollback,
     activeDeployingId,
     deploymentLogs,
@@ -129,7 +131,13 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
 
   const activeDeploymentId = service.lastDeployment?.id || history[0]?.id
 
+  const isPending =
+    !selectedDeployment.id ||
+    selectedDeployment.status === "pending" ||
+    (!isDeploying && history.length === 0)
+
   const isSelectedActiveRelease =
+    !isPending &&
     (selectedDeployment.id
       ? selectedDeployment.id === activeDeploymentId
       : selectedDeployment.commitHash === service.lastDeployment?.commitHash) &&
@@ -310,13 +318,17 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
                     ? "border-primary/40 bg-primary/10 text-primary"
                     : isSelectedFailed
                       ? "border-rose-500/40 bg-rose-500/10 text-rose-500"
-                      : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
+                      : isPending
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-500"
+                        : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
                 )}
               >
                 {isSelectedDeploying ? (
                   <Loader2 className="size-3 animate-spin text-primary" />
                 ) : isSelectedFailed ? (
                   <AlertTriangle className="size-3 text-rose-500" />
+                ) : isPending ? (
+                  <span className="size-2 rounded-full bg-amber-500" />
                 ) : (
                   <span className="size-2 rounded-full bg-emerald-500" />
                 )}
@@ -325,9 +337,11 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
                     ? "Deploying (in progress)"
                     : isSelectedFailed
                       ? "Build Failed"
-                      : isSelectedActiveRelease
-                        ? "Active Production"
-                        : "Verified Build"}
+                      : isPending
+                        ? "Not Deployed Yet"
+                        : isSelectedActiveRelease
+                          ? "Active Production"
+                          : "Verified Build"}
                 </span>
               </div>
 
@@ -369,7 +383,19 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
 
           {/* Action Controls */}
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {!isSelectedActiveRelease && (
+            {isPending && !isDeploying && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => triggerDeploy(service.id)}
+                className="gap-1.5 font-mono text-[11px] font-semibold text-primary-foreground"
+              >
+                <Rocket className="size-3.5" />
+                <span>Deploy Workload</span>
+              </Button>
+            )}
+
+            {!isSelectedActiveRelease && !isPending && (
               <Button
                 type="button"
                 variant="outline"

@@ -48,6 +48,7 @@ type CreateServiceParams struct {
 	DatabaseVersion  string
 	ConnectionString string
 	RegistryID       string
+	AutoDeploy       bool
 }
 
 // UpdateServiceParams contains optional field pointers for modifying service settings,
@@ -484,8 +485,8 @@ func (o *Orchestrator) CreateService(ctx context.Context, p CreateServiceParams)
 		},
 	})
 
-	// Automatically trigger initial deployment if repository or image is configured
-	if srv.Repository != "" || srv.Image != "" {
+	// Automatically trigger initial deployment if explicitly requested and repository or image is configured
+	if p.AutoDeploy && (srv.Repository != "" || srv.Image != "") {
 		if _, err := o.TriggerDeploy(ctx, srv.ID); err == nil {
 			srv.Status = "queued"
 		}

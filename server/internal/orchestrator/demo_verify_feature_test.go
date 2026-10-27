@@ -73,6 +73,7 @@ func TestFeature_DemoVerify_CompleteE2ELifecycle(t *testing.T) {
 		Dockerfile: "Dockerfile",
 		Ports:      []int32{8080},
 		Domains:    []string{"demo.gettako.dev"},
+		AutoDeploy: true,
 	})
 	if err != nil {
 		t.Fatalf("CreateService failed: %v", err)

@@ -684,10 +684,10 @@ function CreateServiceContent({
     // Record audit log entry
     addAuditLog({
       action: "service.create",
-      category: "deployment",
+      category: "project",
       actor: { name: "Console Operator", type: "user" },
       target: `${name.trim()} (${type === "dockerfile" ? "Application" : "Compose"})`,
-      details: `Provisioned service on node ${targetNode} with ${cpuLimit} vCPU, ${memoryLimitMb}MB RAM limit`,
+      details: `Created service on node ${targetNode} with ${cpuLimit} vCPU, ${memoryLimitMb}MB RAM limit`,
       status: "success",
     })
 
@@ -735,8 +735,8 @@ function CreateServiceContent({
             <DialogHeader className="gap-1 p-0">
               <DialogTitle className="text-base font-semibold text-foreground">
                 {type === "dockerfile"
-                  ? "Deploy New Application"
-                  : "Deploy Docker Compose Stack"}
+                  ? "Create Application Service"
+                  : "Create Docker Compose Stack"}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
                 {type === "dockerfile"
@@ -1708,10 +1708,10 @@ function CreateServiceContent({
             <div className="space-y-3 rounded-md border border-border bg-card p-4">
               <div className="flex items-center justify-between border-b border-border/60 pb-2">
                 <span className="text-xs font-semibold tracking-wider text-foreground uppercase">
-                  Deployment Review Summary
+                  Service Configuration Review
                 </span>
                 <span className="rounded-sm bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-primary">
-                  Ready to Dispatch
+                  Ready to Save
                 </span>
               </div>
 
@@ -1828,14 +1828,14 @@ function CreateServiceContent({
             </Button>
           ) : (
             <Button
-              key="deploy-workload"
+              key="save-service"
               type="submit"
               form="create-service-form"
               size="sm"
               className="gap-1.5 text-xs font-semibold"
             >
               <Plus className="size-3.5" />
-              <span>Deploy Workload</span>
+              <span>Save Service</span>
             </Button>
           )}
         </div>

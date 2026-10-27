@@ -25,6 +25,54 @@ export function generateStepsForDeployment(
     return dep.steps
   }
 
+  // Undeployed / pending service (saved but not yet deployed)
+  if (!isCurrentlyDeploying && (!dep.id || dep.status === "pending")) {
+    return [
+      {
+        name: "Queued",
+        status: "pending",
+        duration: "-",
+        description: "Awaiting deployment trigger",
+      },
+      {
+        name: "Clone",
+        status: "pending",
+        duration: "-",
+        description: "Git repository source sync",
+      },
+      {
+        name: "Build",
+        status: "pending",
+        duration: "-",
+        description: "Container image compilation",
+      },
+      {
+        name: "Push/Load image",
+        status: "pending",
+        duration: "-",
+        description: "Registry or engine layer caching",
+      },
+      {
+        name: "Deploy",
+        status: "pending",
+        duration: "-",
+        description: "Container instantiation on node " + targetNodeId,
+      },
+      {
+        name: "Health check",
+        status: "pending",
+        duration: "-",
+        description: "Zero-downtime health probe",
+      },
+      {
+        name: "Live",
+        status: "pending",
+        duration: "-",
+        description: "Proxy cutover and telemetry active",
+      },
+    ]
+  }
+
   // Active live deploying
   if (isCurrentlyDeploying) {
     return [
@@ -192,6 +240,20 @@ export function generateLogsForDeployment(
 ): DeploymentLogEntry[] {
   if (isCurrentlyDeploying) {
     return activeLogs
+  }
+
+  // Undeployed / pending service (saved but not yet deployed)
+  if (!dep.id || dep.status === "pending") {
+    return [
+      {
+        id: "log-initial-pending",
+        timestamp: "00:00:00.000",
+        level: "info",
+        step: "Queued",
+        message:
+          "Service configuration saved. No build executed yet. Click Deploy to trigger build and deployment.",
+      },
+    ]
   }
 
   if (dep.status === "failed") {
