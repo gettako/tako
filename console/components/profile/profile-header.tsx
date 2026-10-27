@@ -6,7 +6,6 @@ import {
   Clock,
   Copy,
   Globe,
-  KeyRound,
   Mail,
   ShieldCheck,
 } from "lucide-react"
@@ -19,7 +18,6 @@ import { getInitials } from "@/lib/user"
 export function ProfileHeader() {
   const { currentUser } = usePlatformData()
   const [copiedId, setCopiedId] = React.useState(false)
-  const [copiedGpg, setCopiedGpg] = React.useState(false)
 
   const initials = getInitials(currentUser.name, "OP")
 
@@ -27,14 +25,6 @@ export function ProfileHeader() {
     void copyToClipboard(currentUser.id)
     setCopiedId(true)
     setTimeout(() => setCopiedId(false), 2000)
-  }
-
-  const handleCopyGpg = () => {
-    if (currentUser.gpgKeyId) {
-      void copyToClipboard(currentUser.gpgKeyId)
-      setCopiedGpg(true)
-      setTimeout(() => setCopiedGpg(false), 2000)
-    }
   }
 
   return (
@@ -72,11 +62,6 @@ export function ProfileHeader() {
               )}
             </div>
 
-            <p className="max-w-xl text-xs text-muted-foreground">
-              {currentUser.title || "Principal Infrastructure Architect"}
-              {currentUser.bio ? ` - ${currentUser.bio}` : ""}
-            </p>
-
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 font-mono text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Mail className="size-3 text-primary" />
@@ -111,24 +96,6 @@ export function ProfileHeader() {
             )}
             <span>{currentUser.id}</span>
           </Button>
-
-          {currentUser.gpgKeyId && (
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              onClick={handleCopyGpg}
-              className="gap-1.5 font-mono text-xs"
-              title="Copy Git Commit GPG Key Fingerprint"
-            >
-              {copiedGpg ? (
-                <Check className="size-3 text-emerald-500" />
-              ) : (
-                <KeyRound className="size-3 text-muted-foreground" />
-              )}
-              <span>{currentUser.gpgKeyId}</span>
-            </Button>
-          )}
         </div>
       </div>
     </div>

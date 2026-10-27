@@ -16,7 +16,6 @@ import {
   RotateCw,
   Server,
   Shield,
-  Terminal,
   Trash2,
 } from "lucide-react"
 
@@ -24,6 +23,7 @@ import { Button } from "@/components/ui/button"
 import { CodeHighlighter } from "@/components/ui/code-highlighter"
 import { Flag } from "@/components/ui/flag"
 import { EmptyState } from "@/components/ui/empty-state"
+import { NodeTraefikConfigView } from "@/components/nodes/node-traefik-config-view"
 import { usePlatformData } from "@/context/platform-data-context"
 import { apiGet, apiPost } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -48,7 +48,7 @@ interface NodeDetailViewProps {
   nodeId: string
 }
 
-type TabType = "containers" | "telemetry" | "config"
+type TabType = "containers" | "telemetry" | "traefik"
 
 export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const { nodes, services, currentUser, updateService, deleteNode, addAuditLog } = usePlatformData()
@@ -529,16 +529,16 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
 
         <button
           type="button"
-          onClick={() => setActiveTab("config")}
+          onClick={() => setActiveTab("traefik")}
           className={cn(
             "flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "config"
+            activeTab === "traefik"
               ? "border-primary font-semibold text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
-          <Terminal className="size-3.5" />
-          <span>Agent Daemon Config</span>
+          <FileCode2 className="size-3.5" />
+          <span>Traefik Config</span>
         </button>
       </div>
 
@@ -683,55 +683,22 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
         </div>
       )}
 
-      {/* Tab 3: Agent Daemon Configuration */}
-      {activeTab === "config" && (
-        <div className="space-y-4">
-          <div className="rounded-lg border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileCode2 className="size-4 text-primary" />
-                <span className="font-mono text-xs font-semibold text-foreground">
-                  /etc/tako/agent.yaml
-                </span>
-              </div>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                Mode: Read-only Remote Spec (YAML Prism Highlighted)
-              </span>
-            </div>
-
-            <div className="mt-3">
-              <CodeHighlighter
-                language="yaml"
-                code={`node:
-  id: "${node.id}"
-  name: "${node.name}"
-  role: "${node.role}"
-  region: "${node.location.code}"
-
-server:
-  grpc_endpoint: "master.tako.internal:50051"
-  tls:
-    enabled: true
-    ca_cert: "/etc/tako/certs/ca.pem"
-    client_cert: "/etc/tako/certs/agent-cert.pem"
-    client_key: "/etc/tako/certs/agent-key.pem"
-
-telemetry:
-  interval_seconds: 5
-  collect_docker_stats: true
-  report_load_averages: true
-
-docker:
-  socket: "unix:///var/run/docker.sock"
-  prune_unused_images_on_boot: false
-`}
-                maxHeight="max-h-[500px]"
-                showLineNumbers={true}
-                showCopy={true}
-              />
-            </div>
-          </div>
-        </div>
+      {/* Tab 3: Traefik Ingress & Configuration Manager */}
+      {activeTab === "traefik" && (
+        <NodeTraefikConfigView
+          node={node}
+          actorName={actorName}
+          onAuditLog={(action, target, details) => {
+            addAuditLog({
+              action,
+              category: "node",
+              actor: { name: actorName, type: "user" },
+              target,
+              details,
+              status: "success",
+            })
+          }}
+        />
       )}
     </div>
   )

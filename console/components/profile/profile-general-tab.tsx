@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, KeyRound, Save, Sparkles, User } from "lucide-react"
+import { Check, Globe, Save, ShieldCheck, User } from "lucide-react"
 import { z } from "zod"
 
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,7 @@ import {
 import { usePlatformData } from "@/context/platform-data-context"
 import { useZodForm } from "@/hooks/use-zod-form"
 
-const profileSchema = z.object({
+export const profileSchema = z.object({
   name: z
     .string()
     .trim()
@@ -39,23 +39,10 @@ const profileSchema = z.object({
     .trim()
     .min(1, "Email is required.")
     .email("Enter a valid email address."),
-  title: z
-    .string()
-    .trim()
-    .max(120, "Job title must be 120 characters or fewer."),
-  bio: z.string().max(500, "Notes must be 500 characters or fewer."),
   timezone: z.string().min(1, "Select a timezone."),
-  defaultLanding: z.enum(["dashboard", "nodes", "projects", "monitor"]),
-  gpgKeyId: z
-    .string()
-    .trim()
-    .refine(
-      (value) => !value || /^(0x)?[a-f0-9]{8,40}$/i.test(value),
-      "Enter a valid GPG key fingerprint."
-    ),
 })
 
-const TIMEZONE_OPTIONS: SelectOption[] = [
+export const TIMEZONE_OPTIONS: SelectOption[] = [
   {
     value: "Asia/Makassar (UTC+08:00)",
     label: "Asia/Makassar (UTC+08:00)",
@@ -98,42 +85,13 @@ const TIMEZONE_OPTIONS: SelectOption[] = [
   },
 ]
 
-const LANDING_OPTIONS: SelectOption[] = [
-  {
-    value: "dashboard",
-    label: "Topology Dashboard (/dashboard)",
-    description: "Real-time edge cluster topology and mesh health",
-  },
-  {
-    value: "nodes",
-    label: "Edge Compute Nodes (/nodes)",
-    description: "Compute instances, heartbeats and hardware specs",
-  },
-  {
-    value: "projects",
-    label: "Services & Projects (/projects)",
-    description: "Active container deployments and git repositories",
-  },
-  {
-    value: "monitor",
-    label: "Live Telemetry Monitor (/monitor)",
-    description: "Real-time stream logs, traces and metrics",
-  },
-]
-
 export function ProfileGeneralTab() {
-  const { currentUser, updateCurrentUser } = usePlatformData()
+  const { currentUser, updateCurrentUser, sessions } = usePlatformData()
 
   const [name, setName] = React.useState(currentUser.name)
   const [handle, setHandle] = React.useState(currentUser.handle)
   const [email, setEmail] = React.useState(currentUser.email)
-  const [title, setTitle] = React.useState(currentUser.title || "")
-  const [bio, setBio] = React.useState(currentUser.bio || "")
   const [timezone, setTimezone] = React.useState(currentUser.timezone)
-  const [defaultLanding, setDefaultLanding] = React.useState(
-    currentUser.defaultLanding || "dashboard"
-  )
-  const [gpgKeyId, setGpgKeyId] = React.useState(currentUser.gpgKeyId || "")
   const { errors, validate, clearError } = useZodForm(profileSchema)
 
   const [saved, setSaved] = React.useState(false)
@@ -144,11 +102,7 @@ export function ProfileGeneralTab() {
       name,
       handle: handle.trim().replace(/^@/, ""),
       email,
-      title,
-      bio,
       timezone,
-      defaultLanding,
-      gpgKeyId,
     })
     if (!valid) return
 
@@ -156,11 +110,7 @@ export function ProfileGeneralTab() {
       name: name.trim(),
       handle: handle.trim().replace(/^@/, ""),
       email: email.trim(),
-      title: title.trim(),
-      bio: bio.trim(),
       timezone,
-      defaultLanding,
-      gpgKeyId: gpgKeyId.trim(),
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -168,84 +118,89 @@ export function ProfileGeneralTab() {
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} noValidate className="space-y-6">
-        {/* Basic Information Section */}
-        <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <User className="size-4 text-primary" />
-                <span>Operator Identity & Role Attributes</span>
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Personal credentials and metadata visible to other cluster
-                operators and logged in audit trails.
-              </p>
-            </div>
-            {saved && (
-              <span className="flex animate-in items-center gap-1.5 font-mono text-xs text-emerald-500 fade-in">
-                <Check className="size-3.5" />
-                <span>Changes Saved</span>
-              </span>
-            )}
+      <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs">
+        {/* Card Header */}
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <User className="size-4 text-primary" />
+              <span>Operator Identity & Access Profile</span>
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Personal credentials, operational timezone, and cluster role
+              attributes.
+            </p>
           </div>
+          {saved && (
+            <span className="flex animate-in items-center gap-1.5 font-mono text-xs text-emerald-500 fade-in">
+              <Check className="size-3.5" />
+              <span>Changes Saved</span>
+            </span>
+          )}
+        </div>
 
-          <FieldGroup className="gap-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field data-invalid={Boolean(errors.name)}>
-                <FieldLabel htmlFor="operator-name" className="text-xs">
-                  Full Name
-                </FieldLabel>
-                <Input
-                  id="operator-name"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value)
-                    clearError("name")
-                  }}
-                  placeholder="e.g. Supian M"
-                  aria-invalid={Boolean(errors.name)}
-                  aria-describedby={
-                    errors.name ? "operator-name-error" : undefined
-                  }
-                  required
-                />
-                <FieldError id="operator-name-error" className="text-[11px]">
-                  {errors.name}
-                </FieldError>
-              </Field>
-
-              <Field data-invalid={Boolean(errors.handle)}>
-                <FieldLabel htmlFor="operator-handle" className="text-xs">
-                  Handle / Username
-                </FieldLabel>
-                <div className="relative">
-                  <span className="absolute top-2.5 left-3 font-mono text-xs text-muted-foreground">
-                    @
-                  </span>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          {/* Left Column: Form Fields */}
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="space-y-4 lg:col-span-7"
+          >
+            <FieldGroup className="gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field data-invalid={Boolean(errors.name)}>
+                  <FieldLabel htmlFor="operator-name" className="text-xs">
+                    Full Name
+                  </FieldLabel>
                   <Input
-                    id="operator-handle"
-                    value={handle}
+                    id="operator-name"
+                    value={name}
                     onChange={(e) => {
-                      setHandle(e.target.value)
-                      clearError("handle")
+                      setName(e.target.value)
+                      clearError("name")
                     }}
-                    placeholder="supian"
-                    aria-invalid={Boolean(errors.handle)}
+                    placeholder="e.g. Supian M"
+                    aria-invalid={Boolean(errors.name)}
                     aria-describedby={
-                      errors.handle ? "operator-handle-error" : undefined
+                      errors.name ? "operator-name-error" : undefined
                     }
-                    className="pl-7 font-mono"
                     required
                   />
-                </div>
-                <FieldError id="operator-handle-error" className="text-[11px]">
-                  {errors.handle}
-                </FieldError>
-              </Field>
-            </div>
+                  <FieldError id="operator-name-error" className="text-[11px]">
+                    {errors.name}
+                  </FieldError>
+                </Field>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field data-invalid={Boolean(errors.handle)}>
+                  <FieldLabel htmlFor="operator-handle" className="text-xs">
+                    Handle / Username
+                  </FieldLabel>
+                  <div className="relative">
+                    <span className="absolute top-2.5 left-3 font-mono text-xs text-muted-foreground">
+                      @
+                    </span>
+                    <Input
+                      id="operator-handle"
+                      value={handle}
+                      onChange={(e) => {
+                        setHandle(e.target.value)
+                        clearError("handle")
+                      }}
+                      placeholder="supian"
+                      aria-invalid={Boolean(errors.handle)}
+                      aria-describedby={
+                        errors.handle ? "operator-handle-error" : undefined
+                      }
+                      className="pl-7 font-mono"
+                      required
+                    />
+                  </div>
+                  <FieldError id="operator-handle-error" className="text-[11px]">
+                    {errors.handle}
+                  </FieldError>
+                </Field>
+              </div>
+
               <Field data-invalid={Boolean(errors.email)}>
                 <FieldLabel htmlFor="operator-email" className="text-xs">
                   Primary Alert & Account Email
@@ -271,71 +226,13 @@ export function ProfileGeneralTab() {
                 </FieldError>
               </Field>
 
-              <Field data-invalid={Boolean(errors.title)}>
-                <FieldLabel htmlFor="operator-title" className="text-xs">
-                  Operational Job Title
-                </FieldLabel>
-                <Input
-                  id="operator-title"
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value)
-                    clearError("title")
-                  }}
-                  placeholder="e.g. Principal Infrastructure Architect"
-                  aria-invalid={Boolean(errors.title)}
-                  aria-describedby={
-                    errors.title ? "operator-title-error" : undefined
-                  }
-                />
-                <FieldError id="operator-title-error" className="text-[11px]">
-                  {errors.title}
-                </FieldError>
-              </Field>
-            </div>
-
-            <Field data-invalid={Boolean(errors.bio)}>
-              <FieldLabel htmlFor="operator-bio" className="text-xs">
-                Operator Notes & Specialization
-              </FieldLabel>
-              <textarea
-                id="operator-bio"
-                value={bio}
-                onChange={(e) => {
-                  setBio(e.target.value)
-                  clearError("bio")
-                }}
-                placeholder="Core responsibilities, on-call escalation schedules, or team domain notes..."
-                rows={3}
-                aria-invalid={Boolean(errors.bio)}
-                aria-describedby={errors.bio ? "operator-bio-error" : undefined}
-                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-xs placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-1 aria-invalid:ring-destructive/20"
-              />
-              <FieldError id="operator-bio-error" className="text-[11px]">
-                {errors.bio}
-              </FieldError>
-            </Field>
-          </FieldGroup>
-        </div>
-
-        {/* Preferences & Development Environment */}
-        <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs">
-          <div className="border-b border-border pb-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              <Sparkles className="size-4 text-primary" />
-              <span>Platform Preferences & Environment</span>
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Customize default routing, display timezones, and cryptographic
-              signing keys for deployment commits.
-            </p>
-          </div>
-
-          <FieldGroup className="gap-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field data-invalid={Boolean(errors.timezone)}>
-                <FieldLabel htmlFor="operator-timezone" className="text-xs">
-                  Operational Timezone
+                <FieldLabel
+                  htmlFor="operator-timezone"
+                  className="flex items-center gap-1.5 text-xs"
+                >
+                  <Globe className="size-3 text-primary" />
+                  <span>Operational Timezone</span>
                 </FieldLabel>
                 <SearchableSelect
                   id="operator-timezone"
@@ -348,6 +245,10 @@ export function ProfileGeneralTab() {
                   placeholder="Select timezone..."
                   searchPlaceholder="Search timezone..."
                 />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Applied to timestamp displays across cluster telemetry
+                  streams, logs, and node heartbeats.
+                </p>
                 <FieldError
                   id="operator-timezone-error"
                   className="text-[11px]"
@@ -355,80 +256,109 @@ export function ProfileGeneralTab() {
                   {errors.timezone}
                 </FieldError>
               </Field>
+            </FieldGroup>
 
-              <Field data-invalid={Boolean(errors.defaultLanding)}>
-                <FieldLabel htmlFor="default-landing" className="text-xs">
-                  Default Console Landing View
-                </FieldLabel>
-                <SearchableSelect
-                  id="default-landing"
-                  value={defaultLanding}
-                  onChange={(val) => {
-                    setDefaultLanding(
-                      val as "dashboard" | "nodes" | "projects" | "monitor"
-                    )
-                    clearError("defaultLanding")
-                  }}
-                  options={LANDING_OPTIONS}
-                  placeholder="Select landing view..."
-                  searchPlaceholder="Search views..."
-                />
-                <FieldError id="default-landing-error" className="text-[11px]">
-                  {errors.defaultLanding}
-                </FieldError>
-              </Field>
+            <div className="pt-2">
+              <Button type="submit" size="sm" className="gap-2 text-xs">
+                {saved ? (
+                  <>
+                    <Check className="size-3.5" />
+                    <span>Profile Saved</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="size-3.5" />
+                    <span>Save Profile Changes</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+
+          {/* Right Column: Account & Access Overview */}
+          <div className="flex flex-col justify-between space-y-4 rounded-lg border border-border bg-muted/20 p-4 lg:col-span-5">
+            <div className="space-y-3.5">
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <ShieldCheck className="size-3.5 text-primary" />
+                    <span>Cluster Access & Role</span>
+                  </span>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">
+                    Privilege boundary and authority level.
+                  </p>
+                </div>
+                <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-primary capitalize">
+                  {currentUser.role === "owner"
+                    ? "Cluster Owner"
+                    : "Platform Admin"}
+                </span>
+              </div>
+
+              {/* Active Scopes */}
+              <div className="space-y-1.5 font-mono text-xs">
+                <span className="block text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+                  Authorized Capabilities
+                </span>
+                <ul className="space-y-1.5 text-[11px] text-muted-foreground">
+                  <li className="flex items-center gap-2">
+                    <Check className="size-3 shrink-0 text-emerald-500" />
+                    <span className="text-foreground">
+                      Full mesh & edge topology orchestration
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="size-3 shrink-0 text-emerald-500" />
+                    <span className="text-foreground">
+                      Node provisioning & compute management
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="size-3 shrink-0 text-emerald-500" />
+                    <span className="text-foreground">
+                      Secrets & cryptographic deployment signing
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check className="size-3 shrink-0 text-emerald-500" />
+                    <span className="text-foreground">
+                      System telemetry, audit logs & trace streams
+                    </span>
+                  </li>
+                </ul>
+              </div>
             </div>
 
-            <Field data-invalid={Boolean(errors.gpgKeyId)}>
-              <FieldLabel
-                htmlFor="gpg-key-id"
-                className="flex items-center gap-1.5 text-xs"
-              >
-                <KeyRound className="size-3 text-primary" />
-                <span>Git Commit Signing GPG Key Fingerprint</span>
-              </FieldLabel>
-              <Input
-                id="gpg-key-id"
-                value={gpgKeyId}
-                onChange={(e) => {
-                  setGpgKeyId(e.target.value)
-                  clearError("gpgKeyId")
-                }}
-                placeholder="e.g. 0x4A8E9B2F10C8317A"
-                aria-invalid={Boolean(errors.gpgKeyId)}
-                aria-describedby={
-                  errors.gpgKeyId ? "gpg-key-id-error" : undefined
-                }
-                className="font-mono text-xs"
-              />
-              <FieldError id="gpg-key-id-error" className="text-[11px]">
-                {errors.gpgKeyId}
-              </FieldError>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Used to verify deployment provenance and validate automated git
-                commit signatures during edge builds.
-              </p>
-            </Field>
-          </FieldGroup>
+            {/* Quick Status Info */}
+            <div className="space-y-2 rounded-md border border-border bg-card/60 p-3 text-xs">
+              <div className="flex items-center justify-between font-mono text-[11px]">
+                <span className="text-muted-foreground">Security State:</span>
+                {currentUser.twoFactorEnabled ? (
+                  <span className="inline-flex items-center gap-1 font-medium text-emerald-500">
+                    <span className="size-1.5 rounded-full bg-emerald-500" />
+                    <span>2FA Protected</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 font-medium text-amber-500">
+                    <span className="size-1.5 rounded-full bg-amber-500" />
+                    <span>2FA Not Enabled</span>
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between font-mono text-[11px]">
+                <span className="text-muted-foreground">Active Sessions:</span>
+                <span className="font-medium text-foreground">
+                  {sessions.length} device(s)
+                </span>
+              </div>
+              <div className="flex items-center justify-between font-mono text-[11px]">
+                <span className="text-muted-foreground">Member Since:</span>
+                <span className="text-foreground">{currentUser.createdAt}</span>
+              </div>
+            </div>
+          </div>
         </div>
-
-        {/* Submit Actions */}
-        <div className="flex items-center justify-end gap-3 pt-2">
-          <Button type="submit" size="sm" className="gap-2 text-xs">
-            {saved ? (
-              <>
-                <Check className="size-3.5" />
-                <span>Profile Saved</span>
-              </>
-            ) : (
-              <>
-                <Save className="size-3.5" />
-                <span>Save Profile Changes</span>
-              </>
-            )}
-          </Button>
-        </div>
-      </form>
+      </div>
     </div>
   )
 }

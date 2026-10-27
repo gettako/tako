@@ -3,7 +3,6 @@
 import * as React from "react"
 import {
   Activity,
-  Fingerprint,
   Laptop,
   ShieldCheck,
   User,
@@ -12,7 +11,6 @@ import {
 import { ProfileActivityTab } from "@/components/profile/profile-activity-tab"
 import { ProfileGeneralTab } from "@/components/profile/profile-general-tab"
 import { ProfileHeader } from "@/components/profile/profile-header"
-import { ProfilePasskeysTab } from "@/components/profile/profile-passkeys-tab"
 import { ProfileSecurityTab } from "@/components/profile/profile-security-tab"
 import { ProfileSessionsTab } from "@/components/profile/profile-sessions-tab"
 import { siteConfig } from "@/config/site"
@@ -22,9 +20,15 @@ import { cn } from "@/lib/utils"
 export type ProfileTab =
   | "general"
   | "security"
-  | "passkeys"
   | "sessions"
   | "activity"
+
+export const PROFILE_TABS: ProfileTab[] = [
+  "general",
+  "security",
+  "sessions",
+  "activity",
+]
 
 interface TabItem {
   id: ProfileTab
@@ -34,14 +38,13 @@ interface TabItem {
 }
 
 export function ProfileView() {
-  const { currentUser, passkeys, sessions } = usePlatformData()
+  const { currentUser, sessions } = usePlatformData()
   const [activeTab, setActiveTab] = React.useState<ProfileTab>("general")
 
   React.useEffect(() => {
     const tabTitles: Record<ProfileTab, string> = {
       general: "Profile",
-      security: "Security & 2FA · Profile",
-      passkeys: "Passkeys · Profile",
+      security: "Security · Profile",
       sessions: "Sessions · Profile",
       activity: "Activity Log · Profile",
     }
@@ -57,15 +60,9 @@ export function ProfileView() {
     },
     {
       id: "security",
-      label: "Security & 2FA",
+      label: "Security & Credentials",
       icon: ShieldCheck,
       badge: currentUser.twoFactorEnabled ? "2FA Active" : undefined,
-    },
-    {
-      id: "passkeys",
-      label: "Hardware Passkeys",
-      icon: Fingerprint,
-      badge: passkeys.length,
     },
     {
       id: "sessions",
@@ -117,7 +114,7 @@ export function ProfileView() {
                 {tab.badge !== undefined && (
                   <span
                     className={cn(
-                      "py-0.2 rounded-full px-1.5 font-mono text-[10px]",
+                      "rounded-full px-1.5 py-0.5 font-mono text-[10px]",
                       isActive
                         ? "bg-primary/10 font-semibold text-primary"
                         : "bg-muted text-muted-foreground"
@@ -136,7 +133,6 @@ export function ProfileView() {
       <div className="min-h-[420px]">
         {activeTab === "general" && <ProfileGeneralTab />}
         {activeTab === "security" && <ProfileSecurityTab />}
-        {activeTab === "passkeys" && <ProfilePasskeysTab />}
         {activeTab === "sessions" && <ProfileSessionsTab />}
         {activeTab === "activity" && <ProfileActivityTab />}
       </div>
