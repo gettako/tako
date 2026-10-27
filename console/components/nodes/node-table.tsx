@@ -6,6 +6,7 @@ import { Check, ChevronRight, Copy, Radio, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Flag } from "@/components/ui/flag"
+import { OsIcon } from "@/components/ui/os-icon"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
 import { ClusterNode } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
@@ -57,7 +58,7 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40">
-                      <Radio className="size-3.5 text-primary" />
+                      <OsIcon os={node.os} className="size-3.5" />
                     </div>
                     <div>
                       <Link
