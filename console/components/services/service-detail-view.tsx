@@ -27,6 +27,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { CodeEditor } from "@/components/ui/code-editor"
+import { motion } from "motion/react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Flag } from "@/components/ui/flag"
 import { ServiceCronsTab } from "@/components/services/service-crons-tab"
@@ -419,12 +420,19 @@ export function ServiceDetailView({
           type="button"
           onClick={() => setActiveTab("overview")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
             currentTab === "overview"
-              ? "border-primary font-semibold text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {currentTab === "overview" && (
+            <motion.div
+              layoutId="service-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <LayoutDashboard className="size-3.5" />
           <span>Overview</span>
         </button>
@@ -434,12 +442,19 @@ export function ServiceDetailView({
           type="button"
           onClick={() => setActiveTab("deployments")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
             currentTab === "deployments"
-              ? "border-primary font-semibold text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {currentTab === "deployments" && (
+            <motion.div
+              layoutId="service-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <Rocket className="size-3.5" />
           <span>Deployments</span>
           {isDeploying && (
@@ -452,12 +467,19 @@ export function ServiceDetailView({
           type="button"
           onClick={() => setActiveTab("terminal")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
             currentTab === "terminal"
-              ? "border-primary font-semibold text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {currentTab === "terminal" && (
+            <motion.div
+              layoutId="service-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <Terminal className="size-3.5" />
           <span>Terminal</span>
           <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -468,12 +490,19 @@ export function ServiceDetailView({
           type="button"
           onClick={() => setActiveTab("logs")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
             currentTab === "logs"
-              ? "border-primary font-semibold text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {currentTab === "logs" && (
+            <motion.div
+              layoutId="service-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <ScrollText className="size-3.5" />
           <span>Logs</span>
           {service.status === "running" && (
@@ -486,12 +515,19 @@ export function ServiceDetailView({
           type="button"
           onClick={() => setActiveTab("crons")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
             currentTab === "crons"
-              ? "border-primary font-semibold text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {currentTab === "crons" && (
+            <motion.div
+              layoutId="service-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <Clock className="size-3.5" />
           <span>Cron Jobs</span>
         </button>
@@ -502,12 +538,19 @@ export function ServiceDetailView({
             type="button"
             onClick={() => setActiveTab("config")}
             className={cn(
-              "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+              "relative flex items-center gap-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
               currentTab === "config"
-                ? "border-primary font-semibold text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "font-semibold text-primary"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
+            {currentTab === "config" && (
+              <motion.div
+                layoutId="service-detail-tab-indicator"
+                className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+                transition={{ type: "spring", stiffness: 450, damping: 35 }}
+              />
+            )}
             <Boxes className="size-3.5" />
             <span>Docker Compose</span>
           </button>
@@ -518,80 +561,93 @@ export function ServiceDetailView({
           type="button"
           onClick={() => setActiveTab("settings")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 font-medium whitespace-nowrap transition-colors",
             currentTab === "settings"
-              ? "border-primary font-semibold text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-primary"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {currentTab === "settings" && (
+            <motion.div
+              layoutId="service-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <Settings className="size-3.5" />
           <span>Service Settings</span>
         </button>
       </div>
 
       {/* Tab Content Rendering */}
-
-      {/* View 1: Overview */}
-      {currentTab === "overview" && (
-        <ServiceOverviewTab
-          service={service}
-          project={project}
-          targetNode={targetNode}
-          onNavigateTab={setActiveTab}
-        />
-      )}
-
-      {/* View 2: Deployments */}
-      {currentTab === "deployments" && (
-        <ServiceDeploymentsTab service={service} />
-      )}
-
-      {/* View 3: Container Terminal */}
-      {currentTab === "terminal" && <ServiceTerminalTab service={service} />}
-
-      {/* View 4: Runtime Logs */}
-      {currentTab === "logs" && <ServiceLogsTab service={service} />}
-
-      {/* View 5: Scheduled Cron Jobs */}
-      {currentTab === "crons" && <ServiceCronsTab service={service} />}
-
-      {/* View 6: Docker Compose Manifest Editor (Only for compose services) */}
-      {service.type === "docker-compose" && currentTab === "config" && (
-        <div className="space-y-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-xs text-muted-foreground">
-              <span>Target: </span>
-              <code className="font-mono text-foreground">
-                docker-compose.yml
-              </code>{" "}
-              (streamed via gRPC to remote agent)
-            </div>
-            <span className="font-mono text-xs text-muted-foreground">
-              {configContent.split("\n").length} lines
-            </span>
-          </div>
-
-          <CodeEditor
-            language="yaml"
-            value={configContent}
-            onChange={setConfigContent}
-            minHeight="min-h-[420px]"
-            maxHeight="max-h-[600px]"
-            showLineNumbers={true}
-            showCopy={true}
-            showSave={true}
-            onSave={handleSaveConfig}
-            isSaved={configSaved}
-            title="docker-compose.yml"
-            statusInfo="Live syntax highlighted"
+      <motion.div
+        key={currentTab}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+      >
+        {/* View 1: Overview */}
+        {currentTab === "overview" && (
+          <ServiceOverviewTab
+            service={service}
+            project={project}
+            targetNode={targetNode}
+            onNavigateTab={setActiveTab}
           />
-        </div>
-      )}
+        )}
 
-      {/* View 6: Settings with Vertical Sub-Menu */}
-      {currentTab === "settings" && (
-        <ServiceSettingsView service={service} nodes={nodes} />
-      )}
+        {/* View 2: Deployments */}
+        {currentTab === "deployments" && (
+          <ServiceDeploymentsTab service={service} />
+        )}
+
+        {/* View 3: Container Terminal */}
+        {currentTab === "terminal" && <ServiceTerminalTab service={service} />}
+
+        {/* View 4: Runtime Logs */}
+        {currentTab === "logs" && <ServiceLogsTab service={service} />}
+
+        {/* View 5: Scheduled Cron Jobs */}
+        {currentTab === "crons" && <ServiceCronsTab service={service} />}
+
+        {/* View 6: Docker Compose Manifest Editor (Only for compose services) */}
+        {service.type === "docker-compose" && currentTab === "config" && (
+          <div className="space-y-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-xs text-muted-foreground">
+                <span>Target: </span>
+                <code className="font-mono text-foreground">
+                  docker-compose.yml
+                </code>{" "}
+                (streamed via gRPC to remote agent)
+              </div>
+              <span className="font-mono text-xs text-muted-foreground">
+                {configContent.split("\n").length} lines
+              </span>
+            </div>
+
+            <CodeEditor
+              language="yaml"
+              value={configContent}
+              onChange={setConfigContent}
+              minHeight="min-h-[420px]"
+              maxHeight="max-h-[600px]"
+              showLineNumbers={true}
+              showCopy={true}
+              showSave={true}
+              onSave={handleSaveConfig}
+              isSaved={configSaved}
+              title="docker-compose.yml"
+              statusInfo="Live syntax highlighted"
+            />
+          </div>
+        )}
+
+        {/* View 6: Settings with Vertical Sub-Menu */}
+        {currentTab === "settings" && (
+          <ServiceSettingsView service={service} nodes={nodes} />
+        )}
+      </motion.div>
     </div>
   )
 }

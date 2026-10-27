@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Settings as SettingsIcon } from "lucide-react"
+import { motion } from "motion/react"
 
 import { BackupsPanel } from "@/components/settings/backups-panel"
 import { DomainPanel } from "@/components/settings/domain-panel"
@@ -111,30 +112,37 @@ export function SettingsView() {
 
         {/* Right Column: Tab Content */}
         <main className="min-w-0 lg:col-span-8 xl:col-span-9">
-          {activeSection === "overview" && (
-            <OverviewPanel onNavigateToTab={setActiveSection} />
-          )}
+          <motion.div
+            key={activeSection}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            {activeSection === "overview" && (
+              <OverviewPanel onNavigateToTab={setActiveSection} />
+            )}
 
-          {activeSection === "users" && <UsersPanel />}
+            {activeSection === "users" && <UsersPanel />}
 
-          {activeSection === "registries" && <RegistriesPanel />}
+            {activeSection === "registries" && <RegistriesPanel />}
 
-          {activeSection === "storage" && (
-            <S3StorageSection
-              buckets={s3Buckets}
-              onBucketsChange={handleBucketsChange}
-            />
-          )}
+            {activeSection === "storage" && (
+              <S3StorageSection
+                buckets={s3Buckets}
+                onBucketsChange={handleBucketsChange}
+              />
+            )}
 
-          {activeSection === "git" && <GitPanel />}
+            {activeSection === "git" && <GitPanel />}
 
-          {activeSection === "backups" && <BackupsPanel />}
+            {activeSection === "backups" && <BackupsPanel />}
 
-          {activeSection === "domain" && <DomainPanel />}
+            {activeSection === "domain" && <DomainPanel />}
 
-          {activeSection === "notifications" && <NotificationsPanel />}
+            {activeSection === "notifications" && <NotificationsPanel />}
 
-          {activeSection === "network" && <NetworkPanel />}
+            {activeSection === "network" && <NetworkPanel />}
+          </motion.div>
         </main>
       </div>
     </div>

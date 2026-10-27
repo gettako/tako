@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { motion } from "motion/react"
 
 export type SettingsSection =
   | "overview"
@@ -126,26 +127,35 @@ export function SettingsNav({
               type="button"
               onClick={() => onSectionChange(item.id)}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+                "relative flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                 isActive
-                  ? "bg-primary font-semibold text-primary-foreground shadow-xs"
+                  ? "font-semibold text-primary-foreground shadow-xs"
                   : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <Icon className="size-3.5" />
-              <span>{item.label}</span>
-              {item.badge !== undefined && (
-                <span
-                  className={cn(
-                    "py-0.2 rounded px-1.5 font-mono text-[10px]",
-                    isActive
-                      ? "bg-primary-foreground/20 text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {item.badge}
-                </span>
+              {isActive && (
+                <motion.div
+                  layoutId="settings-nav-mobile-active"
+                  className="absolute inset-0 rounded-md bg-primary"
+                  transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                />
               )}
+              <span className="relative z-10 flex items-center gap-2">
+                <Icon className="size-3.5" />
+                <span>{item.label}</span>
+                {item.badge !== undefined && (
+                  <span
+                    className={cn(
+                      "py-0.2 rounded px-1.5 font-mono text-[10px]",
+                      isActive
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </span>
             </button>
           )
         })}
@@ -169,13 +179,20 @@ export function SettingsNav({
               type="button"
               onClick={() => onSectionChange(item.id)}
               className={cn(
-                "flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
+                "relative flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
                 isActive
-                  ? "bg-primary font-semibold text-primary-foreground shadow-xs"
+                  ? "font-semibold text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <div className="flex min-w-0 items-center gap-2.5">
+              {isActive && (
+                <motion.div
+                  layoutId="settings-nav-desktop-active"
+                  className="absolute inset-0 rounded-md bg-primary"
+                  transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                />
+              )}
+              <div className="relative z-10 flex min-w-0 items-center gap-2.5">
                 <Icon className="size-4 shrink-0" />
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{item.label}</span>
@@ -195,7 +212,7 @@ export function SettingsNav({
               {item.badge !== undefined && (
                 <span
                   className={cn(
-                    "ml-2 shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px]",
+                    "relative z-10 ml-2 shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px]",
                     isActive
                       ? "bg-primary-foreground/20 text-primary-foreground"
                       : "border border-border/50 bg-muted text-muted-foreground"

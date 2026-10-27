@@ -11,6 +11,7 @@ import { ProfileSessionsTab } from "@/components/profile/profile-sessions-tab"
 import { siteConfig } from "@/config/site"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
+import { motion } from "motion/react"
 
 export type ProfileTab = "general" | "security" | "sessions" | "activity"
 
@@ -89,12 +90,19 @@ export function ProfileView() {
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors",
+                  "relative flex items-center gap-2 px-3 py-2.5 text-xs font-medium whitespace-nowrap transition-colors",
                   isActive
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
+                {isActive && (
+                  <motion.div
+                    layoutId="profile-tab-indicator"
+                    className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+                    transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                  />
+                )}
                 <Icon
                   className={cn(
                     "size-3.5 shrink-0",
@@ -121,12 +129,18 @@ export function ProfileView() {
       </div>
 
       {/* 3. Tab Content View */}
-      <div className="min-h-[420px]">
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className="min-h-[420px]"
+      >
         {activeTab === "general" && <ProfileGeneralTab />}
         {activeTab === "security" && <ProfileSecurityTab />}
         {activeTab === "sessions" && <ProfileSessionsTab />}
         {activeTab === "activity" && <ProfileActivityTab />}
-      </div>
+      </motion.div>
     </div>
   )
 }

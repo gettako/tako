@@ -68,14 +68,34 @@ function TabsTrigger({ className, ...props }: TabsPrimitive.Tab.Props) {
   )
 }
 
-function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+function TabsIndicator({ className, ...props }: TabsPrimitive.Indicator.Props) {
   return (
-    <TabsPrimitive.Panel
-      data-slot="tabs-content"
-      className={cn("flex-1 text-sm outline-none", className)}
+    <TabsPrimitive.Indicator
+      data-slot="tabs-indicator"
+      className={cn("absolute transition-all duration-200 ease-out", className)}
       {...props}
     />
   )
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+function TabsContent({ className, ...props }: TabsPrimitive.Panel.Props) {
+  return (
+    <TabsPrimitive.Panel
+      data-slot="tabs-content"
+      className={cn(
+        "flex-1 animate-in text-sm transition-all duration-200 fade-in-0 outline-none slide-in-from-bottom-1 data-[hidden]:hidden",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  TabsIndicator,
+  tabsListVariants,
+}

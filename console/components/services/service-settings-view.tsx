@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { z } from "zod"
+import { motion } from "motion/react"
 
 import {
   ServiceSettingsTabs,
@@ -554,1124 +555,1145 @@ export function ServiceSettingsView({
 
       {/* Right Column: Settings Content Panels */}
       <main className="lg:col-span-8 xl:col-span-9">
-        {/* Panel 1: General Settings */}
-        {activeSection === "general" && (
-          <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-base font-bold text-foreground">
-                General Service Settings
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Identity, orchestration node target, and container runtime
-                restart policy.
-              </p>
-            </div>
+        <motion.div
+          key={activeSection}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+        >
+          {/* Panel 1: General Settings */}
+          {activeSection === "general" && (
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+              <div className="border-b border-border pb-4">
+                <h2 className="text-base font-bold text-foreground">
+                  General Service Settings
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Identity, orchestration node target, and container runtime
+                  restart policy.
+                </p>
+              </div>
 
-            <FieldGroup className="gap-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FieldGroup className="gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel className="text-xs">Service Name</FieldLabel>
+                    <Input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="text-xs"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel className="text-xs">Service Slug</FieldLabel>
+                    <Input
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      className="font-mono text-xs"
+                    />
+                  </Field>
+                </div>
+
                 <Field>
-                  <FieldLabel className="text-xs">Service Name</FieldLabel>
+                  <FieldLabel className="text-xs">Description</FieldLabel>
                   <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     className="text-xs"
                   />
                 </Field>
+
                 <Field>
-                  <FieldLabel className="text-xs">Service Slug</FieldLabel>
-                  <Input
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    className="font-mono text-xs"
+                  <FieldLabel className="text-xs">
+                    Assigned Edge Node
+                  </FieldLabel>
+                  <SearchableSelect
+                    value={targetNodeId}
+                    onChange={(val) => setTargetNodeId(val)}
+                    options={nodeOptions}
+                    placeholder="Select edge node..."
+                    searchPlaceholder="Search nodes..."
                   />
                 </Field>
+
+                <Field>
+                  <FieldLabel className="text-xs">
+                    Container Restart Policy
+                  </FieldLabel>
+                  <SearchableSelect
+                    value={restartPolicy}
+                    onChange={(val) => setRestartPolicy(val as any)}
+                    options={RESTART_POLICY_OPTIONS}
+                    placeholder="Select restart policy..."
+                    searchPlaceholder="Search policy..."
+                  />
+                </Field>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel className="text-xs">
+                      Git Tracking Branch
+                    </FieldLabel>
+                    <Input
+                      value={gitBranch}
+                      onChange={(e) => setGitBranch(e.target.value)}
+                      className="font-mono text-xs"
+                    />
+                  </Field>
+                  <Field>
+                    <FieldLabel className="text-xs">
+                      Auto Deploy on Git Push
+                    </FieldLabel>
+                    <div className="flex h-9 items-center justify-between rounded border border-border bg-muted/20 px-3">
+                      <span className="font-mono text-xs text-foreground">
+                        {autoDeploy ? "Enabled" : "Disabled"}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Toggle auto deploy on git push"
+                        onClick={() => setAutoDeploy(!autoDeploy)}
+                        className={cn(
+                          "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                          autoDeploy ? "bg-primary" : "bg-muted"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
+                            autoDeploy ? "translate-x-4" : "translate-x-0"
+                          )}
+                        />
+                      </button>
+                    </div>
+                  </Field>
+                </div>
+              </FieldGroup>
+
+              <div className="flex items-center justify-between border-t border-border pt-4">
+                <span className="font-mono text-xs text-muted-foreground">
+                  Target Node: {targetNode?.name || targetNodeId}
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveGeneral}
+                  className="gap-2 text-xs"
+                >
+                  {saveSuccess === "general" ? (
+                    <>
+                      <Check className="size-3.5 text-white" />
+                      <span>Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-3.5" />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Panel 2: Domains & Routing */}
+          {activeSection === "domains" && (
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+              <div className="border-b border-border pb-4">
+                <h2 className="text-base font-bold text-foreground">
+                  Domains & Edge Routing
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Manage hostnames, public and internal paths, edge entrypoints,
+                  and TLS termination.
+                </p>
               </div>
 
-              <Field>
-                <FieldLabel className="text-xs">Description</FieldLabel>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="text-xs"
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel className="text-xs">Assigned Edge Node</FieldLabel>
-                <SearchableSelect
-                  value={targetNodeId}
-                  onChange={(val) => setTargetNodeId(val)}
-                  options={nodeOptions}
-                  placeholder="Select edge node..."
-                  searchPlaceholder="Search nodes..."
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel className="text-xs">
-                  Container Restart Policy
-                </FieldLabel>
-                <SearchableSelect
-                  value={restartPolicy}
-                  onChange={(val) => setRestartPolicy(val as any)}
-                  options={RESTART_POLICY_OPTIONS}
-                  placeholder="Select restart policy..."
-                  searchPlaceholder="Search policy..."
-                />
-              </Field>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel className="text-xs">
-                    Git Tracking Branch
-                  </FieldLabel>
-                  <Input
-                    value={gitBranch}
-                    onChange={(e) => setGitBranch(e.target.value)}
-                    className="font-mono text-xs"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel className="text-xs">
-                    Auto Deploy on Git Push
-                  </FieldLabel>
-                  <div className="flex h-9 items-center justify-between rounded border border-border bg-muted/20 px-3">
-                    <span className="font-mono text-xs text-foreground">
-                      {autoDeploy ? "Enabled" : "Disabled"}
+              {/* Domains List */}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground">
+                      Configured Domains &amp; Routes
                     </span>
+                    <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                      {domains.length}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setAddDomainDialogOpen(true)}
+                    className="gap-1.5 text-xs"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Add Domain</span>
+                  </Button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {domains.map((dom) => {
+                    const secure = dom.https ?? true
+                    const path = normalizePath(dom.path)
+                    const internalPath = domainInternalPath(dom)
+                    const entryPoint = domainEntryPoint(dom)
+                    const targetContainer = resolveDomainContainer(service, dom)
+                    const url = domainUrl(dom)
+
+                    return (
+                      <div
+                        key={dom.id}
+                        className="flex flex-col gap-2 rounded border border-border bg-muted/20 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="truncate font-mono text-xs font-bold text-foreground">
+                              {url}
+                            </span>
+                            {dom.isPrimary && (
+                              <span className="py-0.2 rounded bg-primary/10 px-1.5 font-mono text-[10px] font-semibold text-primary uppercase">
+                                Primary
+                              </span>
+                            )}
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase",
+                                secure
+                                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                              )}
+                            >
+                              {secure ? "HTTPS" : "HTTP"}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-muted-foreground">
+                            <span
+                              className={cn(
+                                "flex items-center gap-1",
+                                secure ? "text-emerald-500" : "text-amber-500"
+                              )}
+                            >
+                              {secure ? (
+                                <ShieldCheck className="size-3" />
+                              ) : (
+                                <ShieldOff className="size-3" />
+                              )}
+                              <span>
+                                {secure ? "TLS active" : "TLS disabled"}
+                              </span>
+                            </span>
+                            <span>Path: {path}</span>
+                            <span>→ Internal: {internalPath}</span>
+                            <span>Entry: {entryPoint}</span>
+                            <span>
+                              Container: {targetContainer?.name ?? "unset"}
+                            </span>
+                            <span>
+                              Port: {dom.targetPort}/
+                              {dom.targetProtocol ?? "tcp"}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={dom.isPrimary && domains.length === 1}
+                            onClick={() => handleDeleteDomain(dom.id)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title="Delete domain"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* DNS Setup Guide */}
+              <div className="rounded border border-border/80 bg-card p-4">
+                <span className="text-xs font-semibold text-foreground">
+                  DNS Configuration Instructions
+                </span>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Point your domain registrar DNS records to the Tako edge
+                  cluster IP or CNAME target.
+                </p>
+
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-left font-mono text-xs">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="pb-2 font-medium">Type</th>
+                        <th className="pb-2 font-medium">Name</th>
+                        <th className="pb-2 font-medium">Target Value</th>
+                        <th className="pb-2 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      <tr>
+                        <td className="py-2 font-bold text-foreground">
+                          CNAME
+                        </td>
+                        <td className="py-2 text-foreground">@ / subdomain</td>
+                        <td className="py-2 font-bold text-primary">
+                          edge.gettako.dev
+                        </td>
+                        <td className="py-2 font-semibold text-emerald-500">
+                          Active
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 font-bold text-foreground">A</td>
+                        <td className="py-2 text-foreground">@</td>
+                        <td className="py-2 text-foreground">
+                          {targetNode?.ipAddress || "142.250.190.46"}
+                        </td>
+                        <td className="py-2 font-semibold text-emerald-500">
+                          Verified
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Edge Proxy Options */}
+              <div className="space-y-3 pt-2">
+                <span className="text-xs font-semibold text-foreground">
+                  Edge Proxy Configuration
+                </span>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="flex items-center justify-between rounded border border-border p-3 text-xs">
+                    <div>
+                      <div className="font-medium text-foreground">
+                        Force HTTPS Redirect
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Redirect HTTP port 80 to 443 TLS
+                      </div>
+                    </div>
                     <button
                       type="button"
-                      aria-label="Toggle auto deploy on git push"
-                      onClick={() => setAutoDeploy(!autoDeploy)}
+                      aria-label="Toggle force HTTPS redirect"
+                      onClick={() => setForceHttps(!forceHttps)}
                       className={cn(
                         "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                        autoDeploy ? "bg-primary" : "bg-muted"
+                        forceHttps ? "bg-primary" : "bg-muted"
                       )}
                     >
                       <span
                         className={cn(
                           "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
-                          autoDeploy ? "translate-x-4" : "translate-x-0"
+                          forceHttps ? "translate-x-4" : "translate-x-0"
                         )}
                       />
                     </button>
                   </div>
-                </Field>
-              </div>
-            </FieldGroup>
 
-            <div className="flex items-center justify-between border-t border-border pt-4">
-              <span className="font-mono text-xs text-muted-foreground">
-                Target Node: {targetNode?.name || targetNodeId}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveGeneral}
-                className="gap-2 text-xs"
-              >
-                {saveSuccess === "general" ? (
-                  <>
-                    <Check className="size-3.5 text-white" />
-                    <span>Saved</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="size-3.5" />
-                    <span>Save Changes</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Panel 2: Domains & Routing */}
-        {activeSection === "domains" && (
-          <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-base font-bold text-foreground">
-                Domains & Edge Routing
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Manage hostnames, public and internal paths, edge entrypoints,
-                and TLS termination.
-              </p>
-            </div>
-
-            {/* Domains List */}
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground">
-                    Configured Domains &amp; Routes
-                  </span>
-                  <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-                    {domains.length}
-                  </span>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setAddDomainDialogOpen(true)}
-                  className="gap-1.5 text-xs"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Add Domain</span>
-                </Button>
-              </div>
-
-              <div className="space-y-2.5">
-                {domains.map((dom) => {
-                  const secure = dom.https ?? true
-                  const path = normalizePath(dom.path)
-                  const internalPath = domainInternalPath(dom)
-                  const entryPoint = domainEntryPoint(dom)
-                  const targetContainer = resolveDomainContainer(service, dom)
-                  const url = domainUrl(dom)
-
-                  return (
-                    <div
-                      key={dom.id}
-                      className="flex flex-col gap-2 rounded border border-border bg-muted/20 p-3.5 sm:flex-row sm:items-center sm:justify-between"
+                  <div className="flex items-center justify-between rounded border border-border p-3 text-xs">
+                    <div>
+                      <div className="font-medium text-foreground">
+                        HTTP/3 QUIC Acceleration
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        Low-latency UDP edge transport
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Toggle HTTP/3 QUIC acceleration"
+                      onClick={() => setHttp3Enabled(!http3Enabled)}
+                      className={cn(
+                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                        http3Enabled ? "bg-emerald-500" : "bg-muted"
+                      )}
                     >
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate font-mono text-xs font-bold text-foreground">
-                            {url}
-                          </span>
-                          {dom.isPrimary && (
-                            <span className="py-0.2 rounded bg-primary/10 px-1.5 font-mono text-[10px] font-semibold text-primary uppercase">
-                              Primary
-                            </span>
-                          )}
-                          <span
-                            className={cn(
-                              "rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase",
-                              secure
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                            )}
-                          >
-                            {secure ? "HTTPS" : "HTTP"}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-muted-foreground">
-                          <span
-                            className={cn(
-                              "flex items-center gap-1",
-                              secure ? "text-emerald-500" : "text-amber-500"
-                            )}
-                          >
-                            {secure ? (
-                              <ShieldCheck className="size-3" />
-                            ) : (
-                              <ShieldOff className="size-3" />
-                            )}
-                            <span>
-                              {secure ? "TLS active" : "TLS disabled"}
-                            </span>
-                          </span>
-                          <span>Path: {path}</span>
-                          <span>→ Internal: {internalPath}</span>
-                          <span>Entry: {entryPoint}</span>
-                          <span>
-                            Container: {targetContainer?.name ?? "unset"}
-                          </span>
-                          <span>
-                            Port: {dom.targetPort}/{dom.targetProtocol ?? "tcp"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex shrink-0 items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          disabled={dom.isPrimary && domains.length === 1}
-                          onClick={() => handleDeleteDomain(dom.id)}
-                          className="text-muted-foreground hover:text-destructive"
-                          title="Delete domain"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* DNS Setup Guide */}
-            <div className="rounded border border-border/80 bg-card p-4">
-              <span className="text-xs font-semibold text-foreground">
-                DNS Configuration Instructions
-              </span>
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Point your domain registrar DNS records to the Tako edge cluster
-                IP or CNAME target.
-              </p>
-
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full text-left font-mono text-xs">
-                  <thead>
-                    <tr className="border-b border-border text-muted-foreground">
-                      <th className="pb-2 font-medium">Type</th>
-                      <th className="pb-2 font-medium">Name</th>
-                      <th className="pb-2 font-medium">Target Value</th>
-                      <th className="pb-2 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
-                    <tr>
-                      <td className="py-2 font-bold text-foreground">CNAME</td>
-                      <td className="py-2 text-foreground">@ / subdomain</td>
-                      <td className="py-2 font-bold text-primary">
-                        edge.gettako.dev
-                      </td>
-                      <td className="py-2 font-semibold text-emerald-500">
-                        Active
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 font-bold text-foreground">A</td>
-                      <td className="py-2 text-foreground">@</td>
-                      <td className="py-2 text-foreground">
-                        {targetNode?.ipAddress || "142.250.190.46"}
-                      </td>
-                      <td className="py-2 font-semibold text-emerald-500">
-                        Verified
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Edge Proxy Options */}
-            <div className="space-y-3 pt-2">
-              <span className="text-xs font-semibold text-foreground">
-                Edge Proxy Configuration
-              </span>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex items-center justify-between rounded border border-border p-3 text-xs">
-                  <div>
-                    <div className="font-medium text-foreground">
-                      Force HTTPS Redirect
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Redirect HTTP port 80 to 443 TLS
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Toggle force HTTPS redirect"
-                    onClick={() => setForceHttps(!forceHttps)}
-                    className={cn(
-                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                      forceHttps ? "bg-primary" : "bg-muted"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
-                        forceHttps ? "translate-x-4" : "translate-x-0"
-                      )}
-                    />
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between rounded border border-border p-3 text-xs">
-                  <div>
-                    <div className="font-medium text-foreground">
-                      HTTP/3 QUIC Acceleration
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Low-latency UDP edge transport
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="Toggle HTTP/3 QUIC acceleration"
-                    onClick={() => setHttp3Enabled(!http3Enabled)}
-                    className={cn(
-                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                      http3Enabled ? "bg-emerald-500" : "bg-muted"
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
-                        http3Enabled ? "translate-x-4" : "translate-x-0"
-                      )}
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Panel 3: Compute & Resources (Spec CPU & RAM per container) */}
-        {activeSection === "specs" && (
-          <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-base font-bold text-foreground">
-                Compute Specs (CPU & RAM per Container)
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Configure resource reservations, hard upper limits, horizontal
-                replica count, and OOM killer policies.
-              </p>
-            </div>
-
-            <div className="space-y-5">
-              {/* CPU Limits */}
-              <div className="space-y-3 rounded border border-border/80 bg-muted/10 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Cpu className="size-4 text-primary" />
-                    <span className="text-xs font-bold text-foreground">
-                      CPU Allocation per Container
-                    </span>
-                  </div>
-                  <span className="font-mono text-xs font-semibold text-primary">
-                    Limit: {specs.cpuLimit} vCPU
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel className="text-xs">
-                      CPU Reservation (vCPU)
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      step="0.05"
-                      min="0.1"
-                      max="16"
-                      value={specs.cpuReservation}
-                      onChange={(e) =>
-                        setSpecs({
-                          ...specs,
-                          cpuReservation:
-                            Number.parseFloat(e.target.value) || 0.1,
-                        })
-                      }
-                      className="font-mono text-xs"
-                    />
-                    <span className="text-[10px] text-muted-foreground">
-                      Guaranteed minimum compute resources
-                    </span>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel className="text-xs">
-                      CPU Hard Limit (vCPU)
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0.25"
-                      max="32"
-                      value={specs.cpuLimit}
-                      onChange={(e) =>
-                        setSpecs({
-                          ...specs,
-                          cpuLimit: Number.parseFloat(e.target.value) || 0.5,
-                        })
-                      }
-                      className="font-mono text-xs"
-                    />
-                    <span className="text-[10px] text-muted-foreground">
-                      Maximum throttle boundary on host cores
-                    </span>
-                  </Field>
-                </div>
-              </div>
-
-              {/* RAM Limits */}
-              <div className="space-y-3 rounded border border-border/80 bg-muted/10 p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Server className="size-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-foreground">
-                      Memory (RAM) Allocation per Container
-                    </span>
-                  </div>
-                  <span className="font-mono text-xs font-semibold text-emerald-500">
-                    Limit: {specs.memoryLimitMb} MB
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel className="text-xs">
-                      Memory Reservation (MB)
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      step="64"
-                      min="64"
-                      max="65536"
-                      value={specs.memoryReservationMb}
-                      onChange={(e) =>
-                        setSpecs({
-                          ...specs,
-                          memoryReservationMb:
-                            Number.parseInt(e.target.value, 10) || 128,
-                        })
-                      }
-                      className="font-mono text-xs"
-                    />
-                    <span className="text-[10px] text-muted-foreground">
-                      Soft memory limit committed by host cgroup
-                    </span>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel className="text-xs">
-                      Memory Hard Limit (MB)
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      step="128"
-                      min="128"
-                      max="65536"
-                      value={specs.memoryLimitMb}
-                      onChange={(e) =>
-                        setSpecs({
-                          ...specs,
-                          memoryLimitMb:
-                            Number.parseInt(e.target.value, 10) || 512,
-                        })
-                      }
-                      className="font-mono text-xs"
-                    />
-                    <span className="text-[10px] text-muted-foreground">
-                      OOM killer trigger threshold
-                    </span>
-                  </Field>
-                </div>
-              </div>
-
-              {/* Replicas & OOM Behavior using shadcn Field and SearchableSelect */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel className="text-xs">
-                    Container Replicas (Instances)
-                  </FieldLabel>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={specs.replicas}
-                    onChange={(e) =>
-                      setSpecs({
-                        ...specs,
-                        replicas: Number.parseInt(e.target.value, 10) || 1,
-                      })
-                    }
-                    className="font-mono text-xs"
-                  />
-                  <span className="text-[10px] text-muted-foreground">
-                    Load balanced across target edge node cores
-                  </span>
-                </Field>
-
-                <Field>
-                  <FieldLabel className="text-xs">OOM Killer Action</FieldLabel>
-                  <SearchableSelect
-                    value={specs.oomPolicy || "kill"}
-                    onChange={(val) =>
-                      setSpecs({
-                        ...specs,
-                        oomPolicy: val as "kill" | "throttle",
-                      })
-                    }
-                    options={OOM_OPTIONS}
-                    placeholder="Select OOM action..."
-                  />
-                </Field>
-              </div>
-
-              {/* Host Capacity Preview */}
-              {targetNode && (
-                <div className="rounded border border-border bg-card p-3.5 text-xs">
-                  <span className="font-semibold text-foreground">
-                    Assigned Node Capacity ({targetNode.name})
-                  </span>
-                  <div className="mt-2 grid grid-cols-2 gap-3 font-mono text-[11px] text-muted-foreground sm:grid-cols-4">
-                    <div>
-                      <span>Total Cores:</span>{" "}
-                      <span className="font-bold text-foreground">
-                        {targetNode.totalCores} cores
-                      </span>
-                    </div>
-                    <div>
-                      <span>Total RAM:</span>{" "}
-                      <span className="font-bold text-foreground">
-                        {targetNode.totalMemoryGb} GB
-                      </span>
-                    </div>
-                    <div>
-                      <span>Reserved CPU:</span>{" "}
-                      <span className="font-bold text-primary">
-                        {(
-                          ((specs.cpuLimit * specs.replicas) /
-                            targetNode.totalCores) *
-                          100
-                        ).toFixed(1)}
-                        %
-                      </span>
-                    </div>
-                    <div>
-                      <span>Reserved RAM:</span>{" "}
-                      <span className="font-bold text-emerald-500">
-                        {(
-                          ((specs.memoryLimitMb * specs.replicas) /
-                            (targetNode.totalMemoryGb * 1024)) *
-                          100
-                        ).toFixed(1)}
-                        %
-                      </span>
-                    </div>
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
+                          http3Enabled ? "translate-x-4" : "translate-x-0"
+                        )}
+                      />
+                    </button>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
+          )}
 
-            <div className="flex items-center justify-end border-t border-border pt-4">
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveSpecs}
-                className="gap-2 text-xs"
-              >
-                {saveSuccess === "specs" ? (
-                  <>
-                    <Check className="size-3.5 text-white" />
-                    <span>Specs Saved</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="size-3.5" />
-                    <span>Save Compute Specs</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Panel 4: Environment Variables */}
-        {activeSection === "env" && (
-          <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
-            <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+          {/* Panel 3: Compute & Resources (Spec CPU & RAM per container) */}
+          {activeSection === "specs" && (
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+              <div className="border-b border-border pb-4">
                 <h2 className="text-base font-bold text-foreground">
-                  Environment Variables
+                  Compute Specs (CPU & RAM per Container)
                 </h2>
                 <p className="text-xs text-muted-foreground">
-                  Variables injected at container boot during gRPC
-                  orchestration.
+                  Configure resource reservations, hard upper limits, horizontal
+                  replica count, and OOM killer policies.
                 </p>
               </div>
 
-              {/* Mode switch */}
-              <div className="flex rounded-md border border-border bg-muted/30 p-0.5 font-mono text-xs">
-                <button
+              <div className="space-y-5">
+                {/* CPU Limits */}
+                <div className="space-y-3 rounded border border-border/80 bg-muted/10 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Cpu className="size-4 text-primary" />
+                      <span className="text-xs font-bold text-foreground">
+                        CPU Allocation per Container
+                      </span>
+                    </div>
+                    <span className="font-mono text-xs font-semibold text-primary">
+                      Limit: {specs.cpuLimit} vCPU
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        CPU Reservation (vCPU)
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        step="0.05"
+                        min="0.1"
+                        max="16"
+                        value={specs.cpuReservation}
+                        onChange={(e) =>
+                          setSpecs({
+                            ...specs,
+                            cpuReservation:
+                              Number.parseFloat(e.target.value) || 0.1,
+                          })
+                        }
+                        className="font-mono text-xs"
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        Guaranteed minimum compute resources
+                      </span>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        CPU Hard Limit (vCPU)
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0.25"
+                        max="32"
+                        value={specs.cpuLimit}
+                        onChange={(e) =>
+                          setSpecs({
+                            ...specs,
+                            cpuLimit: Number.parseFloat(e.target.value) || 0.5,
+                          })
+                        }
+                        className="font-mono text-xs"
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        Maximum throttle boundary on host cores
+                      </span>
+                    </Field>
+                  </div>
+                </div>
+
+                {/* RAM Limits */}
+                <div className="space-y-3 rounded border border-border/80 bg-muted/10 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Server className="size-4 text-emerald-500" />
+                      <span className="text-xs font-bold text-foreground">
+                        Memory (RAM) Allocation per Container
+                      </span>
+                    </div>
+                    <span className="font-mono text-xs font-semibold text-emerald-500">
+                      Limit: {specs.memoryLimitMb} MB
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        Memory Reservation (MB)
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        step="64"
+                        min="64"
+                        max="65536"
+                        value={specs.memoryReservationMb}
+                        onChange={(e) =>
+                          setSpecs({
+                            ...specs,
+                            memoryReservationMb:
+                              Number.parseInt(e.target.value, 10) || 128,
+                          })
+                        }
+                        className="font-mono text-xs"
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        Soft memory limit committed by host cgroup
+                      </span>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        Memory Hard Limit (MB)
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        step="128"
+                        min="128"
+                        max="65536"
+                        value={specs.memoryLimitMb}
+                        onChange={(e) =>
+                          setSpecs({
+                            ...specs,
+                            memoryLimitMb:
+                              Number.parseInt(e.target.value, 10) || 512,
+                          })
+                        }
+                        className="font-mono text-xs"
+                      />
+                      <span className="text-[10px] text-muted-foreground">
+                        OOM killer trigger threshold
+                      </span>
+                    </Field>
+                  </div>
+                </div>
+
+                {/* Replicas & OOM Behavior using shadcn Field and SearchableSelect */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel className="text-xs">
+                      Container Replicas (Instances)
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={specs.replicas}
+                      onChange={(e) =>
+                        setSpecs({
+                          ...specs,
+                          replicas: Number.parseInt(e.target.value, 10) || 1,
+                        })
+                      }
+                      className="font-mono text-xs"
+                    />
+                    <span className="text-[10px] text-muted-foreground">
+                      Load balanced across target edge node cores
+                    </span>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel className="text-xs">
+                      OOM Killer Action
+                    </FieldLabel>
+                    <SearchableSelect
+                      value={specs.oomPolicy || "kill"}
+                      onChange={(val) =>
+                        setSpecs({
+                          ...specs,
+                          oomPolicy: val as "kill" | "throttle",
+                        })
+                      }
+                      options={OOM_OPTIONS}
+                      placeholder="Select OOM action..."
+                    />
+                  </Field>
+                </div>
+
+                {/* Host Capacity Preview */}
+                {targetNode && (
+                  <div className="rounded border border-border bg-card p-3.5 text-xs">
+                    <span className="font-semibold text-foreground">
+                      Assigned Node Capacity ({targetNode.name})
+                    </span>
+                    <div className="mt-2 grid grid-cols-2 gap-3 font-mono text-[11px] text-muted-foreground sm:grid-cols-4">
+                      <div>
+                        <span>Total Cores:</span>{" "}
+                        <span className="font-bold text-foreground">
+                          {targetNode.totalCores} cores
+                        </span>
+                      </div>
+                      <div>
+                        <span>Total RAM:</span>{" "}
+                        <span className="font-bold text-foreground">
+                          {targetNode.totalMemoryGb} GB
+                        </span>
+                      </div>
+                      <div>
+                        <span>Reserved CPU:</span>{" "}
+                        <span className="font-bold text-primary">
+                          {(
+                            ((specs.cpuLimit * specs.replicas) /
+                              targetNode.totalCores) *
+                            100
+                          ).toFixed(1)}
+                          %
+                        </span>
+                      </div>
+                      <div>
+                        <span>Reserved RAM:</span>{" "}
+                        <span className="font-bold text-emerald-500">
+                          {(
+                            ((specs.memoryLimitMb * specs.replicas) /
+                              (targetNode.totalMemoryGb * 1024)) *
+                            100
+                          ).toFixed(1)}
+                          %
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end border-t border-border pt-4">
+                <Button
                   type="button"
-                  onClick={() => setEnvMode("kv")}
-                  className={cn(
-                    "rounded px-3 py-1 transition-colors",
-                    envMode === "kv"
-                      ? "bg-card font-semibold text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
+                  size="sm"
+                  onClick={handleSaveSpecs}
+                  className="gap-2 text-xs"
                 >
-                  Key-Value
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEnvMode("raw")}
-                  className={cn(
-                    "rounded px-3 py-1 transition-colors",
-                    envMode === "raw"
-                      ? "bg-card font-semibold text-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground"
+                  {saveSuccess === "specs" ? (
+                    <>
+                      <Check className="size-3.5 text-white" />
+                      <span>Specs Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-3.5" />
+                      <span>Save Compute Specs</span>
+                    </>
                   )}
-                >
-                  Raw .env
-                </button>
+                </Button>
               </div>
             </div>
+          )}
 
-            {envMode === "kv" ? (
-              <div className="space-y-3">
-                {envVars.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      value={item.key}
-                      onChange={(e) => {
-                        const next = [...envVars]
-                        next[idx].key = e.target.value
-                        setEnvVars(next)
-                      }}
-                      placeholder="KEY"
-                      className="flex-1 font-mono text-xs"
-                    />
-                    <span className="font-mono text-muted-foreground">=</span>
-                    <div className="relative flex-1">
+          {/* Panel 4: Environment Variables */}
+          {activeSection === "env" && (
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+              <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-foreground">
+                    Environment Variables
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Variables injected at container boot during gRPC
+                    orchestration.
+                  </p>
+                </div>
+
+                {/* Mode switch */}
+                <div className="flex rounded-md border border-border bg-muted/30 p-0.5 font-mono text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setEnvMode("kv")}
+                    className={cn(
+                      "rounded px-3 py-1 transition-colors",
+                      envMode === "kv"
+                        ? "bg-card font-semibold text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Key-Value
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEnvMode("raw")}
+                    className={cn(
+                      "rounded px-3 py-1 transition-colors",
+                      envMode === "raw"
+                        ? "bg-card font-semibold text-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Raw .env
+                  </button>
+                </div>
+              </div>
+
+              {envMode === "kv" ? (
+                <div className="space-y-3">
+                  {envVars.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
                       <Input
-                        type={
-                          item.isSecret && !revealedSecrets[idx]
-                            ? "password"
-                            : "text"
-                        }
-                        value={item.value}
+                        value={item.key}
                         onChange={(e) => {
                           const next = [...envVars]
-                          next[idx].value = e.target.value
+                          next[idx].key = e.target.value
                           setEnvVars(next)
                         }}
-                        placeholder="VALUE"
-                        className="pr-8 font-mono text-xs"
+                        placeholder="KEY"
+                        className="flex-1 font-mono text-xs"
                       />
-                      {item.isSecret && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setRevealedSecrets((prev) => ({
-                              ...prev,
-                              [idx]: !prev[idx],
-                            }))
+                      <span className="font-mono text-muted-foreground">=</span>
+                      <div className="relative flex-1">
+                        <Input
+                          type={
+                            item.isSecret && !revealedSecrets[idx]
+                              ? "password"
+                              : "text"
                           }
-                          className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
-                          {revealedSecrets[idx] ? (
-                            <EyeOff className="size-3.5" />
-                          ) : (
-                            <Eye className="size-3.5" />
-                          )}
-                        </button>
-                      )}
+                          value={item.value}
+                          onChange={(e) => {
+                            const next = [...envVars]
+                            next[idx].value = e.target.value
+                            setEnvVars(next)
+                          }}
+                          placeholder="VALUE"
+                          className="pr-8 font-mono text-xs"
+                        />
+                        {item.isSecret && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRevealedSecrets((prev) => ({
+                                ...prev,
+                                [idx]: !prev[idx],
+                              }))
+                            }
+                            className="absolute top-1/2 right-2.5 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {revealedSecrets[idx] ? (
+                              <EyeOff className="size-3.5" />
+                            ) : (
+                              <Eye className="size-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() =>
+                          setEnvVars(envVars.filter((_, i) => i !== idx))
+                        }
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() =>
-                        setEnvVars(envVars.filter((_, i) => i !== idx))
-                      }
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
+                  ))}
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setEnvVars([
-                      ...envVars,
-                      { key: "", value: "", isSecret: false },
-                    ])
-                  }
-                  className="gap-1.5 font-mono text-xs"
-                >
-                  <Plus className="size-3.5" />
-                  <span>Add Variable</span>
-                </Button>
-              </div>
-            ) : (
-              <CodeEditor
-                language="dotenv"
-                value={envRawText}
-                onChange={setEnvRawText}
-                minHeight="min-h-[300px]"
-                showLineNumbers={true}
-                showCopy={true}
-                title=".env"
-              />
-            )}
-
-            <div className="flex items-center justify-end border-t border-border pt-4">
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveEnv}
-                className="gap-2 text-xs"
-              >
-                {saveSuccess === "env" ? (
-                  <>
-                    <Check className="size-3.5 text-white" />
-                    <span>Variables Saved</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="size-3.5" />
-                    <span>Save Variables</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Panel 5: Networking & Ports */}
-        {activeSection === "networking" && (
-          <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-base font-bold text-foreground">
-                Networking & Port Mappings
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Configure container port ingress forwarding and mesh isolation.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <span className="text-xs font-semibold text-foreground">
-                Active Port Forwarding
-              </span>
-
-              <div className="space-y-2">
-                {portMappings.map((pm, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between rounded border border-border bg-muted/20 p-3 font-mono text-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span>
-                        Host:{" "}
-                        <strong className="text-primary">{pm.host}</strong>
-                      </span>
-                      <span className="text-muted-foreground">→</span>
-                      <span>
-                        Container:{" "}
-                        <strong className="text-emerald-500">
-                          {pm.container}
-                        </strong>
-                      </span>
-                      <span className="py-0.2 rounded bg-muted px-1.5 text-[10px] text-muted-foreground uppercase">
-                        {pm.protocol}
-                      </span>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => handleDeletePort(idx)}
-                      className="text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add Port Form using shadcn Field, Input, and SearchableSelect */}
-              <div className="flex flex-col gap-2.5 rounded border border-border/80 bg-muted/10 p-3 sm:flex-row sm:items-end">
-                <Field className="flex-1">
-                  <FieldLabel className="text-[11px]">Host Port</FieldLabel>
-                  <Input
-                    type="number"
-                    value={newHostPort}
-                    onChange={(e) => setNewHostPort(e.target.value)}
-                    placeholder="8080"
-                    className="font-mono text-xs"
-                  />
-                </Field>
-                <Field className="flex-1">
-                  <FieldLabel className="text-[11px]">
-                    Container Port
-                  </FieldLabel>
-                  <Input
-                    type="number"
-                    value={newContainerPort}
-                    onChange={(e) => setNewContainerPort(e.target.value)}
-                    placeholder="8080"
-                    className="font-mono text-xs"
-                  />
-                </Field>
-                <Field className="w-24">
-                  <FieldLabel className="text-[11px]">Protocol</FieldLabel>
-                  <SearchableSelect
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
-                    value={newProtocol}
-                    onChange={(val) => setNewProtocol(val as "tcp" | "udp")}
-                    options={PROTOCOL_OPTIONS}
-                    placeholder="Proto"
-                  />
-                </Field>
+                    onClick={() =>
+                      setEnvVars([
+                        ...envVars,
+                        { key: "", value: "", isSecret: false },
+                      ])
+                    }
+                    className="gap-1.5 font-mono text-xs"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Add Variable</span>
+                  </Button>
+                </div>
+              ) : (
+                <CodeEditor
+                  language="dotenv"
+                  value={envRawText}
+                  onChange={setEnvRawText}
+                  minHeight="min-h-[300px]"
+                  showLineNumbers={true}
+                  showCopy={true}
+                  title=".env"
+                />
+              )}
+
+              <div className="flex items-center justify-end border-t border-border pt-4">
                 <Button
                   type="button"
                   size="sm"
-                  onClick={handleAddPort}
-                  className="shrink-0 gap-1 text-xs"
+                  onClick={handleSaveEnv}
+                  className="gap-2 text-xs"
                 >
-                  <Plus className="size-3.5" />
-                  <span>Bind Port</span>
+                  {saveSuccess === "env" ? (
+                    <>
+                      <Check className="size-3.5 text-white" />
+                      <span>Variables Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-3.5" />
+                      <span>Save Variables</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
+          )}
 
-            {/* Ingress Isolation */}
-            <div className="rounded border border-border p-4">
-              <div className="flex items-center justify-between">
+          {/* Panel 5: Networking & Ports */}
+          {activeSection === "networking" && (
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+              <div className="border-b border-border pb-4">
+                <h2 className="text-base font-bold text-foreground">
+                  Networking & Port Mappings
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Configure container port ingress forwarding and mesh
+                  isolation.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <span className="text-xs font-semibold text-foreground">
+                  Active Port Forwarding
+                </span>
+
+                <div className="space-y-2">
+                  {portMappings.map((pm, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between rounded border border-border bg-muted/20 p-3 font-mono text-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span>
+                          Host:{" "}
+                          <strong className="text-primary">{pm.host}</strong>
+                        </span>
+                        <span className="text-muted-foreground">→</span>
+                        <span>
+                          Container:{" "}
+                          <strong className="text-emerald-500">
+                            {pm.container}
+                          </strong>
+                        </span>
+                        <span className="py-0.2 rounded bg-muted px-1.5 text-[10px] text-muted-foreground uppercase">
+                          {pm.protocol}
+                        </span>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => handleDeletePort(idx)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Port Form using shadcn Field, Input, and SearchableSelect */}
+                <div className="flex flex-col gap-2.5 rounded border border-border/80 bg-muted/10 p-3 sm:flex-row sm:items-end">
+                  <Field className="flex-1">
+                    <FieldLabel className="text-[11px]">Host Port</FieldLabel>
+                    <Input
+                      type="number"
+                      value={newHostPort}
+                      onChange={(e) => setNewHostPort(e.target.value)}
+                      placeholder="8080"
+                      className="font-mono text-xs"
+                    />
+                  </Field>
+                  <Field className="flex-1">
+                    <FieldLabel className="text-[11px]">
+                      Container Port
+                    </FieldLabel>
+                    <Input
+                      type="number"
+                      value={newContainerPort}
+                      onChange={(e) => setNewContainerPort(e.target.value)}
+                      placeholder="8080"
+                      className="font-mono text-xs"
+                    />
+                  </Field>
+                  <Field className="w-24">
+                    <FieldLabel className="text-[11px]">Protocol</FieldLabel>
+                    <SearchableSelect
+                      size="sm"
+                      value={newProtocol}
+                      onChange={(val) => setNewProtocol(val as "tcp" | "udp")}
+                      options={PROTOCOL_OPTIONS}
+                      placeholder="Proto"
+                    />
+                  </Field>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddPort}
+                    className="shrink-0 gap-1 text-xs"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Bind Port</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Ingress Isolation */}
+              <div className="rounded border border-border p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-semibold text-foreground">
+                      Public Edge Ingress
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      When enabled, container ports are accessible from public
+                      edge router. When disabled, only internal cluster mesh can
+                      reach this container.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Toggle public edge ingress"
+                    onClick={() => setIsPublicIngress(!isPublicIngress)}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      isPublicIngress ? "bg-primary" : "bg-muted"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
+                        isPublicIngress ? "translate-x-4" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Panel 6: Health Checks */}
+          {activeSection === "health" && (
+            <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+              <div className="border-b border-border pb-4">
+                <h2 className="text-base font-bold text-foreground">
+                  Container Health Check Probes
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Define HTTP or TCP liveness probes executed by local edge
+                  daemon.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between rounded border border-border p-3.5 text-xs">
                 <div>
-                  <div className="text-xs font-semibold text-foreground">
-                    Public Edge Ingress
+                  <div className="font-semibold text-foreground">
+                    Enable Periodic Health Checks
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    When enabled, container ports are accessible from public
-                    edge router. When disabled, only internal cluster mesh can
-                    reach this container.
+                    Edge agent automatically restarts degraded containers upon
+                    consecutive probe failures.
                   </div>
                 </div>
                 <button
                   type="button"
-                  aria-label="Toggle public edge ingress"
-                  onClick={() => setIsPublicIngress(!isPublicIngress)}
+                  aria-label="Toggle periodic health checks"
+                  onClick={() => setHealthEnabled(!healthEnabled)}
                   className={cn(
                     "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                    isPublicIngress ? "bg-primary" : "bg-muted"
+                    healthEnabled ? "bg-emerald-500" : "bg-muted"
                   )}
                 >
                   <span
                     className={cn(
                       "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
-                      isPublicIngress ? "translate-x-4" : "translate-x-0"
+                      healthEnabled ? "translate-x-4" : "translate-x-0"
                     )}
                   />
                 </button>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Panel 6: Health Checks */}
-        {activeSection === "health" && (
-          <div className="space-y-6 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
-            <div className="border-b border-border pb-4">
-              <h2 className="text-base font-bold text-foreground">
-                Container Health Check Probes
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Define HTTP or TCP liveness probes executed by local edge
-                daemon.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between rounded border border-border p-3.5 text-xs">
-              <div>
-                <div className="font-semibold text-foreground">
-                  Enable Periodic Health Checks
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  Edge agent automatically restarts degraded containers upon
-                  consecutive probe failures.
-                </div>
-              </div>
-              <button
-                type="button"
-                aria-label="Toggle periodic health checks"
-                onClick={() => setHealthEnabled(!healthEnabled)}
-                className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                  healthEnabled ? "bg-emerald-500" : "bg-muted"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block size-4 transform rounded-full bg-white shadow-xs transition-transform",
-                    healthEnabled ? "translate-x-4" : "translate-x-0"
-                  )}
-                />
-              </button>
-            </div>
-
-            {healthEnabled && (
-              <FieldGroup className="gap-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel className="text-xs">HTTP Probe Path</FieldLabel>
-                    <Input
-                      value={healthPath}
-                      onChange={(e) => setHealthPath(e.target.value)}
-                      placeholder="/healthz"
-                      className="font-mono text-xs"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel className="text-xs">
-                      Probe Target Port
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      value={healthPort}
-                      onChange={(e) => setHealthPort(e.target.value)}
-                      placeholder="8443"
-                      className="font-mono text-xs"
-                    />
-                  </Field>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <Field>
-                    <FieldLabel className="text-xs">
-                      Interval (seconds)
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      value={healthInterval}
-                      onChange={(e) => setHealthInterval(e.target.value)}
-                      className="font-mono text-xs"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel className="text-xs">
-                      Timeout (seconds)
-                    </FieldLabel>
-                    <Input
-                      type="number"
-                      value={healthTimeout}
-                      onChange={(e) => setHealthTimeout(e.target.value)}
-                      className="font-mono text-xs"
-                    />
-                  </Field>
-                  <Field>
-                    <FieldLabel className="text-xs">Failure Retries</FieldLabel>
-                    <Input
-                      type="number"
-                      value={healthRetries}
-                      onChange={(e) => setHealthRetries(e.target.value)}
-                      className="font-mono text-xs"
-                    />
-                  </Field>
-                </div>
-
-                {/* Probe tester button */}
-                <div className="flex flex-col gap-2 pt-2">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={testingHealth}
-                      onClick={handleTestHealth}
-                      className="gap-1.5 font-mono text-xs"
-                    >
-                      <RefreshCw
-                        className={cn(
-                          "size-3.5",
-                          testingHealth && "animate-spin"
-                        )}
+              {healthEnabled && (
+                <FieldGroup className="gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        HTTP Probe Path
+                      </FieldLabel>
+                      <Input
+                        value={healthPath}
+                        onChange={(e) => setHealthPath(e.target.value)}
+                        placeholder="/healthz"
+                        className="font-mono text-xs"
                       />
-                      <span>
-                        {testingHealth ? "Probing..." : "Test Health Probe Now"}
-                      </span>
-                    </Button>
+                    </Field>
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        Probe Target Port
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        value={healthPort}
+                        onChange={(e) => setHealthPort(e.target.value)}
+                        placeholder="8443"
+                        className="font-mono text-xs"
+                      />
+                    </Field>
                   </div>
 
-                  {healthTestResult && (
-                    <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-2.5 font-mono text-xs text-emerald-400">
-                      {healthTestResult}
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        Interval (seconds)
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        value={healthInterval}
+                        onChange={(e) => setHealthInterval(e.target.value)}
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        Timeout (seconds)
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        value={healthTimeout}
+                        onChange={(e) => setHealthTimeout(e.target.value)}
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+                    <Field>
+                      <FieldLabel className="text-xs">
+                        Failure Retries
+                      </FieldLabel>
+                      <Input
+                        type="number"
+                        value={healthRetries}
+                        onChange={(e) => setHealthRetries(e.target.value)}
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+                  </div>
+
+                  {/* Probe tester button */}
+                  <div className="flex flex-col gap-2 pt-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={testingHealth}
+                        onClick={handleTestHealth}
+                        className="gap-1.5 font-mono text-xs"
+                      >
+                        <RefreshCw
+                          className={cn(
+                            "size-3.5",
+                            testingHealth && "animate-spin"
+                          )}
+                        />
+                        <span>
+                          {testingHealth
+                            ? "Probing..."
+                            : "Test Health Probe Now"}
+                        </span>
+                      </Button>
                     </div>
+
+                    {healthTestResult && (
+                      <div className="rounded border border-emerald-500/30 bg-emerald-500/10 p-2.5 font-mono text-xs text-emerald-400">
+                        {healthTestResult}
+                      </div>
+                    )}
+                  </div>
+                </FieldGroup>
+              )}
+
+              <div className="flex items-center justify-end border-t border-border pt-4">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveHealth}
+                  className="gap-2 text-xs"
+                >
+                  {saveSuccess === "health" ? (
+                    <>
+                      <Check className="size-3.5 text-white" />
+                      <span>Health Settings Saved</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="size-3.5" />
+                      <span>Save Health Settings</span>
+                    </>
                   )}
-                </div>
-              </FieldGroup>
-            )}
-
-            <div className="flex items-center justify-end border-t border-border pt-4">
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleSaveHealth}
-                className="gap-2 text-xs"
-              >
-                {saveSuccess === "health" ? (
-                  <>
-                    <Check className="size-3.5 text-white" />
-                    <span>Health Settings Saved</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="size-3.5" />
-                    <span>Save Health Settings</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Panel 7: Danger Zone */}
-        {activeSection === "danger" && (
-          <div className="space-y-6 rounded-lg border border-destructive/40 bg-card p-5 shadow-xs sm:p-6">
-            <div className="border-b border-destructive/30 pb-4">
-              <h2 className="text-base font-bold text-destructive">
-                Danger Zone
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Irreversible control plane operations. Proceed with extreme
-                caution.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex flex-col gap-3 rounded border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-xs font-bold text-foreground">
-                    Force Recreate Container
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Destroys and recreates all running container instances from
-                    local image cache.
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    alert("Container recreation dispatched via gRPC.")
-                  }
-                  className="text-xs"
-                >
-                  Recreate Instances
-                </Button>
-              </div>
-
-              <div className="flex flex-col gap-3 rounded border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-xs font-bold text-destructive">
-                    Delete this Service
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Permanently unlinks service manifests, stops edge
-                    containers, and deletes telemetry records.
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setDeleteDialogOpen(true)}
-                  className="text-xs"
-                >
-                  Delete Service
                 </Button>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Panel 7: Danger Zone */}
+          {activeSection === "danger" && (
+            <div className="space-y-6 rounded-lg border border-destructive/40 bg-card p-5 shadow-xs sm:p-6">
+              <div className="border-b border-destructive/30 pb-4">
+                <h2 className="text-base font-bold text-destructive">
+                  Danger Zone
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Irreversible control plane operations. Proceed with extreme
+                  caution.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex flex-col gap-3 rounded border border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-foreground">
+                      Force Recreate Container
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Destroys and recreates all running container instances
+                      from local image cache.
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      alert("Container recreation dispatched via gRPC.")
+                    }
+                    className="text-xs"
+                  >
+                    Recreate Instances
+                  </Button>
+                </div>
+
+                <div className="flex flex-col gap-3 rounded border border-destructive/30 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-destructive">
+                      Delete this Service
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Permanently unlinks service manifests, stops edge
+                      containers, and deletes telemetry records.
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setDeleteDialogOpen(true)}
+                    className="text-xs"
+                  >
+                    Delete Service
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </motion.div>
       </main>
 
       {/* Add Domain Route Modal */}

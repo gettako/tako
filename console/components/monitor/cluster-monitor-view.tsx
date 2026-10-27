@@ -20,6 +20,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { CodeHighlighter } from "@/components/ui/code-highlighter"
+import { motion } from "motion/react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import {
@@ -127,17 +128,15 @@ export function ClusterMonitorView() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tabParam = searchParams.get("tab")
+  const [prevTabParam, setPrevTabParam] = React.useState(tabParam)
   const [mainTab, setMainTab] = React.useState<"metrics" | "topology">(
     tabParam === "topology" ? "topology" : "metrics"
   )
 
-  React.useEffect(() => {
-    if (tabParam === "topology" && mainTab !== "topology") {
-      setMainTab("topology")
-    } else if (tabParam !== "topology" && mainTab === "topology" && !tabParam) {
-      setMainTab("metrics")
-    }
-  }, [tabParam, mainTab])
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam)
+    setMainTab(tabParam === "topology" ? "topology" : "metrics")
+  }
 
   const handleMainTabChange = (next: "metrics" | "topology") => {
     setMainTab(next)
@@ -158,7 +157,9 @@ export function ClusterMonitorView() {
   const [isRefreshing, setIsRefreshing] = React.useState(false)
 
   // Topology state
-  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(null)
+  const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(
+    null
+  )
   const [latencyJitter, setLatencyJitter] = React.useState<
     Record<string, number>
   >({})
@@ -433,23 +434,32 @@ export function ClusterMonitorView() {
             type="button"
             onClick={() => handleMainTabChange("metrics")}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-all cursor-pointer",
+              "relative flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-colors",
               mainTab === "metrics"
-                ? "bg-card text-foreground shadow-xs font-semibold"
+                ? "font-semibold text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Activity className="size-3.5" />
-            <span>Metrics & Telemetry</span>
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 text-[10px]",
-                mainTab === "metrics"
-                  ? "bg-muted text-foreground font-semibold"
-                  : "bg-muted/80 text-muted-foreground"
-              )}
-            >
-              {nodes.length}
+            {mainTab === "metrics" && (
+              <motion.div
+                layoutId="monitor-main-tab-indicator"
+                className="absolute inset-0 rounded-md bg-card shadow-xs"
+                transition={{ type: "spring", stiffness: 450, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <Activity className="size-3.5" />
+              <span>Metrics & Telemetry</span>
+              <span
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-[10px]",
+                  mainTab === "metrics"
+                    ? "bg-muted font-semibold text-foreground"
+                    : "bg-muted/80 text-muted-foreground"
+                )}
+              >
+                {nodes.length}
+              </span>
             </span>
           </button>
 
@@ -457,22 +467,31 @@ export function ClusterMonitorView() {
             type="button"
             onClick={() => handleMainTabChange("topology")}
             className={cn(
-              "flex items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-all cursor-pointer",
+              "relative flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-colors",
               mainTab === "topology"
-                ? "bg-card text-foreground shadow-xs font-semibold"
+                ? "font-semibold text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Radio
-              className={cn(
-                "size-3.5 text-emerald-500",
-                isStreaming && "animate-pulse"
-              )}
-            />
-            <span>Live Topology</span>
-            <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-500">
-              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              LIVE
+            {mainTab === "topology" && (
+              <motion.div
+                layoutId="monitor-main-tab-indicator"
+                className="absolute inset-0 rounded-md bg-card shadow-xs"
+                transition={{ type: "spring", stiffness: 450, damping: 35 }}
+              />
+            )}
+            <span className="relative z-10 flex items-center gap-2">
+              <Radio
+                className={cn(
+                  "size-3.5 text-emerald-500",
+                  isStreaming && "animate-pulse"
+                )}
+              />
+              <span>Live Topology</span>
+              <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-500">
+                <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                LIVE
+              </span>
             </span>
           </button>
         </div>
@@ -480,322 +499,349 @@ export function ClusterMonitorView() {
         {mainTab === "topology" && (
           <div className="hidden items-center gap-3 font-mono text-xs text-muted-foreground sm:flex">
             <span>
-              Online: <strong className="text-emerald-500">{onlineNodes}</strong>/{totalNodes}
+              Online:{" "}
+              <strong className="text-emerald-500">{onlineNodes}</strong>/
+              {totalNodes}
             </span>
             <span>•</span>
             <span>
-              Avg Latency: <strong className="text-foreground">{avgLatency}ms</strong>
+              Avg Latency:{" "}
+              <strong className="text-foreground">{avgLatency}ms</strong>
             </span>
           </div>
         )}
       </div>
 
-      {mainTab === "topology" ? (
-        <div className="space-y-4">
-          {/* Topology Control Banner */}
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-lg border border-border/80 bg-muted/60">
-                <Globe className="size-4.5 text-primary" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                    Cluster Geographic Topology
-                  </h2>
-                  <span className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-500">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    gRPC STREAM ACTIVE
-                  </span>
+      <motion.div
+        key={mainTab}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className="w-full"
+      >
+        {mainTab === "topology" ? (
+          <div className="space-y-4">
+            {/* Topology Control Banner */}
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-3.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex size-9 items-center justify-center rounded-lg border border-border/80 bg-muted/60">
+                  <Globe className="size-4.5 text-primary" />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Interactive real-time map displaying master hub and edge nodes with geodesic latency arcs. Click any node pin to inspect details.
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                      Cluster Geographic Topology
+                    </h2>
+                    <span className="flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] font-medium text-emerald-500">
+                      <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                      gRPC STREAM ACTIVE
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Interactive real-time map displaying master hub and edge
+                    nodes with geodesic latency arcs. Click any node pin to
+                    inspect details.
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Link href="/live?from=monitor">
-                <Button
-                  size="sm"
-                  className="gap-1.5 text-xs font-medium"
-                >
-                  <Maximize2 className="size-3.5" />
-                  <span>Open Fullscreen Live View</span>
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Embedded Map Canvas */}
-          <div className="relative h-[640px] w-full min-h-[520px] overflow-hidden">
-            <LiveTopologyMap
-              nodes={liveNodes}
-              selectedNodeId={selectedNodeId}
-              onSelectNode={setSelectedNodeId}
-              isStreaming={isStreaming}
-              onlineNodes={onlineNodes}
-              totalNodes={totalNodes}
-              offlineNodes={offlineNodes}
-              avgLatency={avgLatency}
-              fullscreenHref="/live?from=monitor"
-            />
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Cluster Aggregate KPIs */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Total Cluster CPU */}
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Cluster Compute</span>
-            <Cpu className="size-4 text-primary" />
-          </div>
-          <div className="mt-3 flex items-baseline justify-between font-mono">
-            <span className="text-2xl font-bold text-foreground">
-              {avgCpuPercent}%
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {totalCores} Total Cores
-            </span>
-          </div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-300",
-                avgCpuPercent > 80
-                  ? "bg-destructive"
-                  : avgCpuPercent > 60
-                    ? "bg-amber-500"
-                    : "bg-primary"
-              )}
-              style={{ width: `${avgCpuPercent}%` }}
-            />
-          </div>
-          <div className="mt-3 flex justify-between font-mono text-[11px] text-muted-foreground">
-            <span>Aggregated across</span>
-            <span className="font-medium text-foreground">
-              {nodes.length} {nodes.length === 1 ? "Node" : "Nodes"}
-            </span>
-          </div>
-        </div>
-
-        {/* Total Cluster Memory */}
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Cluster Memory</span>
-            <Server className="size-4 text-emerald-500" />
-          </div>
-          <div className="mt-3 flex items-baseline justify-between font-mono">
-            <span className="text-2xl font-bold text-foreground">
-              {avgMemoryPercent}%
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {totalMemoryGb} GB Capacity
-            </span>
-          </div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-300",
-                avgMemoryPercent > 80
-                  ? "bg-destructive"
-                  : avgMemoryPercent > 60
-                    ? "bg-amber-500"
-                    : "bg-emerald-500"
-              )}
-              style={{ width: `${avgMemoryPercent}%` }}
-            />
-          </div>
-          <div className="mt-3 flex justify-between font-mono text-[11px] text-muted-foreground">
-            <span>Total Used Approx</span>
-            <span className="font-medium text-foreground">
-              {((totalMemoryGb * avgMemoryPercent) / 100).toFixed(0)} GB
-            </span>
-          </div>
-        </div>
-
-        {/* Running Containers */}
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">
-              Supervised Containers
-            </span>
-            <Layers className="size-4 text-primary" />
-          </div>
-          <div className="mt-3 flex items-baseline justify-between font-mono">
-            <span className="text-2xl font-bold text-foreground">
-              {totalContainers}
-            </span>
-            <span className="text-xs text-emerald-500">100% Healthy</span>
-          </div>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-            <div className="h-full w-full rounded-full bg-emerald-500" />
-          </div>
-          <div className="mt-3 flex justify-between font-mono text-[11px] text-muted-foreground">
-            <span>Container Engine</span>
-            <span className="font-medium text-foreground">
-              Docker Engine v27
-            </span>
-          </div>
-        </div>
-
-        {/* gRPC Stream Latency */}
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">
-              gRPC Transport Health
-            </span>
-            <Radio className="size-4 text-emerald-500" />
-          </div>
-          <div className="mt-2 space-y-1.5 font-mono text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Active Streams:</span>
-              <span className="font-semibold text-emerald-500">
-                {nodes.length} Bidirectional
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">p50 Latency:</span>
-              <span className="font-semibold text-foreground">4ms</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">p95 / p99:</span>
-              <span className="font-semibold text-foreground">28ms / 64ms</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Transport Security:</span>
-              <span className="font-semibold text-emerald-500">
-                mTLS Verified
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Navigation: Option A */}
-      <Tabs defaultValue="charts" className="w-full space-y-6">
-        <div className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="bg-muted/60 p-1">
-            <TabsTrigger value="charts" className="gap-2 px-3 py-1.5 text-xs">
-              <Activity className="size-3.5" />
-              <span>Resource Charts & Trends</span>
-            </TabsTrigger>
-            <TabsTrigger value="stream" className="gap-2 px-3 py-1.5 text-xs">
-              <Terminal className="size-3.5" />
-              <span>Live Telemetry Stream</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        {/* Tab 1: Resource Charts & Trends */}
-        <TabsContent value="charts" className="mt-0">
-          <ClusterCharts nodes={nodes} isStreaming={isStreaming} />
-        </TabsContent>
-
-        {/* Tab 3: Live gRPC Stream Feed Section */}
-        <TabsContent value="stream" className="mt-0">
-          <div className="space-y-3">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
-                <Terminal className="size-4 text-primary" />
-                <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                  Live gRPC Telemetry Packets
-                </h2>
-                <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[11px]">
-                  <span
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      isStreaming
-                        ? "animate-pulse bg-emerald-500"
-                        : "bg-amber-500"
-                    )}
-                  />
-                  <span>{isStreaming ? "Live Feed" : "Paused"}</span>
-                </div>
+                <Link href="/live?from=monitor">
+                  <Button size="sm" className="gap-1.5 text-xs font-medium">
+                    <Maximize2 className="size-3.5" />
+                    <span>Open Fullscreen Live View</span>
+                  </Button>
+                </Link>
               </div>
-
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => setPackets([])}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear Console
-              </Button>
             </div>
 
-            {/* Toolbar: Filters with SearchableSelect */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="relative">
-                <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-                <Input
-                  placeholder="Filter packet message..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 text-xs"
-                />
-              </div>
-
-              <SearchableSelect
-                value={selectedNodeFilter}
-                onChange={(val) => setSelectedNodeFilter(val)}
-                options={nodeFilterOptions}
-                placeholder="Filter by node..."
-                searchPlaceholder="Search nodes..."
-              />
-
-              <SearchableSelect
-                value={selectedTypeFilter}
-                onChange={(val) => setSelectedTypeFilter(val)}
-                options={typeFilterOptions}
-                placeholder="Filter by type..."
-                searchPlaceholder="Search packet types..."
-              />
-            </div>
-
-            {/* Terminal Log Console */}
-            <div className="rounded-lg border border-border bg-muted/20 p-4 font-mono text-xs text-foreground dark:bg-muted/15">
-              <div className="mb-3 flex flex-col gap-2 border-b border-border pb-2.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
-                  <span className="font-semibold text-foreground">
-                    PACKET INGESTION BUFFER (RECENT {filteredPackets.length})
-                  </span>
-                  <span>• PROTOBUF v3 / HTTP2</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground uppercase">
-                    Telemetry Ingestion Log
-                  </span>
-                </div>
-              </div>
-
-              <CodeHighlighter
-                language="log"
-                code={
-                  filteredPackets.length === 0
-                    ? "# No telemetry packets matched the current filter criteria."
-                    : filteredPackets
-                        .map(
-                          (pkt) =>
-                            `[${pkt.timestamp}] [${pkt.type.toUpperCase()}] [${pkt.nodeName}] ${pkt.message}`
-                        )
-                        .join("\n")
-                }
-                maxHeight="max-h-96"
-                showLineNumbers={true}
-                showCopy={true}
+            {/* Embedded Map Canvas */}
+            <div className="relative h-[640px] min-h-[520px] w-full overflow-hidden">
+              <LiveTopologyMap
+                nodes={liveNodes}
+                selectedNodeId={selectedNodeId}
+                onSelectNode={setSelectedNodeId}
+                isStreaming={isStreaming}
+                onlineNodes={onlineNodes}
+                totalNodes={totalNodes}
+                offlineNodes={offlineNodes}
+                avgLatency={avgLatency}
+                fullscreenHref="/live?from=monitor"
               />
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
-    </>
-  )}
-</div>
+        ) : (
+          <>
+            {/* Cluster Aggregate KPIs */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Total Cluster CPU */}
+              <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    Cluster Compute
+                  </span>
+                  <Cpu className="size-4 text-primary" />
+                </div>
+                <div className="mt-3 flex items-baseline justify-between font-mono">
+                  <span className="text-2xl font-bold text-foreground">
+                    {avgCpuPercent}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {totalCores} Total Cores
+                  </span>
+                </div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-300",
+                      avgCpuPercent > 80
+                        ? "bg-destructive"
+                        : avgCpuPercent > 60
+                          ? "bg-amber-500"
+                          : "bg-primary"
+                    )}
+                    style={{ width: `${avgCpuPercent}%` }}
+                  />
+                </div>
+                <div className="mt-3 flex justify-between font-mono text-[11px] text-muted-foreground">
+                  <span>Aggregated across</span>
+                  <span className="font-medium text-foreground">
+                    {nodes.length} {nodes.length === 1 ? "Node" : "Nodes"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Total Cluster Memory */}
+              <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    Cluster Memory
+                  </span>
+                  <Server className="size-4 text-emerald-500" />
+                </div>
+                <div className="mt-3 flex items-baseline justify-between font-mono">
+                  <span className="text-2xl font-bold text-foreground">
+                    {avgMemoryPercent}%
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {totalMemoryGb} GB Capacity
+                  </span>
+                </div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-300",
+                      avgMemoryPercent > 80
+                        ? "bg-destructive"
+                        : avgMemoryPercent > 60
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                    )}
+                    style={{ width: `${avgMemoryPercent}%` }}
+                  />
+                </div>
+                <div className="mt-3 flex justify-between font-mono text-[11px] text-muted-foreground">
+                  <span>Total Used Approx</span>
+                  <span className="font-medium text-foreground">
+                    {((totalMemoryGb * avgMemoryPercent) / 100).toFixed(0)} GB
+                  </span>
+                </div>
+              </div>
+
+              {/* Running Containers */}
+              <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    Supervised Containers
+                  </span>
+                  <Layers className="size-4 text-primary" />
+                </div>
+                <div className="mt-3 flex items-baseline justify-between font-mono">
+                  <span className="text-2xl font-bold text-foreground">
+                    {totalContainers}
+                  </span>
+                  <span className="text-xs text-emerald-500">100% Healthy</span>
+                </div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-full w-full rounded-full bg-emerald-500" />
+                </div>
+                <div className="mt-3 flex justify-between font-mono text-[11px] text-muted-foreground">
+                  <span>Container Engine</span>
+                  <span className="font-medium text-foreground">
+                    Docker Engine v27
+                  </span>
+                </div>
+              </div>
+
+              {/* gRPC Stream Latency */}
+              <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    gRPC Transport Health
+                  </span>
+                  <Radio className="size-4 text-emerald-500" />
+                </div>
+                <div className="mt-2 space-y-1.5 font-mono text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Active Streams:
+                    </span>
+                    <span className="font-semibold text-emerald-500">
+                      {nodes.length} Bidirectional
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">p50 Latency:</span>
+                    <span className="font-semibold text-foreground">4ms</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">p95 / p99:</span>
+                    <span className="font-semibold text-foreground">
+                      28ms / 64ms
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">
+                      Transport Security:
+                    </span>
+                    <span className="font-semibold text-emerald-500">
+                      mTLS Verified
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tab Navigation: Option A */}
+            <Tabs defaultValue="charts" className="w-full space-y-6">
+              <div className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between">
+                <TabsList className="bg-muted/60 p-1">
+                  <TabsTrigger
+                    value="charts"
+                    className="gap-2 px-3 py-1.5 text-xs"
+                  >
+                    <Activity className="size-3.5" />
+                    <span>Resource Charts & Trends</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="stream"
+                    className="gap-2 px-3 py-1.5 text-xs"
+                  >
+                    <Terminal className="size-3.5" />
+                    <span>Live Telemetry Stream</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Tab 1: Resource Charts & Trends */}
+              <TabsContent value="charts" className="mt-0">
+                <ClusterCharts nodes={nodes} isStreaming={isStreaming} />
+              </TabsContent>
+
+              {/* Tab 3: Live gRPC Stream Feed Section */}
+              <TabsContent value="stream" className="mt-0">
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <Terminal className="size-4 text-primary" />
+                      <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                        Live gRPC Telemetry Packets
+                      </h2>
+                      <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[11px]">
+                        <span
+                          className={cn(
+                            "size-1.5 rounded-full",
+                            isStreaming
+                              ? "animate-pulse bg-emerald-500"
+                              : "bg-amber-500"
+                          )}
+                        />
+                        <span>{isStreaming ? "Live Feed" : "Paused"}</span>
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPackets([])}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear Console
+                    </Button>
+                  </div>
+
+                  {/* Toolbar: Filters with SearchableSelect */}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="relative">
+                      <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Filter packet message..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-9 text-xs"
+                      />
+                    </div>
+
+                    <SearchableSelect
+                      value={selectedNodeFilter}
+                      onChange={(val) => setSelectedNodeFilter(val)}
+                      options={nodeFilterOptions}
+                      placeholder="Filter by node..."
+                      searchPlaceholder="Search nodes..."
+                    />
+
+                    <SearchableSelect
+                      value={selectedTypeFilter}
+                      onChange={(val) => setSelectedTypeFilter(val)}
+                      options={typeFilterOptions}
+                      placeholder="Filter by type..."
+                      searchPlaceholder="Search packet types..."
+                    />
+                  </div>
+
+                  {/* Terminal Log Console */}
+                  <div className="rounded-lg border border-border bg-muted/20 p-4 font-mono text-xs text-foreground dark:bg-muted/15">
+                    <div className="mb-3 flex flex-col gap-2 border-b border-border pb-2.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
+                        <span className="font-semibold text-foreground">
+                          PACKET INGESTION BUFFER (RECENT{" "}
+                          {filteredPackets.length})
+                        </span>
+                        <span>• PROTOBUF v3 / HTTP2</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground uppercase">
+                          Telemetry Ingestion Log
+                        </span>
+                      </div>
+                    </div>
+
+                    <CodeHighlighter
+                      language="log"
+                      code={
+                        filteredPackets.length === 0
+                          ? "# No telemetry packets matched the current filter criteria."
+                          : filteredPackets
+                              .map(
+                                (pkt) =>
+                                  `[${pkt.timestamp}] [${pkt.type.toUpperCase()}] [${pkt.nodeName}] ${pkt.message}`
+                              )
+                              .join("\n")
+                      }
+                      maxHeight="max-h-96"
+                      showLineNumbers={true}
+                      showCopy={true}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
+      </motion.div>
+    </div>
   )
 }

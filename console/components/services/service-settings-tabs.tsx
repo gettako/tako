@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { motion } from "motion/react"
 
 export type SettingsSection =
   | "general"
@@ -97,18 +98,30 @@ export function ServiceSettingsTabs({
               type="button"
               onClick={() => onSelect(tab.id)}
               className={cn(
-                "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+                "relative flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                 isActive
                   ? isDanger
-                    ? "bg-destructive font-semibold text-white shadow-xs"
-                    : "bg-primary font-semibold text-primary-foreground shadow-xs"
+                    ? "font-semibold text-white shadow-xs"
+                    : "font-semibold text-primary-foreground shadow-xs"
                   : isDanger
                     ? "border border-destructive/40 bg-card text-destructive hover:bg-destructive/10"
                     : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <Icon className="size-3.5" />
-              <span>{tab.label}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="service-settings-mobile-indicator"
+                  className={cn(
+                    "absolute inset-0 rounded-md",
+                    isDanger ? "bg-destructive" : "bg-primary"
+                  )}
+                  transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <Icon className="size-3.5" />
+                <span>{tab.label}</span>
+              </span>
             </button>
           )
         })}
@@ -133,17 +146,27 @@ export function ServiceSettingsTabs({
               type="button"
               onClick={() => onSelect(tab.id)}
               className={cn(
-                "flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
+                "relative flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
                 isActive
                   ? isDanger
-                    ? "bg-destructive font-semibold text-white shadow-xs"
-                    : "bg-primary font-semibold text-primary-foreground shadow-xs"
+                    ? "font-semibold text-white shadow-xs"
+                    : "font-semibold text-primary-foreground shadow-xs"
                   : isDanger
                     ? "text-destructive hover:bg-destructive/10"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
             >
-              <div className="flex items-center gap-2.5">
+              {isActive && (
+                <motion.div
+                  layoutId="service-settings-desktop-indicator"
+                  className={cn(
+                    "absolute inset-0 rounded-md",
+                    isDanger ? "bg-destructive" : "bg-primary"
+                  )}
+                  transition={{ type: "spring", stiffness: 450, damping: 35 }}
+                />
+              )}
+              <div className="relative z-10 flex items-center gap-2.5">
                 <Icon className="size-4 shrink-0" />
                 <div className="flex flex-col">
                   <span className="font-medium">{tab.label}</span>

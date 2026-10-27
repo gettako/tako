@@ -21,6 +21,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { CodeHighlighter } from "@/components/ui/code-highlighter"
+import { motion } from "motion/react"
 import { Flag } from "@/components/ui/flag"
 import { EmptyState } from "@/components/ui/empty-state"
 import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
@@ -500,12 +501,19 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
           type="button"
           onClick={() => setActiveTab("containers")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-medium transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
             activeTab === "containers"
-              ? "border-primary font-semibold text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {activeTab === "containers" && (
+            <motion.div
+              layoutId="node-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <Layers className="size-3.5" />
           <span>Active Containers</span>
           <span className="py-0.2 rounded bg-muted px-1.5 font-mono text-[10px]">
@@ -517,12 +525,19 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
           type="button"
           onClick={() => setActiveTab("telemetry")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-medium transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
             activeTab === "telemetry"
-              ? "border-primary font-semibold text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {activeTab === "telemetry" && (
+            <motion.div
+              layoutId="node-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <Activity className="size-3.5" />
           <span>gRPC Telemetry Stream</span>
         </button>
@@ -531,175 +546,189 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
           type="button"
           onClick={() => setActiveTab("traefik")}
           className={cn(
-            "flex items-center gap-2 border-b-2 px-4 py-2.5 text-xs font-medium transition-colors",
+            "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
             activeTab === "traefik"
-              ? "border-primary font-semibold text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
+              ? "font-semibold text-foreground"
+              : "text-muted-foreground hover:text-foreground"
           )}
         >
+          {activeTab === "traefik" && (
+            <motion.div
+              layoutId="node-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
           <FileCode2 className="size-3.5" />
           <span>Traefik Config</span>
         </button>
       </div>
 
       {/* Tab 1: Containers List */}
-      {activeTab === "containers" && (
-        <div className="space-y-4">
-          {containers.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center">
-              <Layers className="mx-auto size-8 text-muted-foreground/60" />
-              <h3 className="mt-2 text-sm font-semibold text-foreground">
-                No Containers Scheduled on this Node
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Deploy a project service targeting this node or adjust the
-                placement policy.
-              </p>
-              <div className="mt-4">
-                <Button
-                  size="sm"
-                  nativeButton={false}
-                  render={<Link href="/projects" />}
-                >
-                  Go to Projects
-                </Button>
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+      >
+        {activeTab === "containers" && (
+          <div className="space-y-4">
+            {containers.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                <Layers className="mx-auto size-8 text-muted-foreground/60" />
+                <h3 className="mt-2 text-sm font-semibold text-foreground">
+                  No Containers Scheduled on this Node
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Deploy a project service targeting this node or adjust the
+                  placement policy.
+                </p>
+                <div className="mt-4">
+                  <Button
+                    size="sm"
+                    nativeButton={false}
+                    render={<Link href="/projects" />}
+                  >
+                    Go to Projects
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-border bg-card">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border bg-muted/30 font-mono text-[11px] tracking-wider text-muted-foreground uppercase">
+                    <tr>
+                      <th className="px-4 py-3">Container</th>
+                      <th className="px-4 py-3">Service</th>
+                      <th className="px-4 py-3">Image</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Ports</th>
+                      <th className="px-4 py-3">CPU</th>
+                      <th className="px-4 py-3">Memory</th>
+                      <th className="px-4 py-3">Created</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {containers.map((c) => {
+                      const isRestarting = restartingContainerId === c.id
+                      return (
+                        <tr
+                          key={c.id}
+                          className="transition-colors hover:bg-muted/20"
+                        >
+                          <td className="px-4 py-3 font-mono font-medium text-foreground">
+                            {c.name}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px]">
+                              {c.serviceName}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-muted-foreground">
+                            {c.image}
+                          </td>
+                          <td
+                            className="px-4 py-3"
+                            aria-label={`Status ${c.status}`}
+                          >
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[11px]">
+                              <span className="size-1.5 rounded-full bg-emerald-500" />
+                              <span>{c.status}</span>
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-muted-foreground">
+                            {c.ports || "Internal only"}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-foreground">
+                            {c.cpuPercent}%
+                          </td>
+                          <td className="px-4 py-3 font-mono text-foreground">
+                            {c.memoryMb} MB
+                          </td>
+                          <td className="px-4 py-3 font-mono text-muted-foreground">
+                            {c.created}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              size="icon-xs"
+                              variant="ghost"
+                              onClick={() => handleRestartContainer(c.id)}
+                              disabled={isRestarting}
+                              className="size-7 text-muted-foreground hover:text-foreground"
+                              title="Restart container"
+                              aria-label="Restart container"
+                            >
+                              <RotateCw
+                                className={cn(
+                                  "size-3.5",
+                                  isRestarting && "animate-spin text-primary"
+                                )}
+                              />
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 2: Live gRPC Telemetry Stream */}
+        {activeTab === "telemetry" && (
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 font-mono text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2">
+                <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
+                <span className="font-medium text-foreground">
+                  gRPC Agent Stream (Channel: READY)
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span>Keepalive: 5000ms</span>
+                <span className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground uppercase">
+                  Live Telemetry Log
+                </span>
               </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border bg-card">
-              <table className="w-full text-left text-xs">
-                <thead className="border-b border-border bg-muted/30 font-mono text-[11px] tracking-wider text-muted-foreground uppercase">
-                  <tr>
-                    <th className="px-4 py-3">Container</th>
-                    <th className="px-4 py-3">Service</th>
-                    <th className="px-4 py-3">Image</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Ports</th>
-                    <th className="px-4 py-3">CPU</th>
-                    <th className="px-4 py-3">Memory</th>
-                    <th className="px-4 py-3">Created</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {containers.map((c) => {
-                    const isRestarting = restartingContainerId === c.id
-                    return (
-                      <tr
-                        key={c.id}
-                        className="transition-colors hover:bg-muted/20"
-                      >
-                        <td className="px-4 py-3 font-mono font-medium text-foreground">
-                          {c.name}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px]">
-                            {c.serviceName}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-muted-foreground">
-                          {c.image}
-                        </td>
-                        <td
-                          className="px-4 py-3"
-                          aria-label={`Status ${c.status}`}
-                        >
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[11px]">
-                            <span className="size-1.5 rounded-full bg-emerald-500" />
-                            <span>{c.status}</span>
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-muted-foreground">
-                          {c.ports || "Internal only"}
-                        </td>
-                        <td className="px-4 py-3 font-mono text-foreground">
-                          {c.cpuPercent}%
-                        </td>
-                        <td className="px-4 py-3 font-mono text-foreground">
-                          {c.memoryMb} MB
-                        </td>
-                        <td className="px-4 py-3 font-mono text-muted-foreground">
-                          {c.created}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Button
-                            size="icon-xs"
-                            variant="ghost"
-                            onClick={() => handleRestartContainer(c.id)}
-                            disabled={isRestarting}
-                            className="size-7 text-muted-foreground hover:text-foreground"
-                            title="Restart container"
-                            aria-label="Restart container"
-                          >
-                            <RotateCw
-                              className={cn(
-                                "size-3.5",
-                                isRestarting && "animate-spin text-primary"
-                              )}
-                            />
-                          </Button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* Tab 2: Live gRPC Telemetry Stream */}
-      {activeTab === "telemetry" && (
-        <div className="space-y-3">
-          <div className="flex flex-col gap-2 font-mono text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
-              <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
-              <span className="font-medium text-foreground">
-                gRPC Agent Stream (Channel: READY)
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span>Keepalive: 5000ms</span>
-              <span className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground uppercase">
-                Live Telemetry Log
-              </span>
-            </div>
-          </div>
-
-          <CodeHighlighter
-            language="log"
-            code={`# Establishing bidirectional streaming RPC to ${node.ipAddress}:50051
+            <CodeHighlighter
+              language="log"
+              code={`# Establishing bidirectional streaming RPC to ${node.ipAddress}:50051
 [gRPC Handshake] mTLS certificate verified: subject=tako-agent/${node.name}
 [Heartbeat ACK] Ingestion latency: ${currentPing ?? node.grpcLatencyMs}ms (Protocol: HTTP/2 gRPC Frame)
 [Resource Sample] CPU: ${node.cpuPercent}% | Memory: ${memoryUsedGb}/${node.totalMemoryGb}GB | Disk: ${node.diskPercent}%
 [Container Supervisor] Running containers count: ${containers.length} | Status: Healthy
 [Watchdog] Network throughput RX: 18.4 MB/s, TX: 34.2 MB/s
 [Agent Telemetry] Next sample scheduled in 5.00s`}
-            maxHeight="max-h-[500px]"
-            showLineNumbers={true}
-            showCopy={true}
-          />
-        </div>
-      )}
+              maxHeight="max-h-[500px]"
+              showLineNumbers={true}
+              showCopy={true}
+            />
+          </div>
+        )}
 
-      {/* Tab 3: Traefik Ingress & Configuration Manager */}
-      {activeTab === "traefik" && (
-        <NodeTraefikConfigView
-          node={node}
-          actorName={actorName}
-          onAuditLog={(action, target, details) => {
-            addAuditLog({
-              action,
-              category: "node",
-              actor: { name: actorName, type: "user" },
-              target,
-              details,
-              status: "success",
-            })
-          }}
-        />
-      )}
+        {/* Tab 3: Traefik Ingress & Configuration Manager */}
+        {activeTab === "traefik" && (
+          <NodeTraefikConfigView
+            node={node}
+            actorName={actorName}
+            onAuditLog={(action, target, details) => {
+              addAuditLog({
+                action,
+                category: "node",
+                actor: { name: actorName, type: "user" },
+                target,
+                details,
+                status: "success",
+              })
+            }}
+          />
+        )}
+      </motion.div>
 
       <DeleteNodeDialog
         node={node}
