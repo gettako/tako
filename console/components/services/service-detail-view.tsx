@@ -7,8 +7,10 @@ import {
   ArrowLeft,
   Ban,
   Boxes,
+  Check,
   ChevronDown,
   Clock,
+  Copy,
   FileCode2,
   Layers,
   LayoutDashboard,
@@ -35,6 +37,7 @@ import { ServiceSettingsView } from "@/components/services/service-settings-view
 import { ServiceTerminalTab } from "@/components/services/service-terminal-tab"
 import { usePlatformData } from "@/context/platform-data-context"
 import { activeStatusDotClass } from "@/lib/status"
+import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 
 export function ServiceDetailView({
@@ -81,7 +84,17 @@ export function ServiceDetailView({
   const [isRestarting, setIsRestarting] = React.useState(false)
   const [restartSuccess, setRestartSuccess] = React.useState(false)
   const [isDeployMenuOpen, setIsDeployMenuOpen] = React.useState(false)
+  const [copiedNodeIp, setCopiedNodeIp] = React.useState(false)
   const deployMenuRef = React.useRef<HTMLDivElement>(null)
+
+  const handleCopyNodeIp = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const ip = targetNode?.publicIp || targetNode?.ipAddress
+    if (ip && (await copyToClipboard(ip))) {
+      setCopiedNodeIp(true)
+      setTimeout(() => setCopiedNodeIp(false), 2000)
+    }
+  }
 
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -239,16 +252,43 @@ export function ServiceDetailView({
 
             <div className="mt-2 flex flex-wrap items-center gap-3 font-mono text-xs text-muted-foreground">
               {targetNode && (
-                <span className="flex items-center gap-1.5 font-medium text-foreground">
+                <div className="flex items-center gap-1.5 font-medium text-foreground">
                   <Flag
                     src={targetNode.location.flag}
-                    alt={targetNode.name}
+                    alt={targetNode.location.country || targetNode.name}
+                    title={targetNode.location.country || targetNode.location.name}
                     width={16}
                     height={11}
-                    className="h-3"
+                    className="h-3 shrink-0 rounded-[1px]"
                   />
-                  <span>{targetNode.name}</span>
-                </span>
+                  <Link
+                    href={`/nodes/${targetNode.id}`}
+                    className="transition-colors hover:text-primary hover:underline"
+                  >
+                    {targetNode.name}
+                  </Link>
+                  {(targetNode.publicIp || targetNode.ipAddress) && (
+                    <span className="inline-flex items-center gap-1 rounded border border-border/80 bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+                      <code className="text-foreground">
+                        {targetNode.publicIp || targetNode.ipAddress}
+                      </code>
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        onClick={handleCopyNodeIp}
+                        className="size-4 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+                        title="Copy Node IP"
+                      >
+                        {copiedNodeIp ? (
+                          <Check className="size-3 text-emerald-500" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                      </Button>
+                    </span>
+                  )}
+                </div>
               )}
               <span>•</span>
               <span className="flex items-center gap-1 text-emerald-500">
