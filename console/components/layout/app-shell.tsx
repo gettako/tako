@@ -4,6 +4,7 @@ import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { motion } from "motion/react"
 
+import { ControlPlaneLoading } from "@/components/layout/control-plane-loading"
 import { GlobalCommandPalette } from "@/components/command-palette/global-command-palette"
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
@@ -35,11 +36,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [status, router])
 
   if (status === "loading") {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background text-xs text-muted-foreground">
-        Connecting to control plane...
-      </div>
-    )
+    return <ControlPlaneLoading />
   }
 
   if (status === "unauthenticated") {
