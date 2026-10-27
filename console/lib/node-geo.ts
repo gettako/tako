@@ -245,3 +245,77 @@ export function getNodeGeo(node: ClusterNode): NodeGeo {
     pinY,
   }
 }
+
+/**
+ * Calculates the great-circle distance between two geographic coordinates in kilometers.
+ */
+export function calculateGeoDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371 // Earth radius in kilometers
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLon = ((lon2 - lon1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
+}
+
+/**
+ * Calculates realistic network round-trip latency (in ms) between a cluster node and the master hub.
+ * Factors in physical terrestrial/submarine fiber path distance (RTT ~ 12ms baseline + 0.0162 ms/km) plus local loopback.
+ */
+export function calculateRealisticLatency(
+  node: ClusterNode,
+  masterNode?: ClusterNode | null,
+  jitter: number = 0
+): number {
+  if (node.status === "offline") return 0
+
+  // Master node pinging itself is local loopback (1-2ms)
+  if (node.role === "master" || (masterNode && node.id === masterNode.id)) {
+    return Math.max(1, Math.round(2 + jitter * 0.4))
+  }
+
+  const nodeIp = node.ipAddress || ""
+  if (
+    nodeIp === "127.0.0.1" ||
+    nodeIp === "localhost" ||
+    nodeIp.startsWith("10.") ||
+    nodeIp.startsWith("192.168.") ||
+    (nodeIp.startsWith("172.") &&
+      parseInt(nodeIp.split(".")[1] || "0", 10) >= 16 &&
+      parseInt(nodeIp.split(".")[1] || "0", 10) <= 31)
+  ) {
+    return Math.max(1, Math.round(2 + jitter * 0.4))
+  }
+
+  const nodeGeo = getNodeGeo(node)
+  // Default master coordinates to Singapore if master node is unspecified
+  const masterGeo = masterNode
+    ? getNodeGeo(masterNode)
+    : { lat: 1.3521, lng: 103.8198 }
+
+  const distanceKm = calculateGeoDistanceKm(
+    nodeGeo.lat,
+    nodeGeo.lng,
+    masterGeo.lat,
+    masterGeo.lng
+  )
+
+  // Within the same metro area / data center (< 50km)
+  if (distanceKm < 50) {
+    return Math.max(1, Math.round(3 + jitter * 0.4))
+  }
+
+  // Realistic fiber transit formula: 12ms switching overhead + ~0.0162ms per km RTT
+  const baseLatency = 12 + distanceKm * 0.0162
+  return Math.max(1, Math.round(baseLatency + jitter))
+}

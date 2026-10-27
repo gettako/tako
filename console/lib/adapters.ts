@@ -10,6 +10,7 @@ import type {
   ApiRegistry,
 } from "@/lib/api"
 import { getGeoIpSync, isPrivateIp, resolveGeoIp } from "@/lib/geoip"
+import { calculateGeoDistanceKm } from "@/lib/node-geo"
 import type {
   AuditCategory,
   AuditLogEntry,
@@ -175,11 +176,29 @@ export function adaptNode(node: ApiNode): ClusterNode {
     diskTotalGb: Math.round(diskTotalGb * 10) / 10,
     runningContainers: node.servicesCount || 0,
     servicesCount: node.servicesCount || 0,
-    uptime: node.uptime || "—",
+    networkRxKbps: node.usage?.networkRxKbps,
+    networkTxKbps: node.usage?.networkTxKbps,
+    uptime: node.uptime || "-",
     lastHeartbeat: formatRelativeTime(node.lastHeartbeat),
     lastHeartbeatAt: node.lastHeartbeat,
     location,
-    grpcLatencyMs: 4,
+    grpcLatencyMs:
+      node.role === "leader" || node.role === "master" || isPrivateIp(targetIp)
+        ? 2
+        : typeof location.lat === "number" && typeof location.lng === "number"
+          ? calculateGeoDistanceKm(location.lat, location.lng, 1.3521, 103.8198) < 50
+            ? 3
+            : Math.round(
+                12 +
+                  calculateGeoDistanceKm(
+                    location.lat,
+                    location.lng,
+                    1.3521,
+                    103.8198
+                  ) *
+                    0.0162
+              )
+          : 15,
     grpcVersion: "1.62.0",
   }
 }

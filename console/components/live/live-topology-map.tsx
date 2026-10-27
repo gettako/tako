@@ -10,7 +10,6 @@ import {
   Cpu,
   ExternalLink,
   Layers,
-  Power,
   X,
 } from "lucide-react"
 
@@ -29,16 +28,27 @@ interface LiveTopologyMapProps {
   nodes: ClusterNode[]
   selectedNodeId: string | null
   onSelectNode: (id: string | null) => void
-  onToggleNode: (id: string) => void
+  onToggleNode?: (id: string) => void
   isStreaming?: boolean
+  mobileView?: "split" | "map" | "log"
+  onMobileViewChange?: (view: "split" | "map" | "log") => void
+  onlineNodes?: number
+  totalNodes?: number
+  offlineNodes?: number
+  avgLatency?: number
 }
 
 export function LiveTopologyMap({
   nodes,
   selectedNodeId,
   onSelectNode,
-  onToggleNode,
   isStreaming = true,
+  mobileView,
+  onMobileViewChange,
+  onlineNodes,
+  totalNodes,
+  offlineNodes = 0,
+  avgLatency = 0,
 }: LiveTopologyMapProps) {
   const map = React.useMemo(
     () => new DottedMap({ height: 100, grid: "diagonal" }),
@@ -142,8 +152,8 @@ export function LiveTopologyMap({
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-card/70 shadow-lg backdrop-blur-md select-none">
       {/* Top Map Status Overlay */}
-      <div className="absolute top-3 left-4 z-40 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2 rounded-md border border-border/80 bg-background/90 px-2.5 py-1 text-xs shadow-xs backdrop-blur-md">
+      <div className="absolute top-2 left-2 z-40 flex flex-wrap items-center gap-1.5 sm:top-3 sm:left-4 sm:gap-2">
+        <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-[10.5px] shadow-xs backdrop-blur-md sm:gap-2 sm:px-2.5 sm:text-xs">
           <span className="flex size-2">
             <span
               className={cn(
@@ -153,13 +163,37 @@ export function LiveTopologyMap({
             />
           </span>
           <span className="font-mono font-medium text-foreground">
-            {isStreaming ? "gRPC REVERSE MESH ONLINE" : "STREAM PAUSED"}
+            {isStreaming ? (
+              <>
+                <span className="sm:hidden">STREAM ACTIVE</span>
+                <span className="hidden sm:inline">gRPC AGENT STREAM ONLINE</span>
+              </>
+            ) : (
+              "STREAM PAUSED"
+            )}
           </span>
-          <span className="font-mono text-muted-foreground">•</span>
-          <span className="font-mono text-[11px] text-muted-foreground">
+          <span className="hidden font-mono text-muted-foreground sm:inline">•</span>
+          <span className="hidden font-mono text-[11px] text-muted-foreground sm:inline">
             mTLS :50051
           </span>
         </div>
+
+        {/* Mobile Cluster Nodes & Latency Pill (moved from header) */}
+        {typeof onlineNodes === "number" && typeof totalNodes === "number" && (
+          <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-[10.5px] font-mono shadow-xs backdrop-blur-md md:hidden">
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                offlineNodes > 0 ? "bg-red-500" : "bg-emerald-500"
+              )}
+            />
+            <span className="font-semibold text-foreground">
+              {onlineNodes}/{totalNodes}
+            </span>
+            <span className="text-muted-foreground">•</span>
+            <span className="text-foreground">{avgLatency}ms</span>
+          </div>
+        )}
 
         <div className="hidden items-center gap-2 rounded-md border border-border/80 bg-background/90 px-2.5 py-1 text-xs shadow-xs backdrop-blur-md sm:flex">
           <span className="font-mono text-muted-foreground">Master Hub:</span>
@@ -186,15 +220,39 @@ export function LiveTopologyMap({
         </div>
       </div>
 
-      {/* Map Legend (Top-Right) */}
-      <div className="absolute top-3 right-4 z-40 hidden items-center gap-3 rounded-md border border-border/80 bg-background/90 px-3 py-1 font-mono text-[11px] shadow-xs backdrop-blur-md md:flex">
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-          <span className="text-muted-foreground">Healthy Node</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
-          <span className="font-medium text-red-400">Dead / Outage</span>
+      {/* Top-Right: Mobile View Switcher (< md) & Desktop Legend (md+) */}
+      <div className="absolute top-2 right-2 z-40 sm:top-3 sm:right-4">
+        {/* Mobile Segmented View Switcher */}
+        {onMobileViewChange && mobileView && (
+          <div className="flex items-center rounded-md border border-border/70 bg-background/90 p-0.5 font-mono text-[10.5px] shadow-xs backdrop-blur-md md:hidden">
+            {(["map", "split", "log"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                onClick={() => onMobileViewChange(view)}
+                className={cn(
+                  "rounded px-2 py-0.5 capitalize transition-colors",
+                  mobileView === view
+                    ? "bg-primary font-bold text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {view}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Map Legend (Desktop) */}
+        <div className="hidden items-center gap-3 rounded-md border border-border/80 bg-background/90 px-3 py-1 font-mono text-[11px] shadow-xs backdrop-blur-md md:flex">
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+            <span className="text-muted-foreground">Healthy Node</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
+            <span className="font-medium text-red-400">Dead / Outage</span>
+          </div>
         </div>
       </div>
 
@@ -358,7 +416,7 @@ export function LiveTopologyMap({
             const isDead = node.status === "offline"
             const isSelected = selectedNodeId === node.id
             const isHovered = hoveredNodeId === node.id
-            const showCard = isHovered || isSelected
+            const showCard = isSelected || (!selectedNodeId && isHovered)
 
             const isNearTop = geo.percentY < 40
             const isNearRight = geo.percentX > 68
@@ -387,14 +445,14 @@ export function LiveTopologyMap({
                   showCard ? "z-50" : "z-20"
                 )}
               >
-                {/* Node Beacon Dot: Exactly centered at (0, 0) */}
+                {/* Node Beacon Dot: Touch-friendly 40px tap target */}
                 <button
                   type="button"
                   onClick={() => onSelectNode(isSelected ? null : node.id)}
                   aria-label={`Node ${node.name} in ${geo.city}`}
-                  className="group pointer-events-auto absolute flex size-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center focus:outline-hidden"
+                  className="group pointer-events-auto absolute flex size-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center focus:outline-hidden sm:size-7"
                 >
-                  {/* Radar pulse aura: fixed size, gentle breathing opacity */}
+                  {/* Radar pulse aura */}
                   <span
                     className={cn(
                       "absolute size-4 rounded-full transition-opacity duration-200",
@@ -414,17 +472,17 @@ export function LiveTopologyMap({
                   />
                 </button>
 
-                {/* Micro-label: Positioned cleanly beside the dot (never offsets the dot coordinate) */}
+                {/* Micro-label: Positioned cleanly beside the dot */}
                 <button
                   type="button"
                   onClick={() => onSelectNode(isSelected ? null : node.id)}
                   className={cn(
                     "pointer-events-auto absolute top-0 -translate-y-1/2 cursor-pointer whitespace-nowrap focus:outline-hidden",
-                    placeLabelLeft ? "-left-3.5 -translate-x-full" : "left-3.5"
+                    placeLabelLeft ? "-left-2 sm:-left-3.5 -translate-x-full" : "left-2 sm:left-3.5"
                   )}
                 >
                   {isDead ? (
-                    <span className="flex items-center gap-1.5 rounded border border-red-500/80 bg-red-950/90 px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-red-200 shadow-sm backdrop-blur-xs hover:border-red-400">
+                    <span className="flex items-center gap-1.5 rounded border border-red-500/80 bg-red-950/90 px-1.5 py-0.5 font-mono text-[9.5px] font-semibold text-red-200 shadow-sm backdrop-blur-xs hover:border-red-400 sm:text-[10.5px]">
                       <span>{geo.city}</span>
                       <span className="font-bold text-red-400 uppercase">
                         DEAD
@@ -433,7 +491,7 @@ export function LiveTopologyMap({
                   ) : (
                     <span
                       className={cn(
-                        "flex items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono text-[10.5px] font-medium shadow-2xs backdrop-blur-xs transition-all",
+                        "flex items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono text-[9.5px] font-medium shadow-2xs backdrop-blur-xs transition-all sm:text-[10.5px]",
                         showCard
                           ? "scale-105 border-emerald-500 bg-card text-foreground ring-1 ring-emerald-500/30"
                           : "border-border/70 bg-background/85 text-muted-foreground hover:border-border hover:text-foreground"
@@ -453,7 +511,7 @@ export function LiveTopologyMap({
                   )}
                 </button>
 
-                {/* Floating Rich Inspection Card (Visible on Hover or Selection) */}
+                {/* Inspection Card: Responsive bottom sheet on mobile, anchored popup on desktop */}
                 {showCard && (
                   <motion.div
                     ref={isSelected ? cardRef : undefined}
@@ -462,18 +520,21 @@ export function LiveTopologyMap({
                     exit={{ opacity: 0, scale: 0.95, y: isNearTop ? -4 : 4 }}
                     transition={{ duration: 0.15 }}
                     className={cn(
-                      "pointer-events-auto absolute z-50 w-72 rounded-lg border p-3 text-left shadow-2xl backdrop-blur-md select-text",
-                      isNearTop ? "top-7" : "-top-5 -translate-y-full",
+                      "pointer-events-auto z-50 p-3 text-left shadow-2xl backdrop-blur-md select-text",
+                      "fixed inset-x-2 bottom-2 mx-auto max-w-sm rounded-xl sm:absolute sm:inset-auto sm:w-72 sm:rounded-lg",
+                      isNearTop ? "sm:top-7" : "sm:-top-5 sm:-translate-y-full",
                       isNearRight
-                        ? "-left-4 -translate-x-full"
+                        ? "sm:-left-4 sm:-translate-x-full"
                         : isNearLeft
-                          ? "left-4"
-                          : "-translate-x-1/2",
+                          ? "sm:left-4"
+                          : "sm:-translate-x-1/2",
                       isDead
-                        ? "border-red-500/80 bg-card/98 text-foreground ring-1 ring-red-500/40 dark:bg-card/95"
-                        : "border-border/90 bg-card/98 text-foreground ring-1 ring-border/50"
+                        ? "border border-red-500/80 bg-card/98 text-foreground ring-1 ring-red-500/40 dark:bg-card/95"
+                        : "border border-border/90 bg-card/98 text-foreground ring-1 ring-border/50"
                     )}
                   >
+                    {/* Mobile drag indicator handle */}
+                    <div className="mx-auto mb-2 h-1 w-8 rounded-full bg-muted-foreground/30 sm:hidden" />
                     {/* Header */}
                     <div className="flex items-start justify-between border-b border-border/70 pb-2">
                       <div className="flex items-center gap-2">
@@ -582,30 +643,16 @@ export function LiveTopologyMap({
                       </div>
                     </div>
 
-                    {/* Controls */}
+                    {/* Actions */}
                     <div className="mt-2.5 flex items-center gap-1.5 border-t border-border/60 pt-2">
-                      <Button
-                        size="sm"
-                        variant={isDead ? "default" : "destructive"}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onToggleNode(node.id)
-                        }}
-                        className="h-8 flex-1 gap-1.5 text-xs font-semibold"
-                      >
-                        <Power className="size-3.5" />
-                        <span>{isDead ? "Restore Node" : "Crash Node"}</span>
-                      </Button>
-
-                      <Link href={`/nodes/${node.id}`} className="shrink-0">
+                      <Link href={`/nodes/${node.id}`} className="w-full">
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-8 w-8 p-0"
-                          title="Open in Nodes Console"
-                          aria-label={`Open ${node.name} in Nodes Console`}
+                          className="h-8 w-full gap-1.5 text-xs font-medium text-foreground hover:bg-muted"
                         >
-                          <ExternalLink className="size-3.5" />
+                          <ExternalLink className="size-3.5 text-muted-foreground" />
+                          <span>View Node Details</span>
                         </Button>
                       </Link>
                     </div>

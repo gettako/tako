@@ -36,6 +36,8 @@ interface LiveTelemetryLogProps {
   onToggleStreaming: () => void
   selectedNodeId?: string | null
   onSelectNode?: (id: string | null) => void
+  mobileView?: "split" | "map" | "log"
+  onMobileViewChange?: (view: "split" | "map" | "log") => void
 }
 
 const SAMPLE_TEMPLATES = [
@@ -54,14 +56,14 @@ const SAMPLE_TEMPLATES = [
   {
     category: "network" as const,
     level: "info" as const,
-    generate: (_node: ClusterNode) =>
-      `Egress burst report: ${(Math.random() * 80 + 120).toFixed(1)} MB/s cumulative TX, 0 dropped frames.`,
+    generate: (node: ClusterNode) =>
+      `Network I/O sample: RX ${(node.networkRxKbps || 0.1).toFixed(1)} kB/s, TX ${(node.networkTxKbps || 0.2).toFixed(1)} kB/s.`,
   },
   {
     category: "container" as const,
     level: "info" as const,
     generate: (node: ClusterNode) =>
-      `Container daemon report: ${node.runningContainers} healthy containers active on Docker ${node.dockerVersion}.`,
+      `Container runtime sample: ${node.runningContainers || node.servicesCount || 0} active containers reported by Docker daemon.`,
   },
 ]
 
@@ -73,30 +75,41 @@ function getTimestamp() {
 }
 
 function createInitialLogs(nodes: ClusterNode[]): TelemetryLogEntry[] {
-  return [
-    {
+  const master = nodes.find((n) => n.role === "master") || nodes[0]
+  const workers = nodes.filter((n) => n.id !== master?.id)
+  const entries: TelemetryLogEntry[] = []
+
+  if (master) {
+    entries.push({
       id: "log-init-1",
       timestamp: getTimestamp(),
-      nodeId: nodes[0]?.id || "node-master",
-      nodeName: nodes[0]?.name || "tako-master-sg01",
-      nodeIp: nodes[0]?.ipAddress || "142.250.190.46",
+      nodeId: master.id,
+      nodeName: master.name,
+      nodeIp: master.ipAddress,
       level: "success",
       category: "grpc",
-      message:
-        "Master cluster orchestrator initialized. gRPC reverse transport listening on :50051.",
-    },
-    {
-      id: "log-init-2",
+      message: `Master control plane active on ${master.ipAddress}. gRPC daemon listening on :50051.`,
+    })
+  }
+
+  for (let i = 0; i < workers.length; i++) {
+    const w = workers[i]
+    entries.push({
+      id: `log-init-${i + 2}`,
       timestamp: getTimestamp(),
-      nodeId: nodes[1]?.id || "node-worker-jp",
-      nodeName: nodes[1]?.name || "tako-worker-tyo02",
-      nodeIp: nodes[1]?.ipAddress || "35.200.114.88",
-      level: "info",
-      category: "network",
+      nodeId: w.id,
+      nodeName: w.name,
+      nodeIp: w.ipAddress,
+      level: w.status === "online" ? "info" : "critical",
+      category: "grpc",
       message:
-        "Reverse tunnel established to Singapore Master Hub. mTLS handshake verified with Tako CA.",
-    },
-  ]
+        w.status === "online"
+          ? `Worker agent stream active to master (Roundtrip: ${w.grpcLatencyMs}ms, TLS session valid).`
+          : `Worker agent connection dropped. Health check failed to respond.`,
+    })
+  }
+
+  return entries
 }
 
 export function LiveTelemetryLog({
@@ -105,6 +118,8 @@ export function LiveTelemetryLog({
   onToggleStreaming,
   selectedNodeId,
   onSelectNode,
+  mobileView,
+  onMobileViewChange,
 }: LiveTelemetryLogProps) {
   const [logs, setLogs] = React.useState<TelemetryLogEntry[]>([])
   const didSeedLogs = React.useRef(false)
@@ -234,34 +249,106 @@ export function LiveTelemetryLog({
   return (
     <div className="flex h-full w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-card/80 shadow-lg backdrop-blur-md">
       {/* Terminal Header Toolbar */}
-      <div className="flex flex-col gap-2 border-b border-border/80 bg-muted/40 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <Terminal className="size-4 text-primary" />
-          <span className="font-mono text-xs font-bold tracking-tight text-foreground">
-            LIVE TELEMETRY STREAM
-          </span>
-          <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-            {filteredLogs.length} events
-          </span>
-          <span
-            className={cn(
-              "flex size-1.5 rounded-full",
-              isStreaming ? "animate-pulse bg-emerald-500" : "bg-amber-500"
+      <div className="flex flex-col gap-1.5 border-b border-border/80 bg-muted/40 p-2 sm:gap-2 sm:px-3 sm:py-2">
+        {/* Row 1: Title, event badge, stream dot & quick buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Terminal className="size-3.5 text-primary sm:size-4" />
+            <span className="font-mono text-[11px] font-bold tracking-tight text-foreground sm:text-xs">
+              <span className="sm:hidden">TELEMETRY</span>
+              <span className="hidden sm:inline">LIVE TELEMETRY STREAM</span>
+            </span>
+            <span className="rounded bg-muted px-1.5 py-0.2 font-mono text-[9.5px] text-muted-foreground sm:text-[10px]">
+              {filteredLogs.length}
+            </span>
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                isStreaming ? "animate-pulse bg-emerald-500" : "bg-amber-500"
+              )}
+            />
+          </div>
+
+          {/* Quick Action Buttons & Mobile View Switcher */}
+          <div className="flex items-center gap-1">
+            {/* Mobile View Switcher when in Log view */}
+            {onMobileViewChange && mobileView === "log" && (
+              <div className="mr-1 flex items-center rounded-md border border-border/70 bg-background/90 p-0.5 font-mono text-[10px] md:hidden">
+                {(["map", "split", "log"] as const).map((view) => (
+                  <button
+                    key={view}
+                    type="button"
+                    onClick={() => onMobileViewChange(view)}
+                    className={cn(
+                      "rounded px-1.5 py-0.5 capitalize transition-colors",
+                      mobileView === view
+                        ? "bg-primary font-bold text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {view}
+                  </button>
+                ))}
+              </div>
             )}
-          />
+            {/* Auto-scroll toggle */}
+            <Button
+              size="sm"
+              variant={autoScroll ? "default" : "outline"}
+              onClick={() => setAutoScroll((prev) => !prev)}
+              className="h-6.5 gap-1 px-1.5 text-[10.5px] sm:h-7 sm:px-2 sm:text-[11px]"
+              title={autoScroll ? "Auto-scroll active" : "Auto-scroll paused"}
+            >
+              <ArrowDown className="size-3" />
+              <span className="hidden sm:inline">Scroll</span>
+            </Button>
+
+            {/* Stream Play/Pause */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onToggleStreaming}
+              className="h-6.5 gap-1 px-1.5 text-[10.5px] sm:h-7 sm:px-2 sm:text-[11px]"
+              title={isStreaming ? "Pause Stream" : "Resume Stream"}
+            >
+              {isStreaming ? (
+                <>
+                  <Pause className="size-3 text-amber-500" />
+                  <span className="hidden sm:inline">Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play className="size-3 text-emerald-500" />
+                  <span className="hidden sm:inline">Resume</span>
+                </>
+              )}
+            </Button>
+
+            {/* Clear Buffer */}
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              onClick={clearLogs}
+              className="size-6.5 text-muted-foreground hover:text-foreground sm:size-7"
+              title="Clear buffer"
+              aria-label="Clear log buffer"
+            >
+              <Trash2 className="size-3" />
+            </Button>
+          </div>
         </div>
 
-        {/* Action Controls & Filters */}
-        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-          {/* Level Filter */}
-          <div className="flex items-center rounded-md border border-border/70 bg-background/80 p-0.5">
+        {/* Row 2: Level pills, Node filter & Search */}
+        <div className="flex items-center gap-1.5 font-mono text-xs">
+          {/* Level Filter Pills */}
+          <div className="flex shrink-0 items-center rounded-md border border-border/70 bg-background/80 p-0.5">
             {["all", "critical", "warn", "info"].map((level) => (
               <button
                 key={level}
                 type="button"
                 onClick={() => setFilterLevel(level)}
                 className={cn(
-                  "rounded px-2 py-0.5 text-[11px] font-medium uppercase transition-colors",
+                  "rounded px-1.5 py-0.5 text-[10px] font-medium uppercase transition-colors sm:px-2 sm:text-[11px]",
                   filterLevel === level
                     ? level === "critical"
                       ? "bg-red-500 font-bold text-white"
@@ -269,13 +356,38 @@ export function LiveTelemetryLog({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {level}
+                <span className="sm:hidden">
+                  {level === "critical" ? "crit" : level}
+                </span>
+                <span className="hidden sm:inline">{level}</span>
               </button>
             ))}
           </div>
 
-          {/* Node Filter with Shadcn SearchableSelect */}
-          <div className="w-44 sm:w-56">
+          {/* Search Filter */}
+          <div className="relative flex min-w-0 flex-1 items-center sm:max-w-44">
+            <Search className="pointer-events-none absolute left-2 size-3 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Filter log..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-6.5 w-full rounded border-border/70 bg-background/80 pr-5 pl-6 font-mono text-[10.5px] text-foreground shadow-2xs placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring sm:h-7 sm:pr-6 sm:pl-6.5 sm:text-[11px]"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-1.5 flex size-3.5 items-center justify-center rounded-xs text-muted-foreground hover:text-foreground sm:size-4"
+                aria-label="Clear filter"
+              >
+                <X className="size-2.5 sm:size-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Node Filter (Hidden on very narrow mobile to prevent wrapping) */}
+          <div className="hidden w-40 sm:block sm:w-48 lg:w-56">
             <SearchableSelect
               options={nodeOptions}
               value={activeFilterNode}
@@ -285,80 +397,13 @@ export function LiveTelemetryLog({
               size="sm"
             />
           </div>
-
-          {/* Search Filter with Shadcn Input */}
-          <div className="relative flex items-center">
-            <Search className="pointer-events-none absolute left-2 size-3 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Filter log..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 w-32 rounded border-border/70 bg-background/80 pr-6 pl-6.5 font-mono text-[11px] text-foreground shadow-2xs placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring sm:w-44"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="absolute right-1.5 flex size-4 items-center justify-center rounded-xs text-muted-foreground hover:text-foreground"
-                aria-label="Clear filter"
-              >
-                <X className="size-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Auto-scroll toggle */}
-          <Button
-            size="sm"
-            variant={autoScroll ? "default" : "outline"}
-            onClick={() => setAutoScroll((prev) => !prev)}
-            className="h-7 gap-1 px-2 text-[11px]"
-            title={autoScroll ? "Auto-scroll active" : "Auto-scroll paused"}
-          >
-            <ArrowDown className="size-3" />
-            <span className="hidden sm:inline">Scroll</span>
-          </Button>
-
-          {/* Stream Play/Pause */}
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onToggleStreaming}
-            className="h-7 gap-1 px-2 text-[11px]"
-            title={isStreaming ? "Pause Stream" : "Resume Stream"}
-          >
-            {isStreaming ? (
-              <>
-                <Pause className="size-3 text-amber-500" />
-                <span className="hidden sm:inline">Pause</span>
-              </>
-            ) : (
-              <>
-                <Play className="size-3 text-emerald-500" />
-                <span className="hidden sm:inline">Resume</span>
-              </>
-            )}
-          </Button>
-
-          {/* Clear Buffer */}
-          <Button
-            size="icon-xs"
-            variant="ghost"
-            onClick={clearLogs}
-            className="size-7 text-muted-foreground hover:text-foreground"
-            title="Clear buffer"
-            aria-label="Clear log buffer"
-          >
-            <Trash2 className="size-3" />
-          </Button>
         </div>
       </div>
 
       {/* Terminal Output Area */}
       <div
         ref={logContainerRef}
-        className="flex-1 [scrollbar-gutter:stable] overflow-y-auto p-3 font-mono text-[11.5px] leading-relaxed select-text"
+        className="flex-1 [scrollbar-gutter:stable] overflow-y-auto p-2 font-mono text-[10.5px] leading-relaxed select-text sm:p-3 sm:text-[11.5px]"
       >
         {filteredLogs.length === 0 ? (
           <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
@@ -375,7 +420,7 @@ export function LiveTelemetryLog({
                 <div
                   key={entry.id}
                   className={cn(
-                    "flex flex-wrap items-baseline gap-x-2 rounded px-1.5 py-0.5 transition-colors",
+                    "flex flex-wrap items-baseline gap-x-1.5 rounded px-1.5 py-0.5 transition-colors sm:gap-x-2",
                     isCrit
                       ? "border-l-2 border-red-500 bg-red-500/10 font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300"
                       : isWarn
@@ -384,14 +429,14 @@ export function LiveTelemetryLog({
                   )}
                 >
                   {/* Timestamp */}
-                  <span className="shrink-0 text-muted-foreground/70">
+                  <span className="shrink-0 text-[10px] text-muted-foreground/70 sm:text-[11px]">
                     [{entry.timestamp}]
                   </span>
 
                   {/* Level Badge */}
                   <span
                     className={cn(
-                      "py-0.2 shrink-0 rounded px-1 text-[9px] font-bold uppercase",
+                      "py-0.2 shrink-0 rounded px-1 text-[8.5px] font-bold uppercase sm:text-[9px]",
                       isCrit
                         ? "border border-red-500/30 bg-red-500/15 text-red-700 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-400"
                         : isWarn
@@ -406,16 +451,23 @@ export function LiveTelemetryLog({
 
                   {/* Node Name & IP */}
                   <span className="shrink-0 font-semibold text-foreground/85">
-                    [{entry.nodeName} @ {entry.nodeIp}]
+                    [{entry.nodeName}
+                    <span className="hidden sm:inline">
+                      {" "}
+                      @ {entry.nodeIp}
+                    </span>
+                    ]
                   </span>
 
                   {/* Category */}
-                  <span className="text-[10px] text-muted-foreground/60 uppercase">
+                  <span className="hidden text-[9.5px] text-muted-foreground/60 uppercase sm:inline">
                     ({entry.category})
                   </span>
 
                   {/* Message */}
-                  <span className="break-all">{entry.message}</span>
+                  <span className="min-w-0 flex-1 break-words">
+                    {entry.message}
+                  </span>
                 </div>
               )
             })}

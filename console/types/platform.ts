@@ -32,6 +32,8 @@ export interface ClusterNode {
   diskTotalGb: number
   runningContainers: number
   servicesCount: number
+  networkRxKbps?: number
+  networkTxKbps?: number
   uptime: string
   lastHeartbeat: string
   lastHeartbeatAt?: string

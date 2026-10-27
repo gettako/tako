@@ -8,10 +8,11 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  Layers,
   Maximize2,
   Minimize2,
-  Power,
-  Zap,
+  Pause,
+  Play,
 } from "lucide-react"
 
 import { LiveTelemetryLog } from "@/components/live/live-telemetry-log"
@@ -20,28 +21,79 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { siteConfig } from "@/config/site"
 import { usePlatformData } from "@/context/platform-data-context"
+import { calculateRealisticLatency } from "@/lib/node-geo"
+import { isPrivateIp } from "@/lib/geoip"
 import { cn } from "@/lib/utils"
 
 export function LiveTrafficView() {
-  const { nodes, toggleNodeStatus } = usePlatformData()
+  const { nodes, services } = usePlatformData()
   const [selectedNodeId, setSelectedNodeId] = React.useState<string | null>(
     null
   )
   const [isStreaming, setIsStreaming] = React.useState<boolean>(true)
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false)
+  const [mobileView, setMobileView] = React.useState<"split" | "map" | "log">(
+    "split"
+  )
 
-  // Compute cluster health stats
-  const totalNodes = nodes.length
-  const onlineNodes = nodes.filter((n) => n.status === "online").length
-  const offlineNodes = nodes.filter((n) => n.status === "offline").length
+  // Periodic micro-jitter for live roundtrip telemetry while stream is active
+  const [latencyJitter, setLatencyJitter] = React.useState<
+    Record<string, number>
+  >({})
+
+  React.useEffect(() => {
+    if (!isStreaming || nodes.length === 0) return
+
+    const interval = setInterval(() => {
+      setLatencyJitter(() => {
+        const next: Record<string, number> = {}
+        for (const n of nodes) {
+          if (n.status === "online") {
+            const isLocal =
+              n.role === "master" ||
+              n.ipAddress === "127.0.0.1" ||
+              n.ipAddress === "localhost" ||
+              isPrivateIp(n.ipAddress)
+            const maxJitter = isLocal ? 1 : 3
+            next[n.id] =
+              Math.floor(Math.random() * (maxJitter * 2 + 1)) - maxJitter
+          }
+        }
+        return next
+      })
+    }, 2800)
+
+    return () => clearInterval(interval)
+  }, [isStreaming, nodes])
+
+  // Resolve realistic distance-based latency for all nodes with live jitter
+  const liveNodes = React.useMemo(() => {
+    const master = nodes.find((n) => n.role === "master") || nodes[0]
+    return nodes.map((node) => {
+      const jitter = latencyJitter[node.id] || 0
+      const realisticLatency = calculateRealisticLatency(node, master, jitter)
+      return {
+        ...node,
+        grpcLatencyMs: realisticLatency,
+      }
+    })
+  }, [nodes, latencyJitter])
+
+  // Compute cluster health stats from live nodes
+  const totalNodes = liveNodes.length
+  const onlineNodes = liveNodes.filter((n) => n.status === "online").length
+  const offlineNodes = liveNodes.filter((n) => n.status === "offline").length
   const avgLatency =
     onlineNodes > 0
       ? Math.round(
-          nodes
+          liveNodes
             .filter((n) => n.status === "online")
             .reduce((acc, n) => acc + (n.grpcLatencyMs || 0), 0) / onlineNodes
         )
       : 0
+  const runningServicesCount = services.filter(
+    (s) => s.status === "running"
+  ).length
 
   // Fullscreen toggle handler
   const handleToggleFullscreen = () => {
@@ -56,57 +108,51 @@ export function LiveTrafficView() {
     }
   }
 
-  // Quick simulation trigger: toggles first non-master node
-  const handleQuickSimulation = () => {
-    const targetNode = nodes.find((n) => n.role !== "master") || nodes[0]
-    if (targetNode) {
-      toggleNodeStatus(targetNode.id)
-    }
-  }
-
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground select-none">
-      {/* Top NOC Header Bar (No Sidebar) */}
-      <header className="z-30 flex h-14 shrink-0 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-md">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground select-none">
+      {/* Top Header Bar */}
+      <header className="z-30 flex h-13 shrink-0 items-center justify-between border-b border-border bg-card/80 px-2.5 backdrop-blur-md sm:h-14 sm:px-4">
         {/* Left: Back Button & Branding */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/nodes">
             <Button
-              size="md"
+              size="sm"
               variant="outline"
-              className="gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+              className="h-8 gap-1 px-2 text-xs font-medium text-muted-foreground hover:text-foreground sm:px-2.5"
+              title="Back to Nodes"
+              aria-label="Back to Nodes"
             >
               <ArrowLeft className="size-3.5" />
-              <span>Back to Nodes</span>
+              <span className="hidden sm:inline">Nodes</span>
             </Button>
           </Link>
 
           <div className="hidden h-5 w-px bg-border/80 sm:block" />
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <Image
               src="/images/tako-trim.png"
               alt={siteConfig.name}
-              width={26}
-              height={26}
-              className="size-6.5 rounded-sm object-contain"
+              width={24}
+              height={24}
+              className="size-5.5 shrink-0 rounded-sm object-contain sm:size-6"
               priority
             />
             <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold tracking-tight text-foreground uppercase">
-                  {siteConfig.name} Live NOC
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-bold tracking-tight text-foreground uppercase sm:text-xs">
+                  Topology
                 </span>
                 <span className="flex size-1.5 animate-pulse rounded-full bg-emerald-500" />
               </div>
-              <span className="font-mono text-[9.5px] text-muted-foreground">
-                Edge Traffic & Network Topology Wall
+              <span className="hidden font-mono text-[9.5px] text-muted-foreground md:inline">
+                Node Distribution & Telemetry Stream
               </span>
             </div>
           </div>
         </div>
 
-        {/* Center: Cluster Telemetry Badges */}
+        {/* Center: Cluster Telemetry Badges (Desktop) */}
         <div className="hidden items-center gap-2 font-mono text-xs lg:flex">
           {/* Nodes Online Ratio */}
           <div
@@ -137,38 +183,52 @@ export function LiveTrafficView() {
             </span>
           </div>
 
-          {/* Throughput */}
+          {/* Active Workloads */}
           <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1 text-xs">
-            <Zap className="size-3 text-amber-500" />
-            <span className="text-muted-foreground">Ingestion:</span>
-            <span className="font-semibold text-foreground">42.8k ev/s</span>
+            <Layers className="size-3 text-primary" />
+            <span className="text-muted-foreground">Services:</span>
+            <span className="font-semibold text-foreground">
+              {runningServicesCount > 0
+                ? `${runningServicesCount} Active`
+                : `${services.length} Total`}
+            </span>
           </div>
         </div>
 
-        {/* Right: Outage Simulation Toggle & Tools */}
-        <div className="flex items-center gap-2">
-          {/* Quick Outage Simulator Button */}
+        {/* Right: Stream Toggle & Tools */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+
+          {/* Stream Play/Pause Toggle */}
           <Button
-            size="md"
-            variant={offlineNodes > 0 ? "outline" : "destructive"}
-            onClick={handleQuickSimulation}
-            className="gap-1.5 text-xs font-medium"
-            title="Toggle a worker node offline to test red warning alerts and failover logs"
+            size="sm"
+            variant="outline"
+            onClick={() => setIsStreaming((prev) => !prev)}
+            className="h-8 gap-1 px-2 text-xs font-medium text-foreground hover:bg-muted sm:px-2.5"
+            title={
+              isStreaming
+                ? "Pause real-time telemetry stream"
+                : "Resume real-time telemetry stream"
+            }
           >
-            <Power className="size-3.5" />
-            <span className="hidden sm:inline">
-              {offlineNodes > 0 ? "Restore Edge Node" : "Simulate Node Crash"}
-            </span>
-            <span className="sm:hidden">
-              {offlineNodes > 0 ? "Restore" : "Crash"}
-            </span>
+            {isStreaming ? (
+              <>
+                <Pause className="size-3.5 text-amber-500" />
+                <span className="hidden sm:inline">Pause</span>
+              </>
+            ) : (
+              <>
+                <Play className="size-3.5 text-emerald-500" />
+                <span className="hidden sm:inline">Resume</span>
+              </>
+            )}
           </Button>
 
-          {/* Fullscreen Toggle */}
+          {/* Fullscreen Toggle (Desktop / Tablet) */}
           <Button
-            size="icon-sm"
+            size="icon-xs"
             variant="ghost"
             onClick={handleToggleFullscreen}
+            className="hidden size-8 sm:inline-flex"
             title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             aria-label="Toggle Fullscreen"
           >
@@ -184,27 +244,47 @@ export function LiveTrafficView() {
         </div>
       </header>
 
-      {/* Main Content: Split View (Map Top, Telemetry Bottom) */}
-      <main className="flex flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-4 sm:p-4">
-        {/* Top: Live Topology Map */}
-        <div className="min-h-0 flex-1">
+      {/* Main Content: Split View (Map Top, Telemetry Bottom, with Mobile Adaptability) */}
+      <main className="flex flex-1 flex-col gap-1.5 overflow-hidden p-1.5 sm:gap-3 sm:p-3 md:gap-4 md:p-4">
+        {/* Live Topology Map */}
+        <div
+          className={cn(
+            "min-h-0",
+            mobileView === "log" ? "hidden md:flex md:flex-1" : "flex flex-1"
+          )}
+        >
           <LiveTopologyMap
-            nodes={nodes}
+            nodes={liveNodes}
             selectedNodeId={selectedNodeId}
             onSelectNode={setSelectedNodeId}
-            onToggleNode={toggleNodeStatus}
             isStreaming={isStreaming}
+            mobileView={mobileView}
+            onMobileViewChange={setMobileView}
+            onlineNodes={onlineNodes}
+            totalNodes={totalNodes}
+            offlineNodes={offlineNodes}
+            avgLatency={avgLatency}
           />
         </div>
 
-        {/* Bottom: Live Telemetry Stream Log */}
-        <div className="h-60 shrink-0 sm:h-72 lg:h-80">
+        {/* Live Telemetry Stream Log */}
+        <div
+          className={cn(
+            mobileView === "map"
+              ? "hidden md:block md:h-72 md:shrink-0 lg:h-80"
+              : mobileView === "log"
+                ? "flex flex-1 overflow-hidden md:h-72 md:shrink-0 lg:h-80"
+                : "h-48 shrink-0 sm:h-64 md:h-72 lg:h-80"
+          )}
+        >
           <LiveTelemetryLog
-            nodes={nodes}
+            nodes={liveNodes}
             isStreaming={isStreaming}
             onToggleStreaming={() => setIsStreaming((prev) => !prev)}
             selectedNodeId={selectedNodeId}
             onSelectNode={setSelectedNodeId}
+            mobileView={mobileView}
+            onMobileViewChange={setMobileView}
           />
         </div>
       </main>
