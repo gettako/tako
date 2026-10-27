@@ -6,6 +6,7 @@ import {
   adaptService,
   formatCommitHash,
   formatDuration,
+  formatNodeLocation,
   formatRelativeTime,
 } from "@/lib/adapters"
 import type { ApiNode, ApiProject, ApiService } from "@/lib/api"
@@ -68,16 +69,53 @@ describe("Data Adapters", () => {
     expect(adapted.id).toBe("node-1")
     expect(adapted.role).toBe("master")
     expect(adapted.status).toBe("online")
+    expect(adapted.agentVersion).toBe("v1.0.0")
     expect(adapted.cpuPercent).toBe(24.5)
     expect(adapted.memoryPercent).toBe(50) // 8192 / 16384 * 100
     expect(adapted.diskPercent).toBe(25) // 125 / 500 * 100
     expect(adapted.totalMemoryGb).toBe(16)
+
+    const customVersionAdapted = adaptNode({
+      ...rawNode,
+      agentVersion: "v1.2.3",
+    })
+    expect(customVersionAdapted.agentVersion).toBe("v1.2.3")
 
     const masterNodeAdapted = adaptNode({ ...rawNode, role: "master" })
     expect(masterNodeAdapted.role).toBe("master")
 
     const workerNodeAdapted = adaptNode({ ...rawNode, role: "worker" })
     expect(workerNodeAdapted.role).toBe("worker")
+  })
+
+  it("formats node location accurately with city deduplication and country tooltip", () => {
+    // Redundant city and country e.g. Singapore, Singapore -> display "Singapore", country "Singapore"
+    const sgDedupe = formatNodeLocation({ name: "Singapore, Singapore" })
+    expect(sgDedupe.display).toBe("Singapore")
+    expect(sgDedupe.country).toBe("Singapore")
+
+    const sgCityCountry = formatNodeLocation({
+      city: "Singapore",
+      country: "Singapore",
+    })
+    expect(sgCityCountry.display).toBe("Singapore")
+    expect(sgCityCountry.country).toBe("Singapore")
+
+    // Distinct city and country e.g. Lauterbourg, France -> display "Lauterbourg", country "France"
+    const frSeparate = formatNodeLocation({ name: "Lauterbourg, France" })
+    expect(frSeparate.display).toBe("Lauterbourg")
+    expect(frSeparate.country).toBe("France")
+
+    const frCityCountry = formatNodeLocation({
+      city: "Lauterbourg",
+      country: "France",
+    })
+    expect(frCityCountry.display).toBe("Lauterbourg")
+    expect(frCityCountry.country).toBe("France")
+
+    // Fallbacks
+    expect(formatNodeLocation(undefined).display).toBe("Edge Host")
+    expect(formatNodeLocation({ name: "Local Network" }).country).toBe("Local Network")
   })
 
   it("adapts ApiProject with valid environment fallback", () => {

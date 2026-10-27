@@ -53,6 +53,7 @@ export interface ApiNode {
   usage: ApiNodeUsage
   servicesCount: number
   agentConnected: boolean
+  agentVersion?: string
   dockerVersion: string
   os: string
   kernelVersion?: string

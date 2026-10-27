@@ -79,6 +79,40 @@ function normalizeNodeStatus(status: string): NodeStatus {
   return "offline"
 }
 
+export function formatNodeLocation(location?: {
+  name?: string
+  city?: string
+  country?: string
+}): { display: string; country: string } {
+  if (!location) return { display: "Edge Host", country: "Global" }
+
+  const rawCountry = location.country?.trim() || ""
+  const rawCity = location.city?.trim() || ""
+  const rawName = location.name?.trim() || ""
+
+  if (rawCity && rawCountry) {
+    return {
+      display: rawCity,
+      country: rawCountry,
+    }
+  }
+
+  if (rawName.includes(",")) {
+    const parts = rawName.split(",").map((s) => s.trim())
+    const cityPart = parts[0]
+    const countryPart = parts[1] || parts[0]
+    return {
+      display: cityPart,
+      country: countryPart,
+    }
+  }
+
+  return {
+    display: rawCity || rawName || rawCountry || "Edge Host",
+    country: rawCountry || rawName || "Global",
+  }
+}
+
 export function adaptNode(node: ApiNode): ClusterNode {
   const totalMemoryMb = node.memoryTotalMb || 0
   const memoryUsedMb = node.usage?.memoryUsedMb || 0
@@ -99,9 +133,13 @@ export function adaptNode(node: ApiNode): ClusterNode {
   const location = geo
     ? {
         code: geo.code,
-        name: geo.city ? `${geo.city}, ${geo.country}` : geo.country,
+        name:
+          geo.city && geo.city.trim() !== ""
+            ? geo.city
+            : geo.country,
         flag: geo.flag,
         city: geo.city,
+        country: geo.country,
         lat: geo.lat,
         lng: geo.lng,
       }
@@ -110,11 +148,13 @@ export function adaptNode(node: ApiNode): ClusterNode {
           code: "LOCAL",
           name: "Local Network",
           flag: "/images/flags/UN.png",
+          country: "Local Network",
         }
       : {
           code: "GLOBAL",
           name: node.name || "Edge Host",
           flag: "/images/flags/UN.png",
+          country: "Global",
         }
 
   return {
@@ -126,6 +166,7 @@ export function adaptNode(node: ApiNode): ClusterNode {
     ipAddress: node.ipAddress,
     publicIp: node.publicIp || undefined,
     dockerVersion: node.dockerVersion || "unknown",
+    agentVersion: node.agentVersion || "v1.0.0",
     os: node.os || "unknown",
     kernelVersion: node.kernelVersion || undefined,
     agentConnected: Boolean(node.agentConnected),

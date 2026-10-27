@@ -13,11 +13,13 @@ export interface ClusterNode {
     name: string
     flag: string
     city?: string
+    country?: string
     lat?: number
     lng?: number
   }
   grpcLatencyMs: number
   grpcVersion?: string
+  agentVersion?: string
   dockerVersion: string
   os: string
   kernelVersion?: string

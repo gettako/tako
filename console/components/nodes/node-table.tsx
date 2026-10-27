@@ -9,6 +9,7 @@ import { Flag } from "@/components/ui/flag"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
 import { ClusterNode } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
+import { formatNodeLocation } from "@/lib/adapters"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
@@ -47,6 +48,7 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
         <tbody className="divide-y divide-border">
           {nodes.map((node) => {
             const isOnline = node.status === "online"
+            const loc = formatNodeLocation(node.location)
             return (
               <tr key={node.id} className="transition-colors hover:bg-muted/20">
                 <td
@@ -65,9 +67,7 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                         {node.name}
                       </Link>
                       <div className="font-mono text-[11px] text-muted-foreground">
-                        {node.location?.name
-                          ? `${node.location.name} • ${node.os}`
-                          : node.os}
+                        {loc.display ? `${loc.display} • ${node.os}` : node.os}
                       </div>
                     </div>
                   </div>
@@ -97,7 +97,8 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                     {node.location?.flag && (
                       <Flag
                         src={node.location.flag}
-                        alt={node.location.name}
+                        alt={loc.country}
+                        title={loc.country}
                         width={16}
                         height={11}
                         className="h-3 shrink-0 rounded-[1px]"
@@ -125,22 +126,27 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                   className="px-4 py-3 font-mono"
                   aria-label={
                     node.agentConnected
-                      ? "Agent connected"
+                      ? `Agent ${node.agentVersion || "v1.0.0"} connected`
                       : `Last heartbeat ${node.lastHeartbeat}`
                   }
                 >
                   <div className="flex items-center gap-1.5 text-foreground">
                     <Radio
                       className={cn(
-                        "size-3",
+                        "size-3 shrink-0",
                         node.agentConnected
                           ? "text-emerald-500"
                           : "text-destructive"
                       )}
                     />
-                    <span>
-                      {node.agentConnected ? "live" : node.lastHeartbeat}
+                    <span className="font-medium">
+                      {node.agentVersion || "v1.0.0"}
                     </span>
+                    {!node.agentConnected && (
+                      <span className="text-[11px] text-muted-foreground">
+                        ({node.lastHeartbeat})
+                      </span>
+                    )}
                   </div>
                 </td>
 

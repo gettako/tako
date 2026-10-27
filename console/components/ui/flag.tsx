@@ -8,13 +8,15 @@ interface FlagProps {
   width: number
   height: number
   className?: string
+  title?: string
 }
 
-export function Flag({ src, alt, width, height, className }: FlagProps) {
+export function Flag({ src, alt, width, height, className, title }: FlagProps) {
   return (
     <Image
       src={src}
       alt={alt}
+      title={title ?? alt}
       width={width}
       height={height}
       unoptimized

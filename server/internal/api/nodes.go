@@ -28,6 +28,7 @@ type NodeResponse struct {
 	Usage          ResourceUsageJSON `json:"usage"`
 	ServicesCount  int               `json:"servicesCount"`
 	AgentConnected bool              `json:"agentConnected"`
+	AgentVersion   string            `json:"agentVersion"`
 	DockerVersion  string            `json:"dockerVersion"`
 	OS             string            `json:"os"`
 	KernelVersion  string            `json:"kernelVersion,omitempty"`
@@ -79,6 +80,7 @@ func mapNodeToResponseEnriched(n db.Node, servicesCount int, agentConnected bool
 		},
 		ServicesCount:  servicesCount,
 		AgentConnected: agentConnected,
+		AgentVersion:   "v1.0.0",
 		DockerVersion:  n.DockerVersion,
 		OS:             n.Os,
 		KernelVersion:  n.KernelVersion,

@@ -18,6 +18,7 @@ import { Flag } from "@/components/ui/flag"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
 import { ClusterNode } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
+import { formatNodeLocation } from "@/lib/adapters"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
@@ -38,6 +39,7 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
   }
 
   const isOnline = node.status === "online"
+  const loc = formatNodeLocation(node.location)
 
   return (
     <div className="flex flex-col rounded-lg border border-border bg-card p-5 transition-all hover:border-border/80">
@@ -58,9 +60,7 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
               <NodeRoleBadge role={node.role} />
             </div>
             <p className="truncate font-mono text-[11px] text-muted-foreground">
-              {node.location?.name
-                ? `${node.location.name} • ${node.os}`
-                : node.os}
+              {loc.display ? `${loc.display} • ${node.os}` : node.os}
             </p>
           </div>
         </div>
@@ -85,13 +85,13 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
           {node.location?.flag && (
             <Flag
               src={node.location.flag}
-              alt={node.location.name}
+              alt={loc.country}
+              title={loc.country}
               width={16}
               height={11}
               className="h-3 shrink-0 rounded-[1px]"
             />
           )}
-          <span className="shrink-0">IP:</span>
           <code className="truncate text-foreground">{node.ipAddress}</code>
           <Button
             type="button"
@@ -113,12 +113,12 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
           className="flex shrink-0 items-center gap-1.5 text-muted-foreground"
           title={
             node.agentConnected
-              ? "Agent connected"
+              ? `Agent connected (${node.agentVersion || "v1.0.0"})`
               : `Agent disconnected (${node.lastHeartbeat})`
           }
           aria-label={
             node.agentConnected
-              ? "Agent connected"
+              ? `Agent connected (${node.agentVersion || "v1.0.0"})`
               : `Last heartbeat ${node.lastHeartbeat}`
           }
         >
@@ -128,9 +128,11 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
               node.agentConnected ? "text-emerald-500" : "text-destructive"
             )}
           />
-          {!node.agentConnected && (
-            <span className="text-foreground">{node.lastHeartbeat}</span>
-          )}
+          <span className="text-foreground">
+            {node.agentConnected
+              ? (node.agentVersion || "v1.0.0")
+              : node.lastHeartbeat}
+          </span>
         </div>
       </div>
 
@@ -207,11 +209,20 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
 
       {/* Footer Info */}
       <div className="mt-5 flex items-center justify-between border-t border-border pt-3 font-mono text-[11px] text-muted-foreground">
-        <div>
-          <span>Docker: </span>
-          <span className="font-medium text-foreground">
-            {node.dockerVersion}
-          </span>
+        <div className="flex items-center gap-2.5">
+          <div>
+            <span>Agent: </span>
+            <span className="font-medium text-foreground">
+              {node.agentVersion || "v1.0.0"}
+            </span>
+          </div>
+          <span className="text-border">•</span>
+          <div>
+            <span>Docker: </span>
+            <span className="font-medium text-foreground">
+              {node.dockerVersion}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <span>{node.servicesCount} services</span>
