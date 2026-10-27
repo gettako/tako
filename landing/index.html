@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tako: self-hosted deployment platform</title>
+  <meta name="description" content="Tako is a self-hosted deployment platform. A Go control plane schedules containers on your worker nodes, Traefik routes them, and a console shows every deploy live.">
+  <meta name="theme-color" content="#0b0c14">
+  <link rel="icon" type="image/png" href="tako.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+      --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --color-ink: #0b0c14;
+      --color-panel: #15161f;
+      --color-panel-2: #20212a;
+      --color-line: #242633;
+      --color-coral: #ff552e;
+      --color-coral-hi: #ff7a5c;
+      --color-live: #10b981;
+      --color-fail: #f87171;
+      --color-fg: #f4f4f5;
+      --color-muted: #a1a1aa;
+    }
+    @layer base {
+      html { background: var(--color-ink); color: var(--color-fg); }
+      body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+      :focus-visible { outline: 2px solid var(--color-coral); outline-offset: 3px; }
+      ::selection { background: var(--color-coral); color: var(--color-ink); }
+    }
+    @keyframes live-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
+    .live-dot { animation: live-pulse 2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) {
+      .live-dot { animation: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-ink text-fg">
+  <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:bg-coral focus:px-4 focus:py-3 focus:text-ink focus:font-semibold">Skip to content</a>
+
+  <header class="sticky top-0 z-40 border-b border-line bg-ink">
+    <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
+      <a href="#top" class="flex min-h-11 items-center gap-2.5" aria-label="Tako, back to top">
+        <img src="tako.png" alt="" width="32" height="30" class="h-8 w-auto">
+        <span class="text-lg font-bold tracking-tight">Tako</span>
+      </a>
+      <nav aria-label="Primary" class="flex items-center gap-1 sm:gap-2">
+        <a href="#features" class="hidden min-h-11 items-center px-3 text-sm text-muted hover:text-fg md:flex">Features</a>
+        <a href="#architecture" class="hidden min-h-11 items-center px-3 text-sm text-muted hover:text-fg md:flex">Architecture</a>
+        <a href="https://github.com/gettako/tako" class="flex min-h-11 items-center px-3 text-sm text-muted hover:text-fg">GitHub</a>
+        <a href="#install" class="flex min-h-11 items-center rounded-sm bg-coral px-4 text-sm font-semibold text-ink hover:bg-coral-hi">Install</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- Hero: asymmetric, headline left, the real deploy flow right -->
+    <section id="top" class="mx-auto grid max-w-6xl grid-cols-1 gap-14 px-5 pb-24 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 lg:pb-32">
+      <div class="self-center">
+        <h1 class="text-[2.5rem] font-bold leading-[1.05] tracking-[-0.03em] sm:text-6xl">
+          Run your own deploy platform on your own servers.
+        </h1>
+        <p class="mt-6 max-w-xl text-lg leading-relaxed text-muted">
+          Tako is a self-hosted deployment platform. A Go control plane schedules your containers onto worker nodes, Traefik routes traffic to them, and the console shows each deploy step as it happens.
+        </p>
+        <div class="mt-9 flex flex-col gap-3 sm:flex-row">
+          <a href="#install" class="flex min-h-12 items-center justify-center rounded-sm bg-coral px-6 font-semibold text-ink hover:bg-coral-hi">Install the master node</a>
+          <a href="https://github.com/gettako/tako" class="flex min-h-12 items-center justify-center rounded-sm border border-line bg-panel px-6 font-semibold hover:border-muted">Read the source on GitHub</a>
+        </div>
+        <p class="mt-6 font-mono text-sm text-muted">Apache-2.0 · Go + Next.js · Docker + Traefik v3</p>
+      </div>
+
+      <div class="rounded-md border border-line bg-panel">
+        <div class="flex items-center justify-between border-b border-line px-5 py-3">
+          <h2 class="font-mono text-sm font-medium">deploy flow</h2>
+          <span class="font-mono text-xs text-muted">one agent task</span>
+        </div>
+        <ol class="relative px-5 py-6">
+          <span class="absolute bottom-10 left-[2.125rem] top-10 w-px bg-line" aria-hidden="true"></span>
+          <li class="relative grid grid-cols-[2rem_1fr_auto] items-center gap-4 py-2.5">
+            <span class="z-10 flex size-8 items-center justify-center rounded-sm border border-line bg-panel-2 font-mono text-xs">1</span>
+            <span>Clone or pull the repository</span>
+            <span class="font-mono text-xs text-muted">agent</span>
+          </li>
+          <li class="relative grid grid-cols-[2rem_1fr_auto] items-center gap-4 py-2.5">
+            <span class="z-10 flex size-8 items-center justify-center rounded-sm border border-line bg-panel-2 font-mono text-xs">2</span>
+            <span>Build or pull the image</span>
+            <span class="font-mono text-xs text-muted">docker</span>
+          </li>
+          <li class="relative grid grid-cols-[2rem_1fr_auto] items-center gap-4 py-2.5">
+            <span class="z-10 flex size-8 items-center justify-center rounded-sm border border-line bg-panel-2 font-mono text-xs">3</span>
+            <span>Write a preview route</span>
+            <span class="font-mono text-xs text-muted">traefik</span>
+          </li>
+          <li class="relative grid grid-cols-[2rem_1fr_auto] items-center gap-4 py-2.5">
+            <span class="z-10 flex size-8 items-center justify-center rounded-sm border border-line bg-panel-2 font-mono text-xs">4</span>
+            <span>Start the new container</span>
+            <span class="font-mono text-xs text-muted">docker</span>
+          </li>
+          <li class="relative grid grid-cols-[2rem_1fr_auto] items-center gap-4 py-2.5">
+            <span class="z-10 flex size-8 items-center justify-center rounded-sm border border-coral bg-panel-2 font-mono text-xs text-coral">5</span>
+            <span class="font-medium">Health check</span>
+            <span class="font-mono text-xs text-muted">docker</span>
+          </li>
+        </ol>
+        <div class="grid gap-px border-t border-line bg-line sm:grid-cols-2">
+          <div class="bg-panel p-5">
+            <p class="flex items-center gap-2 font-mono text-sm text-live">
+              <span class="live-dot size-2 rounded-full bg-live" aria-hidden="true"></span>passes
+            </p>
+            <p class="mt-2 text-sm leading-relaxed text-muted">Write the canonical route, prune old previews, report Live.</p>
+          </div>
+          <div class="bg-panel p-5">
+            <p class="flex items-center gap-2 font-mono text-sm text-fail">
+              <span class="size-2 rounded-full bg-fail" aria-hidden="true"></span>fails
+            </p>
+            <p class="mt-2 text-sm leading-relaxed text-muted">Report Failed and roll back to the last healthy deployment.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture: tonal band, diagram left, rules right -->
+    <section id="architecture" class="border-y border-line bg-panel">
+      <div class="mx-auto grid max-w-6xl grid-cols-1 gap-14 px-5 py-20 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-20 lg:py-28">
+        <div class="order-2 lg:order-1" role="group" aria-label="Diagram: the master node and two worker nodes. Agents on each node dial out to the master over gRPC.">
+          <div class="rounded-md border border-line bg-ink p-4 sm:p-5">
+            <p class="font-mono text-sm font-medium">master node</p>
+            <ul class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <li class="rounded-sm border border-line bg-panel-2 p-3"><p class="text-sm font-medium">Traefik</p><p class="mt-1 font-mono text-xs text-muted">:80 / :443</p></li>
+              <li class="rounded-sm border border-line bg-panel-2 p-3"><p class="text-sm font-medium">tako-console</p><p class="mt-1 font-mono text-xs text-muted">Next.js :3000</p></li>
+              <li class="col-span-2 rounded-sm border border-coral bg-panel-2 p-3 sm:col-span-1"><p class="text-sm font-medium">tako-server</p><p class="mt-1 font-mono text-xs text-muted">REST :8080 · gRPC :50051</p></li>
+              <li class="rounded-sm border border-line bg-panel-2 p-3"><p class="text-sm font-medium">SQLite</p><p class="mt-1 font-mono text-xs text-muted">WAL mode</p></li>
+              <li class="rounded-sm border border-line bg-panel-2 p-3"><p class="text-sm font-medium">tako-agent</p><p class="mt-1 font-mono text-xs text-muted">local node</p></li>
+            </ul>
+          </div>
+
+          <div class="ml-6 flex items-center gap-3 border-l border-coral py-5 pl-5">
+            <p class="font-mono text-sm text-coral">outbound gRPC, dialed by each agent</p>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div class="rounded-md border border-line bg-ink p-4 sm:p-5">
+              <p class="font-mono text-sm font-medium">worker node</p>
+              <ul class="mt-4 space-y-2 text-sm">
+                <li class="rounded-sm border border-line bg-panel-2 px-3 py-2.5 font-medium">tako-agent</li>
+                <li class="rounded-sm border border-line bg-panel-2 px-3 py-2.5">Docker Engine</li>
+                <li class="rounded-sm border border-line bg-panel-2 px-3 py-2.5">Traefik</li>
+                <li class="rounded-sm border border-dashed border-line px-3 py-2.5 text-muted">Workload containers</li>
+              </ul>
+            </div>
+            <div class="rounded-md border border-line bg-ink p-4 sm:p-5">
+              <p class="font-mono text-sm font-medium">worker node</p>
+              <ul class="mt-4 space-y-2 text-sm">
+                <li class="rounded-sm border border-line bg-panel-2 px-3 py-2.5 font-medium">tako-agent</li>
+                <li class="rounded-sm border border-line bg-panel-2 px-3 py-2.5">Docker Engine</li>
+                <li class="rounded-sm border border-line bg-panel-2 px-3 py-2.5">Traefik</li>
+                <li class="rounded-sm border border-dashed border-line px-3 py-2.5 text-muted">Workload containers</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="order-1 self-center lg:order-2">
+          <h2 class="text-3xl font-semibold leading-tight tracking-[-0.02em] sm:text-4xl">Workers call the master. Never the other way round.</h2>
+          <p class="mt-5 leading-relaxed text-muted">
+            Agents do not accept inbound management connections. Each one dials out to the master over gRPC, runs Docker and Traefik work on its own host, and streams logs and task results back.
+          </p>
+          <dl class="mt-8 divide-y divide-line border-y border-line">
+            <div class="py-4">
+              <dt class="font-medium">One control plane</dt>
+              <dd class="mt-1 text-sm leading-relaxed text-muted">State lives in SQLite on the master. Add as many worker nodes as you need.</dd>
+            </div>
+            <div class="py-4">
+              <dt class="font-medium">Routing stays local</dt>
+              <dd class="mt-1 text-sm leading-relaxed text-muted">Each node's Traefik watches a route directory that its own agent writes to.</dd>
+            </div>
+            <div class="py-4">
+              <dt class="font-medium">One origin for the browser</dt>
+              <dd class="mt-1 text-sm leading-relaxed text-muted">The console proxies <code class="font-mono text-fg">/api/v1</code> to the server, so there is no CORS setup.</dd>
+            </div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features: sticky heading, ruled list -->
+    <section id="features" class="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-5 py-24 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:py-32">
+      <div class="lg:sticky lg:top-28 lg:self-start">
+        <h2 class="text-3xl font-semibold leading-tight tracking-[-0.02em] sm:text-4xl">What the console and API cover</h2>
+        <p class="mt-5 leading-relaxed text-muted">Everything below has a route in the server and a page in the console. Nothing here is on a roadmap.</p>
+      </div>
+      <dl class="divide-y divide-line border-y border-line">
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Git or image deploys</dt>
+          <dd class="leading-relaxed text-muted">Build from a repository or pull a ready image. Credentials for private registries are managed in the console.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">GitHub App</dt>
+          <dd class="leading-relaxed text-muted">Connect a GitHub App and receive webhook events. The receiver checks the signature when a webhook secret is set.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Domains and TLS</dt>
+          <dd class="leading-relaxed text-muted">Attach custom domains per service. Traefik requests Let's Encrypt certificates with the HTTP challenge.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Environment variables</dt>
+          <dd class="leading-relaxed text-muted">Set them per service from the console or the API.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Cron jobs</dt>
+          <dd class="leading-relaxed text-muted">Schedule a command against a service. Each job shows its last run, next run, and last status.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Backups</dt>
+          <dd class="leading-relaxed text-muted">Snapshot the database and service configuration. Each snapshot carries a checksum, and S3 or MinIO storage can be configured.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Logs and metrics</dt>
+          <dd class="leading-relaxed text-muted">Deployment progress and container logs stream over server-sent events. Ingress access logs and node metrics have their own views.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Traefik editor</dt>
+          <dd class="leading-relaxed text-muted">Edit a node's Traefik YAML and manage its route files from the console, then reload.</dd>
+        </div>
+        <div class="grid gap-1 py-6 sm:grid-cols-[11rem_1fr] sm:gap-8">
+          <dt class="font-semibold">Access and audit</dt>
+          <dd class="leading-relaxed text-muted">Invite teammates, keep admin actions behind the admin role, and review changes in the audit log.</dd>
+        </div>
+      </dl>
+    </section>
+
+    <!-- Install -->
+    <section id="install" class="border-t border-line bg-panel">
+      <div class="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:py-28">
+        <div>
+          <h2 class="text-3xl font-semibold leading-tight tracking-[-0.02em] sm:text-4xl">Master first, then workers.</h2>
+          <p class="mt-5 leading-relaxed text-muted">
+            The installer adds git and Docker if they are missing, clones the repository into <code class="font-mono text-fg">/opt/tako</code>, and builds on the host. It supports amd64 and arm64.
+          </p>
+          <p class="mt-4 leading-relaxed text-muted">
+            For a worker, pass the enrollment token from your master node and the address of its gRPC port.
+          </p>
+        </div>
+
+        <div>
+          <div role="tablist" aria-label="Node role" class="flex border-b border-line">
+            <button role="tab" id="tab-master" aria-controls="panel-master" aria-selected="true" class="min-h-11 border-b-2 border-coral px-5 text-sm font-semibold aria-[selected=false]:border-transparent aria-[selected=false]:text-muted aria-[selected=false]:hover:text-fg">Master node</button>
+            <button role="tab" id="tab-worker" aria-controls="panel-worker" aria-selected="false" tabindex="-1" class="min-h-11 border-b-2 border-transparent px-5 text-sm font-semibold text-muted hover:text-fg aria-[selected=true]:border-coral aria-[selected=true]:text-fg">Worker node</button>
+          </div>
+
+          <div id="panel-master" role="tabpanel" aria-labelledby="tab-master" class="pt-5">
+            <div class="flex items-stretch rounded-md border border-line bg-ink">
+              <pre class="min-w-0 flex-1 overflow-x-auto p-4 font-mono text-sm leading-relaxed"><code id="cmd-master">curl -fsSL https://gettako.dev/install.sh | bash</code></pre>
+              <button type="button" data-copy="cmd-master" class="min-h-11 shrink-0 border-l border-line px-4 text-sm font-medium hover:bg-panel-2">Copy</button>
+            </div>
+          </div>
+
+          <div id="panel-worker" role="tabpanel" aria-labelledby="tab-worker" hidden class="pt-5">
+            <div class="flex items-stretch rounded-md border border-line bg-ink">
+              <pre class="min-w-0 flex-1 overflow-x-auto p-4 font-mono text-sm leading-relaxed"><code id="cmd-worker">curl -fsSL https://gettako.dev/install.sh | bash -s -- --agent --token &lt;TOKEN&gt; --master &lt;MASTER_IP:50051&gt;</code></pre>
+              <button type="button" data-copy="cmd-worker" class="min-h-11 shrink-0 border-l border-line px-4 text-sm font-medium hover:bg-panel-2">Copy</button>
+            </div>
+            <p class="mt-3 text-sm text-muted">Replace <code class="font-mono text-fg">&lt;TOKEN&gt;</code> and <code class="font-mono text-fg">&lt;MASTER_IP:50051&gt;</code> before running.</p>
+          </div>
+
+          <p id="copy-status" class="mt-3 min-h-5 text-sm text-muted" role="status" aria-live="polite"></p>
+
+          <p class="mt-6 border-t border-line pt-5 text-sm leading-relaxed text-muted">
+            Prefer to run it from source? The repository README lists the local development commands for the server, agent, and console.
+            <a href="https://github.com/gettako/tako#local-development" class="font-medium text-coral underline underline-offset-4 hover:text-coral-hi">Local development steps</a>
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line">
+    <div class="mx-auto flex max-w-6xl flex-col gap-6 px-5 py-10 sm:px-8 md:flex-row md:items-center md:justify-between">
+      <div class="flex items-center gap-2.5">
+        <img src="tako.png" alt="" width="28" height="26" class="h-7 w-auto">
+        <p class="text-sm text-muted"><span class="font-semibold text-fg">Tako</span> is open source under the Apache License 2.0.</p>
+      </div>
+      <nav aria-label="Footer" class="-mx-3 flex flex-wrap text-sm text-muted">
+        <a href="https://github.com/gettako/tako" class="flex min-h-11 items-center px-3 hover:text-fg">GitHub</a>
+        <a href="https://github.com/gettako/tako/blob/main/CONTRIBUTING.md" class="flex min-h-11 items-center px-3 hover:text-fg">Contributing</a>
+        <a href="https://github.com/gettako/tako/blob/main/SECURITY.md" class="flex min-h-11 items-center px-3 hover:text-fg">Security policy</a>
+        <a href="https://github.com/gettako/tako/blob/main/LICENSE" class="flex min-h-11 items-center px-3 hover:text-fg">License</a>
+      </nav>
+    </div>
+  </footer>
+
+  <script>
+    // Install tabs
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    function selectTab(tab) {
+      tabs.forEach((t) => {
+        const on = t === tab;
+        t.setAttribute('aria-selected', on);
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+      document.getElementById('copy-status').textContent = '';
+    }
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => selectTab(tab));
+      tab.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+        selectTab(next);
+        next.focus();
+      });
+    });
+
+    // Copy buttons
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const code = document.getElementById(btn.dataset.copy);
+        const status = document.getElementById('copy-status');
+        try {
+          await navigator.clipboard.writeText(code.textContent);
+          btn.textContent = 'Copied';
+          status.textContent = 'Command copied to clipboard.';
+        } catch {
+          const range = document.createRange();
+          range.selectNodeContents(code);
+          const sel = getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          status.textContent = 'Clipboard is blocked here. The command is selected, press Ctrl+C or Cmd+C.';
+        }
+        setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
