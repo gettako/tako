@@ -61,7 +61,8 @@ export function DeleteNodeDialog({
                 <span>Cannot Delete Master Node</span>
               </DialogTitle>
               <DialogDescription className="text-xs">
-                The master node is required for cluster orchestration and operations.
+                The master node is required for cluster orchestration and
+                operations.
               </DialogDescription>
             </DialogHeader>
 
@@ -69,8 +70,8 @@ export function DeleteNodeDialog({
               <div className="rounded border border-amber-500/30 bg-amber-500/10 p-3 text-muted-foreground">
                 <p className="leading-relaxed">
                   <strong className="text-foreground">{node.name}</strong> is
-                  currently designated as the cluster master. Removing the master
-                  node will cause complete loss of cluster management and
+                  currently designated as the cluster master. Removing the
+                  master node will cause complete loss of cluster management and
                   telemetry synchronization.
                 </p>
               </div>
@@ -111,7 +112,8 @@ export function DeleteNodeDialog({
                 <span>Confirm Node Removal</span>
               </DialogTitle>
               <DialogDescription className="text-xs">
-                This will unregister the node and sever agent telemetry connections.
+                This will unregister the node and sever agent telemetry
+                connections.
               </DialogDescription>
             </DialogHeader>
 
@@ -140,8 +142,8 @@ export function DeleteNodeDialog({
                 <div className="rounded border border-destructive/30 bg-destructive/5 p-3 text-muted-foreground">
                   <p className="leading-relaxed">
                     Are you sure you want to remove{" "}
-                    <strong className="text-foreground">{node.name}</strong> from
-                    the cluster? This action cannot be undone.
+                    <strong className="text-foreground">{node.name}</strong>{" "}
+                    from the cluster? This action cannot be undone.
                   </p>
                 </div>
               )}

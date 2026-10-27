@@ -133,10 +133,7 @@ export function adaptNode(node: ApiNode): ClusterNode {
   const location = geo
     ? {
         code: geo.code,
-        name:
-          geo.city && geo.city.trim() !== ""
-            ? geo.city
-            : geo.country,
+        name: geo.city && geo.city.trim() !== "" ? geo.city : geo.country,
         flag: geo.flag,
         city: geo.city,
         country: geo.country,

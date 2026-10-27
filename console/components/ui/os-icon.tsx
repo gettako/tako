@@ -43,7 +43,11 @@ export function resolveOsInfo(osString?: string): OsInfo {
   if (raw.includes("alpine")) {
     return { icon: siAlpinelinux, color: "#0D597F", label: "Alpine Linux" }
   }
-  if (raw.includes("red hat") || raw.includes("rhel") || raw.includes("redhat")) {
+  if (
+    raw.includes("red hat") ||
+    raw.includes("rhel") ||
+    raw.includes("redhat")
+  ) {
     return { icon: siRedhat, color: "#EE0000", label: "Red Hat" }
   }
   if (raw.includes("centos")) {
@@ -122,4 +126,3 @@ export function DockerIcon({
     </svg>
   )
 }
-

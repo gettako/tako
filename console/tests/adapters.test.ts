@@ -115,7 +115,9 @@ describe("Data Adapters", () => {
 
     // Fallbacks
     expect(formatNodeLocation(undefined).display).toBe("Edge Host")
-    expect(formatNodeLocation({ name: "Local Network" }).country).toBe("Local Network")
+    expect(formatNodeLocation({ name: "Local Network" }).country).toBe(
+      "Local Network"
+    )
   })
 
   it("adapts ApiProject with valid environment fallback", () => {

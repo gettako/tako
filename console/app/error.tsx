@@ -12,7 +12,7 @@ export default function ErrorPage({
   reset: () => void
 }) {
   React.useEffect(() => {
-    // Log unexpected runtime exception for telemetry tracing
+    // Retain full stack trace and error telemetry in development console
     console.error("[Tako Error Boundary Caught]", error)
   }, [error])
 
@@ -24,6 +24,7 @@ export default function ErrorPage({
       diagnosticInfo={{
         digest: error.digest,
         message: error.message,
+        stack: error.stack,
       }}
       onReset={reset}
     />

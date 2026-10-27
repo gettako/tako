@@ -20,7 +20,9 @@ export function NodesView() {
     usePlatformData()
 
   const [addNodeOpen, setAddNodeOpen] = React.useState(false)
-  const [nodeToDelete, setNodeToDelete] = React.useState<ClusterNode | null>(null)
+  const [nodeToDelete, setNodeToDelete] = React.useState<ClusterNode | null>(
+    null
+  )
   const [searchQuery, setSearchQuery] = React.useState("")
 
   const filteredNodes = nodes.filter(

@@ -219,9 +219,7 @@ interface PlatformDataContextType {
   addPasskey: (name: string, credentialId?: string) => Promise<void>
   removePasskey: (id: string) => Promise<void>
 
-  testS3Bucket: (
-    bucket: Partial<S3BucketConfig>
-  ) => Promise<{
+  testS3Bucket: (bucket: Partial<S3BucketConfig>) => Promise<{
     ok: boolean
     message: string
     latencyMs?: number

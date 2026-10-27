@@ -13,6 +13,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   React.useEffect(() => {
+    // Retain fatal root layout error with stack trace
     console.error("[Tako Global Fatal Layout Error]", error)
   }, [error])
 
@@ -26,6 +27,7 @@ export default function GlobalError({
           diagnosticInfo={{
             digest: error.digest,
             message: error.message,
+            stack: error.stack,
           }}
           onReset={reset}
         />

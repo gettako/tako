@@ -256,7 +256,9 @@ export function ServiceDetailView({
                   <Flag
                     src={targetNode.location.flag}
                     alt={targetNode.location.country || targetNode.name}
-                    title={targetNode.location.country || targetNode.location.name}
+                    title={
+                      targetNode.location.country || targetNode.location.name
+                    }
                     width={16}
                     height={11}
                     className="h-3 shrink-0 rounded-[1px]"
