@@ -295,6 +295,14 @@ func (e *Executor) ExecuteDeployWithCallback(
 			sendLog("Health check", fmt.Sprintf("Configured container health probe: GET http://127.0.0.1:%d%s (every %v, retries %d)", checkPort, healthPath, interval, retries), false)
 		}
 
+		logConfig := container.LogConfig{
+			Type: "json-file",
+			Config: map[string]string{
+				"max-size": "50m",
+				"max-file": "3",
+			},
+		}
+
 		resp, err := e.dockerCli.RawClient().ContainerCreate(
 			ctx,
 			&container.Config{
@@ -309,6 +317,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 				PortBindings:  portBindings,
 				Resources:     containerResources,
 				Binds:         binds,
+				LogConfig:     logConfig,
 			},
 			&network.NetworkingConfig{
 				EndpointsConfig: map[string]*network.EndpointSettings{
@@ -338,6 +347,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 						PortBindings:  nil,
 						Resources:     containerResources,
 						Binds:         binds,
+						LogConfig:     logConfig,
 					},
 					&network.NetworkingConfig{
 						EndpointsConfig: map[string]*network.EndpointSettings{

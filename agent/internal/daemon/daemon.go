@@ -315,6 +315,7 @@ func (d *Daemon) Close() error {
 // listenTasks maintains a persistent bi-directional gRPC stream to receive master commands
 // (deployments, exec commands, container stop/start/restart, logs).
 func (d *Daemon) listenTasks(ctx context.Context) {
+	reconnectAttempts := 0
 	for {
 		select {
 		case <-ctx.Done():
@@ -334,8 +335,16 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 		log.Printf("[tako-agent] connecting to master task stream (node: %s)...", nodeID)
 		stream, err := d.grpcCli.AgentClient().StreamTasks(ctx)
 		if err != nil {
+			backoff := time.Duration(1<<reconnectAttempts) * time.Second
+			if backoff > 30*time.Second {
+				backoff = 30 * time.Second
+			}
+			jitter := time.Duration(time.Now().UnixNano()%1000) * time.Millisecond
+			sleepDuration := backoff + jitter
+			reconnectAttempts++
+
 			if !errors.Is(err, context.Canceled) {
-				log.Printf("[tako-agent] warning: failed to connect task stream: %v (retrying in 3s)", err)
+				log.Printf("[tako-agent] warning: failed to connect task stream: %v (retrying in %v)", err, sleepDuration)
 			}
 			if status.Code(err) == codes.Unauthenticated {
 				log.Printf("[tako-agent] task stream unauthenticated, re-registering with master...")
@@ -344,10 +353,12 @@ func (d *Daemon) listenTasks(ctx context.Context) {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(3 * time.Second):
+			case <-time.After(sleepDuration):
 				continue
 			}
 		}
+
+		reconnectAttempts = 0
 
 		// Initial greeting/handshake
 		_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{

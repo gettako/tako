@@ -89,4 +89,7 @@ func (c *RetentionCleaner) Prune(ctx context.Context, retentionDays int) {
 			log.Printf("[orchestrator] pruned %d stale telemetry series", pruned)
 		}
 	}
+
+	// Passive WAL checkpoint to prevent unbounded wal growth
+	_, _ = c.db.ExecContext(ctx, "PRAGMA wal_checkpoint(PASSIVE)")
 }

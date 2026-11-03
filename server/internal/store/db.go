@@ -32,6 +32,7 @@ func OpenDB(path string) (*sql.DB, error) {
 		if path != ":memory:" {
 			q.Add("_pragma", "journal_mode(WAL)")
 		}
+		q.Add("_txlock", "immediate")
 		dsn = fmt.Sprintf("%s?%s", path, q.Encode())
 	}
 
