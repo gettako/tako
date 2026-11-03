@@ -20,6 +20,7 @@ import {
 import { UsersPanel } from "@/components/settings/users-panel"
 import { siteConfig } from "@/config/site"
 import { usePlatformData } from "@/context/platform-data-context"
+import { cn } from "@/lib/utils"
 import { S3BucketConfig } from "@/types/platform"
 
 const VALID_SECTIONS = Object.values(SETTINGS_SECTION)
