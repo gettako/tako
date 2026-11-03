@@ -397,6 +397,25 @@ export function GitPanel() {
                       : "Sync Repos"}
                 </span>
               </Button>
+              {primaryAppProvider && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    window.open(
+                      primaryAppProvider.installUrl ||
+                        `https://github.com/apps/${primaryAppProvider.appSlug || "tako"}/installations/new`,
+                      "_blank"
+                    )
+                  }
+                  className="gap-1.5 text-xs"
+                  title="Install this GitHub App to another account or organization"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Add Account / Org</span>
+                </Button>
+              )}
               <Button
                 type="button"
                 size="sm"
@@ -452,18 +471,21 @@ export function GitPanel() {
                       type="button"
                       variant="outline"
                       size="xs"
-                      onClick={() =>
-                        window.open(
-                          prov.installUrl ||
-                            `https://github.com/apps/${prov.appSlug || "tako"}/installations/new`,
-                          "_blank"
-                        )
-                      }
+                      onClick={() => {
+                        const configUrl =
+                          prov.installationId && prov.installationId > 0
+                            ? prov.accountType?.toLowerCase() === "organization"
+                              ? `https://github.com/organizations/${prov.username}/settings/installations/${prov.installationId}`
+                              : `https://github.com/settings/installations/${prov.installationId}`
+                            : prov.installUrl ||
+                              `https://github.com/apps/${prov.appSlug || "tako"}/installations/new`
+                        window.open(configUrl, "_blank")
+                      }}
                       className="gap-1 text-[11px]"
-                      title="Install this GitHub App to another organization or account"
+                      title={`Configure repositories for ${prov.username} on GitHub`}
                     >
                       <ExternalLink className="size-3" />
-                      <span>+ Install to Org / Account</span>
+                      <span>Configure on GitHub</span>
                     </Button>
                   )}
                 {prov.connected && (

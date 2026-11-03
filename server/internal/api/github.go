@@ -527,18 +527,24 @@ func updateGitProvidersWithApp(ctx context.Context, orch *orchestrator.Orchestra
 				continue
 			}
 			seenLogins[loginKey] = true
+			accountType := inst.Account.Type
+			if accountType == "" {
+				accountType = "User"
+			}
 			filtered = append(filtered, map[string]any{
-				"id":          fmt.Sprintf("git-gh-%s", loginKey),
-				"type":        "github",
-				"name":        fmt.Sprintf("GitHub (%s)", inst.Account.Login),
-				"username":    inst.Account.Login,
-				"connected":   true,
-				"avatarUrl":   inst.Account.AvatarURL,
-				"connectedAt": inst.InstalledAt,
-				"authMethod":  "github_app",
-				"appId":       config.AppID,
-				"appSlug":     config.Slug,
-				"installUrl":  config.InstallURL,
+				"id":             fmt.Sprintf("git-gh-%s", loginKey),
+				"type":           "github",
+				"name":           fmt.Sprintf("GitHub (%s)", inst.Account.Login),
+				"username":       inst.Account.Login,
+				"connected":      true,
+				"avatarUrl":      inst.Account.AvatarURL,
+				"connectedAt":    inst.InstalledAt,
+				"authMethod":     "github_app",
+				"appId":          config.AppID,
+				"appSlug":        config.Slug,
+				"installUrl":     config.InstallURL,
+				"installationId": inst.ID,
+				"accountType":    accountType,
 			})
 		}
 	} else if config.Owner.Login != "" {

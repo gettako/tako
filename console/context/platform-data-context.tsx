@@ -664,6 +664,11 @@ export function PlatformDataProvider({
         installUrl: provider.installUrl ? String(provider.installUrl) : undefined,
         appSlug: provider.appSlug ? String(provider.appSlug) : undefined,
         appId: typeof provider.appId === "number" ? provider.appId : undefined,
+        installationId:
+          typeof provider.installationId === "number"
+            ? provider.installationId
+            : undefined,
+        accountType: provider.accountType ? String(provider.accountType) : undefined,
       }))
     )
 

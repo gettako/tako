@@ -384,6 +384,8 @@ export interface GitProviderConfig {
   installUrl?: string
   appSlug?: string
   appId?: number
+  installationId?: number
+  accountType?: string
 }
 
 export interface SyncedGitRepo {
