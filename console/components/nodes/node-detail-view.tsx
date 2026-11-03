@@ -27,6 +27,7 @@ import { motion } from "motion/react"
 import { Flag } from "@/components/ui/flag"
 import { EmptyState } from "@/components/ui/empty-state"
 import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
+import { NodeMetricsCharts } from "@/components/nodes/node-metrics-charts"
 import { NodeTraefikConfigView } from "@/components/nodes/node-traefik-config-view"
 import { usePlatformData } from "@/context/platform-data-context"
 import { apiGet, apiPost } from "@/lib/api"
@@ -53,7 +54,7 @@ interface NodeDetailViewProps {
   nodeId: string
 }
 
-type TabType = "containers" | "telemetry" | "traefik"
+type TabType = "metrics" | "containers" | "telemetry" | "traefik"
 
 export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const {
@@ -67,7 +68,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const node = nodes.find((n) => n.id === nodeId)
   const actorName = currentUser.email || currentUser.name || "admin@gettako.dev"
 
-  const [activeTab, setActiveTab] = React.useState<TabType>("containers")
+  const [activeTab, setActiveTab] = React.useState<TabType>("metrics")
   const [copiedIp, setCopiedIp] = React.useState(false)
   const [isPinging, setIsPinging] = React.useState(false)
   const [currentPing, setCurrentPing] = React.useState<number | null>(
@@ -508,6 +509,27 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
       <div className="flex items-center gap-1 border-b border-border">
         <button
           type="button"
+          onClick={() => setActiveTab("metrics")}
+          className={cn(
+            "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
+            activeTab === "metrics"
+              ? "font-semibold text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {activeTab === "metrics" && (
+            <motion.div
+              layoutId="node-detail-tab-indicator"
+              className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
+              transition={{ type: "spring", stiffness: 450, damping: 35 }}
+            />
+          )}
+          <Activity className="size-3.5" />
+          <span>System Metrics</span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab("containers")}
           className={cn(
             "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
@@ -547,8 +569,8 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
               transition={{ type: "spring", stiffness: 450, damping: 35 }}
             />
           )}
-          <Activity className="size-3.5" />
-          <span>gRPC Telemetry Stream</span>
+          <Radio className="size-3.5" />
+          <span>gRPC Stream Log</span>
         </button>
 
         <button
@@ -573,13 +595,15 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
         </button>
       </div>
 
-      {/* Tab 1: Containers List */}
+      {/* Tab Panels */}
       <motion.div
         key={activeTab}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
       >
+        {activeTab === "metrics" && <NodeMetricsCharts node={node} />}
+
         {activeTab === "containers" && (
           <div className="space-y-4">
             {containers.length === 0 ? (

@@ -68,6 +68,10 @@ type MetricPointResponse struct {
 	NetworkTx     float64 `json:"networkTx"`
 	Disk          int64   `json:"disk"`
 	DiskPercent   int64   `json:"diskPercent,omitempty"`
+	DiskRead      int64   `json:"diskRead,omitempty"`
+	DiskWrite     int64   `json:"diskWrite,omitempty"`
+	SwapUsedMb    int64   `json:"swapUsedMb,omitempty"`
+	SwapTotalMb   int64   `json:"swapTotalMb,omitempty"`
 }
 
 func registerMetricsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
