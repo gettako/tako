@@ -1288,15 +1288,30 @@ export function PlatformDataProvider({
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean)
-      return lines.map((line, index): DeploymentLogEntry => ({
-        id: `${deploymentId}-log-${index}`,
-        timestamp: "",
-        level: (/error|failed/i.test(line)
-          ? "error"
-          : "info") as DeploymentLogEntry["level"],
-        step: "Log",
-        message: line,
-      }))
+      return lines.map((line, index): DeploymentLogEntry => {
+        let timestamp = ""
+        let step = "Log"
+        let msg = line
+        const match = line.match(
+          /^\[(\d{2}:\d{2}:\d{2})\]\s+\[([^\]]+)\]\s+([\s\S]*)$/
+        )
+        if (match) {
+          timestamp = match[1]
+          step = match[2]
+          msg = match[3]
+        }
+        return {
+          id: `${deploymentId}-log-${index}`,
+          timestamp,
+          level: /error|failed/i.test(msg)
+            ? "error"
+            : step === "Live"
+              ? "success"
+              : "info",
+          step,
+          message: msg.trim(),
+        }
+      })
     },
     []
   )

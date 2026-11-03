@@ -292,7 +292,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 				Retries:     retries,
 				StartPeriod: startPeriod,
 			}
-			sendLog("Deploy", fmt.Sprintf("Configured Docker health probe: GET http://127.0.0.1:%d%s (every %v, retries %d)", checkPort, healthPath, interval, retries), false)
+			sendLog("Health check", fmt.Sprintf("Configured container health probe: GET http://127.0.0.1:%d%s (every %v, retries %d)", checkPort, healthPath, interval, retries), false)
 		}
 
 		resp, err := e.dockerCli.RawClient().ContainerCreate(
@@ -404,6 +404,7 @@ func (e *Executor) ExecuteDeployWithCallback(
 					sendLog("Health check", errMsg, true)
 					return fmt.Errorf("container terminated by OOM killer")
 				}
+				hasHealthProbe := req.GetEnvVars()["TAKO_HEALTHCHECK_PATH"] != ""
 				if inspect.State.Health != nil {
 					switch inspect.State.Health.Status {
 					case "unhealthy":
@@ -416,12 +417,17 @@ func (e *Executor) ExecuteDeployWithCallback(
 					case "starting":
 						// Container healthcheck is still warming up; wait for next probe
 					default:
-						if inspect.State.Running {
-							healthy = true
+						if !hasHealthProbe && inspect.State.Running {
+							if i > 0 {
+								healthy = true
+							}
 						}
 					}
-				} else if inspect.State.Running {
-					healthy = true
+				} else if !hasHealthProbe && inspect.State.Running {
+					// Verify container stability on startup
+					if i > 0 {
+						healthy = true
+					}
 				}
 
 				if healthy {

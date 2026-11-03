@@ -763,6 +763,7 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 					"message":       logMsg,
 					"status":        status,
 					"is_error":      chunk.IsError,
+					"steps":         stepsState,
 				},
 			})
 

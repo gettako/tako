@@ -177,9 +177,15 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
     return generateStepsForDeployment(
       selectedDeployment,
       isSelectedDeploying,
-      service.targetNodeId
+      service.targetNodeId,
+      isSelectedDeploying ? deploymentLogs : undefined
     )
-  }, [selectedDeployment, isSelectedDeploying, service.targetNodeId])
+  }, [
+    selectedDeployment,
+    isSelectedDeploying,
+    service.targetNodeId,
+    deploymentLogs,
+  ])
 
   // Derive logs for the selected deployment
   const logsForSelectedDeployment = React.useMemo(() => {
@@ -196,12 +202,21 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
     return logsForSelectedDeployment.filter((log) => {
       // Step sync filter
       if (selectedStepName) {
-        const keywords = STEP_KEYWORDS[selectedStepName] || [
-          selectedStepName.toLowerCase(),
-        ]
-        const text = `${log.step} ${log.message}`.toLowerCase()
-        const matchesKeyword = keywords.some((kw) => text.includes(kw))
-        if (!matchesKeyword) return false
+        if (
+          log.step &&
+          log.step.toLowerCase() === selectedStepName.toLowerCase()
+        ) {
+          // Exact canonical step match
+        } else if (!log.step || log.step === "Log") {
+          // Only fallback to keyword search if log has no canonical step
+          const keywords = STEP_KEYWORDS[selectedStepName] || [
+            selectedStepName.toLowerCase(),
+          ]
+          const text = log.message.toLowerCase()
+          if (!keywords.some((kw) => text.includes(kw))) return false
+        } else {
+          return false
+        }
       }
 
       // Level filter

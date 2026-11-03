@@ -121,6 +121,7 @@ export interface DeploymentRecord {
   isRollback?: boolean
   previewUrl?: string
   steps?: DeploymentPipelineStep[]
+  rawLogs?: string
 }
 
 export interface ServiceDomain {

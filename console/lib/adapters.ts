@@ -329,6 +329,7 @@ export function adaptDeployment(deployment: ApiDeployment): DeploymentRecord {
     isRollback: d.status === "rolled_back",
     previewUrl: d.url || undefined,
     steps: adaptSteps(deployment),
+    rawLogs: typeof d.logs === "string" ? d.logs : undefined,
   }
 }
 
@@ -461,12 +462,26 @@ export function adaptService(service: ApiService): ProjectService {
 export function adaptDeploymentLog(
   payload: Record<string, unknown>
 ): DeploymentLogEntry {
-  const message = typeof payload.message === "string" ? payload.message : ""
+  let message = typeof payload.message === "string" ? payload.message : ""
   const isError = payload.is_error === true || payload.status === "failed"
-  const step = typeof payload.step === "string" ? payload.step : "Log"
+  let step = typeof payload.step === "string" ? payload.step : "Log"
+  let timestamp = new Date().toLocaleTimeString()
+
+  // Parse server logMsg pattern if present: "[15:04:05] [Step] Actual message"
+  const prefixMatch = message.match(
+    /^\[(\d{2}:\d{2}:\d{2})\]\s+\[([^\]]+)\]\s+([\s\S]*)$/
+  )
+  if (prefixMatch) {
+    timestamp = prefixMatch[1]
+    if (step === "Log" || !step) {
+      step = prefixMatch[2]
+    }
+    message = prefixMatch[3]
+  }
+
   return {
     id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    timestamp: new Date().toLocaleTimeString(),
+    timestamp,
     level: isError ? "error" : step === "Live" ? "success" : "info",
     step,
     message: message.trim(),
