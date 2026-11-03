@@ -9,6 +9,8 @@ import {
   Globe,
   HardDrive,
   LayoutDashboard,
+  PanelLeftClose,
+  PanelLeftOpen,
   Radio,
   Users,
 } from "lucide-react"
@@ -45,6 +47,8 @@ interface SettingsNavProps {
   pendingInvitesCount?: number
   bucketsCount?: number
   registriesCount?: number
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 export function SettingsNav({
@@ -53,6 +57,8 @@ export function SettingsNav({
   pendingInvitesCount = 0,
   bucketsCount,
   registriesCount,
+  isCollapsed = false,
+  onToggleCollapse,
 }: SettingsNavProps) {
   const navItems: NavItem[] = React.useMemo(
     () => [
@@ -173,10 +179,35 @@ export function SettingsNav({
       {/* Desktop Vertical Sidebar */}
       <nav
         aria-label="Cluster Settings navigation"
-        className="hidden [scrollbar-width:thin] space-y-1 rounded-lg border border-border bg-card p-2 shadow-xs lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
+        className={cn(
+          "hidden [scrollbar-width:thin] space-y-1 rounded-lg border border-border bg-card shadow-xs transition-all duration-200 lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto",
+          isCollapsed ? "p-1.5" : "p-2"
+        )}
       >
-        <div className="px-3 py-2 font-mono text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-          Cluster Configuration
+        <div className="flex items-center justify-between px-2 py-1.5">
+          {!isCollapsed && (
+            <span className="font-mono text-[10px] font-semibold tracking-wider text-muted-foreground uppercase truncate">
+              Cluster Settings
+            </span>
+          )}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className={cn(
+                "flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
+                isCollapsed && "mx-auto"
+              )}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <PanelLeftOpen className="size-3.5" />
+              ) : (
+                <PanelLeftClose className="size-3.5" />
+              )}
+            </button>
+          )}
         </div>
 
         {navItems.map((item) => {
@@ -192,8 +223,12 @@ export function SettingsNav({
                   onSectionChange(item.id)
                 }
               }}
+              title={isCollapsed ? `${item.label} — ${item.description}` : undefined}
               className={cn(
-                "relative flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors cursor-pointer",
+                "relative flex items-center rounded-md text-xs font-medium transition-colors cursor-pointer",
+                isCollapsed
+                  ? "size-9 justify-center mx-auto"
+                  : "w-full justify-between px-3 py-2.5 text-left",
                 isActive
                   ? "font-semibold text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -206,24 +241,31 @@ export function SettingsNav({
                   transition={{ type: "spring", stiffness: 450, damping: 35 }}
                 />
               )}
-              <div className="relative z-10 flex min-w-0 items-center gap-2.5">
-                <Icon className="size-4 shrink-0" />
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium">{item.label}</span>
-                  <span
-                    className={cn(
-                      "truncate text-[10px]",
-                      isActive
-                        ? "text-primary-foreground/80"
-                        : "text-muted-foreground/80"
-                    )}
-                  >
-                    {item.description}
-                  </span>
-                </div>
+              <div
+                className={cn(
+                  "relative z-10 flex items-center",
+                  isCollapsed ? "justify-center" : "min-w-0 gap-2.5"
+                )}
+              >
+                <Icon className={cn("shrink-0", isCollapsed ? "size-4" : "size-4")} />
+                {!isCollapsed && (
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{item.label}</span>
+                    <span
+                      className={cn(
+                        "truncate text-[10px]",
+                        isActive
+                          ? "text-primary-foreground/80"
+                          : "text-muted-foreground/80"
+                      )}
+                    >
+                      {item.description}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {item.badge !== undefined && (
+              {!isCollapsed && item.badge !== undefined && (
                 <span
                   className={cn(
                     "relative z-10 ml-2 shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px]",

@@ -9,6 +9,8 @@ import {
   HeartPulse,
   Key,
   Network,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
 } from "lucide-react"
 
@@ -86,14 +88,25 @@ const SERVICE_SETTINGS_TABS: ServiceSettingTabItem[] = [
 interface ServiceSettingsTabsProps {
   activeSection: SettingsSection
   onSelect: (section: SettingsSection) => void
+  isCollapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 export function ServiceSettingsTabs({
   activeSection,
   onSelect,
+  isCollapsed = false,
+  onToggleCollapse,
 }: ServiceSettingsTabsProps) {
   return (
-    <aside className="lg:sticky lg:top-6 lg:col-span-4 xl:col-span-3">
+    <aside
+      className={cn(
+        "transition-all duration-200",
+        isCollapsed
+          ? "lg:sticky lg:top-6 lg:col-span-1 xl:col-span-1 max-w-[64px]"
+          : "lg:sticky lg:top-6 lg:col-span-4 xl:col-span-3"
+      )}
+    >
       <div className="flex scrollbar-none gap-1.5 overflow-x-auto pb-2 lg:hidden">
         {SERVICE_SETTINGS_TABS.map((tab) => {
           const Icon = tab.icon
@@ -137,10 +150,35 @@ export function ServiceSettingsTabs({
 
       <nav
         aria-label="Service settings sections"
-        className="hidden [scrollbar-width:thin] space-y-1 rounded-lg border border-border bg-card p-2 shadow-xs lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
+        className={cn(
+          "hidden [scrollbar-width:thin] space-y-1 rounded-lg border border-border bg-card shadow-xs transition-all duration-200 lg:block lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto",
+          isCollapsed ? "p-1.5" : "p-2"
+        )}
       >
-        <div className="px-3 py-2 font-mono text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
-          Service Configuration
+        <div className="flex items-center justify-between px-2 py-1.5">
+          {!isCollapsed && (
+            <span className="font-mono text-[10px] font-semibold tracking-wider text-muted-foreground uppercase truncate">
+              Service Settings
+            </span>
+          )}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className={cn(
+                "flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors",
+                isCollapsed && "mx-auto"
+              )}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <PanelLeftOpen className="size-3.5" />
+              ) : (
+                <PanelLeftClose className="size-3.5" />
+              )}
+            </button>
+          )}
         </div>
 
         {SERVICE_SETTINGS_TABS.map((tab) => {
@@ -153,8 +191,12 @@ export function ServiceSettingsTabs({
               key={tab.id}
               type="button"
               onClick={() => onSelect(tab.id)}
+              title={isCollapsed ? `${tab.label} — ${tab.description}` : undefined}
               className={cn(
-                "relative flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
+                "relative flex items-center rounded-md text-xs font-medium transition-colors",
+                isCollapsed
+                  ? "size-9 justify-center mx-auto"
+                  : "w-full justify-between px-3 py-2.5 text-left",
                 isActive
                   ? isDanger
                     ? "font-semibold text-white shadow-xs"
@@ -174,23 +216,30 @@ export function ServiceSettingsTabs({
                   transition={{ type: "spring", stiffness: 450, damping: 35 }}
                 />
               )}
-              <div className="relative z-10 flex items-center gap-2.5">
-                <Icon className="size-4 shrink-0" />
-                <div className="flex flex-col">
-                  <span className="font-medium">{tab.label}</span>
-                  <span
-                    className={cn(
-                      "text-[10px]",
-                      isActive
-                        ? isDanger
-                          ? "text-white/80"
-                          : "text-primary-foreground/80"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {tab.description}
-                  </span>
-                </div>
+              <div
+                className={cn(
+                  "relative z-10 flex items-center",
+                  isCollapsed ? "justify-center" : "gap-2.5"
+                )}
+              >
+                <Icon className={cn("shrink-0", isCollapsed ? "size-4" : "size-4")} />
+                {!isCollapsed && (
+                  <div className="flex flex-col">
+                    <span className="font-medium">{tab.label}</span>
+                    <span
+                      className={cn(
+                        "text-[10px]",
+                        isActive
+                          ? isDanger
+                            ? "text-white/80"
+                            : "text-primary-foreground/80"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {tab.description}
+                    </span>
+                  </div>
+                )}
               </div>
             </button>
           )

@@ -45,6 +45,8 @@ export function SettingsView() {
     () => getSectionFromLocation() || SETTINGS_SECTION.OVERVIEW
   )
 
+  const [isNavCollapsed, setIsNavCollapsed] = React.useState(false)
+
   // Sync with browser URL hash & history navigation
   React.useEffect(() => {
     const handleLocationChange = () => {
@@ -155,21 +157,42 @@ export function SettingsView() {
         </div>
       </div>
 
-      {/* Main Settings Grid: Sub-Nav Sidebar + Active Panel */}
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
+      {/* Main Settings Layout: Sub-Nav Sidebar + Active Panel */}
+      <div
+        className={cn(
+          "grid grid-cols-1 items-start gap-6 transition-[grid-template-columns] duration-200 lg:grid-cols-12",
+          isNavCollapsed ? "lg:gap-6" : "lg:gap-8"
+        )}
+      >
         {/* Left Column: Vertical Navigation Tabs */}
-        <aside className="space-y-4 lg:sticky lg:top-6 lg:col-span-4 xl:col-span-3">
+        <aside
+          className={cn(
+            "space-y-4 lg:sticky lg:top-6 transition-all duration-200",
+            isNavCollapsed
+              ? "lg:col-span-1 xl:col-span-1 max-w-[64px]"
+              : "lg:col-span-4 xl:col-span-3"
+          )}
+        >
           <SettingsNav
             activeSection={activeSection}
             onSectionChange={handleSectionChange}
             pendingInvitesCount={invites.length}
             bucketsCount={s3Buckets.length}
             registriesCount={registries.length}
+            isCollapsed={isNavCollapsed}
+            onToggleCollapse={() => setIsNavCollapsed(!isNavCollapsed)}
           />
         </aside>
 
         {/* Right Column: Tab Content */}
-        <main className="min-w-0 lg:col-span-8 xl:col-span-9">
+        <main
+          className={cn(
+            "min-w-0 transition-all duration-200",
+            isNavCollapsed
+              ? "lg:col-span-11 xl:col-span-11"
+              : "lg:col-span-8 xl:col-span-9"
+          )}
+        >
           <motion.div
             key={activeSection}
             initial={{ opacity: 0, y: 6 }}

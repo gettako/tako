@@ -750,6 +750,9 @@ export function ServiceSettingsView({
     }
   }
 
+  // Service Settings Nav collapse state
+  const [isNavCollapsed, setIsNavCollapsed] = React.useState(false)
+
   // Handle delete service
   const handleConfirmDelete = () => {
     if (deleteConfirmText !== service.name) return
@@ -766,15 +769,29 @@ export function ServiceSettingsView({
   }
 
   return (
-    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
+    <div
+      className={cn(
+        "grid grid-cols-1 items-start gap-6 transition-[grid-template-columns] duration-200 lg:grid-cols-12",
+        isNavCollapsed ? "lg:gap-6" : "lg:gap-8"
+      )}
+    >
       {/* Left Column: Vertical Sub-Menu (matching main platform settings width) */}
       <ServiceSettingsTabs
         activeSection={activeSection}
         onSelect={setActiveSection}
+        isCollapsed={isNavCollapsed}
+        onToggleCollapse={() => setIsNavCollapsed(!isNavCollapsed)}
       />
 
       {/* Right Column: Settings Content Panels */}
-      <main className="lg:col-span-8 xl:col-span-9">
+      <main
+        className={cn(
+          "transition-all duration-200",
+          isNavCollapsed
+            ? "lg:col-span-11 xl:col-span-11"
+            : "lg:col-span-8 xl:col-span-9"
+        )}
+      >
         <motion.div
           key={activeSection}
           initial={{ opacity: 0, y: 6 }}
