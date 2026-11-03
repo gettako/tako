@@ -5,10 +5,8 @@ import {
   Check,
   Copy,
   Radio,
-  RotateCcw,
   RotateCw,
   Save,
-  ShieldAlert,
   ShieldCheck,
 } from "lucide-react"
 import { z } from "zod"
@@ -16,14 +14,6 @@ import { z } from "zod"
 import { DEFAULT_PORTS } from "@/lib/api"
 import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import {
   Field,
   FieldError,
@@ -79,8 +69,7 @@ const networkSchema = z.object({
 })
 
 export function NetworkPanel() {
-  const { settings, updateSettings, resetToDefaults, addAuditLog } =
-    usePlatformData()
+  const { settings, updateSettings, addAuditLog } = usePlatformData()
 
   const [masterHost, setMasterHost] = React.useState(
     settings.masterGrpcHost || "0.0.0.0"
@@ -104,7 +93,6 @@ export function NetworkPanel() {
 
   const [copiedToken, setCopiedToken] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
-  const [resetModalOpen, setResetModalOpen] = React.useState(false)
 
   const handleCopyToken = async () => {
     if (await copyToClipboard(token)) {
@@ -155,11 +143,6 @@ export function NetworkPanel() {
     })
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
-  }
-
-  const handleConfirmReset = () => {
-    resetToDefaults()
-    setResetModalOpen(false)
   }
 
   return (
@@ -396,68 +379,6 @@ export function NetworkPanel() {
           </div>
         </div>
       </div>
-
-      {/* 3. Demo Data Reset Card */}
-      <div className="flex flex-col gap-3 rounded-lg border border-destructive/20 bg-destructive/5 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <span className="block text-xs font-semibold text-destructive">
-            Reset Demo Data State
-          </span>
-          <p className="text-[11px] text-muted-foreground">
-            Restore all cluster nodes, services, registries, snapshots, and
-            configuration to initial state.
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="destructive"
-          onClick={() => setResetModalOpen(true)}
-          className="shrink-0 gap-1 text-xs"
-        >
-          <RotateCcw className="size-3" />
-          <span>Reset to Initial State</span>
-        </Button>
-      </div>
-
-      {/* Reset Confirmation Dialog */}
-      <Dialog open={resetModalOpen} onOpenChange={setResetModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-destructive">
-              <ShieldAlert className="size-4 shrink-0" />
-              <span>Reset Cluster Demo Data?</span>
-            </DialogTitle>
-            <DialogDescription className="pt-1 text-xs leading-relaxed">
-              This will restore all sample nodes, services, registries, backup
-              schedules, and platform settings back to their factory defaults.
-              Any simulated records created during this session will be reset.
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-2 pt-2 sm:gap-2.5">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setResetModalOpen(false)}
-              className="text-xs"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={handleConfirmReset}
-              className="gap-1.5 text-xs"
-            >
-              <RotateCcw className="size-3" />
-              <span>Confirm Reset</span>
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -13,7 +13,7 @@ import {
   Eye,
   EyeOff,
   Globe,
-  HardDrive,
+  Loader2,
   Play,
   Plus,
   RefreshCw,
@@ -2017,12 +2017,11 @@ export function ServiceSettingsView({
                                     title="Run Backup Now"
                                     className="h-7 gap-1 px-2 font-mono text-[11px]"
                                   >
-                                    <Play
-                                      className={cn(
-                                        "size-3 fill-current",
-                                        triggeringBackupId === plan.id && "animate-spin fill-none"
-                                      )}
-                                    />
+                                    {triggeringBackupId === plan.id ? (
+                                      <Loader2 className="size-3 animate-spin" />
+                                    ) : (
+                                      <Play className="size-3 fill-current" />
+                                    )}
                                     <span>
                                       {triggeringBackupId === plan.id ? "Dumping..." : "Run"}
                                     </span>
@@ -2492,7 +2491,7 @@ export function ServiceSettingsView({
 
       {/* Add / Edit Backup Plan Modal */}
       <Dialog open={backupModalOpen} onOpenChange={setBackupModalOpen}>
-        <DialogContent className="max-w-xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm font-bold">
               <Archive className="size-4 text-primary" />

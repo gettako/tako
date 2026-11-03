@@ -58,7 +58,6 @@ import {
   type Project,
   type ProjectService,
   type S3BucketConfig,
-  type S3BucketPurpose,
   type SyncedGitRepo,
   type UserPasskey,
   type UserRole,
@@ -170,7 +169,6 @@ interface PlatformDataContextType {
   dataMode: "live" | "demo"
   setDataMode: (mode: boolean | "live" | "demo") => void
   toggleNodeStatus: (id: string) => Promise<void>
-  resetToDefaults: () => Promise<void>
   connectGitProvider: (provider?: unknown) => Promise<void>
 
   addAuditLog: (entry: Omit<AuditLogEntry, "id" | "timestamp">) => Promise<void>
@@ -1453,10 +1451,6 @@ export function PlatformDataProvider({
     [persistSetting, domainConfig.domain]
   )
 
-  const resetToDefaults = React.useCallback(async () => {
-    await updateSettings(DEFAULT_SETTINGS)
-  }, [updateSettings])
-
   const startGitHubAppSetup = React.useCallback(
     async (appName: string, owner: string, isOrg = false) => {
       const fallbackNum = Math.floor(10000 + Math.random() * 90000)
@@ -2056,7 +2050,6 @@ export function PlatformDataProvider({
       fetchDeploymentLogs,
       dataMode,
       setDataMode,
-      resetToDefaults,
       connectGitProvider,
       addAuditLog,
       updateSettings,
@@ -2139,7 +2132,6 @@ export function PlatformDataProvider({
       fetchDeploymentLogs,
       dataMode,
       setDataMode,
-      resetToDefaults,
       connectGitProvider,
       addAuditLog,
       updateSettings,
