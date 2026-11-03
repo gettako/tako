@@ -22,7 +22,7 @@ func TestGitHubAppAPI(t *testing.T) {
 
 	// 1. GET /api/v1/github/manifest
 	t.Run("Generate Manifest", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/github/manifest?baseUrl=https://tako.example.com&appName=TakoCluster", nil)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/github/manifest?baseUrl=https://tako.example.com&appName=takocluster", nil)
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 
@@ -35,8 +35,8 @@ func TestGitHubAppAPI(t *testing.T) {
 			t.Fatalf("failed to decode manifest: %v", err)
 		}
 
-		if manifest.Name != "TakoCluster" {
-			t.Errorf("expected name TakoCluster, got %s", manifest.Name)
+		if manifest.Name != "takocluster" {
+			t.Errorf("expected name takocluster, got %s", manifest.Name)
 		}
 		if manifest.URL != "https://tako.example.com" {
 			t.Errorf("expected url https://tako.example.com, got %s", manifest.URL)

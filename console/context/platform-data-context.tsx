@@ -1421,7 +1421,8 @@ export function PlatformDataProvider({
 
   const startGitHubAppSetup = React.useCallback(
     async (appName: string, owner: string, isOrg = false) => {
-      const cleanName = appName.trim() || "Tako Deployer"
+      const fallbackNum = Math.floor(10000 + Math.random() * 90000)
+      const cleanName = (appName.trim() || `tako-${fallbackNum}`).toLowerCase()
       const params = new URLSearchParams({
         baseUrl: window.location.origin,
         appName: cleanName,

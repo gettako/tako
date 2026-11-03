@@ -195,7 +195,9 @@ export function GitPanel() {
   }, [completeGitHubAppSetup, syncGitRepos])
 
   // GitHub App Form
-  const [appName, setAppName] = React.useState("Tako Deployer")
+  const [appName, setAppName] = React.useState(
+    () => `tako-${Math.floor(10000 + Math.random() * 90000)}`
+  )
   const [accountType, setAccountType] = React.useState<"org" | "personal">("org")
   const [targetOrg, setTargetOrg] = React.useState("gettako")
 
@@ -683,21 +685,36 @@ export function GitPanel() {
             {connectTab === "app" ? (
               <FieldGroup className="gap-3">
                 <Field data-invalid={Boolean(errors.appName)}>
-                  <FieldLabel className="text-xs">
-                    GitHub App Display Name
-                  </FieldLabel>
+                  <div className="flex items-center justify-between">
+                    <FieldLabel className="text-xs">
+                      GitHub App Name
+                    </FieldLabel>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAppName(
+                          `tako-${Math.floor(10000 + Math.random() * 90000)}`
+                        )
+                      }
+                      className="font-mono text-[11px] text-primary hover:underline"
+                    >
+                      generate random
+                    </button>
+                  </div>
                   <Input
                     value={appName}
                     onChange={(e) => {
-                      setAppName(e.target.value)
+                      setAppName(
+                        e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-")
+                      )
                       clearError("appName")
                     }}
-                    placeholder="e.g. Tako Deployer"
+                    placeholder="e.g. tako-58291"
                     aria-invalid={Boolean(errors.appName)}
                     aria-describedby={
                       errors.appName ? "git-app-name-error" : undefined
                     }
-                    className="text-xs"
+                    className="font-mono text-xs"
                   />
                   <FieldError id="git-app-name-error" className="text-[11px]">
                     {errors.appName}
@@ -792,7 +809,7 @@ export function GitPanel() {
                     onClick={async () => {
                       try {
                         await startGitHubAppSetup(
-                          appName.trim() || "Tako Deployer",
+                          appName.trim().toLowerCase(),
                           accountType === "org" ? targetOrg.trim() : "",
                           accountType === "org"
                         )

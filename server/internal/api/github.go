@@ -53,18 +53,15 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			appSlug := r.URL.Query().Get("appSlug")
 			appName := r.URL.Query().Get("appName")
 			if appName == "" {
-				appName = "Tako"
+				appName = fmt.Sprintf("tako-%05d", time.Now().UnixNano()%90000+10000)
 			}
 			if appSlug == "" {
-				appSlug = "tako-" + randomHexID(4)
+				appSlug = appName
 			}
 
-			// In GitHub App Manifest flow:
-			// If a custom appName was specified (not empty and not default "Tako"), use it.
-			// Otherwise fallback to appSlug to guarantee a unique name on GitHub.
-			manifestName := appName
+			manifestName := strings.ToLower(strings.TrimSpace(appName))
 			if manifestName == "" {
-				manifestName = "Tako Deployer"
+				manifestName = fmt.Sprintf("tako-%05d", time.Now().UnixNano()%90000+10000)
 			}
 
 			// Webhook URL: baseUrl is the console origin (Next.js BFF), so the webhook
