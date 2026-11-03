@@ -1180,6 +1180,11 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				"status":    200,
 			})
 		})
+
+		// Service Backup & S3 Storage
+		r.Get("/{id}/backup", handleGetServiceBackup(orch))
+		r.With(RequireAdmin).Put("/{id}/backup", handleUpdateServiceBackup(orch))
+		r.With(RequireAdmin).Post("/{id}/backup", handleTriggerServiceBackup(orch))
 	})
 }
 

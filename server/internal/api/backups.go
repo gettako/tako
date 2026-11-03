@@ -472,7 +472,7 @@ func pruneOldSnapshots(ctx context.Context, orch *orchestrator.Orchestrator, ret
 	}
 }
 
-func uploadSnapshotToS3(ctx context.Context, orch *orchestrator.Orchestrator, archivePath, filename string) error {
+func uploadSnapshotToS3(ctx context.Context, orch *orchestrator.Orchestrator, archivePath, filename string, targetBucketIDs ...string) error {
 	row, err := orch.Queries().GetSetting(ctx, "s3_buckets")
 	if err != nil || row.Value == "" {
 		return nil
@@ -484,10 +484,21 @@ func uploadSnapshotToS3(ctx context.Context, orch *orchestrator.Orchestrator, ar
 	}
 
 	var targetBucket *S3BucketConfig
-	for _, b := range buckets {
-		if b.IsDefault {
-			targetBucket = &b
-			break
+	if len(targetBucketIDs) > 0 && targetBucketIDs[0] != "" {
+		for _, b := range buckets {
+			if b.ID == targetBucketIDs[0] {
+				targetBucket = &b
+				break
+			}
+		}
+	}
+
+	if targetBucket == nil {
+		for _, b := range buckets {
+			if b.IsDefault {
+				targetBucket = &b
+				break
+			}
 		}
 	}
 	if targetBucket == nil {

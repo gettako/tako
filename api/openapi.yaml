@@ -1306,6 +1306,72 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/services/{id}/backup:
+    get:
+      summary: Get service backup configuration
+      description: Retrieves backup schedule and S3 destination for the service.
+      operationId: getServiceBackupConfig
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Service backup configuration
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      summary: Update service backup configuration
+      description: Updates backup schedule, frequency, retention, and target S3 bucket for the service.
+      operationId: updateServiceBackupConfig
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated service backup configuration
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    post:
+      summary: Trigger on-demand service backup snapshot
+      description: Creates a snapshot archive of the service and uploads it to the configured S3 bucket.
+      operationId: triggerServiceBackup
+      tags:
+      - Services
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Backup snapshot trigger result
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/services/{id}/crons:
     get:
       summary: List service cron jobs

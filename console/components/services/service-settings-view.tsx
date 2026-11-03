@@ -3,11 +3,18 @@
 import * as React from "react"
 import {
   AlertTriangle,
+  Archive,
   Check,
+  Clock,
+  Cloud,
   Cpu,
+  Database,
+  Edit2,
   Eye,
   EyeOff,
   Globe,
+  HardDrive,
+  Play,
   Plus,
   RefreshCw,
   Save,
@@ -45,7 +52,7 @@ import {
   type SelectOption,
 } from "@/components/ui/searchable-select"
 import { usePlatformData } from "@/context/platform-data-context"
-import { apiPost } from "@/lib/api"
+import { apiGet, apiPost, apiPut } from "@/lib/api"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { getServiceContainers, resolveDomainContainer } from "@/lib/container"
 import {
@@ -60,6 +67,7 @@ import { isValidHostname } from "@/lib/validation"
 import {
   ClusterNode,
   ProjectService,
+  ServiceBackupConfig,
   ServiceDomain,
   ServiceResourceSpecs,
 } from "@/types/platform"
@@ -152,7 +160,7 @@ export function ServiceSettingsView({
   service,
   nodes,
 }: ServiceSettingsViewProps) {
-  const { updateService, deleteService, addAuditLog } = usePlatformData()
+  const { updateService, deleteService, addAuditLog, settings } = usePlatformData()
 
   const serviceContainers = getServiceContainers(service)
   const mainContainer =
@@ -301,6 +309,61 @@ export function ServiceSettingsView({
   const [healthTestResult, setHealthTestResult] = React.useState<string | null>(
     null
   )
+
+  // Service Backup state (Multi-backup plans)
+  const [backupConfigs, setBackupConfigs] = React.useState<ServiceBackupConfig[]>([])
+  const [backupLoading, setBackupLoading] = React.useState(false)
+  const [backupSaving, setBackupSaving] = React.useState(false)
+  const [triggeringBackupId, setTriggeringBackupId] = React.useState<string | null>(null)
+  const [backupMessage, setBackupMessage] = React.useState<string | null>(null)
+
+  // Backup Modal state (Create / Edit)
+  const [backupModalOpen, setBackupModalOpen] = React.useState(false)
+  const [editingPlan, setEditingPlan] = React.useState<ServiceBackupConfig | null>(null)
+
+  React.useEffect(() => {
+    let active = true
+    const fetchBackup = async () => {
+      setBackupLoading(true)
+      try {
+        const cfgs = await apiGet<ServiceBackupConfig[] | ServiceBackupConfig>(
+          `/services/${service.id}/backup`
+        )
+        if (active && cfgs) {
+          if (Array.isArray(cfgs)) {
+            setBackupConfigs(cfgs)
+          } else {
+            setBackupConfigs([cfgs])
+          }
+        }
+      } catch {
+        // Fallback default single plan
+        if (active) {
+          setBackupConfigs([
+            {
+              id: `backup-${Date.now().toString(36)}`,
+              name: "Database Backup",
+              enabled: false,
+              cronSchedule: "0 2 * * *",
+              targetContainer: mainContainer?.name || `tako-app-${service.slug || service.id}`,
+              databaseType: "auto",
+              databaseName: "",
+              databaseUser: "",
+              retentionDays: 14,
+              destinationBucketId: "",
+              prefix: `services/${service.slug || service.id}/backups/`,
+            },
+          ])
+        }
+      } finally {
+        if (active) setBackupLoading(false)
+      }
+    }
+    fetchBackup()
+    return () => {
+      active = false
+    }
+  }, [service.id, service.slug, mainContainer?.name])
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -528,6 +591,163 @@ export function ServiceSettingsView({
     }
     updateService(service.id, { healthCheck: check })
     triggerFeedback("health")
+  }
+
+  // Handle saving backup configs (multi-plan)
+  const handleSaveBackup = async () => {
+    setBackupSaving(true)
+    setBackupMessage(null)
+    try {
+      const updated = await apiPut<ServiceBackupConfig[]>(
+        `/services/${service.id}/backup`,
+        backupConfigs
+      )
+      if (updated && Array.isArray(updated)) {
+        setBackupConfigs(updated)
+      }
+      triggerFeedback("backups")
+      setBackupMessage("Backup configurations saved successfully.")
+    } catch (err: unknown) {
+      setBackupMessage(
+        err instanceof Error ? err.message : "Failed to save backup configurations."
+      )
+    } finally {
+      setBackupSaving(false)
+    }
+  }
+
+  // Handle manual trigger service backup for a specific plan
+  const handleTriggerBackupNow = async (planId?: string) => {
+    setTriggeringBackupId(planId || "all")
+    setBackupMessage(null)
+    try {
+      const res = await apiPost<{
+        ok: boolean
+        filename?: string
+        checksum?: string
+        s3Destination?: string
+        planName?: string
+        container?: string
+        error?: string
+      }>(`/services/${service.id}/backup`, {
+        backupId: planId,
+      })
+      if (res.ok) {
+        setBackupMessage(
+          `Backup executed for ${res.planName || "plan"} (${res.container || "target"}): ${res.filename}`
+        )
+      } else {
+        setBackupMessage(res.error || "Failed to create service backup snapshot.")
+      }
+    } catch (err: unknown) {
+      setBackupMessage(
+        err instanceof Error
+          ? err.message
+          : "Failed to create service backup snapshot."
+      )
+    } finally {
+      setTriggeringBackupId(null)
+    }
+  }
+
+  // Add a new backup plan (opens modal)
+  const handleOpenAddBackupModal = () => {
+    const nextIdx = backupConfigs.length + 1
+    const newPlan: ServiceBackupConfig = {
+      id: `backup-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      name: `Backup Plan ${nextIdx}`,
+      enabled: true,
+      cronSchedule: "0 2 * * *",
+      targetContainer: serviceContainers[nextIdx - 1]?.name || mainContainer?.name || `tako-app-${service.slug || service.id}`,
+      databaseType: "auto",
+      databaseName: "",
+      databaseUser: "",
+      retentionDays: 14,
+      destinationBucketId: "",
+      prefix: `services/${service.slug || service.id}/backups/`,
+    }
+    setEditingPlan(newPlan)
+    setBackupModalOpen(true)
+  }
+
+  // Edit existing backup plan
+  const handleOpenEditBackupModal = (plan: ServiceBackupConfig) => {
+    setEditingPlan({ ...plan })
+    setBackupModalOpen(true)
+  }
+
+  // Save backup plan from modal
+  const handleSaveModalPlan = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingPlan) return
+
+    const exists = backupConfigs.some((c) => c.id === editingPlan.id)
+    const nextList = exists
+      ? backupConfigs.map((c) => (c.id === editingPlan.id ? editingPlan : c))
+      : [...backupConfigs, editingPlan]
+
+    setBackupConfigs(nextList)
+    setBackupModalOpen(false)
+
+    // Save directly to server
+    setBackupSaving(true)
+    setBackupMessage(null)
+    try {
+      const updated = await apiPut<ServiceBackupConfig[]>(
+        `/services/${service.id}/backup`,
+        nextList
+      )
+      if (updated && Array.isArray(updated)) {
+        setBackupConfigs(updated)
+      }
+      triggerFeedback("backups")
+      setBackupMessage(`Backup plan "${editingPlan.name}" saved successfully.`)
+    } catch (err: unknown) {
+      setBackupMessage(
+        err instanceof Error ? err.message : "Failed to save backup plan."
+      )
+    } finally {
+      setBackupSaving(false)
+    }
+  }
+
+  // Remove a backup plan
+  const handleRemoveBackupPlan = async (idToRemove: string) => {
+    if (backupConfigs.length <= 1) {
+      alert("At least one backup configuration plan is required.")
+      return
+    }
+    const nextList = backupConfigs.filter((c) => c.id !== idToRemove)
+    setBackupConfigs(nextList)
+
+    try {
+      await apiPut<ServiceBackupConfig[]>(
+        `/services/${service.id}/backup`,
+        nextList
+      )
+      setBackupMessage("Backup plan removed.")
+    } catch (err: unknown) {
+      setBackupMessage(
+        err instanceof Error ? err.message : "Failed to remove backup plan."
+      )
+    }
+  }
+
+  // Toggle active status for plan directly
+  const handleTogglePlan = async (plan: ServiceBackupConfig) => {
+    const nextList = backupConfigs.map((c) =>
+      c.id === plan.id ? { ...c, enabled: !c.enabled } : c
+    )
+    setBackupConfigs(nextList)
+    try {
+      await apiPut<ServiceBackupConfig[]>(
+        `/services/${service.id}/backup`,
+        nextList
+      )
+    } catch {
+      // Revert if failed
+      setBackupConfigs(backupConfigs)
+    }
   }
 
   // Handle delete service
@@ -1633,6 +1853,212 @@ export function ServiceSettingsView({
             </div>
           )}
 
+          {/* Panel: Backups & S3 Storage (Table & Modal Workflow) */}
+          {activeSection === "backups" && (
+            <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
+                <div>
+                  <h2 className="text-base font-bold text-foreground">
+                    Database & Container Backups
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Manage automated snapshot schedules, container database targets, and S3 retention policies.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleOpenAddBackupModal}
+                  className="gap-1.5 text-xs self-start sm:self-auto"
+                >
+                  <Plus className="size-3.5" />
+                  <span>Add Backup Plan</span>
+                </Button>
+              </div>
+
+              {backupMessage && (
+                <div
+                  className={cn(
+                    "rounded border p-3 font-mono text-xs",
+                    backupMessage.includes("successfully") ||
+                      backupMessage.includes("executed") ||
+                      backupMessage.includes("Snapshot created")
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                      : "border-destructive/30 bg-destructive/10 text-destructive"
+                  )}
+                >
+                  {backupMessage}
+                </div>
+              )}
+
+              {backupLoading ? (
+                <div className="flex items-center justify-center p-8 text-xs text-muted-foreground">
+                  <RefreshCw className="mr-2 size-4 animate-spin" />
+                  <span>Loading backup configurations...</span>
+                </div>
+              ) : backupConfigs.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-8 text-center">
+                  <Database className="mx-auto size-8 text-muted-foreground" />
+                  <p className="mt-2 text-xs font-medium text-foreground">
+                    No backup plans configured
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Create backup plans to schedule automated dumps of your databases or containers.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleOpenAddBackupModal}
+                    className="mt-4 gap-1.5 text-xs"
+                  >
+                    <Plus className="size-3.5" />
+                    <span>Create First Plan</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="border-b border-border bg-muted/40 font-mono text-[11px] text-muted-foreground uppercase">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Status</th>
+                          <th className="px-4 py-3 font-medium">Plan Name</th>
+                          <th className="px-4 py-3 font-medium">Container & Type</th>
+                          <th className="px-4 py-3 font-medium">Schedule</th>
+                          <th className="px-4 py-3 font-medium">S3 Destination</th>
+                          <th className="px-4 py-3 font-medium">Retention</th>
+                          <th className="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {backupConfigs.map((plan) => {
+                          const targetBucket =
+                            (settings.s3Buckets || []).find(
+                              (b) => b.id === plan.destinationBucketId
+                            ) ||
+                            (settings.s3Buckets || []).find((b) => b.isDefault) ||
+                            (settings.s3Buckets || [])[0]
+
+                          return (
+                            <tr
+                              key={plan.id}
+                              className="transition-colors hover:bg-muted/20"
+                            >
+                              <td className="px-4 py-3">
+                                <button
+                                  type="button"
+                                  aria-label={`Toggle plan ${plan.name}`}
+                                  onClick={() => handleTogglePlan(plan)}
+                                  className={cn(
+                                    "relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                                    plan.enabled ? "bg-emerald-500" : "bg-muted"
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      "pointer-events-none inline-block size-3 transform rounded-full bg-white shadow-xs transition-transform",
+                                      plan.enabled ? "translate-x-3" : "translate-x-0"
+                                    )}
+                                  />
+                                </button>
+                              </td>
+
+                              <td className="px-4 py-3 font-semibold text-foreground">
+                                <div className="flex items-center gap-1.5">
+                                  <span>{plan.name}</span>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-3 font-mono text-[11px]">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="truncate max-w-[140px] text-foreground">
+                                    {plan.targetContainer}
+                                  </span>
+                                  <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] text-muted-foreground uppercase">
+                                    {plan.databaseType}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Clock className="size-3 text-muted-foreground" />
+                                  <span>{plan.cronSchedule}</span>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
+                                <div className="flex items-center gap-1">
+                                  <Cloud className="size-3 text-primary shrink-0" />
+                                  <span className="truncate max-w-[160px]">
+                                    {targetBucket ? targetBucket.name : "Local controller disk"}
+                                  </span>
+                                </div>
+                              </td>
+
+                              <td className="px-4 py-3 text-muted-foreground">
+                                {plan.retentionDays}d
+                              </td>
+
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={triggeringBackupId === plan.id}
+                                    onClick={() => handleTriggerBackupNow(plan.id)}
+                                    title="Run Backup Now"
+                                    className="h-7 gap-1 px-2 font-mono text-[11px]"
+                                  >
+                                    <Play
+                                      className={cn(
+                                        "size-3 fill-current",
+                                        triggeringBackupId === plan.id && "animate-spin fill-none"
+                                      )}
+                                    />
+                                    <span>
+                                      {triggeringBackupId === plan.id ? "Dumping..." : "Run"}
+                                    </span>
+                                  </Button>
+
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleOpenEditBackupModal(plan)}
+                                    title="Edit Configuration"
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <Edit2 className="size-3 text-muted-foreground" />
+                                  </Button>
+
+                                  {backupConfigs.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleRemoveBackupPlan(plan.id)}
+                                      title="Delete Plan"
+                                      className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                    >
+                                      <Trash2 className="size-3" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Panel 7: Danger Zone */}
           {activeSection === "danger" && (
             <div className="space-y-6 rounded-lg border border-destructive/40 bg-card p-5 shadow-xs sm:p-6">
@@ -2056,6 +2482,287 @@ export function ServiceSettingsView({
               Permanently Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add / Edit Backup Plan Modal */}
+      <Dialog open={backupModalOpen} onOpenChange={setBackupModalOpen}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-sm font-bold">
+              <Archive className="size-4 text-primary" />
+              <span>{editingPlan && backupConfigs.some(c => c.id === editingPlan.id) ? "Edit Backup Plan" : "Create Backup Plan"}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Configure container target, database engine dump options, cron schedule, and S3 destination.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingPlan && (
+            <form onSubmit={handleSaveModalPlan} className="space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field className="sm:col-span-2">
+                  <FieldLabel className="text-xs">Plan Name</FieldLabel>
+                  <Input
+                    value={editingPlan.name}
+                    onChange={(e) =>
+                      setEditingPlan({ ...editingPlan, name: e.target.value })
+                    }
+                    placeholder="e.g. Postgres Daily, Redis Dump"
+                    required
+                    className="text-xs font-medium"
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-xs">Target Container</FieldLabel>
+                  <SearchableSelect
+                    value={editingPlan.targetContainer}
+                    onChange={(val) =>
+                      setEditingPlan({ ...editingPlan, targetContainer: val })
+                    }
+                    options={
+                      serviceContainers.length > 0
+                        ? serviceContainers.map((c) => ({
+                            value: c.name,
+                            label: c.name,
+                            description: c.isMain ? "Primary container" : "Container instance",
+                            badge: c.isMain ? "main" : undefined,
+                          }))
+                        : [
+                            {
+                              value: `tako-app-${service.slug || service.id}`,
+                              label: `tako-app-${service.slug || service.id}`,
+                              description: "Default service container",
+                            },
+                          ]
+                    }
+                    placeholder="Select container..."
+                    searchPlaceholder="Search container..."
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-xs">Database Dump Type</FieldLabel>
+                  <SearchableSelect
+                    value={editingPlan.databaseType}
+                    onChange={(val) =>
+                      setEditingPlan({
+                        ...editingPlan,
+                        databaseType: val as ServiceBackupConfig["databaseType"],
+                      })
+                    }
+                    options={[
+                      {
+                        value: "auto",
+                        label: "Auto-detect",
+                        description: "Detect from container name / env",
+                      },
+                      {
+                        value: "postgres",
+                        label: "PostgreSQL (pg_dump)",
+                        description: "Exports SQL dump using pg_dump",
+                      },
+                      {
+                        value: "mysql",
+                        label: "MySQL / MariaDB (mysqldump)",
+                        description: "Exports SQL dump using mysqldump",
+                      },
+                      {
+                        value: "redis",
+                        label: "Redis / Valkey (rdb snapshot)",
+                        description: "Captures dump.rdb via BGSAVE",
+                      },
+                      {
+                        value: "mongodb",
+                        label: "MongoDB (mongodump)",
+                        description: "Exports archive using mongodump",
+                      },
+                      {
+                        value: "none",
+                        label: "None (Config & Volumes only)",
+                        description: "Metadata snapshot without db dump",
+                      },
+                    ]}
+                  />
+                </Field>
+
+                {/* Database Name & User Override */}
+                {(editingPlan.databaseType === "postgres" ||
+                  editingPlan.databaseType === "mysql" ||
+                  editingPlan.databaseType === "mariadb" ||
+                  editingPlan.databaseType === "auto") && (
+                  <>
+                    <Field>
+                      <FieldLabel className="text-xs">Database Name (Optional)</FieldLabel>
+                      <Input
+                        value={editingPlan.databaseName || ""}
+                        onChange={(e) =>
+                          setEditingPlan({ ...editingPlan, databaseName: e.target.value })
+                        }
+                        placeholder="Leave blank to use env default"
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+
+                    <Field>
+                      <FieldLabel className="text-xs">Database User (Optional)</FieldLabel>
+                      <Input
+                        value={editingPlan.databaseUser || ""}
+                        onChange={(e) =>
+                          setEditingPlan({ ...editingPlan, databaseUser: e.target.value })
+                        }
+                        placeholder="Leave blank to use env default"
+                        className="font-mono text-xs"
+                      />
+                    </Field>
+                  </>
+                )}
+
+                <Field>
+                  <FieldLabel className="text-xs">Cron Schedule Expression</FieldLabel>
+                  <Input
+                    value={editingPlan.cronSchedule}
+                    onChange={(e) =>
+                      setEditingPlan({ ...editingPlan, cronSchedule: e.target.value })
+                    }
+                    placeholder="0 2 * * *"
+                    required
+                    className="font-mono text-xs"
+                  />
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-muted-foreground">Quick:</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPlan({ ...editingPlan, cronSchedule: "0 * * * *" })}
+                      className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] hover:bg-muted text-foreground"
+                    >
+                      Hourly
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPlan({ ...editingPlan, cronSchedule: "0 2 * * *" })}
+                      className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] hover:bg-muted text-foreground"
+                    >
+                      Daily (2 AM)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPlan({ ...editingPlan, cronSchedule: "0 3 * * 0" })}
+                      className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] hover:bg-muted text-foreground"
+                    >
+                      Weekly (Sun)
+                    </button>
+                  </div>
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-xs">Retention (Days)</FieldLabel>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={editingPlan.retentionDays}
+                    onChange={(e) =>
+                      setEditingPlan({
+                        ...editingPlan,
+                        retentionDays: Number.parseInt(e.target.value, 10) || 14,
+                      })
+                    }
+                    required
+                    className="font-mono text-xs"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Snapshots older than this are pruned automatically.
+                  </p>
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-xs">Destination S3 Bucket</FieldLabel>
+                  <SearchableSelect
+                    value={editingPlan.destinationBucketId}
+                    onChange={(val) =>
+                      setEditingPlan({ ...editingPlan, destinationBucketId: val })
+                    }
+                    options={[
+                      {
+                        value: "",
+                        label: "Default Cluster Bucket",
+                        description:
+                          settings.s3Buckets?.find((b) => b.isDefault)?.name ||
+                          "Cluster fallback storage",
+                      },
+                      ...(settings.s3Buckets || []).map((b) => ({
+                        value: b.id,
+                        label: `${b.name} (${b.bucket})`,
+                        description: `${b.endpoint} • ${b.region}`,
+                        badge: b.isDefault ? "default" : undefined,
+                      })),
+                    ]}
+                    placeholder="Select target bucket..."
+                    searchPlaceholder="Search S3 buckets..."
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-xs">S3 Path Prefix</FieldLabel>
+                  <Input
+                    value={editingPlan.prefix}
+                    onChange={(e) =>
+                      setEditingPlan({ ...editingPlan, prefix: e.target.value })
+                    }
+                    placeholder={`services/${service.slug || service.id}/backups/`}
+                    className="font-mono text-xs"
+                  />
+                </Field>
+              </div>
+
+              {/* Destination Path Preview */}
+              <div className="rounded border border-border bg-muted/20 p-2.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Cloud className="size-3 text-primary" />
+                  <span>S3 Destination URI Preview</span>
+                </div>
+                <div className="mt-0.5 font-mono text-[11px] text-muted-foreground break-all">
+                  {(() => {
+                    const target =
+                      (settings.s3Buckets || []).find(
+                        (b) => b.id === editingPlan.destinationBucketId
+                      ) ||
+                      (settings.s3Buckets || []).find((b) => b.isDefault) ||
+                      (settings.s3Buckets || [])[0]
+                    if (!target) {
+                      return `Local disk fallback: /var/lib/tako/backups/service-${service.slug || service.id}-YYYYMMDD-HHMMSS.tar.gz`
+                    }
+                    const pfx = editingPlan.prefix.startsWith("/")
+                      ? editingPlan.prefix.slice(1)
+                      : editingPlan.prefix
+                    return `s3://${target.bucket}/${pfx}service-${service.slug || service.id}-YYYYMMDD-HHMMSS.tar.gz`
+                  })()}
+                </div>
+              </div>
+
+              <DialogFooter className="gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setBackupModalOpen(false)}
+                  className="text-xs"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={backupSaving}
+                  className="text-xs"
+                >
+                  {backupSaving ? "Saving..." : "Save Backup Plan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

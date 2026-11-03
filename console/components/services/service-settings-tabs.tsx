@@ -3,6 +3,7 @@
 import type { ComponentType } from "react"
 import {
   AlertTriangle,
+  Archive,
   Cpu,
   Globe,
   HeartPulse,
@@ -21,6 +22,7 @@ export type SettingsSection =
   | "env"
   | "networking"
   | "health"
+  | "backups"
   | "danger"
 
 interface ServiceSettingTabItem {
@@ -66,6 +68,12 @@ const SERVICE_SETTINGS_TABS: ServiceSettingTabItem[] = [
     label: "Health Checks",
     description: "Liveness probes & auto-healing",
     icon: HeartPulse,
+  },
+  {
+    id: "backups",
+    label: "Backups & S3 Storage",
+    description: "Automated snapshot schedule & S3 destination",
+    icon: Archive,
   },
   {
     id: "danger",

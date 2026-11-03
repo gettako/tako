@@ -467,6 +467,22 @@ export interface ClusterSnapshot {
   createdAt: string
 }
 
+export interface ServiceBackupConfig {
+  id: string
+  name: string
+  enabled: boolean
+  cronSchedule: string
+  targetContainer: string
+  databaseType: "postgres" | "mysql" | "mariadb" | "redis" | "mongodb" | "none" | "auto"
+  databaseName?: string
+  databaseUser?: string
+  retentionDays: number
+  destinationBucketId: string
+  prefix: string
+  lastBackupAt?: string
+  lastBackupStatus?: string
+}
+
 export interface ClusterDomainConfig {
   domain: string
   sslActive: boolean
