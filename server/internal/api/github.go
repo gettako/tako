@@ -63,8 +63,8 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 			// If a custom appName was specified (not empty and not default "Tako"), use it.
 			// Otherwise fallback to appSlug to guarantee a unique name on GitHub.
 			manifestName := appName
-			if (appName == "Tako" || appName == "Takō") && appSlug != "" {
-				manifestName = appSlug
+			if manifestName == "" {
+				manifestName = "Tako Deployer"
 			}
 
 			// Webhook URL: baseUrl is the console origin (Next.js BFF), so the webhook
@@ -78,11 +78,7 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					}
 					if json.Unmarshal([]byte(ds.Value), &domCfg) == nil && domCfg.Domain != "" && !strings.Contains(domCfg.Domain, "localhost") {
 						webhookURL = fmt.Sprintf("https://%s/api/webhooks/github", strings.TrimRight(domCfg.Domain, "/"))
-					} else {
-						webhookURL = "https://console.gettako.dev/api/webhooks/github"
 					}
-				} else {
-					webhookURL = "https://console.gettako.dev/api/webhooks/github"
 				}
 			}
 
@@ -98,7 +94,8 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				CallbackURLs: []string{
 					baseURL + "/api/auth/callback/github",
 				},
-				Public: true,
+				SetupURL: baseURL + "/settings?tab=git&setup_action=installed",
+				Public:   true,
 				DefaultPermissions: map[string]string{
 					"contents":      "read",
 					"metadata":      "read",
@@ -459,6 +456,7 @@ func syncGitHubInstallationRepos(ctx context.Context, orch *orchestrator.Orchest
 						"fullName":       r.FullName,
 						"defaultBranch":  r.DefaultBranch,
 						"private":        r.Private,
+						"isPrivate":      r.Private,
 						"htmlUrl":        r.HTMLURL,
 						"updatedAt":      r.UpdatedAt,
 					})
@@ -536,6 +534,7 @@ func updateGitProvidersWithApp(ctx context.Context, orch *orchestrator.Orchestra
 				"authMethod":  "github_app",
 				"appId":       config.AppID,
 				"appSlug":     config.Slug,
+				"installUrl":  config.InstallURL,
 			})
 		}
 	} else if config.Owner.Login != "" {
@@ -550,6 +549,7 @@ func updateGitProvidersWithApp(ctx context.Context, orch *orchestrator.Orchestra
 			"authMethod":  "github_app",
 			"appId":       config.AppID,
 			"appSlug":     config.Slug,
+			"installUrl":  config.InstallURL,
 		})
 	}
 

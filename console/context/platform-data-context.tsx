@@ -187,8 +187,12 @@ interface PlatformDataContextType {
   syncGitRepos: () => Promise<void>
   toggleRepoAutoDeploy: (id: string) => Promise<void>
   disconnectGitProvider: (id: string) => Promise<void>
-  startGitHubAppSetup: (appName: string, owner: string) => Promise<void>
-  completeGitHubAppSetup: (code: string) => Promise<void>
+  startGitHubAppSetup: (
+    appName: string,
+    owner: string,
+    isOrg?: boolean
+  ) => Promise<void>
+  completeGitHubAppSetup: (code: string) => Promise<any>
 
   snapshots: ClusterSnapshot[]
   createSnapshot: () => Promise<ClusterSnapshot>
@@ -642,6 +646,9 @@ export function PlatformDataProvider({
             : "pat",
         avatarUrl: provider.avatarUrl ? String(provider.avatarUrl) : undefined,
         connectedAt: String(provider.connectedAt || ""),
+        installUrl: provider.installUrl ? String(provider.installUrl) : undefined,
+        appSlug: provider.appSlug ? String(provider.appSlug) : undefined,
+        appId: typeof provider.appId === "number" ? provider.appId : undefined,
       }))
     )
 
@@ -1413,13 +1420,11 @@ export function PlatformDataProvider({
   }, [updateSettings])
 
   const startGitHubAppSetup = React.useCallback(
-    async (appName: string, owner: string) => {
+    async (appName: string, owner: string, isOrg = false) => {
+      const cleanName = appName.trim() || "Tako Deployer"
       const params = new URLSearchParams({
         baseUrl: window.location.origin,
-        appName,
-        appSlug: `${appName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()
-          .toString(36)
-          .slice(-4)}`,
+        appName: cleanName,
       })
       const manifest = await apiGet<Record<string, unknown>>(
         `/github/manifest?${params.toString()}`
@@ -1428,13 +1433,20 @@ export function PlatformDataProvider({
       sessionStorage.setItem("tako_github_manifest_state", state)
       const form = document.createElement("form")
       form.method = "POST"
-      form.action = `https://github.com/settings/apps/new?state=${state}`
+
+      const org = owner.trim()
+      if (isOrg && org) {
+        form.action = `https://github.com/organizations/${encodeURIComponent(org)}/settings/apps/new?state=${state}`
+      } else {
+        form.action = `https://github.com/settings/apps/new?state=${state}`
+      }
+
       const input = document.createElement("input")
       input.type = "hidden"
       input.name = "manifest"
       input.value = JSON.stringify({
         ...manifest,
-        name: owner ? `${owner}-${appName}` : appName,
+        name: cleanName,
       })
       form.appendChild(input)
       document.body.appendChild(form)
@@ -1446,8 +1458,9 @@ export function PlatformDataProvider({
 
   const completeGitHubAppSetup = React.useCallback(
     async (code: string) => {
-      await apiPost("/github/manifest/convert", { code })
+      const app = await apiPost<any>("/github/manifest/convert", { code })
       await refreshSettings()
+      return app
     },
     [refreshSettings]
   )
@@ -1923,7 +1936,7 @@ export function PlatformDataProvider({
             name: String(r.name || ""),
             fullName: String(r.fullName || ""),
             defaultBranch: String(r.defaultBranch || "main"),
-            isPrivate: Boolean(r.isPrivate),
+            isPrivate: Boolean(r.isPrivate ?? r.private),
             htmlUrl: String(r.htmlUrl || ""),
             updatedAt: String(r.updatedAt || "Just now"),
             autoDeploy: Boolean(r.autoDeploy ?? true),

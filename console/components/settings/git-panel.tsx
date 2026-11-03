@@ -46,6 +46,7 @@ const gitConnectionSchema = z
   .object({
     connectTab: z.enum(["app", "pat"]),
     appName: z.string().trim(),
+    accountType: z.enum(["org", "personal"]).optional(),
     targetOrg: z.string().trim(),
     patProvider: z.enum(["github", "gitlab", "gitea"]),
     patUsername: z.string().trim(),
@@ -60,11 +61,11 @@ const gitConnectionSchema = z
           message: "GitHub App display name is required.",
         })
       }
-      if (!values.targetOrg) {
+      if (values.accountType === "org" && !values.targetOrg) {
         context.addIssue({
           code: "custom",
           path: ["targetOrg"],
-          message: "Target organization or account is required.",
+          message: "Target organization is required.",
         })
       }
       return
@@ -126,12 +127,37 @@ export function GitPanel() {
   >(null)
   const [isProcessingCode, setIsProcessingCode] = React.useState(false)
 
-  // Handle GitHub App redirect with code parameter
+  const hasConnectedProviders = gitProviders.some((prov) => prov.connected)
+  const primaryAppProvider = gitProviders.find(
+    (prov) =>
+      prov.connected &&
+      (prov.connectionType === "app" || prov.id.startsWith("git-gh-"))
+  )
+
+  // Handle GitHub App redirect with code parameter or setup_action/installation_id
   React.useEffect(() => {
     if (typeof window === "undefined") return
     const params = new URLSearchParams(window.location.search)
     const code = params.get("code")
     const setup = params.get("setup")
+    const setupAction = params.get("setup_action")
+    const installationId = params.get("installation_id")
+
+    if (setupAction === "installed" || installationId) {
+      syncGitRepos()
+        .then(() => {
+          setSetupSuccessMessage(
+            "GitHub App installed successfully! Repositories have been synchronized."
+          )
+          const url = new URL(window.location.href)
+          url.searchParams.delete("setup_action")
+          url.searchParams.delete("installation_id")
+          window.history.replaceState({}, "", url.toString())
+        })
+        .catch(() => {})
+      return
+    }
+
     if (
       code &&
       (setup === "github" || window.location.search.includes("setup="))
@@ -139,15 +165,19 @@ export function GitPanel() {
       const timer = setTimeout(() => {
         setIsProcessingCode(true)
         completeGitHubAppSetup(code)
-          .then(() => {
+          .then((app: any) => {
+            const installUrl = app?.installUrl
             setSetupSuccessMessage(
-              "GitHub App configured, verified, and authenticated successfully!"
+              "GitHub App configured successfully! Next step: install it to your account or organization."
             )
             const url = new URL(window.location.href)
             url.searchParams.delete("code")
             url.searchParams.delete("setup")
             url.searchParams.delete("state")
             window.history.replaceState({}, "", url.toString())
+            if (installUrl) {
+              window.open(installUrl, "_blank")
+            }
           })
           .catch((err: unknown) => {
             setSetupErrorMessage(
@@ -162,10 +192,11 @@ export function GitPanel() {
       }, 0)
       return () => clearTimeout(timer)
     }
-  }, [completeGitHubAppSetup])
+  }, [completeGitHubAppSetup, syncGitRepos])
 
   // GitHub App Form
-  const [appName, setAppName] = React.useState("Tako Edge Deployer")
+  const [appName, setAppName] = React.useState("Tako Deployer")
+  const [accountType, setAccountType] = React.useState<"org" | "personal">("org")
   const [targetOrg, setTargetOrg] = React.useState("gettako")
 
   // PAT Form
@@ -181,6 +212,7 @@ export function GitPanel() {
     React.useState<GitProviderConfig | null>(null)
 
   const handleTriggerSync = async () => {
+    if (!hasConnectedProviders) return
     setIsSyncing(true)
     try {
       await syncGitRepos()
@@ -196,6 +228,7 @@ export function GitPanel() {
     const valid = validate({
       connectTab,
       appName,
+      accountType,
       targetOrg,
       patProvider,
       patUsername,
@@ -206,13 +239,11 @@ export function GitPanel() {
     setIsConnecting(true)
     try {
       if (connectTab === "app") {
-        await connectGitProvider({
-          type: "github",
-          name: appName.trim() || "GitHub App",
-          username: targetOrg.trim() || "gettako",
-          connected: true,
-          connectionType: "app",
-        })
+        await startGitHubAppSetup(
+          appName.trim() || "Tako Deployer",
+          accountType === "org" ? targetOrg.trim() : "",
+          accountType === "org"
+        )
       } else {
         await connectGitProvider({
           type: patProvider,
@@ -222,12 +253,10 @@ export function GitPanel() {
           connected: true,
           connectionType: "pat",
         })
+        setSetupSuccessMessage(
+          `${patProvider.toUpperCase()} personal access token connected successfully.`
+        )
       }
-      setSetupSuccessMessage(
-        connectTab === "app"
-          ? "GitHub App integration registered successfully."
-          : `${patProvider.toUpperCase()} personal access token connected successfully.`
-      )
       setConnectModalOpen(false)
     } catch (err: unknown) {
       setSetupErrorMessage(
@@ -332,8 +361,16 @@ export function GitPanel() {
                 variant="outline"
                 size="sm"
                 onClick={handleTriggerSync}
-                disabled={isSyncing}
-                className="gap-1.5 text-xs"
+                disabled={isSyncing || !hasConnectedProviders}
+                title={
+                  !hasConnectedProviders
+                    ? "Connect a Git provider first to sync repositories"
+                    : undefined
+                }
+                className={cn(
+                  "gap-1.5 text-xs",
+                  !hasConnectedProviders && "cursor-not-allowed opacity-50"
+                )}
               >
                 <RefreshCw
                   className={cn("size-3", isSyncing && "animate-spin")}
@@ -393,21 +430,73 @@ export function GitPanel() {
                 </div>
               </div>
 
-              {prov.connected && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => setProviderToDisconnect(prov)}
-                  className="text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                >
-                  Disconnect
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {prov.connected &&
+                  (prov.connectionType === "app" ||
+                    prov.id.startsWith("git-gh-")) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() =>
+                        window.open(
+                          prov.installUrl ||
+                            `https://github.com/apps/${prov.appSlug || "tako"}/installations/new`,
+                          "_blank"
+                        )
+                      }
+                      className="gap-1 text-[11px]"
+                      title="Install this GitHub App to another organization or account"
+                    >
+                      <ExternalLink className="size-3" />
+                      <span>+ Install to Org / Account</span>
+                    </Button>
+                  )}
+                {prov.connected && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setProviderToDisconnect(prov)}
+                    className="text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    Disconnect
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Reminder banner if app is connected but 0 repos synced */}
+      {hasConnectedProviders && syncedRepos.length === 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="size-4 shrink-0" />
+            <span>
+              GitHub App is connected, but no repositories are accessible yet. Install the App on your GitHub organization or account to choose which repositories to sync.
+            </span>
+          </div>
+          {primaryAppProvider && (
+            <Button
+              type="button"
+              size="xs"
+              onClick={() =>
+                window.open(
+                  primaryAppProvider.installUrl ||
+                    `https://github.com/apps/${primaryAppProvider.appSlug || "tako"}/installations/new`,
+                  "_blank"
+                )
+              }
+              className="shrink-0 gap-1 text-xs"
+            >
+              <span>Install on GitHub</span>
+              <ExternalLink className="size-3" />
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* 2. Synced Repositories Section */}
       <div className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs sm:p-6">
@@ -603,6 +692,7 @@ export function GitPanel() {
                       setAppName(e.target.value)
                       clearError("appName")
                     }}
+                    placeholder="e.g. Tako Deployer"
                     aria-invalid={Boolean(errors.appName)}
                     aria-describedby={
                       errors.appName ? "git-app-name-error" : undefined
@@ -614,26 +704,74 @@ export function GitPanel() {
                   </FieldError>
                 </Field>
 
-                <Field data-invalid={Boolean(errors.targetOrg)}>
+                <Field>
                   <FieldLabel className="text-xs">
-                    Target Organization / Account
+                    Register GitHub App Under
                   </FieldLabel>
-                  <Input
-                    value={targetOrg}
-                    onChange={(e) => {
-                      setTargetOrg(e.target.value)
-                      clearError("targetOrg")
-                    }}
-                    aria-invalid={Boolean(errors.targetOrg)}
-                    aria-describedby={
-                      errors.targetOrg ? "git-target-org-error" : undefined
-                    }
-                    className="font-mono text-xs"
-                  />
-                  <FieldError id="git-target-org-error" className="text-[11px]">
-                    {errors.targetOrg}
-                  </FieldError>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountType("org")
+                        clearError("targetOrg")
+                      }}
+                      className={cn(
+                        "rounded border px-2.5 py-1.5 text-xs transition-colors",
+                        accountType === "org"
+                          ? "border-primary bg-primary/10 font-semibold text-primary"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      Organization
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountType("personal")
+                        clearError("targetOrg")
+                      }}
+                      className={cn(
+                        "rounded border px-2.5 py-1.5 text-xs transition-colors",
+                        accountType === "personal"
+                          ? "border-primary bg-primary/10 font-semibold text-primary"
+                          : "border-border bg-card text-muted-foreground hover:bg-muted"
+                      )}
+                    >
+                      Personal Account
+                    </button>
+                  </div>
                 </Field>
+
+                {accountType === "org" ? (
+                  <Field data-invalid={Boolean(errors.targetOrg)}>
+                    <FieldLabel className="text-xs">
+                      Target GitHub Organization
+                    </FieldLabel>
+                    <Input
+                      value={targetOrg}
+                      placeholder="e.g. gettako"
+                      onChange={(e) => {
+                        setTargetOrg(e.target.value)
+                        clearError("targetOrg")
+                      }}
+                      aria-invalid={Boolean(errors.targetOrg)}
+                      aria-describedby={
+                        errors.targetOrg ? "git-target-org-error" : undefined
+                      }
+                      className="font-mono text-xs"
+                    />
+                    <FieldError id="git-target-org-error" className="text-[11px]">
+                      {errors.targetOrg}
+                    </FieldError>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      The App will be registered in your organization settings (github.com/organizations/{targetOrg || "org"}/settings/apps/new).
+                    </p>
+                  </Field>
+                ) : (
+                  <p className="rounded border border-border/60 bg-muted/20 p-2.5 text-[11px] text-muted-foreground">
+                    The App will be registered under your personal GitHub profile. You can still install it into multiple organizations later.
+                  </p>
+                )}
 
                 <div className="space-y-1 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
                   <span className="block font-semibold text-primary">
@@ -654,8 +792,9 @@ export function GitPanel() {
                     onClick={async () => {
                       try {
                         await startGitHubAppSetup(
-                          appName.trim() || "Tako Edge Deployer",
-                          targetOrg.trim()
+                          appName.trim() || "Tako Deployer",
+                          accountType === "org" ? targetOrg.trim() : "",
+                          accountType === "org"
                         )
                       } catch (err: unknown) {
                         setSetupErrorMessage(

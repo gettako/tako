@@ -381,6 +381,9 @@ export interface GitProviderConfig {
   connectionType: "app" | "pat"
   avatarUrl?: string
   connectedAt: string
+  installUrl?: string
+  appSlug?: string
+  appId?: number
 }
 
 export interface SyncedGitRepo {
