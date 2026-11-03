@@ -27,7 +27,6 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ClusterCharts } from "@/components/monitor/cluster-charts"
 import { LiveTopologyMap } from "@/components/live/live-topology-map"
 import { usePlatformData } from "@/context/platform-data-context"
@@ -132,16 +131,41 @@ export function ClusterMonitorView() {
   const [mainTab, setMainTab] = React.useState<"metrics" | "topology">(
     tabParam === "topology" ? "topology" : "metrics"
   )
+  const [metricsTab, setMetricsTab] = React.useState<"charts" | "stream">(
+    tabParam === "stream" ? "stream" : "charts"
+  )
 
   if (tabParam !== prevTabParam) {
     setPrevTabParam(tabParam)
-    setMainTab(tabParam === "topology" ? "topology" : "metrics")
+    if (tabParam === "topology") {
+      setMainTab("topology")
+    } else {
+      setMainTab("metrics")
+      if (tabParam === "stream") {
+        setMetricsTab("stream")
+      } else if (tabParam === "charts" || !tabParam) {
+        setMetricsTab("charts")
+      }
+    }
   }
 
   const handleMainTabChange = (next: "metrics" | "topology") => {
     setMainTab(next)
     if (next === "topology") {
       router.replace("/monitor?tab=topology", { scroll: false })
+    } else {
+      if (metricsTab === "stream") {
+        router.replace("/monitor?tab=stream", { scroll: false })
+      } else {
+        router.replace("/monitor", { scroll: false })
+      }
+    }
+  }
+
+  const handleMetricsTabChange = (next: "charts" | "stream") => {
+    setMetricsTab(next)
+    if (next === "stream") {
+      router.replace("/monitor?tab=stream", { scroll: false })
     } else {
       router.replace("/monitor", { scroll: false })
     }
@@ -571,7 +595,7 @@ export function ClusterMonitorView() {
             </div>
           </div>
         ) : (
-          <>
+          <div className="space-y-6">
             {/* Cluster Aggregate KPIs */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {/* Total Cluster CPU */}
@@ -712,42 +736,69 @@ export function ClusterMonitorView() {
               </div>
             </div>
 
-            {/* Tab Navigation: Option A */}
-            <Tabs defaultValue="charts" className="w-full space-y-6">
+            {/* Sub-Tabs Navigation: Charts vs Live Stream */}
+            <div className="space-y-6">
               <div className="flex flex-col gap-3 border-b border-border pb-3 sm:flex-row sm:items-center sm:justify-between">
-                <TabsList className="bg-muted/60 p-1">
-                  <TabsTrigger
-                    value="charts"
-                    className="gap-2 px-3 py-1.5 text-xs"
+                <div className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-1 font-mono text-xs shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleMetricsTabChange("charts")}
+                    className={cn(
+                      "relative flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-colors",
+                      metricsTab === "charts"
+                        ? "font-semibold text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
                   >
-                    <Activity className="size-3.5" />
-                    <span>Resource Charts & Trends</span>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="stream"
-                    className="gap-2 px-3 py-1.5 text-xs"
+                    {metricsTab === "charts" && (
+                      <motion.div
+                        layoutId="monitor-subtab-indicator"
+                        className="absolute inset-0 rounded-md bg-card shadow-xs"
+                        transition={{
+                          type: "spring",
+                          stiffness: 450,
+                          damping: 35,
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Activity className="size-3.5" />
+                      <span>Resource Charts & Trends</span>
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleMetricsTabChange("stream")}
+                    className={cn(
+                      "relative flex cursor-pointer items-center gap-2 rounded-md px-3.5 py-1.5 font-medium transition-colors",
+                      metricsTab === "stream"
+                        ? "font-semibold text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
                   >
-                    <Terminal className="size-3.5" />
-                    <span>Live Telemetry Stream</span>
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {/* Tab 1: Resource Charts & Trends */}
-              <TabsContent value="charts" className="mt-0">
-                <ClusterCharts nodes={nodes} isStreaming={isStreaming} />
-              </TabsContent>
-
-              {/* Tab 3: Live gRPC Stream Feed Section */}
-              <TabsContent value="stream" className="mt-0">
-                <div className="space-y-3">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                      <Terminal className="size-4 text-primary" />
-                      <h2 className="text-sm font-semibold tracking-tight text-foreground">
-                        Live gRPC Telemetry Packets
-                      </h2>
-                      <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[11px]">
+                    {metricsTab === "stream" && (
+                      <motion.div
+                        layoutId="monitor-subtab-indicator"
+                        className="absolute inset-0 rounded-md bg-card shadow-xs"
+                        transition={{
+                          type: "spring",
+                          stiffness: 450,
+                          damping: 35,
+                        }}
+                      />
+                    )}
+                    <span className="relative z-10 flex items-center gap-2">
+                      <Terminal className="size-3.5" />
+                      <span>Live Telemetry Stream</span>
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px]",
+                          isStreaming
+                            ? "bg-emerald-500/10 font-semibold text-emerald-500"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
                         <span
                           className={cn(
                             "size-1.5 rounded-full",
@@ -756,90 +807,125 @@ export function ClusterMonitorView() {
                               : "bg-amber-500"
                           )}
                         />
-                        <span>{isStreaming ? "Live Feed" : "Paused"}</span>
+                        {isStreaming ? "STREAM" : "PAUSED"}
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Sub-Tab Content Panel */}
+              <motion.div
+                key={metricsTab}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="w-full"
+              >
+                {metricsTab === "charts" ? (
+                  <ClusterCharts nodes={nodes} isStreaming={isStreaming} />
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2">
+                        <Terminal className="size-4 text-primary" />
+                        <h2 className="text-sm font-semibold tracking-tight text-foreground">
+                          Live gRPC Telemetry Packets
+                        </h2>
+                        <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2 py-0.5 font-mono text-[11px]">
+                          <span
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              isStreaming
+                                ? "animate-pulse bg-emerald-500"
+                                : "bg-amber-500"
+                            )}
+                          />
+                          <span>{isStreaming ? "Live Feed" : "Paused"}</span>
+                        </div>
                       </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setPackets([])}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Clear Console
+                      </Button>
                     </div>
 
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setPackets([])}
-                      className="text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      Clear Console
-                    </Button>
-                  </div>
+                    {/* Toolbar: Filters with SearchableSelect */}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="relative">
+                        <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Filter packet message..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-9 text-xs"
+                        />
+                      </div>
 
-                  {/* Toolbar: Filters with SearchableSelect */}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="relative">
-                      <Search className="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Filter packet message..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 text-xs"
+                      <SearchableSelect
+                        value={selectedNodeFilter}
+                        onChange={(val) => setSelectedNodeFilter(val)}
+                        options={nodeFilterOptions}
+                        placeholder="Filter by node..."
+                        searchPlaceholder="Search nodes..."
+                      />
+
+                      <SearchableSelect
+                        value={selectedTypeFilter}
+                        onChange={(val) => setSelectedTypeFilter(val)}
+                        options={typeFilterOptions}
+                        placeholder="Filter by type..."
+                        searchPlaceholder="Search packet types..."
                       />
                     </div>
 
-                    <SearchableSelect
-                      value={selectedNodeFilter}
-                      onChange={(val) => setSelectedNodeFilter(val)}
-                      options={nodeFilterOptions}
-                      placeholder="Filter by node..."
-                      searchPlaceholder="Search nodes..."
-                    />
+                    {/* Terminal Log Console */}
+                    <div className="rounded-lg border border-border bg-muted/20 p-4 font-mono text-xs text-foreground dark:bg-muted/15">
+                      <div className="mb-3 flex flex-col gap-2 border-b border-border pb-2.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
+                          <span className="font-semibold text-foreground">
+                            PACKET INGESTION BUFFER (RECENT{" "}
+                            {filteredPackets.length})
+                          </span>
+                          <span>• PROTOBUF v3 / HTTP2</span>
+                        </div>
 
-                    <SearchableSelect
-                      value={selectedTypeFilter}
-                      onChange={(val) => setSelectedTypeFilter(val)}
-                      options={typeFilterOptions}
-                      placeholder="Filter by type..."
-                      searchPlaceholder="Search packet types..."
-                    />
-                  </div>
-
-                  {/* Terminal Log Console */}
-                  <div className="rounded-lg border border-border bg-muted/20 p-4 font-mono text-xs text-foreground dark:bg-muted/15">
-                    <div className="mb-3 flex flex-col gap-2 border-b border-border pb-2.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
-                        <span className="font-semibold text-foreground">
-                          PACKET INGESTION BUFFER (RECENT{" "}
-                          {filteredPackets.length})
-                        </span>
-                        <span>• PROTOBUF v3 / HTTP2</span>
+                        <div className="flex items-center gap-2">
+                          <span className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground uppercase">
+                            Telemetry Ingestion Log
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="rounded border border-border/80 bg-muted/40 px-2 py-0.5 text-[10px] text-muted-foreground uppercase">
-                          Telemetry Ingestion Log
-                        </span>
-                      </div>
+                      <CodeHighlighter
+                        language="log"
+                        code={
+                          filteredPackets.length === 0
+                            ? "# No telemetry packets matched the current filter criteria."
+                            : filteredPackets
+                                .map(
+                                  (pkt) =>
+                                    `[${pkt.timestamp}] [${pkt.type.toUpperCase()}] [${pkt.nodeName}] ${pkt.message}`
+                                )
+                                .join("\n")
+                        }
+                        maxHeight="max-h-96"
+                        showLineNumbers={true}
+                        showCopy={true}
+                      />
                     </div>
-
-                    <CodeHighlighter
-                      language="log"
-                      code={
-                        filteredPackets.length === 0
-                          ? "# No telemetry packets matched the current filter criteria."
-                          : filteredPackets
-                              .map(
-                                (pkt) =>
-                                  `[${pkt.timestamp}] [${pkt.type.toUpperCase()}] [${pkt.nodeName}] ${pkt.message}`
-                              )
-                              .join("\n")
-                      }
-                      maxHeight="max-h-96"
-                      showLineNumbers={true}
-                      showCopy={true}
-                    />
                   </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </>
+                )}
+              </motion.div>
+            </div>
+          </div>
         )}
       </motion.div>
     </div>
