@@ -769,13 +769,8 @@ export function ServiceSettingsView({
   }
 
   return (
-    <div
-      className={cn(
-        "grid grid-cols-1 items-start gap-6 transition-[grid-template-columns] duration-200 lg:grid-cols-12",
-        isNavCollapsed ? "lg:gap-6" : "lg:gap-8"
-      )}
-    >
-      {/* Left Column: Vertical Sub-Menu (matching main platform settings width) */}
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-6">
+      {/* Left Column: Vertical Sub-Menu (matching main platform settings width & transition) */}
       <ServiceSettingsTabs
         activeSection={activeSection}
         onSelect={setActiveSection}
@@ -784,14 +779,7 @@ export function ServiceSettingsView({
       />
 
       {/* Right Column: Settings Content Panels */}
-      <main
-        className={cn(
-          "transition-all duration-200",
-          isNavCollapsed
-            ? "lg:col-span-11 xl:col-span-11"
-            : "lg:col-span-8 xl:col-span-9"
-        )}
-      >
+      <main className="min-w-0 flex-1">
         <motion.div
           key={activeSection}
           initial={{ opacity: 0, y: 6 }}

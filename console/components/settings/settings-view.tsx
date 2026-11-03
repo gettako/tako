@@ -159,19 +159,12 @@ export function SettingsView() {
       </div>
 
       {/* Main Settings Layout: Sub-Nav Sidebar + Active Panel */}
-      <div
-        className={cn(
-          "grid grid-cols-1 items-start gap-6 transition-[grid-template-columns] duration-200 lg:grid-cols-12",
-          isNavCollapsed ? "lg:gap-6" : "lg:gap-8"
-        )}
-      >
-        {/* Left Column: Vertical Navigation Tabs */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-6">
+        {/* Left Column: Vertical Navigation Tabs with smooth width transition */}
         <aside
           className={cn(
-            "space-y-4 lg:sticky lg:top-6 transition-all duration-200",
-            isNavCollapsed
-              ? "lg:col-span-1 xl:col-span-1 max-w-[64px]"
-              : "lg:col-span-4 xl:col-span-3"
+            "w-full shrink-0 transition-[width] duration-200 ease-in-out lg:sticky lg:top-6",
+            isNavCollapsed ? "lg:w-[68px]" : "lg:w-64"
           )}
         >
           <SettingsNav
@@ -186,14 +179,7 @@ export function SettingsView() {
         </aside>
 
         {/* Right Column: Tab Content */}
-        <main
-          className={cn(
-            "min-w-0 transition-all duration-200",
-            isNavCollapsed
-              ? "lg:col-span-11 xl:col-span-11"
-              : "lg:col-span-8 xl:col-span-9"
-          )}
-        >
+        <main className="min-w-0 flex-1">
           <motion.div
             key={activeSection}
             initial={{ opacity: 0, y: 6 }}

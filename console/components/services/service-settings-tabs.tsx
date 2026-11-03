@@ -101,10 +101,8 @@ export function ServiceSettingsTabs({
   return (
     <aside
       className={cn(
-        "transition-all duration-200",
-        isCollapsed
-          ? "lg:sticky lg:top-6 lg:col-span-1 xl:col-span-1 max-w-[64px]"
-          : "lg:sticky lg:top-6 lg:col-span-4 xl:col-span-3"
+        "w-full shrink-0 transition-[width] duration-200 ease-in-out lg:sticky lg:top-6",
+        isCollapsed ? "lg:w-[68px]" : "lg:w-64"
       )}
     >
       <div className="flex scrollbar-none gap-1.5 overflow-x-auto pb-2 lg:hidden">
@@ -219,16 +217,16 @@ export function ServiceSettingsTabs({
               <div
                 className={cn(
                   "relative z-10 flex items-center",
-                  isCollapsed ? "justify-center" : "gap-2.5"
+                  isCollapsed ? "justify-center" : "min-w-0 gap-2.5"
                 )}
               >
                 <Icon className={cn("shrink-0", isCollapsed ? "size-4" : "size-4")} />
                 {!isCollapsed && (
-                  <div className="flex flex-col">
-                    <span className="font-medium">{tab.label}</span>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{tab.label}</span>
                     <span
                       className={cn(
-                        "text-[10px]",
+                        "truncate text-[10px]",
                         isActive
                           ? isDanger
                             ? "text-white/80"
