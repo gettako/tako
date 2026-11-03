@@ -458,6 +458,21 @@ function mapSettings(
   }
 }
 
+function generateRandomState(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.getRandomValues === "function"
+  ) {
+    return Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("")
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`
+}
+
 export function PlatformDataProvider({
   children,
 }: {
@@ -1430,7 +1445,7 @@ export function PlatformDataProvider({
       const manifest = await apiGet<Record<string, unknown>>(
         `/github/manifest?${params.toString()}`
       )
-      const state = crypto.randomUUID()
+      const state = generateRandomState()
       sessionStorage.setItem("tako_github_manifest_state", state)
       const form = document.createElement("form")
       form.method = "POST"
