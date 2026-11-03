@@ -269,7 +269,8 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		clientIP := extractRequestIP(r)
 		rateLimitKey := clientIP + ":" + strings.ToLower(req.Email)
-		if globalLoginTracker.isBlocked(rateLimitKey) {
+		ipLimitKey := "ip:" + clientIP
+		if globalLoginTracker.isBlocked(rateLimitKey) || globalLoginTracker.isBlocked(ipLimitKey) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Too many failed login attempts. Please try again later."})
@@ -279,6 +280,7 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		user, err := orch.Queries().GetUserByEmail(r.Context(), req.Email)
 		if err != nil {
 			globalLoginTracker.recordFailure(rateLimitKey)
+			globalLoginTracker.recordFailure(ipLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid email or password"})
@@ -287,6 +289,7 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 			globalLoginTracker.recordFailure(rateLimitKey)
+			globalLoginTracker.recordFailure(ipLimitKey)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "Invalid email or password"})
@@ -294,6 +297,7 @@ func handleLogin(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		}
 
 		globalLoginTracker.reset(rateLimitKey)
+		globalLoginTracker.reset(ipLimitKey)
 
 		token := "tako_tk_" + randomHexID(24)
 		orch.RegisterUserSession(token, user)

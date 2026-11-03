@@ -353,6 +353,28 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				_ = rows.Close()
 			}
 
+			latestDeps := make(map[string]DeploymentResponse)
+			if rows, err := orch.DB().QueryContext(r.Context(), `
+				SELECT id, service_id, commit_hash, commit_message, branch, author, status, url, steps, duration_ms, started_at, finished_at, created_at
+				FROM (
+					SELECT id, service_id, commit_hash, commit_message, branch, author, status, url, steps, duration_ms, started_at, finished_at, created_at,
+					       ROW_NUMBER() OVER (PARTITION BY service_id ORDER BY created_at DESC) as rn
+					FROM deployments
+				) WHERE rn = 1
+			`); err == nil {
+				for rows.Next() {
+					var d db.Deployment
+					if err := rows.Scan(
+						&d.ID, &d.ServiceID, &d.CommitHash, &d.CommitMessage, &d.Branch,
+						&d.Author, &d.Status, &d.Url, &d.Steps, &d.DurationMs,
+						&d.StartedAt, &d.FinishedAt, &d.CreatedAt,
+					); err == nil {
+						latestDeps[d.ServiceID] = mapDeploymentToResponse(d)
+					}
+				}
+				_ = rows.Close()
+			}
+
 			res := make([]ServiceResponse, 0, len(services))
 			for _, s := range services {
 				node, hasNode := nodeMap[s.NodeID]
@@ -376,8 +398,7 @@ func registerServiceRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				if nodeName != "" {
 					sResp.NodeName = nodeName
 				}
-				if deps, depErr := orch.Queries().ListDeploymentsByService(r.Context(), s.ID); depErr == nil && len(deps) > 0 {
-					latest := mapDeploymentToResponse(deps[0])
+				if latest, ok := latestDeps[s.ID]; ok {
 					sResp.LastDeployment = &latest
 				}
 				res = append(res, sResp)

@@ -51,16 +51,18 @@ func New(database *sql.DB, bus *events.Bus, enrollToken string, masterNodeID ...
 	if len(masterNodeID) > 0 && masterNodeID[0] != "" {
 		mid = masterNodeID[0]
 	}
+	sessions := NewSessionStore()
+	telemetry := NewTelemetryStore()
 	o := &Orchestrator{
 		db:           database,
 		queries:      db.New(database),
 		bus:          bus,
 		enrollToken:  enrollToken,
 		masterNodeID: mid,
-		sessions:     NewSessionStore(),
-		telemetry:    NewTelemetryStore(),
+		sessions:     sessions,
+		telemetry:    telemetry,
 		agents:       NewAgentRegistry(),
-		retention:    NewRetentionCleaner(database),
+		retention:    NewRetentionCleaner(database, sessions, telemetry),
 		nodeTokens:   make(map[string]string),
 	}
 
@@ -103,6 +105,17 @@ func (o *Orchestrator) RegisterNodeAuthToken(token, nodeID string) {
 		o.nodeTokens = make(map[string]string)
 	}
 	o.nodeTokens[token] = nodeID
+}
+
+// RevokeNodeAuthToken removes all authentication tokens associated with nodeID.
+func (o *Orchestrator) RevokeNodeAuthToken(nodeID string) {
+	o.nodeTokensMu.Lock()
+	defer o.nodeTokensMu.Unlock()
+	for token, id := range o.nodeTokens {
+		if id == nodeID {
+			delete(o.nodeTokens, token)
+		}
+	}
 }
 
 // ValidateNodeAuthToken checks if a bearer token corresponds to an active enrolled agent.

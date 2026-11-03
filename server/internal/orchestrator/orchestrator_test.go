@@ -195,3 +195,30 @@ func TestOrchestratorRetentionCleanup(t *testing.T) {
 		t.Errorf("expected audit-recent to be retained, found count %d", countRecentAudit)
 	}
 }
+
+func TestRevokeNodeAuthToken(t *testing.T) {
+	database, err := store.OpenDB(":memory:")
+	if err != nil {
+		t.Fatalf("OpenDB failed: %v", err)
+	}
+	defer database.Close()
+
+	orch := orchestrator.New(database, events.NewBus(), "secret")
+
+	token := "test-agent-token-123"
+	nodeID := "node-worker-01"
+
+	orch.RegisterNodeAuthToken(token, nodeID)
+
+	gotID, valid := orch.ValidateNodeAuthToken(token)
+	if !valid || gotID != nodeID {
+		t.Fatalf("expected node %s valid, got %s (valid: %v)", nodeID, gotID, valid)
+	}
+
+	orch.RevokeNodeAuthToken(nodeID)
+
+	_, validAfter := orch.ValidateNodeAuthToken(token)
+	if validAfter {
+		t.Fatalf("expected token to be revoked, but it was still valid")
+	}
+}

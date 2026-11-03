@@ -10,12 +10,18 @@ import (
 
 // RetentionCleaner purges historical deployments, audit logs, and metrics older than a configured threshold.
 type RetentionCleaner struct {
-	db *sql.DB
+	db        *sql.DB
+	sessions  *SessionStore
+	telemetry *TelemetryStore
 }
 
-// NewRetentionCleaner creates a new RetentionCleaner backed by the SQLite database.
-func NewRetentionCleaner(db *sql.DB) *RetentionCleaner {
-	return &RetentionCleaner{db: db}
+// NewRetentionCleaner creates a new RetentionCleaner backed by the SQLite database and in-memory stores.
+func NewRetentionCleaner(db *sql.DB, sessions *SessionStore, telemetry *TelemetryStore) *RetentionCleaner {
+	return &RetentionCleaner{
+		db:        db,
+		sessions:  sessions,
+		telemetry: telemetry,
+	}
 }
 
 // Start launches a background goroutine that runs Prune at periodic intervals.
@@ -70,5 +76,17 @@ func (c *RetentionCleaner) Prune(ctx context.Context, retentionDays int) {
 		log.Printf("[orchestrator] retention cleanup node_metrics error: %v", err)
 	} else if rows, _ := resMetrics.RowsAffected(); rows > 0 {
 		log.Printf("[orchestrator] pruned %d old node metrics (>%d days)", rows, retentionDays)
+	}
+
+	if c.sessions != nil {
+		if pruned := c.sessions.PruneExpired(); pruned > 0 {
+			log.Printf("[orchestrator] pruned %d expired user sessions", pruned)
+		}
+	}
+
+	if c.telemetry != nil {
+		if pruned := c.telemetry.PruneStale(24 * time.Hour); pruned > 0 {
+			log.Printf("[orchestrator] pruned %d stale telemetry series", pruned)
+		}
 	}
 }

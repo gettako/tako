@@ -296,18 +296,22 @@ func ExecuteRestore(ctx context.Context, orch *orchestrator.Orchestrator, snapsh
 		return nil, fmt.Errorf("invalid archive: tako.db missing from snapshot")
 	}
 
-	dbConn := orch.DB()
+	conn, err := orch.DB().Conn(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain database connection: %w", err)
+	}
+	defer conn.Close()
 
-	// Attach backup database outside transaction
+	// Attach backup database outside transaction on this dedicated connection
 	attachQuery := fmt.Sprintf("ATTACH DATABASE '%s' AS backup_db", tempRestoreDBPath)
-	if _, err := dbConn.ExecContext(ctx, attachQuery); err != nil {
+	if _, err := conn.ExecContext(ctx, attachQuery); err != nil {
 		return nil, fmt.Errorf("failed to attach restore db: %w", err)
 	}
 	defer func() {
-		_, _ = dbConn.ExecContext(context.Background(), "DETACH DATABASE backup_db")
+		_, _ = conn.ExecContext(context.Background(), "DETACH DATABASE backup_db")
 	}()
 
-	tx, err := dbConn.BeginTx(ctx, nil)
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start transaction: %w", err)
 	}

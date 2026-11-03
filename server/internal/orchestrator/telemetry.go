@@ -107,3 +107,19 @@ func (t *TelemetryStore) GetHistory(serviceID, serviceSlug string) []ServiceTele
 	}
 	return nil
 }
+
+// PruneStale purges telemetry series that have not received any sample in olderThan duration.
+func (t *TelemetryStore) PruneStale(olderThan time.Duration) int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	cutoff := time.Now().UTC().Add(-olderThan)
+	pruned := 0
+	for k, pt := range t.latest {
+		if pt.Timestamp.Before(cutoff) {
+			delete(t.latest, k)
+			delete(t.history, k)
+			pruned++
+		}
+	}
+	return pruned
+}

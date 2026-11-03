@@ -187,8 +187,9 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
-			// Unregister any active session for this node
+			// Unregister any active session and revoke auth tokens for this node
 			orch.UnregisterAgentSession(id)
+			orch.RevokeNodeAuthToken(id)
 
 			if err := orch.Queries().DeleteNode(r.Context(), id); err != nil {
 				RespondError(w, http.StatusInternalServerError, err.Error())
