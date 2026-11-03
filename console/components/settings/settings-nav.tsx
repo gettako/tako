@@ -16,16 +16,20 @@ import {
 import { cn } from "@/lib/utils"
 import { motion } from "motion/react"
 
+export const SETTINGS_SECTION = {
+  OVERVIEW: "overview",
+  USERS: "users",
+  REGISTRIES: "registries",
+  STORAGE: "storage",
+  GIT: "git",
+  BACKUPS: "backups",
+  DOMAIN: "domain",
+  NOTIFICATIONS: "notifications",
+  NETWORK: "network",
+} as const
+
 export type SettingsSection =
-  | "overview"
-  | "users"
-  | "registries"
-  | "storage"
-  | "git"
-  | "backups"
-  | "domain"
-  | "notifications"
-  | "network"
+  (typeof SETTINGS_SECTION)[keyof typeof SETTINGS_SECTION]
 
 interface NavItem {
   id: SettingsSection
@@ -53,20 +57,20 @@ export function SettingsNav({
   const navItems: NavItem[] = React.useMemo(
     () => [
       {
-        id: "overview",
+        id: SETTINGS_SECTION.OVERVIEW,
         label: "Overview",
         description: "Cluster health, consensus & version",
         icon: LayoutDashboard,
       },
       {
-        id: "users",
+        id: SETTINGS_SECTION.USERS,
         label: "Team & RBAC",
         description: "Members, roles, and invite links",
         icon: Users,
         badge: pendingInvitesCount > 0 ? pendingInvitesCount : undefined,
       },
       {
-        id: "registries",
+        id: SETTINGS_SECTION.REGISTRIES,
         label: "Docker Registries",
         description: "Private GHCR & Docker Hub access",
         icon: Boxes,
@@ -74,38 +78,38 @@ export function SettingsNav({
           registriesCount && registriesCount > 0 ? registriesCount : undefined,
       },
       {
-        id: "storage",
+        id: SETTINGS_SECTION.STORAGE,
         label: "S3 Object Storage",
         description: "Artifacts, volume & db snapshots",
         icon: HardDrive,
         badge: bucketsCount && bucketsCount > 0 ? `${bucketsCount}` : undefined,
       },
       {
-        id: "git",
+        id: SETTINGS_SECTION.GIT,
         label: "Git Providers",
         description: "GitHub App & PAT synced repos",
         icon: FolderGit2,
       },
       {
-        id: "backups",
+        id: SETTINGS_SECTION.BACKUPS,
         label: "Backups & Snapshots",
         description: "Automated snapshots & restore state",
         icon: Archive,
       },
       {
-        id: "domain",
+        id: SETTINGS_SECTION.DOMAIN,
         label: "Cluster Domain",
         description: "Control plane DNS & TLS certs",
         icon: Globe,
       },
       {
-        id: "notifications",
+        id: SETTINGS_SECTION.NOTIFICATIONS,
         label: "Notifications",
         description: "Discord, Slack, Email & Telegram",
         icon: Bell,
       },
       {
-        id: "network",
+        id: SETTINGS_SECTION.NETWORK,
         label: "Daemon & Security",
         description: "gRPC mTLS, token & IP allowlist",
         icon: Radio,

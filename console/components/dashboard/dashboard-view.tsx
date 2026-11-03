@@ -16,7 +16,12 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
-import { ClusterNode, Project } from "@/types/platform"
+import {
+  ClusterNode,
+  NODE_STATUS,
+  Project,
+  SERVICE_STATUS,
+} from "@/types/platform"
 
 export function DashboardView() {
   const {
@@ -43,7 +48,7 @@ export function DashboardView() {
 
   // Aggregates computed accurately from online edge nodes
   const onlineNodes = React.useMemo(
-    () => nodes.filter((n) => n.status === "online"),
+    () => nodes.filter((n) => n.status === NODE_STATUS.ONLINE),
     [nodes]
   )
   const totalCores = nodes.reduce((acc, n) => acc + n.totalCores, 0)
@@ -124,7 +129,8 @@ export function DashboardView() {
               {nodes.length}
             </span>
             <span className="font-mono text-xs text-muted-foreground">
-              ({nodes.filter((n) => n.status === "online").length} online)
+              ({nodes.filter((n) => n.status === NODE_STATUS.ONLINE).length}{" "}
+              online)
             </span>
           </div>
           <div className="mt-2 font-mono text-[11px] text-muted-foreground">
@@ -162,7 +168,12 @@ export function DashboardView() {
               {services.length}
             </span>
             <span className="font-mono text-xs text-muted-foreground">
-              ({services.filter((s) => s.status === "running").length} running)
+              (
+              {
+                services.filter((s) => s.status === SERVICE_STATUS.RUNNING)
+                  .length
+              }{" "}
+              running)
             </span>
           </div>
           <div className="mt-2 font-mono text-[11px] text-muted-foreground">

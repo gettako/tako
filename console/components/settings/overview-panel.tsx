@@ -25,6 +25,7 @@ import {
 import { DEFAULT_PORTS } from "@/lib/api"
 import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
 import type { SettingsSection } from "@/components/settings/settings-nav"
+import { NODE_ROLE, NODE_STATUS, SERVICE_STATUS } from "@/types/platform"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -64,11 +65,14 @@ export function OverviewPanel({ onNavigateToTab }: OverviewPanelProps) {
   const [updateDone, setUpdateDone] = React.useState(false)
 
   // Real Computed Cluster Metrics
-  const onlineNodes = nodes.filter((n) => n.status === "online")
-  const leaderNode = nodes.find((n) => n.role === "master") || nodes[0]
+  const onlineNodes = nodes.filter((n) => n.status === NODE_STATUS.ONLINE)
+  const leaderNode =
+    nodes.find((n) => n.role === NODE_ROLE.MASTER) || nodes[0]
   const leaderIp = leaderNode?.ipAddress || "142.250.190.46"
   const runningServices = services.filter(
-    (s) => s.status === "running" || s.status === "deploying"
+    (s) =>
+      s.status === SERVICE_STATUS.RUNNING ||
+      s.status === SERVICE_STATUS.DEPLOYING
   )
   const isClusterHealthy =
     nodes.length > 0 && onlineNodes.length === nodes.length

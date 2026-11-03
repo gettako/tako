@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { ClusterNode } from "@/types/platform"
+import { NODE_ROLE, NODE_STATUS, type ClusterNode } from "@/types/platform"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
@@ -46,7 +46,7 @@ export function DeleteNodeDialog({
 
   if (!node) return null
 
-  const isMaster = node.role === "master"
+  const isMaster = node.role === NODE_ROLE.MASTER
   const hasServices = (node.servicesCount ?? 0) > 0
   const isConfirmed = confirmationName.trim() === node.name.trim()
 
@@ -167,7 +167,9 @@ export function DeleteNodeDialog({
                       <span
                         className={cn(
                           "size-1.5 rounded-full",
-                          activeStatusDotClass(node.status === "online")
+                          activeStatusDotClass(
+                            node.status === NODE_STATUS.ONLINE
+                          )
                         )}
                       />
                       <span className="capitalize">{node.status}</span>

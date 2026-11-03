@@ -7,7 +7,12 @@ import {
 } from "@/components/ui/command"
 import { statusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
-import type { ClusterNode, Project, ProjectService } from "@/types/platform"
+import {
+  SERVICE_TYPE,
+  type ClusterNode,
+  type Project,
+  type ProjectService,
+} from "@/types/platform"
 
 interface CommandResourceGroupsProps {
   nodes: ClusterNode[]
@@ -69,7 +74,7 @@ export function CommandResourceGroups({
                   }
                   className="cursor-pointer gap-2.5 py-2"
                 >
-                  {service.type === "dockerfile" ? (
+                  {service.type === SERVICE_TYPE.DOCKERFILE ? (
                     <FileCode2 className="size-4 shrink-0 text-muted-foreground" />
                   ) : (
                     <Boxes className="size-4 shrink-0 text-emerald-500" />
@@ -78,7 +83,9 @@ export function CommandResourceGroups({
                     {service.name}
                   </span>
                   <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                    {service.type === "dockerfile" ? "Dockerfile" : "Compose"}
+                    {service.type === SERVICE_TYPE.DOCKERFILE
+                      ? "Dockerfile"
+                      : "Compose"}
                   </span>
                   <span className="ml-auto flex shrink-0 items-center gap-2">
                     <span className="font-mono text-[11px] text-muted-foreground">

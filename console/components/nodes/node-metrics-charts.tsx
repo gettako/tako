@@ -11,7 +11,6 @@ import {
   HardDrive,
   Network,
   Server,
-  Zap,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -134,7 +133,7 @@ export function NodeMetricsCharts({ node }: NodeMetricsChartsProps) {
   const [points, setPoints] = React.useState<NodeMetricPoint[]>(() =>
     generateNodeFallbackData(node, "1h")
   )
-  const [isLoading, setIsLoading] = React.useState(false)
+  const [_isLoading, setIsLoading] = React.useState(false)
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
 
   const containerRef = React.useRef<HTMLDivElement>(null)

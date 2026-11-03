@@ -38,7 +38,7 @@ import {
 import { usePlatformData } from "@/context/platform-data-context"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { isHttpUrl } from "@/lib/validation"
-import { ServiceType } from "@/types/platform"
+import { NODE_ROLE, SERVICE_TYPE, type ServiceType } from "@/types/platform"
 import { cn } from "@/lib/utils"
 
 const SAMPLE_DOCKERFILE = `FROM golang:1.23-alpine AS builder
@@ -278,7 +278,7 @@ const portSchema = z
 
 const serviceSchema = z
   .object({
-    type: z.enum(["dockerfile", "docker-compose"]),
+    type: z.enum([SERVICE_TYPE.DOCKERFILE, SERVICE_TYPE.COMPOSE]),
     name: z
       .string()
       .trim()
@@ -658,14 +658,14 @@ function CreateServiceContent({
       repository: gitRepoUrl || "",
       branch: gitBranch || "main",
       dockerfile:
-        type === "dockerfile"
+        type === SERVICE_TYPE.DOCKERFILE
           ? sourceMode === "template"
             ? SAMPLE_DOCKERFILE
             : ""
           : "",
       image: "",
       composeFile:
-        type === "docker-compose"
+        type === SERVICE_TYPE.COMPOSE
           ? sourceMode === "template"
             ? composeYaml
             : SAMPLE_COMPOSE
@@ -686,7 +686,7 @@ function CreateServiceContent({
       action: "service.create",
       category: "project",
       actor: { name: "Console Operator", type: "user" },
-      target: `${name.trim()} (${type === "dockerfile" ? "Application" : "Compose"})`,
+      target: `${name.trim()} (${type === SERVICE_TYPE.DOCKERFILE ? "Application" : "Compose"})`,
       details: `Created service on node ${targetNode} with ${cpuLimit} vCPU, ${memoryLimitMb}MB RAM limit`,
       status: "success",
     })
@@ -721,12 +721,12 @@ function CreateServiceContent({
             <div
               className={cn(
                 "flex size-9 items-center justify-center rounded border",
-                type === "dockerfile"
+                type === SERVICE_TYPE.DOCKERFILE
                   ? "border-primary/30 bg-primary/10 text-primary"
                   : "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
               )}
             >
-              {type === "dockerfile" ? (
+              {type === SERVICE_TYPE.DOCKERFILE ? (
                 <FileCode2 className="size-5" />
               ) : (
                 <Boxes className="size-5" />
@@ -734,12 +734,12 @@ function CreateServiceContent({
             </div>
             <DialogHeader className="gap-1 p-0">
               <DialogTitle className="text-base font-semibold text-foreground">
-                {type === "dockerfile"
+                {type === SERVICE_TYPE.DOCKERFILE
                   ? "Create Application Service"
                   : "Create Docker Compose Stack"}
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {type === "dockerfile"
+                {type === SERVICE_TYPE.DOCKERFILE
                   ? "Containerized workload built via Dockerfile and dispatched through gRPC"
                   : "Multi-container stack orchestrating microservices, networks, and persistent volumes"}
               </DialogDescription>
@@ -750,10 +750,10 @@ function CreateServiceContent({
           <div className="inline-flex rounded-md border border-border bg-muted/40 p-0.5">
             <button
               type="button"
-              onClick={() => setType("dockerfile")}
+              onClick={() => setType(SERVICE_TYPE.DOCKERFILE)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-all",
-                type === "dockerfile"
+                type === SERVICE_TYPE.DOCKERFILE
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               )}
@@ -763,10 +763,10 @@ function CreateServiceContent({
             </button>
             <button
               type="button"
-              onClick={() => setType("docker-compose")}
+              onClick={() => setType(SERVICE_TYPE.COMPOSE)}
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-all",
-                type === "docker-compose"
+                type === SERVICE_TYPE.COMPOSE
                   ? "bg-emerald-600 text-white shadow-xs dark:bg-emerald-500 dark:text-zinc-950"
                   : "text-muted-foreground hover:text-foreground"
               )}
@@ -930,7 +930,7 @@ function CreateServiceContent({
                   </div>
                 </button>
 
-                {type === "docker-compose" && (
+                {type === SERVICE_TYPE.COMPOSE && (
                   <button
                     type="button"
                     aria-label="Deploy from Stack Template"
@@ -1120,7 +1120,7 @@ function CreateServiceContent({
             )}
 
             {/* Source Option: Compose Template (For Compose mode) */}
-            {sourceMode === "template" && type === "docker-compose" && (
+            {sourceMode === "template" && type === SERVICE_TYPE.COMPOSE && (
               <div className="space-y-4 rounded-md border border-border bg-muted/20 p-4">
                 <div>
                   <FieldLabel className="mb-2 block text-xs">
@@ -1278,7 +1278,7 @@ function CreateServiceContent({
                         <span
                           className={cn(
                             "rounded-sm px-1.5 py-0.5 font-mono text-[9px] tracking-wider uppercase",
-                            node.role === "master"
+                            node.role === NODE_ROLE.MASTER
                               ? "border border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400"
                               : "border border-border bg-zinc-500/10 text-muted-foreground"
                           )}
@@ -1726,7 +1726,7 @@ function CreateServiceContent({
                 <div>
                   <span className="text-muted-foreground">Workload Type:</span>
                   <span className="ml-2 font-mono text-foreground uppercase">
-                    {type === "dockerfile"
+                    {type === SERVICE_TYPE.DOCKERFILE
                       ? "Application (Dockerfile)"
                       : "Docker Compose"}
                   </span>
@@ -1849,7 +1849,7 @@ export function CreateServiceDialog({
   children,
   open,
   onOpenChange,
-  initialType = "dockerfile",
+  initialType = SERVICE_TYPE.DOCKERFILE,
 }: {
   projectId: string
   children?: React.ReactNode

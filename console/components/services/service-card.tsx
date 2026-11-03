@@ -15,7 +15,11 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { usePlatformData } from "@/context/platform-data-context"
-import { ProjectService } from "@/types/platform"
+import {
+  SERVICE_STATUS,
+  SERVICE_TYPE,
+  type ProjectService,
+} from "@/types/platform"
 import { activeStatusDotClass } from "@/lib/status"
 import { formatCommitHash } from "@/lib/adapters"
 import { cn } from "@/lib/utils"
@@ -28,8 +32,9 @@ interface ServiceCardProps {
 export function ServiceCard({ service, onDelete }: ServiceCardProps) {
   const { triggerDeploy, activeDeployingId } = usePlatformData()
   const isDeploying =
-    activeDeployingId === service.id || service.status === "deploying"
-  const isRunning = service.status === "running"
+    activeDeployingId === service.id ||
+    service.status === SERVICE_STATUS.DEPLOYING
+  const isRunning = service.status === SERVICE_STATUS.RUNNING
 
   const handleDeploy = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -50,7 +55,7 @@ export function ServiceCard({ service, onDelete }: ServiceCardProps) {
         <div className="flex items-start justify-between gap-2.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex size-8 shrink-0 items-center justify-center rounded border border-border bg-muted/40 text-foreground">
-              {service.type === "dockerfile" ? (
+              {service.type === SERVICE_TYPE.DOCKERFILE ? (
                 <FileCode2 className="size-4 text-primary" />
               ) : (
                 <Boxes className="size-4 text-emerald-500" />
@@ -66,7 +71,9 @@ export function ServiceCard({ service, onDelete }: ServiceCardProps) {
               </Link>
               <div className="flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground">
                 <span className="shrink-0 capitalize">
-                  {service.type === "dockerfile" ? "Dockerfile" : "Compose"}
+                  {service.type === SERVICE_TYPE.DOCKERFILE
+                    ? "Dockerfile"
+                    : "Compose"}
                 </span>
                 <span className="text-muted-foreground/60">•</span>
                 <span

@@ -1,5 +1,10 @@
 import type { Route } from "next"
-import type { ClusterNode, Project, ProjectService } from "@/types/platform"
+import {
+  SERVICE_TYPE,
+  type ClusterNode,
+  type Project,
+  type ProjectService,
+} from "@/types/platform"
 
 export interface BreadcrumbDropdownItem {
   id: string
@@ -99,7 +104,10 @@ export function buildBreadcrumbs(
         projectServices.map((s) => ({
           id: s.id,
           label: s.name,
-          sublabel: s.type === "dockerfile" ? "Dockerfile" : "Docker Compose",
+          sublabel:
+            s.type === SERVICE_TYPE.DOCKERFILE
+              ? "Dockerfile"
+              : "Docker Compose",
           href: `/projects/${projId}/services/${s.id}` as Route,
           isCurrent: s.id === srvId,
         }))

@@ -136,15 +136,15 @@ export function isPrivateIp(ip?: string | null): boolean {
     return true
   }
   // 10.0.0.0/8
-  if (/^10\./.test(clean)) return true
+  if (clean.startsWith("10.")) return true
   // 172.16.0.0/12
   if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(clean)) return true
   // 192.168.0.0/16
-  if (/^192\.168\./.test(clean)) return true
+  if (clean.startsWith("192.168.")) return true
   // Carrier-grade NAT 100.64.0.0/10
   if (/^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\./.test(clean)) return true
   // Link-local
-  if (/^169\.254\./.test(clean)) return true
+  if (clean.startsWith("169.254.")) return true
 
   return false
 }

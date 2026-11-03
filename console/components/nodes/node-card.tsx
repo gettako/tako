@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Flag } from "@/components/ui/flag"
 import { DockerIcon, OsIcon } from "@/components/ui/os-icon"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
-import { ClusterNode } from "@/types/platform"
+import { NODE_ROLE, NODE_STATUS, type ClusterNode } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
 import { formatNodeLocation } from "@/lib/adapters"
 import { statusDotClass } from "@/lib/status"
@@ -41,7 +41,7 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
     }
   }
 
-  const isOnline = node.status === "online"
+  const isOnline = node.status === NODE_STATUS.ONLINE
   const loc = formatNodeLocation(node.location)
 
   return (
@@ -320,7 +320,7 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
         </div>
 
         <div className="relative z-10 flex items-center gap-1.5">
-          {onDelete && node.role !== "master" && (
+          {onDelete && node.role !== NODE_ROLE.MASTER && (
             <Button
               type="button"
               size="icon-xs"

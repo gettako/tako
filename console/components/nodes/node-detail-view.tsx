@@ -34,8 +34,18 @@ import { apiGet, apiPost } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
+import { NODE_ROLE, NODE_STATUS, SERVICE_STATUS } from "@/types/platform"
 
 const STATUS_RESET_MS = 3000
+
+export const NODE_DETAIL_TAB = {
+  METRICS: "metrics",
+  CONTAINERS: "containers",
+  TELEMETRY: "telemetry",
+  TRAEFIK: "traefik",
+} as const
+
+type TabType = (typeof NODE_DETAIL_TAB)[keyof typeof NODE_DETAIL_TAB]
 
 interface NodeContainer {
   id: string
@@ -53,8 +63,6 @@ interface NodeContainer {
 interface NodeDetailViewProps {
   nodeId: string
 }
-
-type TabType = "metrics" | "containers" | "telemetry" | "traefik"
 
 export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   const {
@@ -102,8 +110,11 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
                 .map((p) => `${p.host || p.container}:${p.container}`)
                 .join(", ")
             : "8080",
-        cpuPercent: s.metrics?.cpuPercent ?? (s.status === "running" ? 0.8 : 0),
-        memoryMb: s.metrics?.memoryMb ?? (s.status === "running" ? 18 : 0),
+        cpuPercent:
+          s.metrics?.cpuPercent ??
+          (s.status === SERVICE_STATUS.RUNNING ? 0.8 : 0),
+        memoryMb:
+          s.metrics?.memoryMb ?? (s.status === SERVICE_STATUS.RUNNING ? 18 : 0),
       }))
   }, [services, nodeId])
 
@@ -130,7 +141,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
     )
   }
 
-  const isOnline = node.status === "online"
+  const isOnline = node.status === NODE_STATUS.ONLINE
   const memoryUsedGb = (
     (node.totalMemoryGb * node.memoryPercent) /
     100
@@ -243,7 +254,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
               <span
                 className={cn(
                   "rounded px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase",
-                  node.role === "master"
+                  node.role === NODE_ROLE.MASTER
                     ? "border border-primary/20 bg-primary/10 text-primary"
                     : "bg-muted text-muted-foreground"
                 )}
@@ -362,7 +373,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
             </span>
           </Button>
 
-          {node.role !== "master" && (
+          {node.role !== NODE_ROLE.MASTER && (
             <Button
               size="md"
               variant="outline"
@@ -509,15 +520,15 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
       <div className="flex items-center gap-1 border-b border-border">
         <button
           type="button"
-          onClick={() => setActiveTab("metrics")}
+          onClick={() => setActiveTab(NODE_DETAIL_TAB.METRICS)}
           className={cn(
             "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "metrics"
+            activeTab === NODE_DETAIL_TAB.METRICS
               ? "font-semibold text-foreground"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {activeTab === "metrics" && (
+          {activeTab === NODE_DETAIL_TAB.METRICS && (
             <motion.div
               layoutId="node-detail-tab-indicator"
               className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
@@ -530,15 +541,15 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
 
         <button
           type="button"
-          onClick={() => setActiveTab("containers")}
+          onClick={() => setActiveTab(NODE_DETAIL_TAB.CONTAINERS)}
           className={cn(
             "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "containers"
+            activeTab === NODE_DETAIL_TAB.CONTAINERS
               ? "font-semibold text-foreground"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {activeTab === "containers" && (
+          {activeTab === NODE_DETAIL_TAB.CONTAINERS && (
             <motion.div
               layoutId="node-detail-tab-indicator"
               className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
@@ -554,15 +565,15 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
 
         <button
           type="button"
-          onClick={() => setActiveTab("telemetry")}
+          onClick={() => setActiveTab(NODE_DETAIL_TAB.TELEMETRY)}
           className={cn(
             "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "telemetry"
+            activeTab === NODE_DETAIL_TAB.TELEMETRY
               ? "font-semibold text-foreground"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {activeTab === "telemetry" && (
+          {activeTab === NODE_DETAIL_TAB.TELEMETRY && (
             <motion.div
               layoutId="node-detail-tab-indicator"
               className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
@@ -575,15 +586,15 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
 
         <button
           type="button"
-          onClick={() => setActiveTab("traefik")}
+          onClick={() => setActiveTab(NODE_DETAIL_TAB.TRAEFIK)}
           className={cn(
             "relative flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "traefik"
+            activeTab === NODE_DETAIL_TAB.TRAEFIK
               ? "font-semibold text-foreground"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
-          {activeTab === "traefik" && (
+          {activeTab === NODE_DETAIL_TAB.TRAEFIK && (
             <motion.div
               layoutId="node-detail-tab-indicator"
               className="absolute right-0 bottom-0 left-0 h-0.5 bg-primary"
@@ -602,9 +613,11 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18, ease: "easeOut" }}
       >
-        {activeTab === "metrics" && <NodeMetricsCharts node={node} />}
+        {activeTab === NODE_DETAIL_TAB.METRICS && (
+          <NodeMetricsCharts node={node} />
+        )}
 
-        {activeTab === "containers" && (
+        {activeTab === NODE_DETAIL_TAB.CONTAINERS && (
           <div className="space-y-4">
             {containers.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border p-8 text-center">
@@ -748,7 +761,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
         )}
 
         {/* Tab 2: Live gRPC Telemetry Stream */}
-        {activeTab === "telemetry" && (
+        {activeTab === NODE_DETAIL_TAB.TELEMETRY && (
           <div className="space-y-3">
             <div className="flex flex-col gap-2 font-mono text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
@@ -782,7 +795,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
         )}
 
         {/* Tab 3: Traefik Ingress & Configuration Manager */}
-        {activeTab === "traefik" && (
+        {activeTab === NODE_DETAIL_TAB.TRAEFIK && (
           <NodeTraefikConfigView
             node={node}
             actorName={actorName}

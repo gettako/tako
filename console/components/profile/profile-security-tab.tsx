@@ -1010,6 +1010,7 @@ export function ProfileSecurityTab() {
             <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-muted/20 p-4">
               <div className="flex size-44 items-center justify-center rounded-lg border border-border bg-white p-2.5 shadow-xs">
                 {qrCodeUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={qrCodeUrl}
                     alt="Two-Factor Authentication TOTP QR Code"

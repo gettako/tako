@@ -15,7 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { DeploymentRecord } from "@/types/platform"
+import { DEPLOYMENT_STATUS, DeploymentRecord } from "@/types/platform"
 import { cn } from "@/lib/utils"
 
 export interface DeploymentHistoryTableProps {
@@ -241,12 +241,12 @@ export function DeploymentHistoryTable({
                             <Loader2 className="size-3 animate-spin" />
                             <span>Deploying</span>
                           </div>
-                        ) : dep.status === "failed" ? (
+                        ) : dep.status === DEPLOYMENT_STATUS.FAILED ? (
                           <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/40 bg-rose-500/10 px-2.5 py-0.5 font-mono text-[11px] font-medium text-rose-500">
                             <AlertTriangle className="size-3" />
                             <span>Failed</span>
                           </div>
-                        ) : dep.status === "rolled_back" ? (
+                        ) : dep.status === DEPLOYMENT_STATUS.ROLLED_BACK ? (
                           <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 font-mono text-[11px] font-medium text-amber-500">
                             <RotateCcw className="size-3" />
                             <span>Rolled Back</span>

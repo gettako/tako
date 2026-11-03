@@ -23,7 +23,7 @@ import {
 import { apiGet } from "@/lib/api"
 import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
-import type { ProjectService } from "@/types/platform"
+import { SERVICE_STATUS, type ProjectService } from "@/types/platform"
 
 type ServiceLogLevel = "info" | "warn" | "error"
 
@@ -109,7 +109,7 @@ function createInitialLogs(service: ProjectService): ServiceLogEntry[] {
     message,
   })
 
-  if (service.status === "failed") {
+  if (service.status === SERVICE_STATUS.FAILED) {
     return [
       entry(
         3200,
@@ -132,7 +132,7 @@ function createInitialLogs(service: ProjectService): ServiceLogEntry[] {
     ]
   }
 
-  if (service.status === "stopped") {
+  if (service.status === SERVICE_STATUS.STOPPED) {
     return [
       entry(
         2600,
@@ -155,7 +155,7 @@ function createInitialLogs(service: ProjectService): ServiceLogEntry[] {
     ]
   }
 
-  if (service.status === "deploying") {
+  if (service.status === SERVICE_STATUS.DEPLOYING) {
     return [
       entry(
         2400,
@@ -208,7 +208,7 @@ export function ServiceLogsTab({ service }: ServiceLogsTabProps) {
   const logContainerRef = React.useRef<HTMLDivElement>(null)
 
   const { main, sidecar } = getContainerNames(service)
-  const canStream = service.status === "running"
+  const canStream = service.status === SERVICE_STATUS.RUNNING
   const streamActive = isStreaming && canStream
 
   const containerOptions: SelectOption[] = React.useMemo(

@@ -1,5 +1,15 @@
-export type NodeStatus = "online" | "degraded" | "offline"
-export type NodeRole = "master" | "worker"
+export const NODE_STATUS = {
+  ONLINE: "online",
+  DEGRADED: "degraded",
+  OFFLINE: "offline",
+} as const
+export type NodeStatus = (typeof NODE_STATUS)[keyof typeof NODE_STATUS]
+
+export const NODE_ROLE = {
+  MASTER: "master",
+  WORKER: "worker",
+} as const
+export type NodeRole = (typeof NODE_ROLE)[keyof typeof NODE_ROLE]
 
 export interface ClusterNode {
   id: string
@@ -39,7 +49,13 @@ export interface ClusterNode {
   lastHeartbeatAt?: string
 }
 
-export type ProjectEnvironment = "production" | "staging" | "preview"
+export const PROJECT_ENVIRONMENT = {
+  PRODUCTION: "production",
+  STAGING: "staging",
+  PREVIEW: "preview",
+} as const
+export type ProjectEnvironment =
+  (typeof PROJECT_ENVIRONMENT)[keyof typeof PROJECT_ENVIRONMENT]
 
 export interface Project {
   id: string
@@ -54,8 +70,19 @@ export interface Project {
   createdAt: string
 }
 
-export type ServiceType = "dockerfile" | "docker-compose"
-export type ServiceStatus = "running" | "deploying" | "stopped" | "failed"
+export const SERVICE_TYPE = {
+  DOCKERFILE: "dockerfile",
+  COMPOSE: "docker-compose",
+} as const
+export type ServiceType = (typeof SERVICE_TYPE)[keyof typeof SERVICE_TYPE]
+
+export const SERVICE_STATUS = {
+  RUNNING: "running",
+  DEPLOYING: "deploying",
+  STOPPED: "stopped",
+  FAILED: "failed",
+} as const
+export type ServiceStatus = (typeof SERVICE_STATUS)[keyof typeof SERVICE_STATUS]
 
 export interface PortMapping {
   host: number
@@ -90,12 +117,15 @@ export type DeploymentStepName =
   | "Health check"
   | "Live"
 
+export const DEPLOYMENT_STEP_STATUS = {
+  PENDING: "pending",
+  RUNNING: "running",
+  SUCCESS: "success",
+  FAILED: "failed",
+  SKIPPED: "skipped",
+} as const
 export type DeploymentStepStatus =
-  | "pending"
-  | "running"
-  | "success"
-  | "failed"
-  | "skipped"
+  (typeof DEPLOYMENT_STEP_STATUS)[keyof typeof DEPLOYMENT_STEP_STATUS]
 
 export interface DeploymentPipelineStep {
   name: DeploymentStepName
@@ -107,10 +137,20 @@ export interface DeploymentPipelineStep {
   description?: string
 }
 
+export const DEPLOYMENT_STATUS = {
+  SUCCESS: "success",
+  FAILED: "failed",
+  BUILDING: "building",
+  ROLLED_BACK: "rolled_back",
+  PENDING: "pending",
+} as const
+export type DeploymentStatus =
+  (typeof DEPLOYMENT_STATUS)[keyof typeof DEPLOYMENT_STATUS]
+
 export interface DeploymentRecord {
   id: string
   serviceId: string
-  status: "success" | "failed" | "building" | "rolled_back" | "pending"
+  status: DeploymentStatus
   triggerBy: string
   commitHash: string
   duration: string
@@ -295,7 +335,12 @@ export interface S3BucketConfig {
   lastTested?: string
 }
 
-export type UserRole = "owner" | "admin" | "member"
+export const USER_ROLE = {
+  OWNER: "owner",
+  ADMIN: "admin",
+  MEMBER: "member",
+} as const
+export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE]
 
 export interface PlatformUser {
   id: string

@@ -4,7 +4,7 @@ import * as React from "react"
 import { ChevronDown, FileCode2, Boxes, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { ServiceType } from "@/types/platform"
+import { SERVICE_TYPE, type ServiceType } from "@/types/platform"
 import { cn } from "@/lib/utils"
 
 interface CreateServiceDropdownProps {
@@ -55,7 +55,7 @@ export function CreateServiceDropdown({
       <Button
         type="button"
         size={size}
-        onClick={() => handleSelect("dockerfile")}
+        onClick={() => handleSelect(SERVICE_TYPE.DOCKERFILE)}
         className="gap-1.5 rounded-r-none text-xs font-medium"
       >
         <Plus className="size-3.5" />
@@ -95,7 +95,7 @@ export function CreateServiceDropdown({
           <button
             type="button"
             role="menuitem"
-            onClick={() => handleSelect("dockerfile")}
+            onClick={() => handleSelect(SERVICE_TYPE.DOCKERFILE)}
             className="flex w-full items-start gap-3 rounded-sm p-2 text-left transition-colors hover:bg-muted/60 focus:bg-muted/60 focus:outline-none"
           >
             <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-sm border border-primary/20 bg-primary/10 text-primary">
@@ -121,7 +121,7 @@ export function CreateServiceDropdown({
           <button
             type="button"
             role="menuitem"
-            onClick={() => handleSelect("docker-compose")}
+            onClick={() => handleSelect(SERVICE_TYPE.COMPOSE)}
             className="mt-0.5 flex w-full items-start gap-3 rounded-sm p-2 text-left transition-colors hover:bg-muted/60 focus:bg-muted/60 focus:outline-none"
           >
             <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-sm border border-emerald-500/20 bg-emerald-500/10 text-emerald-500">

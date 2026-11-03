@@ -26,6 +26,7 @@ import { usePlatformData } from "@/context/platform-data-context"
 import { calculateRealisticLatency } from "@/lib/node-geo"
 import { isPrivateIp } from "@/lib/geoip"
 import { cn } from "@/lib/utils"
+import { NODE_ROLE, NODE_STATUS, SERVICE_STATUS } from "@/types/platform"
 
 export function LiveTrafficView() {
   const searchParams = useSearchParams()
@@ -108,9 +109,9 @@ export function LiveTrafficView() {
       setLatencyJitter(() => {
         const next: Record<string, number> = {}
         for (const n of nodes) {
-          if (n.status === "online") {
+          if (n.status === NODE_STATUS.ONLINE) {
             const isLocal =
-              n.role === "master" ||
+              n.role === NODE_ROLE.MASTER ||
               n.ipAddress === "127.0.0.1" ||
               n.ipAddress === "localhost" ||
               isPrivateIp(n.ipAddress)
@@ -128,7 +129,7 @@ export function LiveTrafficView() {
 
   // Resolve realistic distance-based latency for all nodes with live jitter
   const liveNodes = React.useMemo(() => {
-    const master = nodes.find((n) => n.role === "master") || nodes[0]
+    const master = nodes.find((n) => n.role === NODE_ROLE.MASTER) || nodes[0]
     return nodes.map((node) => {
       const jitter = latencyJitter[node.id] || 0
       const realisticLatency = calculateRealisticLatency(node, master, jitter)
@@ -141,18 +142,22 @@ export function LiveTrafficView() {
 
   // Compute cluster health stats from live nodes
   const totalNodes = liveNodes.length
-  const onlineNodes = liveNodes.filter((n) => n.status === "online").length
-  const offlineNodes = liveNodes.filter((n) => n.status === "offline").length
+  const onlineNodes = liveNodes.filter(
+    (n) => n.status === NODE_STATUS.ONLINE
+  ).length
+  const offlineNodes = liveNodes.filter(
+    (n) => n.status === NODE_STATUS.OFFLINE
+  ).length
   const avgLatency =
     onlineNodes > 0
       ? Math.round(
           liveNodes
-            .filter((n) => n.status === "online")
+            .filter((n) => n.status === NODE_STATUS.ONLINE)
             .reduce((acc, n) => acc + (n.grpcLatencyMs || 0), 0) / onlineNodes
         )
       : 0
   const runningServicesCount = services.filter(
-    (s) => s.status === "running"
+    (s) => s.status === SERVICE_STATUS.RUNNING
   ).length
 
   // Fullscreen toggle handler

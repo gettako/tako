@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
-import { ServiceType } from "@/types/platform"
+import { SERVICE_TYPE, type ServiceType } from "@/types/platform"
 
 interface ProjectServicesViewProps {
   projectId: string
@@ -38,7 +38,7 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
   const [createServiceOpen, setCreateServiceOpen] = React.useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [createServiceType, setCreateServiceType] =
-    React.useState<ServiceType>("dockerfile")
+    React.useState<ServiceType>(SERVICE_TYPE.DOCKERFILE)
   const [searchQuery, setSearchQuery] = React.useState("")
 
   const filteredServices = projectServices.filter(

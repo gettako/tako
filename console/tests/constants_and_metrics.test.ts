@@ -16,7 +16,17 @@ import {
   buildSmoothChartLine,
   getChartCoordinates,
 } from "@/lib/chart"
-import type { ClusterNode } from "@/types/platform"
+import {
+  DEPLOYMENT_STATUS,
+  DEPLOYMENT_STEP_STATUS,
+  NODE_ROLE,
+  NODE_STATUS,
+  PROJECT_ENVIRONMENT,
+  SERVICE_STATUS,
+  SERVICE_TYPE,
+  USER_ROLE,
+  type ClusterNode,
+} from "@/types/platform"
 
 describe("API Client & Domain Constants Specification", () => {
   it("defines standard platform ports", () => {
@@ -35,6 +45,43 @@ describe("API Client & Domain Constants Specification", () => {
     expect(STORAGE_KEYS.PROJECTS_VIEW_MODE).toBe("tako_view_mode_projects")
     expect(STORAGE_KEYS.SERVICES_VIEW_MODE).toBe("tako_view_mode_services")
     expect(CUSTOM_EVENTS.UNAUTHORIZED).toBe("tako:unauthorized")
+  })
+
+  it("defines central platform domain enums / constants", () => {
+    expect(NODE_STATUS.ONLINE).toBe("online")
+    expect(NODE_STATUS.DEGRADED).toBe("degraded")
+    expect(NODE_STATUS.OFFLINE).toBe("offline")
+
+    expect(NODE_ROLE.MASTER).toBe("master")
+    expect(NODE_ROLE.WORKER).toBe("worker")
+
+    expect(SERVICE_STATUS.RUNNING).toBe("running")
+    expect(SERVICE_STATUS.DEPLOYING).toBe("deploying")
+    expect(SERVICE_STATUS.STOPPED).toBe("stopped")
+    expect(SERVICE_STATUS.FAILED).toBe("failed")
+
+    expect(SERVICE_TYPE.DOCKERFILE).toBe("dockerfile")
+    expect(SERVICE_TYPE.COMPOSE).toBe("docker-compose")
+
+    expect(PROJECT_ENVIRONMENT.PRODUCTION).toBe("production")
+    expect(PROJECT_ENVIRONMENT.STAGING).toBe("staging")
+    expect(PROJECT_ENVIRONMENT.PREVIEW).toBe("preview")
+
+    expect(DEPLOYMENT_STATUS.SUCCESS).toBe("success")
+    expect(DEPLOYMENT_STATUS.FAILED).toBe("failed")
+    expect(DEPLOYMENT_STATUS.BUILDING).toBe("building")
+    expect(DEPLOYMENT_STATUS.ROLLED_BACK).toBe("rolled_back")
+    expect(DEPLOYMENT_STATUS.PENDING).toBe("pending")
+
+    expect(DEPLOYMENT_STEP_STATUS.PENDING).toBe("pending")
+    expect(DEPLOYMENT_STEP_STATUS.RUNNING).toBe("running")
+    expect(DEPLOYMENT_STEP_STATUS.SUCCESS).toBe("success")
+    expect(DEPLOYMENT_STEP_STATUS.FAILED).toBe("failed")
+    expect(DEPLOYMENT_STEP_STATUS.SKIPPED).toBe("skipped")
+
+    expect(USER_ROLE.OWNER).toBe("owner")
+    expect(USER_ROLE.ADMIN).toBe("admin")
+    expect(USER_ROLE.MEMBER).toBe("member")
   })
 })
 

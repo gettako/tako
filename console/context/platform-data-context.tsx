@@ -38,36 +38,47 @@ import {
   adaptSnapshot,
   adaptUser,
 } from "@/lib/adapters"
-import type {
-  AuditLogEntry,
-  ClusterDomainConfig,
-  ClusterNode,
-  ClusterSnapshot,
-  CurrentUserProfile,
-  DeploymentLogEntry,
-  DeploymentRecord,
-  DockerRegistryConfig,
-  GitProviderConfig,
-  PlatformSettings,
-  PlatformUser,
-  PlatformUserInvite,
-  Project,
-  ProjectService,
-  S3BucketConfig,
-  S3BucketPurpose,
-  SyncedGitRepo,
-  UserPasskey,
-  UserRole,
-  UserSession,
+import {
+  DEPLOYMENT_STATUS,
+  NODE_ROLE,
+  NODE_STATUS,
+  USER_ROLE,
+  type AuditLogEntry,
+  type ClusterDomainConfig,
+  type ClusterNode,
+  type ClusterSnapshot,
+  type CurrentUserProfile,
+  type DeploymentLogEntry,
+  type DeploymentRecord,
+  type DockerRegistryConfig,
+  type GitProviderConfig,
+  type PlatformSettings,
+  type PlatformUser,
+  type PlatformUserInvite,
+  type Project,
+  type ProjectService,
+  type S3BucketConfig,
+  type S3BucketPurpose,
+  type SyncedGitRepo,
+  type UserPasskey,
+  type UserRole,
+  type UserSession,
 } from "@/types/platform"
 
+export const PLATFORM_STATUS = {
+  LOADING: "loading",
+  AUTHENTICATED: "authenticated",
+  UNAUTHENTICATED: "unauthenticated",
+  ERROR: "error",
+} as const
 export type PlatformStatus =
-  | "loading"
-  | "authenticated"
-  | "unauthenticated"
-  | "error"
+  (typeof PLATFORM_STATUS)[keyof typeof PLATFORM_STATUS]
 
-export type ViewMode = "grid" | "table"
+export const VIEW_MODE = {
+  GRID: "grid",
+  TABLE: "table",
+} as const
+export type ViewMode = (typeof VIEW_MODE)[keyof typeof VIEW_MODE]
 
 export interface PlatformEvent {
   id: string
@@ -307,7 +318,7 @@ function getSavedViewMode(
   if (typeof window === "undefined") return defaultValue
   try {
     const val = localStorage.getItem(key)
-    if (val === "grid" || val === "table") return val
+    if (val === VIEW_MODE.GRID || val === VIEW_MODE.TABLE) return val
   } catch {
     // Ignore restricted storage
   }
@@ -373,9 +384,11 @@ function mapCurrentUser(
     handle: cleanExtra.handle || user.email.split("@")[0] || "",
     email: user.email,
     role:
-      user.role === "owner" || user.role === "admin" || user.role === "member"
+      user.role === USER_ROLE.OWNER ||
+      user.role === USER_ROLE.ADMIN ||
+      user.role === USER_ROLE.MEMBER
         ? user.role
-        : "member",
+        : USER_ROLE.MEMBER,
     avatarUrl: user.avatarUrl,
     twoFactorEnabled: user.twoFactorEnabled,
     createdAt: user.createdAt || "",
@@ -538,7 +551,13 @@ export function PlatformDataProvider({
     setNodes((prev) =>
       prev.map((n) =>
         n.id === id
-          ? { ...n, status: n.status === "online" ? "offline" : "online" }
+          ? {
+              ...n,
+              status:
+                n.status === NODE_STATUS.ONLINE
+                  ? NODE_STATUS.OFFLINE
+                  : NODE_STATUS.ONLINE,
+            }
           : n
       )
     )
@@ -1068,7 +1087,7 @@ export function PlatformDataProvider({
   const deleteNode = React.useCallback(
     async (id: string) => {
       const node = nodes.find((n) => n.id === id)
-      if (node?.role === "master") {
+      if (node?.role === NODE_ROLE.MASTER) {
         throw new Error("Master node cannot be deleted")
       }
       await apiDelete(`/nodes/${id}?force=true`)
@@ -1253,7 +1272,7 @@ export function PlatformDataProvider({
             payload.done === true ||
             payload.step === "Live" ||
             payload.status === "live" ||
-            payload.status === "failed"
+            payload.status === DEPLOYMENT_STATUS.FAILED
           ) {
             void finish()
           }

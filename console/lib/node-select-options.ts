@@ -1,6 +1,6 @@
 import { getNodeGeo } from "@/lib/node-geo"
 import type { SelectOption } from "@/lib/select-option"
-import type { ClusterNode } from "@/types/platform"
+import { NODE_STATUS, type ClusterNode } from "@/types/platform"
 
 export function buildNodeSelectOptions(
   nodes: ClusterNode[],
@@ -17,7 +17,9 @@ export function buildNodeSelectOptions(
         description: `${node.ipAddress} • ${node.role.toUpperCase()}`,
         flag: geo.flag,
         badge:
-          node.status === "offline" ? "OFFLINE" : `${node.grpcLatencyMs}ms`,
+          node.status === NODE_STATUS.OFFLINE
+            ? "OFFLINE"
+            : `${node.grpcLatencyMs}ms`,
       }
     }),
   ]

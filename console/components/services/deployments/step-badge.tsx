@@ -9,7 +9,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { DeploymentPipelineStep, DeploymentStepStatus } from "@/types/platform"
+import {
+  DEPLOYMENT_STEP_STATUS,
+  DeploymentPipelineStep,
+  DeploymentStepStatus,
+} from "@/types/platform"
 import { cn } from "@/lib/utils"
 
 export interface StepBadgeProps {
@@ -44,17 +48,17 @@ export function StepBadge({ step, isActive = false, onClick }: StepBadgeProps) {
 
   const getStatusIcon = (status: DeploymentStepStatus) => {
     switch (status) {
-      case "success":
+      case DEPLOYMENT_STEP_STATUS.SUCCESS:
         return (
           <div className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs">
             <Check className="size-2.5 stroke-[3]" />
           </div>
         )
-      case "running":
+      case DEPLOYMENT_STEP_STATUS.RUNNING:
         return (
           <Loader2 className="size-3.5 shrink-0 animate-spin text-primary" />
         )
-      case "failed":
+      case DEPLOYMENT_STEP_STATUS.FAILED:
         return (
           <div className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-rose-500 text-white shadow-xs">
             <AlertTriangle className="size-2.5 stroke-[2.5]" />
@@ -88,12 +92,13 @@ export function StepBadge({ step, isActive = false, onClick }: StepBadgeProps) {
                 aria-label={label}
                 className={cn(
                   "relative flex h-7 w-full items-center justify-end gap-1.5 overflow-hidden rounded-md border border-primary/15 bg-primary/5 px-2 text-right transition-all outline-none select-none focus-visible:ring-1 focus-visible:ring-primary sm:h-8",
-                  step.status === "pending" || step.status === "skipped"
+                  step.status === DEPLOYMENT_STEP_STATUS.PENDING ||
+                  step.status === DEPLOYMENT_STEP_STATUS.SKIPPED
                     ? "cursor-default border-primary/10 bg-primary/[0.02] opacity-60"
                     : "cursor-pointer hover:border-primary/30 hover:bg-primary/10",
-                  step.status === "running" &&
+                  step.status === DEPLOYMENT_STEP_STATUS.RUNNING &&
                     "border-primary/60 bg-primary/10 shadow-xs",
-                  step.status === "failed" &&
+                  step.status === DEPLOYMENT_STEP_STATUS.FAILED &&
                     "border-rose-500/60 bg-rose-500/5 shadow-xs",
                   isActive && "border-primary shadow-xs ring-1 ring-primary"
                 )}
@@ -101,13 +106,13 @@ export function StepBadge({ step, isActive = false, onClick }: StepBadgeProps) {
             }
           >
             {/* Visual step progress fill if running */}
-            {step.status === "running" && (
+            {step.status === DEPLOYMENT_STEP_STATUS.RUNNING && (
               <div
                 className="absolute inset-y-0 left-0 w-3/5 animate-pulse bg-primary/15 transition-all"
                 aria-hidden="true"
               />
             )}
-            {step.status === "failed" && (
+            {step.status === DEPLOYMENT_STEP_STATUS.FAILED && (
               <div
                 className="absolute inset-y-0 left-0 w-full bg-rose-500/5 transition-all"
                 aria-hidden="true"
@@ -120,9 +125,9 @@ export function StepBadge({ step, isActive = false, onClick }: StepBadgeProps) {
                 <span
                   className={cn(
                     "select-none",
-                    step.status === "running"
+                    step.status === DEPLOYMENT_STEP_STATUS.RUNNING
                       ? "font-medium text-primary"
-                      : step.status === "failed"
+                      : step.status === DEPLOYMENT_STEP_STATUS.FAILED
                         ? "font-medium text-rose-500"
                         : "text-muted-foreground"
                   )}

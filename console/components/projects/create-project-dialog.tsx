@@ -28,7 +28,11 @@ import {
 } from "@/components/ui/searchable-select"
 import { usePlatformData } from "@/context/platform-data-context"
 import { useZodForm } from "@/hooks/use-zod-form"
-import { Project, ProjectEnvironment } from "@/types/platform"
+import {
+  PROJECT_ENVIRONMENT,
+  Project,
+  ProjectEnvironment,
+} from "@/types/platform"
 
 const createProjectSchema = z.object({
   name: z
@@ -49,23 +53,27 @@ const createProjectSchema = z.object({
     .string()
     .trim()
     .max(240, "Description must be 240 characters or fewer."),
-  environment: z.enum(["production", "staging", "preview"]),
+  environment: z.enum([
+    PROJECT_ENVIRONMENT.PRODUCTION,
+    PROJECT_ENVIRONMENT.STAGING,
+    PROJECT_ENVIRONMENT.PREVIEW,
+  ]),
   selectedNode: z.string().trim().min(1, "Select a target node."),
 })
 
 const ENVIRONMENT_OPTIONS: SelectOption[] = [
   {
-    value: "production",
+    value: PROJECT_ENVIRONMENT.PRODUCTION,
     label: "Production",
     description: "Live edge cluster workload",
   },
   {
-    value: "staging",
+    value: PROJECT_ENVIRONMENT.STAGING,
     label: "Staging",
     description: "Pre-production validation stack",
   },
   {
-    value: "preview",
+    value: PROJECT_ENVIRONMENT.PREVIEW,
     label: "Preview",
     description: "Ephemeral testing branch",
   },
@@ -90,7 +98,7 @@ export function CreateProjectDialog({
   const [slug, setSlug] = React.useState("")
   const [description, setDescription] = React.useState("")
   const [environment, setEnvironment] =
-    React.useState<ProjectEnvironment>("production")
+    React.useState<ProjectEnvironment>(PROJECT_ENVIRONMENT.PRODUCTION)
   const [selectedNode, setSelectedNode] = React.useState(
     nodes[0]?.id || "node-master-sg"
   )

@@ -28,7 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import type { ClusterNode } from "@/types/platform"
+import { NODE_ROLE, type ClusterNode } from "@/types/platform"
 import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -137,10 +137,10 @@ http:
 
 export function NodeTraefikConfigView({
   node,
-  actorName,
+  actorName: _actorName,
   onAuditLog,
 }: NodeTraefikConfigViewProps) {
-  const isMaster = node.role === "master"
+  const isMaster = node.role === NODE_ROLE.MASTER
 
   const [files, setFiles] = React.useState<TraefikConfigFileMeta[]>([])
   const [selectedFileName, setSelectedFileName] =
@@ -220,7 +220,15 @@ export function NodeTraefikConfigView({
 
   // Initial load
   React.useEffect(() => {
-    fetchFiles()
+    let ignore = false
+    void (async () => {
+      if (!ignore) {
+        await fetchFiles()
+      }
+    })()
+    return () => {
+      ignore = true
+    }
   }, [fetchFiles])
 
   // Fetch specific file content when selected
@@ -673,19 +681,22 @@ export function NodeTraefikConfigView({
 
             <div className="space-y-3 py-4">
               <div className="space-y-1.5">
-                <label className="font-mono text-xs font-medium text-foreground">
+                <label
+                  htmlFor="dynamic-config-filename"
+                  className="font-mono text-xs font-medium text-foreground"
+                >
                   File Name
                 </label>
                 <div className="flex items-center gap-1 font-mono text-xs">
                   <span className="text-muted-foreground">./dynamic/</span>
                   <Input
+                    id="dynamic-config-filename"
                     placeholder="project-service.yml"
                     value={newFileName}
                     onChange={(e) => {
                       setNewFileName(e.target.value)
                       setCreateError(null)
                     }}
-                    autoFocus
                     className="font-mono text-xs"
                   />
                 </div>

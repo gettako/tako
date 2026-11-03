@@ -11,23 +11,31 @@ import type {
 } from "@/lib/api"
 import { getGeoIpSync, isPrivateIp, resolveGeoIp } from "@/lib/geoip"
 import { calculateGeoDistanceKm } from "@/lib/node-geo"
-import type {
-  AuditCategory,
-  AuditLogEntry,
-  ClusterNode,
-  ClusterSnapshot,
-  DeploymentLogEntry,
-  DeploymentPipelineStep,
-  DeploymentRecord,
-  DockerRegistryConfig,
-  NodeStatus,
-  PlatformUser,
-  Project,
-  ProjectEnvironment,
-  ProjectService,
-  ServiceDomain,
-  ServiceStatus,
-  ServiceType,
+import {
+  DEPLOYMENT_STATUS,
+  DEPLOYMENT_STEP_STATUS,
+  NODE_ROLE,
+  NODE_STATUS,
+  PROJECT_ENVIRONMENT,
+  SERVICE_STATUS,
+  SERVICE_TYPE,
+  USER_ROLE,
+  type AuditCategory,
+  type AuditLogEntry,
+  type ClusterNode,
+  type ClusterSnapshot,
+  type DeploymentLogEntry,
+  type DeploymentPipelineStep,
+  type DeploymentRecord,
+  type DockerRegistryConfig,
+  type NodeStatus,
+  type PlatformUser,
+  type Project,
+  type ProjectEnvironment,
+  type ProjectService,
+  type ServiceDomain,
+  type ServiceStatus,
+  type ServiceType,
 } from "@/types/platform"
 
 export function formatRelativeTime(value?: string | null): string {
@@ -75,9 +83,9 @@ export function formatCommitHash(hash?: string | null, length = 7): string {
 }
 
 function normalizeNodeStatus(status: string): NodeStatus {
-  if (status === "online") return "online"
-  if (status === "degraded") return "degraded"
-  return "offline"
+  if (status === NODE_STATUS.ONLINE) return NODE_STATUS.ONLINE
+  if (status === NODE_STATUS.DEGRADED) return NODE_STATUS.DEGRADED
+  return NODE_STATUS.OFFLINE
 }
 
 export function formatNodeLocation(location?: {
@@ -159,7 +167,9 @@ export function adaptNode(node: ApiNode): ClusterNode {
     id: node.id,
     name: node.name,
     role:
-      node.role === "leader" || node.role === "master" ? "master" : "worker",
+      node.role === "leader" || node.role === NODE_ROLE.MASTER
+        ? NODE_ROLE.MASTER
+        : NODE_ROLE.WORKER,
     status: normalizeNodeStatus(node.status),
     ipAddress: node.ipAddress,
     publicIp: node.publicIp || undefined,
@@ -183,7 +193,9 @@ export function adaptNode(node: ApiNode): ClusterNode {
     lastHeartbeatAt: node.lastHeartbeat,
     location,
     grpcLatencyMs:
-      node.role === "leader" || node.role === "master" || isPrivateIp(targetIp)
+      node.role === "leader" ||
+      node.role === NODE_ROLE.MASTER ||
+      isPrivateIp(targetIp)
         ? 2
         : typeof location.lat === "number" && typeof location.lng === "number"
           ? calculateGeoDistanceKm(location.lat, location.lng, 1.3521, 103.8198) < 50
@@ -204,16 +216,12 @@ export function adaptNode(node: ApiNode): ClusterNode {
 }
 
 export function adaptProject(project: ApiProject): Project {
-  const environments: ProjectEnvironment[] = [
-    "production",
-    "staging",
-    "preview",
-  ]
+  const environments = Object.values(PROJECT_ENVIRONMENT)
   const environment = environments.includes(
     project.environment as ProjectEnvironment
   )
     ? (project.environment as ProjectEnvironment)
-    : "production"
+    : PROJECT_ENVIRONMENT.PRODUCTION
 
   return {
     id: project.id,
@@ -230,27 +238,27 @@ export function adaptProject(project: ApiProject): Project {
 }
 
 function normalizeServiceType(type: string): ServiceType {
-  return type === "docker-compose" || type === "compose"
-    ? "docker-compose"
-    : "dockerfile"
+  return type === SERVICE_TYPE.COMPOSE || type === "compose"
+    ? SERVICE_TYPE.COMPOSE
+    : SERVICE_TYPE.DOCKERFILE
 }
 
 function normalizeServiceStatus(status: string): ServiceStatus {
   switch (status) {
     case "healthy":
     case "live":
-    case "running":
-      return "running"
+    case SERVICE_STATUS.RUNNING:
+      return SERVICE_STATUS.RUNNING
     case "queued":
     case "building":
-    case "deploying":
-      return "deploying"
-    case "failed":
+    case SERVICE_STATUS.DEPLOYING:
+      return SERVICE_STATUS.DEPLOYING
+    case SERVICE_STATUS.FAILED:
     case "error":
     case "unhealthy":
-      return "failed"
+      return SERVICE_STATUS.FAILED
     default:
-      return "stopped"
+      return SERVICE_STATUS.STOPPED
   }
 }
 
@@ -258,20 +266,20 @@ function normalizeDeploymentStatus(status: string): DeploymentRecord["status"] {
   switch (status) {
     case "live":
     case "healthy":
-    case "success":
-      return "success"
-    case "failed":
+    case DEPLOYMENT_STATUS.SUCCESS:
+      return DEPLOYMENT_STATUS.SUCCESS
+    case DEPLOYMENT_STATUS.FAILED:
     case "error":
     case "failed_rolled_back":
-      return "failed"
-    case "rolled_back":
-      return "rolled_back"
+      return DEPLOYMENT_STATUS.FAILED
+    case DEPLOYMENT_STATUS.ROLLED_BACK:
+      return DEPLOYMENT_STATUS.ROLLED_BACK
     case "queued":
-    case "building":
+    case DEPLOYMENT_STATUS.BUILDING:
     case "deploying":
-      return "building"
+      return DEPLOYMENT_STATUS.BUILDING
     default:
-      return "pending"
+      return DEPLOYMENT_STATUS.PENDING
   }
 }
 
@@ -291,13 +299,13 @@ function adaptSteps(deployment: ApiDeployment): DeploymentPipelineStep[] {
     return {
       name: (s.name ?? "Log") as DeploymentPipelineStep["name"],
       status:
-        s.status === "success"
-          ? "success"
-          : s.status === "failed"
-            ? "failed"
-            : s.status === "skipped"
-              ? "skipped"
-              : "running",
+        s.status === DEPLOYMENT_STEP_STATUS.SUCCESS
+          ? DEPLOYMENT_STEP_STATUS.SUCCESS
+          : s.status === DEPLOYMENT_STEP_STATUS.FAILED
+            ? DEPLOYMENT_STEP_STATUS.FAILED
+            : s.status === DEPLOYMENT_STEP_STATUS.SKIPPED
+              ? DEPLOYMENT_STEP_STATUS.SKIPPED
+              : DEPLOYMENT_STEP_STATUS.RUNNING,
       startedAt: s.startedAt ?? s.started_at,
       finishedAt: s.finishedAt ?? s.finished_at,
       durationMs,
@@ -326,7 +334,7 @@ export function adaptDeployment(deployment: ApiDeployment): DeploymentRecord {
     message: commitMessage,
     branch: d.branch,
     author: d.author,
-    isRollback: d.status === "rolled_back",
+    isRollback: d.status === DEPLOYMENT_STATUS.ROLLED_BACK,
     previewUrl: d.url || undefined,
     steps: adaptSteps(deployment),
     rawLogs: typeof d.logs === "string" ? d.logs : undefined,
@@ -539,9 +547,11 @@ export function adaptAuditLog(log: ApiAuditLog): AuditLogEntry {
 
 export function adaptUser(user: ApiUser): PlatformUser {
   const role =
-    user.role === "owner" || user.role === "admin" || user.role === "member"
+    user.role === USER_ROLE.OWNER ||
+    user.role === USER_ROLE.ADMIN ||
+    user.role === USER_ROLE.MEMBER
       ? user.role
-      : "member"
+      : USER_ROLE.MEMBER
   return {
     id: user.id,
     name: user.name,

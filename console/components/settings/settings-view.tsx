@@ -13,6 +13,7 @@ import { OverviewPanel } from "@/components/settings/overview-panel"
 import { RegistriesPanel } from "@/components/settings/registries-panel"
 import { S3StorageSection } from "@/components/settings/s3-storage-section"
 import {
+  SETTINGS_SECTION,
   SettingsNav,
   SettingsSection,
 } from "@/components/settings/settings-nav"
@@ -21,17 +22,7 @@ import { siteConfig } from "@/config/site"
 import { usePlatformData } from "@/context/platform-data-context"
 import { S3BucketConfig } from "@/types/platform"
 
-const VALID_SECTIONS: SettingsSection[] = [
-  "overview",
-  "users",
-  "registries",
-  "storage",
-  "git",
-  "backups",
-  "domain",
-  "notifications",
-  "network",
-]
+const VALID_SECTIONS = Object.values(SETTINGS_SECTION)
 
 function getSectionFromLocation(): SettingsSection | null {
   if (typeof window === "undefined") return null
@@ -51,7 +42,7 @@ export function SettingsView() {
   const { settings, updateSettings, invites, registries } = usePlatformData()
 
   const [activeSection, setActiveSection] = React.useState<SettingsSection>(
-    () => getSectionFromLocation() || "overview"
+    () => getSectionFromLocation() || SETTINGS_SECTION.OVERVIEW
   )
 
   // Sync with browser URL hash & history navigation
@@ -78,7 +69,7 @@ export function SettingsView() {
       setActiveSection(section)
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href)
-        url.hash = section === "overview" ? "" : section
+        url.hash = section === SETTINGS_SECTION.OVERVIEW ? "" : section
         url.searchParams.delete("tab")
         window.history.pushState(null, "", url.toString())
       }
@@ -88,19 +79,21 @@ export function SettingsView() {
 
   React.useEffect(() => {
     const sectionTitles: Record<SettingsSection, string> = {
-      overview: "Overview",
-      users: "Users & Access",
-      registries: "Registries",
-      storage: "S3 Storage",
-      git: "Git Providers",
-      backups: "Backups",
-      domain: "Domains",
-      notifications: "Notifications",
-      network: "Network & Mesh",
+      [SETTINGS_SECTION.OVERVIEW]: "Overview",
+      [SETTINGS_SECTION.USERS]: "Users & Access",
+      [SETTINGS_SECTION.REGISTRIES]: "Registries",
+      [SETTINGS_SECTION.STORAGE]: "S3 Storage",
+      [SETTINGS_SECTION.GIT]: "Git Providers",
+      [SETTINGS_SECTION.BACKUPS]: "Backups",
+      [SETTINGS_SECTION.DOMAIN]: "Domains",
+      [SETTINGS_SECTION.NOTIFICATIONS]: "Notifications",
+      [SETTINGS_SECTION.NETWORK]: "Network & Mesh",
     }
     const sectionName = sectionTitles[activeSection]
     const titlePrefix =
-      activeSection === "overview" ? "Settings" : `${sectionName} · Settings`
+      activeSection === SETTINGS_SECTION.OVERVIEW
+        ? "Settings"
+        : `${sectionName} · Settings`
     document.title = `${titlePrefix} | ${siteConfig.name}`
   }, [activeSection])
 
@@ -177,30 +170,34 @@ export function SettingsView() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
-            {activeSection === "overview" && (
+            {activeSection === SETTINGS_SECTION.OVERVIEW && (
               <OverviewPanel onNavigateToTab={handleSectionChange} />
             )}
 
-            {activeSection === "users" && <UsersPanel />}
+            {activeSection === SETTINGS_SECTION.USERS && <UsersPanel />}
 
-            {activeSection === "registries" && <RegistriesPanel />}
+            {activeSection === SETTINGS_SECTION.REGISTRIES && (
+              <RegistriesPanel />
+            )}
 
-            {activeSection === "storage" && (
+            {activeSection === SETTINGS_SECTION.STORAGE && (
               <S3StorageSection
                 buckets={s3Buckets}
                 onBucketsChange={handleBucketsChange}
               />
             )}
 
-            {activeSection === "git" && <GitPanel />}
+            {activeSection === SETTINGS_SECTION.GIT && <GitPanel />}
 
-            {activeSection === "backups" && <BackupsPanel />}
+            {activeSection === SETTINGS_SECTION.BACKUPS && <BackupsPanel />}
 
-            {activeSection === "domain" && <DomainPanel />}
+            {activeSection === SETTINGS_SECTION.DOMAIN && <DomainPanel />}
 
-            {activeSection === "notifications" && <NotificationsPanel />}
+            {activeSection === SETTINGS_SECTION.NOTIFICATIONS && (
+              <NotificationsPanel />
+            )}
 
-            {activeSection === "network" && <NetworkPanel />}
+            {activeSection === SETTINGS_SECTION.NETWORK && <NetworkPanel />}
           </motion.div>
         </main>
       </div>

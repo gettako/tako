@@ -139,7 +139,7 @@ export function buildSmoothChartLine(
     deltas.push(dx !== 0 ? dy / dx : 0)
   }
 
-  const m: number[] = new Array(n)
+  const m: number[] = Array.from({ length: n })
   m[0] = deltas[0]
   m[n - 1] = deltas[n - 2]
   for (let k = 1; k < n - 1; k++) {

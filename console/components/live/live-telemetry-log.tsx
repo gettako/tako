@@ -16,7 +16,7 @@ import {
   SelectOption,
 } from "@/components/ui/searchable-select"
 import { buildNodeSelectOptions } from "@/lib/node-select-options"
-import { ClusterNode } from "@/types/platform"
+import { ClusterNode, NODE_ROLE, NODE_STATUS } from "@/types/platform"
 import { cn } from "@/lib/utils"
 
 export interface TelemetryLogEntry {
@@ -75,7 +75,7 @@ function getTimestamp() {
 }
 
 function createInitialLogs(nodes: ClusterNode[]): TelemetryLogEntry[] {
-  const master = nodes.find((n) => n.role === "master") || nodes[0]
+  const master = nodes.find((n) => n.role === NODE_ROLE.MASTER) || nodes[0]
   const workers = nodes.filter((n) => n.id !== master?.id)
   const entries: TelemetryLogEntry[] = []
 
@@ -100,10 +100,10 @@ function createInitialLogs(nodes: ClusterNode[]): TelemetryLogEntry[] {
       nodeId: w.id,
       nodeName: w.name,
       nodeIp: w.ipAddress,
-      level: w.status === "online" ? "info" : "critical",
+      level: w.status === NODE_STATUS.ONLINE ? "info" : "critical",
       category: "grpc",
       message:
-        w.status === "online"
+        w.status === NODE_STATUS.ONLINE
           ? `Worker agent stream active to master (Roundtrip: ${w.grpcLatencyMs}ms, TLS session valid).`
           : `Worker agent connection dropped. Health check failed to respond.`,
     })
@@ -171,7 +171,7 @@ export function LiveTelemetryLog({
 
       let newEntry: TelemetryLogEntry
 
-      if (randomNode.status === "offline") {
+      if (randomNode.status === NODE_STATUS.OFFLINE) {
         // Emit critical alert for dead nodes
         const errMessages = [
           `gRPC transport stream disconnected: connection reset by peer (errno 104).`,

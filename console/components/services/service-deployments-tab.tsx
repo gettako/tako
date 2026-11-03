@@ -28,9 +28,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { usePlatformData } from "@/context/platform-data-context"
 import {
+  DEPLOYMENT_STATUS,
   DeploymentRecord,
   DeploymentStepName,
   ProjectService,
+  SERVICE_STATUS,
 } from "@/types/platform"
 import { StepBadgeBar } from "./deployments/step-badge-bar"
 import { DeploymentHistoryTable } from "./deployments/deployment-history-table"
@@ -57,7 +59,8 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
   } = usePlatformData()
 
   const isDeploying =
-    activeDeployingId === service.id || service.status === "deploying"
+    activeDeployingId === service.id ||
+    service.status === SERVICE_STATUS.DEPLOYING
 
   const [fetchedDeployments, setFetchedDeployments] = React.useState<
     DeploymentRecord[] | null
@@ -133,7 +136,7 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
 
   const isPending =
     !selectedDeployment.id ||
-    selectedDeployment.status === "pending" ||
+    selectedDeployment.status === DEPLOYMENT_STATUS.PENDING ||
     (!isDeploying && history.length === 0)
 
   const isSelectedActiveRelease =
@@ -144,7 +147,8 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
     !isDeploying
   const isSelectedDeploying =
     isDeploying && selectedDeployment.id === history[0]?.id
-  const isSelectedFailed = selectedDeployment.status === "failed"
+  const isSelectedFailed =
+    selectedDeployment.status === DEPLOYMENT_STATUS.FAILED
 
   // Step filter for pipeline & log sync
   const [selectedStepName, setSelectedStepName] =

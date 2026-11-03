@@ -13,7 +13,11 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { usePlatformData } from "@/context/platform-data-context"
-import { ProjectService } from "@/types/platform"
+import {
+  SERVICE_STATUS,
+  SERVICE_TYPE,
+  type ProjectService,
+} from "@/types/platform"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
@@ -43,8 +47,9 @@ export function ServiceTable({ services, onDelete }: ServiceTableProps) {
         <tbody className="divide-y divide-border">
           {services.map((service) => {
             const isDeploying =
-              activeDeployingId === service.id || service.status === "deploying"
-            const isRunning = service.status === "running"
+              activeDeployingId === service.id ||
+              service.status === SERVICE_STATUS.DEPLOYING
+            const isRunning = service.status === SERVICE_STATUS.RUNNING
 
             return (
               <tr
@@ -57,7 +62,7 @@ export function ServiceTable({ services, onDelete }: ServiceTableProps) {
                 >
                   <div className="flex items-center gap-2.5">
                     <div className="flex size-7 shrink-0 items-center justify-center rounded border border-border bg-muted/40 text-foreground">
-                      {service.type === "dockerfile" ? (
+                      {service.type === SERVICE_TYPE.DOCKERFILE ? (
                         <FileCode2 className="size-3.5 text-primary" />
                       ) : (
                         <Boxes className="size-3.5 text-emerald-500" />
@@ -79,7 +84,9 @@ export function ServiceTable({ services, onDelete }: ServiceTableProps) {
 
                 <td className="px-4 py-3">
                   <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px] tracking-wider uppercase">
-                    {service.type === "dockerfile" ? "Dockerfile" : "Compose"}
+                    {service.type === SERVICE_TYPE.DOCKERFILE
+                      ? "Dockerfile"
+                      : "Compose"}
                   </span>
                 </td>
 

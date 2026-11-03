@@ -1,9 +1,11 @@
-import type {
-  DeploymentLogEntry,
-  DeploymentPipelineStep,
-  DeploymentRecord,
-  DeploymentStepName,
-  ProjectService,
+import {
+  DEPLOYMENT_STATUS,
+  DEPLOYMENT_STEP_STATUS,
+  type DeploymentLogEntry,
+  type DeploymentPipelineStep,
+  type DeploymentRecord,
+  type DeploymentStepName,
+  type ProjectService,
 } from "@/types/platform"
 
 export const STEP_KEYWORDS: Record<DeploymentStepName, string[]> = {
@@ -158,10 +160,13 @@ export function generateStepsForDeployment(
   }
 
   // Undeployed / pending service (saved but not yet deployed)
-  if (!isCurrentlyDeploying && (!dep.id || dep.status === "pending")) {
+  if (
+    !isCurrentlyDeploying &&
+    (!dep.id || dep.status === DEPLOYMENT_STATUS.PENDING)
+  ) {
     return CANONICAL_STEPS.map((step) => ({
       name: step.name,
-      status: "pending",
+      status: DEPLOYMENT_STEP_STATUS.PENDING,
       duration: "-",
       description:
         step.name === "Deploy"
@@ -174,7 +179,10 @@ export function generateStepsForDeployment(
   if (isCurrentlyDeploying) {
     return CANONICAL_STEPS.map((step, idx) => ({
       name: step.name,
-      status: idx === 0 ? "running" : "pending",
+      status:
+        idx === 0
+          ? DEPLOYMENT_STEP_STATUS.RUNNING
+          : DEPLOYMENT_STEP_STATUS.PENDING,
       duration: idx === 0 ? "in progress..." : "pending",
       startedAt: idx === 0 ? new Date().toLocaleTimeString() : undefined,
       description:
@@ -199,25 +207,28 @@ export function generateStepsForDeployment(
         }
       }
       // If clone step omitted in direct image deploy
-      if (canonical.name === "Clone" && dep.status !== "failed") {
+      if (canonical.name === "Clone" && dep.status !== DEPLOYMENT_STATUS.FAILED) {
         return {
           name: canonical.name,
-          status: "skipped",
+          status: DEPLOYMENT_STEP_STATUS.SKIPPED,
           duration: "-",
           description: "Direct image deployment (no Git clone required)",
         }
       }
       return {
         name: canonical.name,
-        status: dep.status === "failed" ? "skipped" : "success",
-        duration: dep.status === "failed" ? "skipped" : "-",
+        status:
+          dep.status === DEPLOYMENT_STATUS.FAILED
+            ? DEPLOYMENT_STEP_STATUS.SKIPPED
+            : DEPLOYMENT_STEP_STATUS.SUCCESS,
+        duration: dep.status === DEPLOYMENT_STATUS.FAILED ? "skipped" : "-",
         description: canonical.defaultDesc,
       }
     })
   }
 
   // Failed build fallback
-  if (dep.status === "failed") {
+  if (dep.status === DEPLOYMENT_STATUS.FAILED) {
     return CANONICAL_STEPS.map((step, idx) => {
       if (idx < 2) {
         return {
@@ -305,7 +316,7 @@ export function generateLogsForDeployment(
   dep: DeploymentRecord,
   service: ProjectService,
   activeLogs: DeploymentLogEntry[],
-  isCurrentlyDeploying: boolean
+  _isCurrentlyDeploying: boolean
 ): DeploymentLogEntry[] {
   // If we have active/recent logs in state for this deployment, preserve them
   if (activeLogs && activeLogs.length > 0) {
@@ -347,7 +358,7 @@ export function generateLogsForDeployment(
   }
 
   // Undeployed / pending service (saved but not yet deployed)
-  if (!dep.id || dep.status === "pending") {
+  if (!dep.id || dep.status === DEPLOYMENT_STATUS.PENDING) {
     return [
       {
         id: "log-initial-pending",
@@ -360,7 +371,7 @@ export function generateLogsForDeployment(
     ]
   }
 
-  if (dep.status === "failed") {
+  if (dep.status === DEPLOYMENT_STATUS.FAILED) {
     return [
       {
         id: `${dep.id}-1`,

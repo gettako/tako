@@ -1,5 +1,5 @@
 import DottedMap from "dotted-map"
-import { ClusterNode } from "@/types/platform"
+import { ClusterNode, NODE_ROLE, NODE_STATUS } from "@/types/platform"
 
 export interface NodeGeo {
   lat: number
@@ -277,10 +277,13 @@ export function calculateRealisticLatency(
   masterNode?: ClusterNode | null,
   jitter: number = 0
 ): number {
-  if (node.status === "offline") return 0
+  if (node.status === NODE_STATUS.OFFLINE) return 0
 
   // Master node pinging itself is local loopback (1-2ms)
-  if (node.role === "master" || (masterNode && node.id === masterNode.id)) {
+  if (
+    node.role === NODE_ROLE.MASTER ||
+    (masterNode && node.id === masterNode.id)
+  ) {
     return Math.max(1, Math.round(2 + jitter * 0.4))
   }
 

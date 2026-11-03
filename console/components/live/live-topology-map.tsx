@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/searchable-select"
 import { getNodeGeo, NodeGeo } from "@/lib/node-geo"
 import { buildNodeSelectOptions } from "@/lib/node-select-options"
-import { ClusterNode } from "@/types/platform"
+import { ClusterNode, NODE_ROLE, NODE_STATUS } from "@/types/platform"
 import { cn } from "@/lib/utils"
 
 interface LiveTopologyMapProps {
@@ -53,7 +53,7 @@ export function LiveTopologyMap({
   onMobileViewChange,
   onlineNodes,
   totalNodes,
-  offlineNodes = 0,
+  offlineNodes: _offlineNodes = 0,
   avgLatency = 0,
   fullscreenHref,
 }: LiveTopologyMapProps) {
@@ -98,7 +98,7 @@ export function LiveTopologyMap({
 
   // Identify Master hub node or default to the first node
   const masterNode = React.useMemo(() => {
-    return nodes.find((n) => n.role === "master") || nodes[0]
+    return nodes.find((n) => n.role === NODE_ROLE.MASTER) || nodes[0]
   }, [nodes])
 
   const masterGeo: NodeGeo | null = React.useMemo(() => {
@@ -504,7 +504,7 @@ export function LiveTopologyMap({
                 // If it is the master node, do not draw connection to itself
                 if (node.id === masterNode?.id) return null
 
-                const isDead = node.status === "offline"
+                const isDead = node.status === NODE_STATUS.OFFLINE
                 const startPoint = { x: geo.pinX, y: geo.pinY }
                 const endPoint = { x: masterGeo.pinX, y: masterGeo.pinY }
                 const pathD = createCurvedPath(startPoint, endPoint)
@@ -598,7 +598,7 @@ export function LiveTopologyMap({
           {/* Node Badges Overlaid Directly on Map Coordinates */}
           {nodeGeoList.map(({ node, geo }) => {
             const isMaster = node.id === masterNode?.id
-            const isDead = node.status === "offline"
+            const isDead = node.status === NODE_STATUS.OFFLINE
             const isSelected = selectedNodeId === node.id
             const isHovered = hoveredNodeId === node.id
             const showCard = isSelected || (!selectedNodeId && isHovered)
@@ -952,7 +952,7 @@ export function LiveTopologyMap({
                     <span
                       className={cn(
                         "rounded px-1.5 py-0.2 font-mono text-[9px] font-bold uppercase",
-                        selectedNode.role === "master"
+                        selectedNode.role === NODE_ROLE.MASTER
                           ? "bg-primary/15 text-primary"
                           : "bg-muted text-muted-foreground"
                       )}
@@ -961,7 +961,8 @@ export function LiveTopologyMap({
                     </span>
                   </div>
                   <p className="font-mono text-[10.5px] text-muted-foreground">
-                    {selectedNode.ipAddress} • {selectedGeo.city}, {selectedGeo.country}
+                    {selectedNode.ipAddress} • {selectedGeo.city},{" "}
+                    {selectedGeo.country}
                   </p>
                 </div>
               </div>
@@ -970,7 +971,7 @@ export function LiveTopologyMap({
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase",
-                    selectedNode.status === "offline"
+                    selectedNode.status === NODE_STATUS.OFFLINE
                       ? "bg-red-500/15 text-red-500"
                       : "bg-emerald-500/15 text-emerald-500"
                   )}
@@ -991,19 +992,25 @@ export function LiveTopologyMap({
             </div>
 
             {/* Offline Alert Banner */}
-            {selectedNode.status === "offline" && (
+            {selectedNode.status === NODE_STATUS.OFFLINE && (
               <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2 font-mono text-xs text-red-600 dark:text-red-300">
                 <AlertTriangle className="size-4 shrink-0 text-red-500" />
-                <span>Connection dropped. Failover cluster re-route active.</span>
+                <span>
+                  Connection dropped. Failover cluster re-route active.
+                </span>
               </div>
             )}
 
             {/* Telemetry Metrics Grid */}
             <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs">
               <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
-                <span className="text-[10px] text-muted-foreground">gRPC Latency</span>
+                <span className="text-[10px] text-muted-foreground">
+                  gRPC Latency
+                </span>
                 <div className="mt-0.5 text-sm font-bold text-foreground">
-                  {selectedNode.status === "offline" ? "TIMEOUT" : `${selectedNode.grpcLatencyMs} ms`}
+                  {selectedNode.status === NODE_STATUS.OFFLINE
+                    ? "TIMEOUT"
+                    : `${selectedNode.grpcLatencyMs} ms`}
                 </div>
               </div>
               <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
@@ -1011,7 +1018,9 @@ export function LiveTopologyMap({
                   <Cpu className="size-3" /> CPU Load
                 </span>
                 <div className="mt-0.5 text-sm font-bold text-foreground">
-                  {selectedNode.status === "offline" ? "N/A" : `${selectedNode.cpuPercent}%`}
+                  {selectedNode.status === NODE_STATUS.OFFLINE
+                    ? "N/A"
+                    : `${selectedNode.cpuPercent}%`}
                 </div>
               </div>
               <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
@@ -1019,13 +1028,19 @@ export function LiveTopologyMap({
                   <Layers className="size-3" /> Containers
                 </span>
                 <div className="mt-0.5 text-sm font-bold text-foreground">
-                  {selectedNode.status === "offline" ? "0 active" : `${selectedNode.runningContainers} active`}
+                  {selectedNode.status === NODE_STATUS.OFFLINE
+                    ? "0 active"
+                    : `${selectedNode.runningContainers} active`}
                 </div>
               </div>
               <div className="rounded-lg border border-border/70 bg-muted/30 p-2.5">
-                <span className="text-[10px] text-muted-foreground">Memory Load</span>
+                <span className="text-[10px] text-muted-foreground">
+                  Memory Load
+                </span>
                 <div className="mt-0.5 text-sm font-bold text-foreground">
-                  {selectedNode.status === "offline" ? "N/A" : `${selectedNode.memoryPercent}%`}
+                  {selectedNode.status === NODE_STATUS.OFFLINE
+                    ? "N/A"
+                    : `${selectedNode.memoryPercent}%`}
                 </div>
               </div>
             </div>
