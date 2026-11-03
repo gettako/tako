@@ -70,8 +70,8 @@ func (t *TelemetryStore) RecordContainerSamples(containers []*takov1.ContainerTe
 			t.latest[k] = pt
 			hist := t.history[k]
 			hist = append(hist, pt)
-			if len(hist) > 120 {
-				hist = hist[len(hist)-120:]
+			if len(hist) > 300 {
+				hist = hist[len(hist)-300:]
 			}
 			t.history[k] = hist
 		}
@@ -91,7 +91,7 @@ func (t *TelemetryStore) GetLatest(serviceID, serviceSlug string) (ServiceTeleme
 	return ServiceTelemetryPoint{}, false
 }
 
-// GetHistory returns up to 120 historic metric points for a service.
+// GetHistory returns up to 300 historic metric points for a service.
 func (t *TelemetryStore) GetHistory(serviceID, serviceSlug string) []ServiceTelemetryPoint {
 	t.mu.RLock()
 	defer t.mu.RUnlock()

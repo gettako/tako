@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import type { Route } from "next"
 import {
   Activity,
   ArrowLeft,
@@ -9,6 +10,7 @@ import {
   CheckCircle2,
   Copy,
   Cpu,
+  ExternalLink,
   FileCode2,
   HardDrive,
   Layers,
@@ -36,6 +38,7 @@ const STATUS_RESET_MS = 3000
 
 interface NodeContainer {
   id: string
+  projectId?: string
   name: string
   serviceName: string
   image: string
@@ -84,6 +87,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
       .filter((s) => s.targetNodeId === nodeId)
       .map((s) => ({
         id: s.id,
+        projectId: s.projectId,
         name: `tako-app-${s.slug}`,
         serviceName: s.name,
         image: s.image || `tako/${s.slug}:latest`,
@@ -617,18 +621,40 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
                   <tbody className="divide-y divide-border">
                     {containers.map((c) => {
                       const isRestarting = restartingContainerId === c.id
+                      const detailHref: Route | undefined = c.projectId
+                        ? (`/projects/${c.projectId}/services/${c.id}` as Route)
+                        : undefined
+
                       return (
                         <tr
                           key={c.id}
                           className="transition-colors hover:bg-muted/20"
                         >
                           <td className="px-4 py-3 font-mono font-medium text-foreground">
-                            {c.name}
+                            {detailHref ? (
+                              <Link
+                                href={detailHref}
+                                className="transition-colors hover:text-primary hover:underline"
+                              >
+                                {c.name}
+                              </Link>
+                            ) : (
+                              c.name
+                            )}
                           </td>
                           <td className="px-4 py-3">
-                            <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px]">
-                              {c.serviceName}
-                            </span>
+                            {detailHref ? (
+                              <Link
+                                href={detailHref}
+                                className="inline-block rounded bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground transition-colors hover:bg-muted/80 hover:text-primary hover:underline"
+                              >
+                                {c.serviceName}
+                              </Link>
+                            ) : (
+                              <span className="rounded bg-muted px-2 py-0.5 font-mono text-[11px]">
+                                {c.serviceName}
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 font-mono text-muted-foreground">
                             {c.image}
@@ -655,22 +681,37 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
                             {c.created}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              onClick={() => handleRestartContainer(c.id)}
-                              disabled={isRestarting}
-                              className="size-7 text-muted-foreground hover:text-foreground"
-                              title="Restart container"
-                              aria-label="Restart container"
-                            >
-                              <RotateCw
-                                className={cn(
-                                  "size-3.5",
-                                  isRestarting && "animate-spin text-primary"
-                                )}
-                              />
-                            </Button>
+                            <div className="flex items-center justify-end gap-1">
+                              {detailHref && (
+                                <Button
+                                  size="icon-xs"
+                                  variant="ghost"
+                                  nativeButton={false}
+                                  render={<Link href={detailHref} />}
+                                  className="size-7 text-muted-foreground hover:text-foreground"
+                                  title="View service details"
+                                  aria-label="View service details"
+                                >
+                                  <ExternalLink className="size-3.5" />
+                                </Button>
+                              )}
+                              <Button
+                                size="icon-xs"
+                                variant="ghost"
+                                onClick={() => handleRestartContainer(c.id)}
+                                disabled={isRestarting}
+                                className="size-7 text-muted-foreground hover:text-foreground"
+                                title="Restart container"
+                                aria-label="Restart container"
+                              >
+                                <RotateCw
+                                  className={cn(
+                                    "size-3.5",
+                                    isRestarting && "animate-spin text-primary"
+                                  )}
+                                />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       )

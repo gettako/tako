@@ -46,13 +46,13 @@ func TestConstantsAndRangeHelpers(t *testing.T) {
 
 	// 3. Verify RangeToStepConfig
 	count15m, step15m := api.RangeToStepConfig(api.TimeRange15m)
-	if count15m != 15 || step15m != time.Minute {
-		t.Errorf("RangeToStepConfig(15m) = (%d, %v); want (15, 1m)", count15m, step15m)
+	if count15m != 180 || step15m != time.Second*5 {
+		t.Errorf("RangeToStepConfig(15m) = (%d, %v); want (180, 5s)", count15m, step15m)
 	}
 
 	count1h, step1h := api.RangeToStepConfig(api.TimeRange1h)
-	if count1h != 24 || step1h != time.Minute*2 {
-		t.Errorf("RangeToStepConfig(1h) = (%d, %v); want (24, 2m)", count1h, step1h)
+	if count1h != 120 || step1h != time.Second*30 {
+		t.Errorf("RangeToStepConfig(1h) = (%d, %v); want (120, 30s)", count1h, step1h)
 	}
 }
 

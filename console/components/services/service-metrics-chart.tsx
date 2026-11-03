@@ -6,14 +6,14 @@ import { Activity, ArrowUpRight, Cpu, Network, Server } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { apiGet } from "@/lib/api"
 
-const METRICS_POLL_INTERVAL_MS = 10_000
+const METRICS_POLL_INTERVAL_MS = 5_000
 import {
   CHART_HEIGHT,
   CHART_INNER_HEIGHT,
   CHART_PADDING,
   CHART_WIDTH,
-  buildChartArea,
-  buildChartLine,
+  buildSmoothChartArea,
+  buildSmoothChartLine,
   getChartCoordinates,
 } from "@/lib/chart"
 import { cn } from "@/lib/utils"
@@ -149,7 +149,7 @@ export function ServiceMetricsChart({
   // Extract values based on active mode
   const values = React.useMemo(() => {
     if (points.length === 0) {
-      return Array.from({ length: 15 }, () => 0)
+      return Array.from({ length: 120 }, () => 0)
     }
     switch (mode) {
       case "cpu":
@@ -211,11 +211,11 @@ export function ServiceMetricsChart({
   }, [values, minVal, maxVal, chartWidth])
 
   const linePath = React.useMemo(
-    () => buildChartLine(coords, chartWidth),
+    () => buildSmoothChartLine(coords, chartWidth),
     [coords, chartWidth]
   )
   const areaPath = React.useMemo(
-    () => buildChartArea(coords, chartWidth),
+    () => buildSmoothChartArea(coords, chartWidth),
     [coords, chartWidth]
   )
 
@@ -443,7 +443,7 @@ export function ServiceMetricsChart({
                       ? "#10b981"
                       : "#60a5fa"
                 }
-                strokeWidth="2"
+                strokeWidth="1.25"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -465,7 +465,7 @@ export function ServiceMetricsChart({
                 <circle
                   cx={activeCoord.x}
                   cy={activeCoord.y}
-                  r="4"
+                  r="3.5"
                   fill="var(--color-background)"
                   stroke={
                     mode === "cpu"
@@ -474,7 +474,7 @@ export function ServiceMetricsChart({
                         ? "#10b981"
                         : "#60a5fa"
                   }
-                  strokeWidth="2.5"
+                  strokeWidth="1.5"
                 />
               </g>
             )}

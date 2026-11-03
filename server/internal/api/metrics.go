@@ -44,17 +44,17 @@ func RangeToSeconds(timeRange string) string {
 func RangeToStepConfig(timeRange string) (count int, step time.Duration) {
 	switch timeRange {
 	case TimeRange15m:
-		return 15, time.Minute
+		return 180, time.Second * 5
 	case TimeRange6h:
-		return 36, time.Minute * 10
+		return 120, time.Minute * 3
 	case TimeRange24h:
-		return 48, time.Minute * 30
+		return 144, time.Minute * 10
 	case TimeRange7d:
-		return 42, time.Hour * 4
+		return 168, time.Hour * 1
 	case TimeRange1h:
 		fallthrough
 	default:
-		return 24, time.Minute * 2
+		return 120, time.Second * 30
 	}
 }
 

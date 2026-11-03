@@ -12,6 +12,8 @@ import {
   CHART_WIDTH,
   buildChartArea,
   buildChartLine,
+  buildSmoothChartArea,
+  buildSmoothChartLine,
   getChartCoordinates,
 } from "@/lib/chart"
 import type { ClusterNode } from "@/types/platform"
@@ -190,5 +192,24 @@ describe("Telemetry & Responsive Chart Geometry", () => {
 
     const area = buildChartArea(coords, customWidth)
     expect(area).toContain(`L ${customWidth - CHART_PADDING.right}`)
+  })
+
+  it("generates smooth cubic bezier curves without sharp jagged corners", () => {
+    const values = [10, 80, 20, 90, 40]
+    const coords = getChartCoordinates(values, 0, 100)
+
+    const smoothLine = buildSmoothChartLine(coords)
+    expect(smoothLine.startsWith("M ")).toBe(true)
+    // Smooth line uses cubic Bezier 'C' commands rather than linear 'L'
+    expect(smoothLine).toContain(" C ")
+    expect(smoothLine).not.toContain(" L ")
+
+    const smoothArea = buildSmoothChartArea(coords)
+    expect(smoothArea).toContain(" C ")
+    expect(smoothArea.endsWith(" Z")).toBe(true)
+
+    // Verify buildChartLine with smooth=true delegates to smooth curves
+    const delegatedLine = buildChartLine(coords, CHART_WIDTH, true)
+    expect(delegatedLine).toBe(smoothLine)
   })
 })
