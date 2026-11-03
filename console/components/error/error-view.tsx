@@ -337,11 +337,21 @@ export function ErrorView({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Button
+                    type="button"
                     variant="ghost"
                     size="xs"
                     onClick={handleCopyStack}
                     className="h-6 gap-1 px-2 text-[10px] text-muted-foreground hover:text-foreground"
-                    title="Copy raw stack trace to clipboard"
+                    title={
+                      copiedStack
+                        ? "Copied stack trace"
+                        : "Copy raw stack trace to clipboard"
+                    }
+                    aria-label={
+                      copiedStack
+                        ? "Copied stack trace"
+                        : "Copy raw stack trace to clipboard"
+                    }
                   >
                     {copiedStack ? (
                       <>
@@ -477,10 +487,20 @@ export function ErrorView({
 
             {/* Copy Incident Telemetry Report */}
             <Button
+              type="button"
               variant="ghost"
               onClick={handleCopyDiagnostic}
               className="gap-2 text-xs text-muted-foreground hover:text-foreground sm:ml-auto"
-              title="Copy incident report for support or telemetry tracing"
+              title={
+                copiedReport
+                  ? "Report copied"
+                  : "Copy incident report for support or telemetry tracing"
+              }
+              aria-label={
+                copiedReport
+                  ? "Report copied"
+                  : "Copy incident report for support or telemetry tracing"
+              }
             >
               {copiedReport ? (
                 <>

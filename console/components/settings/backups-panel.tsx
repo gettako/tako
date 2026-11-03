@@ -458,12 +458,20 @@ export function BackupsPanel() {
                           </span>
                           <button
                             type="button"
-                            aria-label={`Copy checksum for ${snap.filename}`}
+                            aria-label={
+                              copiedChecksum === snap.id
+                                ? "Copied checksum"
+                                : `Copy checksum for ${snap.filename}`
+                            }
                             onClick={() =>
                               handleCopyChecksum(snap.id, snap.checksum)
                             }
                             className="text-muted-foreground hover:text-foreground"
-                            title="Copy Checksum"
+                            title={
+                              copiedChecksum === snap.id
+                                ? "Copied checksum"
+                                : "Copy Checksum"
+                            }
                           >
                             {copiedChecksum === snap.id ? (
                               <Check className="size-3 text-emerald-500" />

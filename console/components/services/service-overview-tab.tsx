@@ -300,7 +300,16 @@ export function ServiceOverviewTab({
                       variant="ghost"
                       size="icon-xs"
                       onClick={() => handleCopy(url, dom.id)}
-                      title="Copy full URL"
+                      title={
+                        copiedDomain === dom.id
+                          ? "Copied full URL"
+                          : "Copy full URL"
+                      }
+                      aria-label={
+                        copiedDomain === dom.id
+                          ? "Copied full URL"
+                          : "Copy full URL"
+                      }
                     >
                       {copiedDomain === dom.id ? (
                         <Check className="size-3.5 text-emerald-500" />

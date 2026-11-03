@@ -90,6 +90,7 @@ export function ServiceDetailView({
 
   const handleCopyNodeIp = async (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     const ip = targetNode?.publicIp || targetNode?.ipAddress
     if (ip && (await copyToClipboard(ip))) {
       setCopiedNodeIp(true)
@@ -281,7 +282,10 @@ export function ServiceDetailView({
                         variant="ghost"
                         onClick={handleCopyNodeIp}
                         className="size-4 shrink-0 p-0 text-muted-foreground hover:text-foreground"
-                        title="Copy Node IP"
+                        title={copiedNodeIp ? "Copied Node IP" : "Copy Node IP"}
+                        aria-label={
+                          copiedNodeIp ? "Copied Node IP" : "Copy Node IP"
+                        }
                       >
                         {copiedNodeIp ? (
                           <Check className="size-3 text-emerald-500" />

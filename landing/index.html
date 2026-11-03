@@ -322,11 +322,41 @@
       btn.addEventListener('click', async () => {
         const code = document.getElementById(btn.dataset.copy);
         const status = document.getElementById('copy-status');
-        try {
-          await navigator.clipboard.writeText(code.textContent);
+        const textToCopy = code?.textContent || '';
+        let success = false;
+
+        if (navigator?.clipboard?.writeText) {
+          try {
+            await navigator.clipboard.writeText(textToCopy);
+            success = true;
+          } catch {
+            // Fallback to execCommand below
+          }
+        }
+
+        if (!success) {
+          try {
+            const textArea = document.createElement('textarea');
+            textArea.value = textToCopy;
+            textArea.style.position = 'fixed';
+            textArea.style.top = '0';
+            textArea.style.left = '-9999px';
+            textArea.style.opacity = '0';
+            textArea.setAttribute('readonly', '');
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            success = document.execCommand('copy');
+            document.body.removeChild(textArea);
+          } catch {
+            success = false;
+          }
+        }
+
+        if (success) {
           btn.textContent = 'Copied';
           status.textContent = 'Command copied to clipboard.';
-        } catch {
+        } else {
           const range = document.createRange();
           range.selectNodeContents(code);
           const sel = getSelection();

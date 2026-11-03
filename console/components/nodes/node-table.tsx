@@ -22,7 +22,9 @@ interface NodeTableProps {
 export function NodeTable({ nodes, onDelete }: NodeTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
 
-  const handleCopyIp = async (id: string, ip: string) => {
+  const handleCopyIp = async (id: string, ip: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    e?.preventDefault()
     if (await copyToClipboard(ip)) {
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 2000)
@@ -110,9 +112,18 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                       type="button"
                       size="icon-xs"
                       variant="ghost"
-                      onClick={() => handleCopyIp(node.id, node.ipAddress)}
+                      onClick={(e) => handleCopyIp(node.id, node.ipAddress, e)}
                       className="size-5 text-muted-foreground hover:text-foreground"
-                      title="Copy"
+                      title={
+                        copiedId === node.id
+                          ? "Copied IP address"
+                          : "Copy IP address"
+                      }
+                      aria-label={
+                        copiedId === node.id
+                          ? "Copied IP address"
+                          : "Copy IP address"
+                      }
                     >
                       {copiedId === node.id ? (
                         <Check className="size-3 text-emerald-500" />

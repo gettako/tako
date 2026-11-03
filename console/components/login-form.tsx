@@ -310,6 +310,8 @@ export function LoginForm({
                 variant="secondary"
                 onClick={handleCopyCommand}
                 className="h-8 shrink-0 gap-1.5 px-3 text-xs"
+                title={isCopied ? "Command copied" : "Copy command"}
+                aria-label={isCopied ? "Command copied" : "Copy command"}
               >
                 {isCopied ? (
                   <>

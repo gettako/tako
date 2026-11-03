@@ -563,7 +563,8 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
                   size="xs"
                   onClick={handleCopyLogs}
                   className="h-7 px-2 font-mono text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                  title="Copy logs"
+                  title={copiedLog ? "Copied logs" : "Copy logs"}
+                  aria-label={copiedLog ? "Copied logs" : "Copy logs"}
                 >
                   {copiedLog ? (
                     <Check className="size-3 text-emerald-500" />

@@ -430,13 +430,14 @@ export function ServiceLogsTab({ service }: ServiceLogsTabProps) {
           </Button>
 
           <Button
+            type="button"
             size="icon-xs"
             variant="ghost"
             onClick={copyLogs}
             disabled={filteredLogs.length === 0}
             className="size-7 text-muted-foreground hover:text-foreground"
-            title="Copy visible logs"
-            aria-label="Copy visible logs"
+            title={copied ? "Copied visible logs" : "Copy visible logs"}
+            aria-label={copied ? "Copied visible logs" : "Copy visible logs"}
           >
             {copied ? (
               <Check className="size-3 text-emerald-500" />

@@ -34,6 +34,7 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
 
   const handleCopyIp = async (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     if (await copyToClipboard(node.ipAddress)) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
@@ -94,7 +95,16 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
             type="button"
             onClick={handleCopyIp}
             className="group/ip relative z-10 inline-flex items-center gap-1.5 rounded bg-muted/40 px-2 py-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            title={`Click to copy IP (${node.ipAddress})`}
+            title={
+              copied
+                ? "Copied IP address"
+                : `Click to copy IP (${node.ipAddress})`
+            }
+            aria-label={
+              copied
+                ? "Copied IP address"
+                : `Copy IP address (${node.ipAddress})`
+            }
           >
             {node.location?.flag && (
               <Flag

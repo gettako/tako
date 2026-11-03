@@ -275,7 +275,10 @@ export function DomainPanel() {
                       type="button"
                       onClick={handleCopyIp}
                       className="text-muted-foreground hover:text-foreground"
-                      title="Copy IP"
+                      title={copiedIp ? "Copied IP address" : "Copy IP"}
+                      aria-label={
+                        copiedIp ? "Copied IP address" : "Copy IP address"
+                      }
                     >
                       {copiedIp ? (
                         <Check className="size-3 text-emerald-500" />

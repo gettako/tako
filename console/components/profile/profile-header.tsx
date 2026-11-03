@@ -14,10 +14,11 @@ export function ProfileHeader() {
 
   const initials = getInitials(currentUser.name, "OP")
 
-  const handleCopyId = () => {
-    void copyToClipboard(currentUser.id)
-    setCopiedId(true)
-    setTimeout(() => setCopiedId(false), 2000)
+  const handleCopyId = async () => {
+    if (await copyToClipboard(currentUser.id)) {
+      setCopiedId(true)
+      setTimeout(() => setCopiedId(false), 2000)
+    }
   }
 
   return (
@@ -80,14 +81,21 @@ export function ProfileHeader() {
             size="xs"
             onClick={handleCopyId}
             className="gap-1.5 font-mono text-xs"
-            title="Copy Operator User ID"
+            title={
+              copiedId ? "Copied Operator User ID" : "Copy Operator User ID"
+            }
+            aria-label={
+              copiedId
+                ? "Copied Operator User ID"
+                : `Copy Operator User ID (${currentUser.id})`
+            }
           >
             {copiedId ? (
               <Check className="size-3 text-emerald-500" />
             ) : (
               <Copy className="size-3 text-muted-foreground" />
             )}
-            <span>{currentUser.id}</span>
+            <span>{copiedId ? "Copied" : currentUser.id}</span>
           </Button>
         </div>
       </div>

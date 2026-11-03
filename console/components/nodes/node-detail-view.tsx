@@ -131,7 +131,9 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
     100
   ).toFixed(1)
 
-  const handleCopyIp = async () => {
+  const handleCopyIp = async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    e?.preventDefault()
     if (await copyToClipboard(node.ipAddress)) {
       setCopiedIp(true)
       setTimeout(() => setCopiedIp(false), 2000)
@@ -267,7 +269,10 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
                   variant="ghost"
                   onClick={handleCopyIp}
                   className="size-5 text-muted-foreground hover:text-foreground"
-                  title="Copy"
+                  title={copiedIp ? "Copied IP address" : "Copy IP address"}
+                  aria-label={
+                    copiedIp ? "Copied IP address" : "Copy IP address"
+                  }
                 >
                   {copiedIp ? (
                     <Check className="size-3 text-emerald-500" />

@@ -230,16 +230,18 @@ export function ProfileSecurityTab() {
     }, 700)
   }
 
-  const handleCopySecret = () => {
-    void copyToClipboard(totpSecret)
-    setCopiedSecret(true)
-    setTimeout(() => setCopiedSecret(false), 2000)
+  const handleCopySecret = async () => {
+    if (await copyToClipboard(totpSecret)) {
+      setCopiedSecret(true)
+      setTimeout(() => setCopiedSecret(false), 2000)
+    }
   }
 
-  const handleCopyCodes = () => {
-    void copyToClipboard(recoveryCodes.join("\n"))
-    setCopiedCodes(true)
-    setTimeout(() => setCopiedCodes(false), 2000)
+  const handleCopyCodes = async () => {
+    if (await copyToClipboard(recoveryCodes.join("\n"))) {
+      setCopiedCodes(true)
+      setTimeout(() => setCopiedCodes(false), 2000)
+    }
   }
 
   const handleDownloadCodes = () => {
@@ -809,6 +811,16 @@ export function ProfileSecurityTab() {
                     size="sm"
                     onClick={handleCopyCodes}
                     className="gap-1 text-xs"
+                    title={
+                      copiedCodes
+                        ? "Copied recovery codes"
+                        : "Copy all recovery codes"
+                    }
+                    aria-label={
+                      copiedCodes
+                        ? "Copied recovery codes"
+                        : "Copy all recovery codes"
+                    }
                   >
                     {copiedCodes ? (
                       <Check className="size-3 text-emerald-500" />
@@ -1029,7 +1041,8 @@ export function ProfileSecurityTab() {
                   size="xs"
                   onClick={handleCopySecret}
                   className="size-7 p-0"
-                  aria-label="Copy secret"
+                  title={copiedSecret ? "Copied secret" : "Copy secret"}
+                  aria-label={copiedSecret ? "Copied secret" : "Copy secret"}
                 >
                   {copiedSecret ? (
                     <Check className="size-3.5 text-emerald-500" />

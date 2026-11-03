@@ -234,6 +234,8 @@ export function NetworkPanel() {
                   variant="outline"
                   onClick={handleCopyToken}
                   className="shrink-0 gap-1.5 text-xs"
+                  title={copiedToken ? "Copied token" : "Copy token"}
+                  aria-label={copiedToken ? "Copied token" : "Copy token"}
                 >
                   {copiedToken ? (
                     <>

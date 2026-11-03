@@ -66,6 +66,8 @@ export function CodeHighlighter({
             variant="outline"
             onClick={handleCopy}
             className="h-7 gap-1.5 border-border/80 bg-background/80 px-2.5 text-[11px] font-medium shadow-xs backdrop-blur-sm hover:bg-background"
+            title={copied ? "Copied code" : "Copy code"}
+            aria-label={copied ? "Copied code" : "Copy code"}
           >
             {copied ? (
               <>

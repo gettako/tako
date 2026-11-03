@@ -520,8 +520,12 @@ export function ServiceTerminalTab({
             size="icon-xs"
             onClick={handleCopyBuffer}
             className="size-7 text-muted-foreground hover:text-foreground"
-            title="Copy terminal buffer"
-            aria-label="Copy terminal buffer"
+            title={
+              copiedBuffer ? "Copied terminal buffer" : "Copy terminal buffer"
+            }
+            aria-label={
+              copiedBuffer ? "Copied terminal buffer" : "Copy terminal buffer"
+            }
           >
             {copiedBuffer ? (
               <Check className="size-3 text-emerald-500" />

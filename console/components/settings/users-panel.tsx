@@ -347,6 +347,16 @@ export function UsersPanel() {
                             size="xs"
                             onClick={() => handleCopyLink(inv.id, inv.token)}
                             className="gap-1 text-[11px]"
+                            title={
+                              copiedTokenId === inv.id
+                                ? "Copied invite link"
+                                : "Copy invite link"
+                            }
+                            aria-label={
+                              copiedTokenId === inv.id
+                                ? "Copied invite link"
+                                : "Copy invite link"
+                            }
                           >
                             {copiedTokenId === inv.id ? (
                               <>
@@ -419,6 +429,16 @@ export function UsersPanel() {
                     variant="outline"
                     onClick={() => handleCopyLink("gen", generatedInvite.token)}
                     className="shrink-0 gap-1.5 text-xs"
+                    title={
+                      copiedTokenId === "gen"
+                        ? "Copied invite link"
+                        : "Copy invite link"
+                    }
+                    aria-label={
+                      copiedTokenId === "gen"
+                        ? "Copied invite link"
+                        : "Copy invite link"
+                    }
                   >
                     {copiedTokenId === "gen" ? (
                       <>

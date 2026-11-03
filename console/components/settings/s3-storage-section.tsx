@@ -368,7 +368,16 @@ export function S3StorageSection({
                             type="button"
                             onClick={() => handleCopyEndpoint(b)}
                             className="shrink-0 text-muted-foreground hover:text-foreground"
-                            title="Copy full bucket URL"
+                            title={
+                              copiedId === b.id
+                                ? "Copied bucket URL"
+                                : "Copy full bucket URL"
+                            }
+                            aria-label={
+                              copiedId === b.id
+                                ? "Copied bucket URL"
+                                : "Copy full bucket URL"
+                            }
                           >
                             {copiedId === b.id ? (
                               <Check className="size-3 text-emerald-500" />

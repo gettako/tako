@@ -143,6 +143,8 @@ export function CodeEditor({
               variant="outline"
               onClick={handleCopy}
               className="h-7 gap-1.5 px-2.5 text-[11px]"
+              title={copied ? "Copied content" : "Copy content"}
+              aria-label={copied ? "Copied content" : "Copy content"}
             >
               {copied ? (
                 <>
