@@ -1640,10 +1640,9 @@ export function ServiceSettingsView({
                       className="font-mono text-xs"
                     />
                   </Field>
-                  <Field className="w-24">
+                  <Field className="w-28">
                     <FieldLabel className="text-[11px]">Protocol</FieldLabel>
                     <SearchableSelect
-                      size="sm"
                       value={newProtocol}
                       onChange={(val) => setNewProtocol(val as "tcp" | "udp")}
                       options={PROTOCOL_OPTIONS}
@@ -1652,9 +1651,8 @@ export function ServiceSettingsView({
                   </Field>
                   <Button
                     type="button"
-                    size="sm"
                     onClick={handleAddPort}
-                    className="shrink-0 gap-1 text-xs"
+                    className="h-9 shrink-0 gap-1 text-xs"
                   >
                     <Plus className="size-3.5" />
                     <span>Bind Port</span>
