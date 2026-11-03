@@ -194,6 +194,18 @@ export function GitPanel() {
     }
   }, [completeGitHubAppSetup, syncGitRepos])
 
+  // Auto-sync when window regains focus (e.g., returning from GitHub App installation in another tab)
+  React.useEffect(() => {
+    if (typeof window === "undefined") return
+    const onFocus = () => {
+      if (hasConnectedProviders) {
+        void syncGitRepos()
+      }
+    }
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
+  }, [hasConnectedProviders, syncGitRepos])
+
   // GitHub App Form
   const [appName, setAppName] = React.useState(
     () => `tako-${Math.floor(10000 + Math.random() * 90000)}`

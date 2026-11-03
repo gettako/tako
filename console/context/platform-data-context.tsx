@@ -1959,10 +1959,11 @@ export function PlatformDataProvider({
           }))
         )
       }
+      await refreshSettings()
     } catch {
       // fallback
     }
-  }, [])
+  }, [refreshSettings])
 
   const toggleRepoAutoDeploy = React.useCallback(
     async (id: string) => {

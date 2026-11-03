@@ -79,6 +79,11 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				}
 			}
 
+			setupURL := ""
+			if strings.HasPrefix(baseURL, "https://") || strings.Contains(baseURL, "localhost") || strings.Contains(baseURL, "127.0.0.1") {
+				setupURL = baseURL + "/settings?tab=git&setup_action=installed"
+			}
+
 			manifest := GitHubAppManifest{
 				Name:        manifestName,
 				Description: fmt.Sprintf("%s Cloud Infrastructure & Automated Deployments", appName),
@@ -91,7 +96,7 @@ func registerGitHubRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				CallbackURLs: []string{
 					baseURL + "/api/auth/callback/github",
 				},
-				SetupURL: baseURL + "/settings?tab=git&setup_action=installed",
+				SetupURL: setupURL,
 				Public:   true,
 				DefaultPermissions: map[string]string{
 					"contents":      "read",
@@ -515,13 +520,15 @@ func updateGitProvidersWithApp(ctx context.Context, orch *orchestrator.Orchestra
 	}
 
 	if len(config.Installations) > 0 {
+		seenLogins := make(map[string]bool)
 		for _, inst := range config.Installations {
-			instType := inst.Account.Type
-			if instType == "" {
-				instType = "Account"
+			loginKey := strings.ToLower(strings.TrimSpace(inst.Account.Login))
+			if loginKey == "" || seenLogins[loginKey] {
+				continue
 			}
+			seenLogins[loginKey] = true
 			filtered = append(filtered, map[string]any{
-				"id":          fmt.Sprintf("git-gh-%s", strings.ToLower(inst.Account.Login)),
+				"id":          fmt.Sprintf("git-gh-%s", loginKey),
 				"type":        "github",
 				"name":        fmt.Sprintf("GitHub (%s)", inst.Account.Login),
 				"username":    inst.Account.Login,
