@@ -185,3 +185,71 @@ func TestServiceMetricsAccuracy(t *testing.T) {
 		t.Errorf("expected DiskWrite 4096, got %d", lastPt.DiskWrite)
 	}
 }
+
+func TestClusterMetricsHeartbeatAggregationAccurate(t *testing.T) {
+	router, orch := setupTestRouter(t)
+	ctx := context.Background()
+
+	// Register node with 9523 MB total (~9.3 GB)
+	_, err := orch.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+		NodeId:        "node-cluster-test",
+		Name:          "node-cluster-test",
+		IpAddress:     "192.168.1.50",
+		EnrollToken:   "test-enroll",
+		MemoryTotalMb: 9523,
+		CpuTotalCores: 8,
+		DiskTotalGb:   100,
+	})
+	if err != nil {
+		t.Fatalf("RegisterNode failed: %v", err)
+	}
+
+	// Simulate 10 heartbeats within the same minute reporting ~4900 MB used (~51-53% of 9.3 GB)
+	now := time.Now().Unix()
+	for i := 0; i < 10; i++ {
+		_, err = orch.Heartbeat(ctx, &takov1.HeartbeatRequest{
+			NodeId:        "node-cluster-test",
+			CpuPercent:    25.0,
+			MemoryUsedMb:  4900,
+			DiskUsedGb:    20.0,
+			NetworkRxKbps: 50.0,
+			NetworkTxKbps: 80.0,
+			UptimeSeconds: int64(100 + i*5),
+			Timestamp:     now + int64(i*2),
+		})
+		if err != nil {
+			t.Fatalf("Heartbeat %d failed: %v", i, err)
+		}
+	}
+
+	// Fetch cluster-wide metrics (GET /api/v1/metrics?range=1h)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/metrics?range=1h", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var clusterPoints []api.MetricPointResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &clusterPoints); err != nil {
+		t.Fatalf("failed to decode JSON response: %v", err)
+	}
+
+	if len(clusterPoints) == 0 {
+		t.Fatalf("expected at least 1 cluster metric point, got 0")
+	}
+
+	point := clusterPoints[len(clusterPoints)-1]
+	// Memory used should be ~4900 MB (4.8 GB), NOT 10 * 4900 = 49000 MB!
+	if point.Memory > 5500 || point.Memory < 4500 {
+		t.Errorf("expected cluster memory around 4900 MB, got %d MB (heartbeats leaked into sum)", point.Memory)
+	}
+	if point.MemoryPercent < 50 || point.MemoryPercent > 55 {
+		t.Errorf("expected cluster memory percent around 51-53%%, got %d%%", point.MemoryPercent)
+	}
+	// Network should also not be inflated 10x
+	if point.NetworkRx > 100 {
+		t.Errorf("expected NetworkRx around 50 KBps, got %f", point.NetworkRx)
+	}
+}

@@ -187,12 +187,15 @@ export function NodeMetricsCharts({ node }: NodeMetricsChartsProps) {
             const timeStr = !isNaN(d.getTime())
               ? d.toTimeString().slice(0, 5)
               : p.timestamp
-            const ramGb = Number((p.memory / 1024).toFixed(1))
+            let ramGb = Number((p.memory / 1024).toFixed(1))
             const ramPct =
               p.memoryPercent ??
               (node.totalMemoryGb
                 ? Math.round((ramGb / node.totalMemoryGb) * 100)
                 : 0)
+            if (node.totalMemoryGb > 0 && ramGb > node.totalMemoryGb && ramPct > 0) {
+              ramGb = Number(((node.totalMemoryGb * ramPct) / 100).toFixed(1))
+            }
 
             return {
               time: timeStr,
@@ -593,7 +596,7 @@ export function NodeMetricsCharts({ node }: NodeMetricsChartsProps) {
                 {activePoint?.ramPercent ?? node.memoryPercent}%
               </span>{" "}
               • Free:{" "}
-              {(node.totalMemoryGb - (activePoint?.ramGb ?? 0)).toFixed(1)} GB
+              {Math.max(0, node.totalMemoryGb - (activePoint?.ramGb ?? 0)).toFixed(1)} GB
             </span>
           </div>
 

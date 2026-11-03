@@ -168,7 +168,10 @@ export function ClusterCharts({
             const ramPercent =
               p.memoryPercent ||
               Math.min(100, Math.round((p.memory / (totalMem * 1024)) * 100))
-            const ramGb = Number((p.memory / 1024).toFixed(1))
+            let ramGb = Number((p.memory / 1024).toFixed(1))
+            if (totalMem > 0 && ramGb > totalMem && ramPercent > 0) {
+              ramGb = Number(((totalMem * ramPercent) / 100).toFixed(1))
+            }
             const rxMb = Number((p.networkRx / 1024).toFixed(1))
             const txMb = Number((p.networkTx / 1024).toFixed(1))
             const diskPercent = p.diskPercent || Math.round(baseDisk)
@@ -463,8 +466,7 @@ export function ClusterCharts({
           <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5 font-mono text-[11px] text-muted-foreground">
             <span>Peak: {peakRamGb} GB</span>
             <span className="font-semibold text-emerald-500">
-              {(totalCapacityGb - (activePoint?.ramGb ?? 0)).toFixed(1)} GB
-              Available
+              {Math.max(0, totalCapacityGb - (activePoint?.ramGb ?? 0)).toFixed(1)} GB Available
             </span>
           </div>
         </div>

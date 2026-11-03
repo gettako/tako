@@ -4,6 +4,8 @@ import type { ServiceBackupConfig } from "../types/platform"
 describe("Service Backup & S3 Storage Configuration", () => {
   test("defines ServiceBackupConfig interface attributes properly", () => {
     const config: ServiceBackupConfig = {
+      id: "bkg-1",
+      name: "Daily DB Backup",
       enabled: true,
       cronSchedule: "0 2 * * *",
       targetContainer: "tako-app-web-postgres",

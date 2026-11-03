@@ -12,19 +12,34 @@ import (
 )
 
 const listClusterMetrics = `-- name: ListClusterMetrics :many
+WITH node_minute_samples AS (
+    SELECT 
+        strftime('%Y-%m-%d %H:%M', recorded_at) as minute_bucket,
+        node_id,
+        AVG(cpu_percent) as avg_cpu,
+        AVG(memory_used_mb) as avg_mem_used,
+        MAX(memory_total_mb) as max_mem_total,
+        AVG(disk_used_gb) as avg_disk_used,
+        MAX(disk_total_gb) as max_disk_total,
+        AVG(network_rx_kbps) as avg_rx,
+        AVG(network_tx_kbps) as avg_tx,
+        MIN(recorded_at) as sample_recorded_at
+    FROM node_metrics
+    WHERE recorded_at >= datetime('now', ? || ' seconds')
+    GROUP BY strftime('%Y-%m-%d %H:%M', recorded_at), node_id
+)
 SELECT 
-    recorded_at,
-    AVG(cpu_percent) as avg_cpu_percent,
-    SUM(memory_used_mb) as total_memory_used_mb,
-    SUM(memory_total_mb) as total_memory_total_mb,
-    SUM(disk_used_gb) as total_disk_used_gb,
-    SUM(disk_total_gb) as total_disk_total_gb,
-    SUM(network_rx_kbps) as total_network_rx_kbps,
-    SUM(network_tx_kbps) as total_network_tx_kbps
-FROM node_metrics
-WHERE recorded_at >= datetime('now', ? || ' seconds')
-GROUP BY strftime('%Y-%m-%d %H:%M', recorded_at)
-ORDER BY recorded_at ASC
+    sample_recorded_at as recorded_at,
+    AVG(avg_cpu) as avg_cpu_percent,
+    SUM(avg_mem_used) as total_memory_used_mb,
+    SUM(max_mem_total) as total_memory_total_mb,
+    SUM(avg_disk_used) as total_disk_used_gb,
+    SUM(max_disk_total) as total_disk_total_gb,
+    SUM(avg_rx) as total_network_rx_kbps,
+    SUM(avg_tx) as total_network_tx_kbps
+FROM node_minute_samples
+GROUP BY minute_bucket
+ORDER BY minute_bucket ASC
 `
 
 type ListClusterMetricsRow struct {
