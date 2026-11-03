@@ -122,12 +122,17 @@ export function SettingsNav({
           const Icon = item.icon
           const isActive = activeSection === item.id
           return (
-            <button
+            <a
               key={item.id}
-              type="button"
-              onClick={() => onSectionChange(item.id)}
+              href={`#${item.id}`}
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+                  e.preventDefault()
+                  onSectionChange(item.id)
+                }
+              }}
               className={cn(
-                "relative flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors",
+                "relative flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors cursor-pointer",
                 isActive
                   ? "font-semibold text-primary-foreground shadow-xs"
                   : "border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -156,7 +161,7 @@ export function SettingsNav({
                   </span>
                 )}
               </span>
-            </button>
+            </a>
           )
         })}
       </div>
@@ -174,12 +179,17 @@ export function SettingsNav({
           const Icon = item.icon
           const isActive = activeSection === item.id
           return (
-            <button
+            <a
               key={item.id}
-              type="button"
-              onClick={() => onSectionChange(item.id)}
+              href={`#${item.id}`}
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+                  e.preventDefault()
+                  onSectionChange(item.id)
+                }
+              }}
               className={cn(
-                "relative flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors",
+                "relative flex w-full items-center justify-between rounded-md px-3 py-2.5 text-left text-xs font-medium transition-colors cursor-pointer",
                 isActive
                   ? "font-semibold text-primary-foreground shadow-xs"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -221,7 +231,7 @@ export function SettingsNav({
                   {item.badge}
                 </span>
               )}
-            </button>
+            </a>
           )
         })}
       </nav>

@@ -21,11 +21,70 @@ import { siteConfig } from "@/config/site"
 import { usePlatformData } from "@/context/platform-data-context"
 import { S3BucketConfig } from "@/types/platform"
 
+const VALID_SECTIONS: SettingsSection[] = [
+  "overview",
+  "users",
+  "registries",
+  "storage",
+  "git",
+  "backups",
+  "domain",
+  "notifications",
+  "network",
+]
+
+function getSectionFromLocation(): SettingsSection | null {
+  if (typeof window === "undefined") return null
+  const hash = window.location.hash.replace(/^#/, "").toLowerCase()
+  if (VALID_SECTIONS.includes(hash as SettingsSection)) {
+    return hash as SettingsSection
+  }
+  const params = new URLSearchParams(window.location.search)
+  const tab = params.get("tab")?.toLowerCase()
+  if (tab && VALID_SECTIONS.includes(tab as SettingsSection)) {
+    return tab as SettingsSection
+  }
+  return null
+}
+
 export function SettingsView() {
   const { settings, updateSettings, invites, registries } = usePlatformData()
 
-  const [activeSection, setActiveSection] =
-    React.useState<SettingsSection>("overview")
+  const [activeSection, setActiveSection] = React.useState<SettingsSection>(
+    () => getSectionFromLocation() || "overview"
+  )
+
+  // Sync with browser URL hash & history navigation
+  React.useEffect(() => {
+    const handleLocationChange = () => {
+      const fromUrl = getSectionFromLocation()
+      if (fromUrl) {
+        setActiveSection(fromUrl)
+      }
+    }
+
+    handleLocationChange()
+
+    window.addEventListener("hashchange", handleLocationChange)
+    window.addEventListener("popstate", handleLocationChange)
+    return () => {
+      window.removeEventListener("hashchange", handleLocationChange)
+      window.removeEventListener("popstate", handleLocationChange)
+    }
+  }, [])
+
+  const handleSectionChange = React.useCallback(
+    (section: SettingsSection) => {
+      setActiveSection(section)
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href)
+        url.hash = section === "overview" ? "" : section
+        url.searchParams.delete("tab")
+        window.history.pushState(null, "", url.toString())
+      }
+    },
+    []
+  )
 
   React.useEffect(() => {
     const sectionTitles: Record<SettingsSection, string> = {
@@ -103,7 +162,7 @@ export function SettingsView() {
         <aside className="space-y-4 lg:sticky lg:top-6 lg:col-span-4 xl:col-span-3">
           <SettingsNav
             activeSection={activeSection}
-            onSectionChange={setActiveSection}
+            onSectionChange={handleSectionChange}
             pendingInvitesCount={invites.length}
             bucketsCount={s3Buckets.length}
             registriesCount={registries.length}
@@ -119,7 +178,7 @@ export function SettingsView() {
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
             {activeSection === "overview" && (
-              <OverviewPanel onNavigateToTab={setActiveSection} />
+              <OverviewPanel onNavigateToTab={handleSectionChange} />
             )}
 
             {activeSection === "users" && <UsersPanel />}
