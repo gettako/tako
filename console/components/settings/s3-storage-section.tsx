@@ -3,18 +3,13 @@
 import * as React from "react"
 import {
   AlertTriangle,
-  Archive,
   Check,
   CheckCircle2,
   Copy,
-  Database,
   HardDrive,
-  Layers,
   Loader2,
   Pencil,
   Plus,
-  Radio,
-  Server,
   ShieldCheck,
   Trash2,
 } from "lucide-react"
@@ -30,7 +25,7 @@ import {
 } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/ui/empty-state"
 import { SettingsSectionHeader } from "@/components/settings/settings-section-header"
-import { S3BucketConfig, S3BucketPurpose } from "@/types/platform"
+import { S3BucketConfig } from "@/types/platform"
 import { copyToClipboard } from "@/lib/clipboard"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
@@ -39,17 +34,6 @@ import { S3BucketModal } from "./s3-bucket-modal"
 interface S3StorageSectionProps {
   buckets: S3BucketConfig[]
   onBucketsChange: (buckets: S3BucketConfig[]) => void
-}
-
-const PURPOSE_LABELS: Record<
-  S3BucketPurpose,
-  { label: string; icon: React.ComponentType<{ className?: string }> }
-> = {
-  artifacts: { label: "Build Artifacts", icon: Layers },
-  telemetry: { label: "Telemetry & Logs", icon: Radio },
-  cache: { label: "Layer Cache", icon: Server },
-  backups: { label: "Cluster Backups", icon: Archive },
-  general: { label: "General Storage", icon: Database },
 }
 
 export function S3StorageSection({
@@ -77,6 +61,10 @@ export function S3StorageSection({
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
 
   const defaultBucket = buckets.find((b) => b.isDefault) || buckets[0]
+  const isAnyTesting = Object.values(testingStatus).some((s) => s === "testing")
+  const unreachableCount = buckets.filter(
+    (b) => b.status === "error" || testingStatus[b.id] === "error"
+  ).length
 
   const handleOpenAdd = () => {
     setEditingBucket(null)
@@ -205,7 +193,7 @@ export function S3StorageSection({
         />
 
         {/* Quick telemetry summary bar */}
-        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4 sm:grid-cols-4">
+        <div className="mt-5 grid grid-cols-1 gap-3 border-t border-border pt-4 sm:grid-cols-3">
           <div className="rounded-md border border-border/60 bg-muted/20 p-3">
             <div className="text-[11px] font-medium text-muted-foreground">
               Configured Buckets
@@ -231,21 +219,27 @@ export function S3StorageSection({
             <div className="text-[11px] font-medium text-muted-foreground">
               Global Health
             </div>
-            <div className="mt-1 flex items-center gap-1.5 font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              <span>All Reachable (200)</span>
-            </div>
-          </div>
-
-          <div className="rounded-md border border-border/60 bg-muted/20 p-3">
-            <div className="text-[11px] font-medium text-muted-foreground">
-              Max Retention
-            </div>
-            <div className="mt-1 font-mono text-xs font-semibold text-foreground">
-              {buckets.length > 0
-                ? `${Math.max(...buckets.map((b) => b.retentionDays))} Days`
-                : "None"}
-            </div>
+            {buckets.length === 0 ? (
+              <div className="mt-1 flex items-center gap-1.5 font-mono text-xs font-semibold text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                <span>Unconfigured</span>
+              </div>
+            ) : unreachableCount > 0 ? (
+              <div className="mt-1 flex items-center gap-1.5 font-mono text-xs font-semibold text-destructive">
+                <span className="size-1.5 animate-pulse rounded-full bg-destructive" />
+                <span>{unreachableCount} Unreachable</span>
+              </div>
+            ) : isAnyTesting ? (
+              <div className="mt-1 flex items-center gap-1.5 font-mono text-xs font-semibold text-amber-600 dark:text-amber-400">
+                <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
+                <span>Checking...</span>
+              </div>
+            ) : (
+              <div className="mt-1 flex items-center gap-1.5 font-mono text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                <span>All Reachable ({buckets.length})</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -255,7 +249,7 @@ export function S3StorageSection({
         <EmptyState
           icon={HardDrive}
           title="No S3 Storage Buckets Configured"
-          description="Edge worker daemons require at least one S3-compatible bucket to store compose layers, build artifacts, and telemetry logs."
+          description="Configure an S3-compatible bucket to securely store and sync cluster snapshots and automated backups."
           actionLabel="Add First S3 Bucket"
           onAction={handleOpenAdd}
         />
@@ -266,16 +260,12 @@ export function S3StorageSection({
               Storage Buckets ({buckets.length})
             </span>
             <span className="text-[11px] text-muted-foreground">
-              Worker daemons will distribute layers based on role
+              Cluster snapshots are uploaded to the default storage target
             </span>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             {buckets.map((b) => {
-              const purposeInfo =
-                PURPOSE_LABELS[b.purpose || "artifacts"] ||
-                PURPOSE_LABELS.artifacts
-              const PurposeIcon = purposeInfo.icon
               const currentTest = testingStatus[b.id]
 
               return (
@@ -315,11 +305,6 @@ export function S3StorageSection({
                                 <span>Default Target</span>
                               </span>
                             )}
-
-                            <span className="inline-flex items-center gap-1 rounded-sm border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                              <PurposeIcon className="size-3" />
-                              <span>{purposeInfo.label}</span>
-                            </span>
                           </div>
 
                           <div className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
@@ -390,6 +375,15 @@ export function S3StorageSection({
 
                       <div className="rounded border border-border/40 bg-muted/20 p-2">
                         <span className="block font-sans text-[10px] text-muted-foreground">
+                          Target Bucket
+                        </span>
+                        <div className="mt-0.5 truncate text-foreground">
+                          {b.bucket}
+                        </div>
+                      </div>
+
+                      <div className="rounded border border-border/40 bg-muted/20 p-2">
+                        <span className="block font-sans text-[10px] text-muted-foreground">
                           Access Key
                         </span>
                         <div className="mt-0.5 truncate text-foreground">
@@ -411,15 +405,6 @@ export function S3StorageSection({
                           ) : (
                             <span>Virtual-Hosted</span>
                           )}
-                        </div>
-                      </div>
-
-                      <div className="rounded border border-border/40 bg-muted/20 p-2">
-                        <span className="block font-sans text-[10px] text-muted-foreground">
-                          Artifact Retention
-                        </span>
-                        <div className="mt-0.5 text-foreground">
-                          {b.retentionDays} Days
                         </div>
                       </div>
                     </div>

@@ -328,9 +328,9 @@ export interface S3BucketConfig {
   accessKey: string
   secretKey: string
   forcePathStyle: boolean
-  retentionDays: number
   isDefault: boolean
-  purpose: S3BucketPurpose
+  retentionDays?: number
+  purpose?: S3BucketPurpose
   status?: "connected" | "error" | "untested"
   lastTested?: string
 }

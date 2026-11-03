@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -566,9 +567,10 @@ func handleTestS3(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			return
 		}
 
-		client := &http.Client{Timeout: 4 * time.Second}
+		client := &http.Client{Timeout: 6 * time.Second}
+		isR2 := strings.Contains(parsedURL.Host, "r2.cloudflarestorage.com")
 		testURL := endpoint
-		if req.ForcePathStyle {
+		if req.ForcePathStyle || isR2 {
 			testURL = fmt.Sprintf("%s/%s", endpoint, url.PathEscape(req.Bucket))
 		} else {
 			testURL = fmt.Sprintf("%s://%s.%s", parsedURL.Scheme, req.Bucket, parsedURL.Host)
@@ -579,22 +581,60 @@ func handleTestS3(orch *orchestrator.Orchestrator) http.HandlerFunc {
 			testReq, _ = http.NewRequestWithContext(r.Context(), http.MethodGet, endpoint, nil)
 		}
 
-		resp, err := client.Do(testReq)
-		if err != nil {
-			// Try fallback GET directly to endpoint root
-			rootReq, rootErr := http.NewRequestWithContext(r.Context(), http.MethodGet, endpoint, nil)
-			if rootErr == nil {
-				rootResp, rErr := client.Do(rootReq)
-				if rErr == nil {
-					_ = rootResp.Body.Close()
-					w.Header().Set("Content-Type", "application/json")
-					_ = json.NewEncoder(w).Encode(TestS3Response{
-						OK:      true,
-						Message: fmt.Sprintf("Connected to S3 host %s. Bucket '%s' verified.", parsedURL.Host, req.Bucket),
-					})
-					return
+		secretKey := req.SecretKey
+		if secretKey == "••••••••" || secretKey == "" {
+			if row, err := orch.Queries().GetSetting(r.Context(), "s3_buckets"); err == nil && row.Value != "" {
+				var storedBuckets []S3BucketConfig
+				if err := json.Unmarshal([]byte(row.Value), &storedBuckets); err == nil {
+					for _, sb := range storedBuckets {
+						if sb.Bucket == req.Bucket && (req.Endpoint == "" || sb.Endpoint == req.Endpoint || sb.AccessKeyID == req.AccessKey) {
+							secretKey = sb.SecretAccessKey
+							if req.AccessKey == "" {
+								req.AccessKey = sb.AccessKeyID
+							}
+							break
+						}
+					}
 				}
 			}
+		}
+
+		if req.AccessKey != "" && secretKey != "" && secretKey != "••••••••" {
+			region := req.Region
+			if region == "" || region == "auto" {
+				region = "us-east-1"
+			}
+			now := time.Now().UTC()
+			amzDate := now.Format("20060102T150405Z")
+			dateStamp := now.Format("20060102")
+			contentHash := sha256Hex(nil)
+
+			testReq.Header.Set("Host", testReq.URL.Host)
+			testReq.Header.Set("x-amz-date", amzDate)
+			testReq.Header.Set("x-amz-content-sha256", contentHash)
+
+			canonicalURI := testReq.URL.EscapedPath()
+			if canonicalURI == "" {
+				canonicalURI = "/"
+			}
+			canonicalHeaders := fmt.Sprintf("host:%s\nx-amz-content-sha256:%s\nx-amz-date:%s\n", testReq.URL.Host, contentHash, amzDate)
+			signedHeaders := "host;x-amz-content-sha256;x-amz-date"
+			canonicalRequest := fmt.Sprintf("%s\n%s\n\n%s\n%s\n%s", testReq.Method, canonicalURI, canonicalHeaders, signedHeaders, contentHash)
+			credentialScope := fmt.Sprintf("%s/%s/s3/aws4_request", dateStamp, region)
+			stringToSign := fmt.Sprintf("AWS4-HMAC-SHA256\n%s\n%s\n%s", amzDate, credentialScope, sha256Hex([]byte(canonicalRequest)))
+
+			kDate := hmacSHA256Bytes([]byte("AWS4"+secretKey), dateStamp)
+			kRegion := hmacSHA256Bytes(kDate, region)
+			kService := hmacSHA256Bytes(kRegion, "s3")
+			kSigning := hmacSHA256Bytes(kService, "aws4_request")
+			signature := hex.EncodeToString(hmacSHA256Bytes(kSigning, stringToSign))
+
+			authHeader := fmt.Sprintf("AWS4-HMAC-SHA256 Credential=%s/%s, SignedHeaders=%s, Signature=%s", req.AccessKey, credentialScope, signedHeaders, signature)
+			testReq.Header.Set("Authorization", authHeader)
+		}
+
+		resp, err := client.Do(testReq)
+		if err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(TestS3Response{
 				OK:    false,
@@ -605,9 +645,27 @@ func handleTestS3(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		defer resp.Body.Close()
 
 		w.Header().Set("Content-Type", "application/json")
+		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+			_ = json.NewEncoder(w).Encode(TestS3Response{
+				OK:      true,
+				Message: fmt.Sprintf("Bucket '%s' on %s reached and credentials verified (HTTP %d).", req.Bucket, parsedURL.Host, resp.StatusCode),
+			})
+			return
+		}
+
+		errMsg := fmt.Sprintf("S3 endpoint returned error HTTP %d for bucket '%s'.", resp.StatusCode, req.Bucket)
+		switch resp.StatusCode {
+		case http.StatusForbidden:
+			errMsg = fmt.Sprintf("Access denied (HTTP 403): Invalid credentials or insufficient permissions for bucket '%s'.", req.Bucket)
+		case http.StatusUnauthorized:
+			errMsg = fmt.Sprintf("Unauthorized (HTTP 401): Check Access Key ID and Secret Access Key.")
+		case http.StatusNotFound:
+			errMsg = fmt.Sprintf("Bucket '%s' not found on %s (HTTP 404).", req.Bucket, parsedURL.Host)
+		}
+
 		_ = json.NewEncoder(w).Encode(TestS3Response{
-			OK:      true,
-			Message: fmt.Sprintf("Bucket '%s' on %s successfully reached (HTTP %d). Credentials verified.", req.Bucket, parsedURL.Host, resp.StatusCode),
+			OK:    false,
+			Error: errMsg,
 		})
 	}
 }

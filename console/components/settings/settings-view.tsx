@@ -104,6 +104,12 @@ export function SettingsView() {
       : []
   )
 
+  React.useEffect(() => {
+    if (settings.s3Buckets) {
+      setS3Buckets(settings.s3Buckets)
+    }
+  }, [settings.s3Buckets])
+
   const handleBucketsChange = React.useCallback(
     (newBuckets: S3BucketConfig[]) => {
       setS3Buckets(newBuckets)

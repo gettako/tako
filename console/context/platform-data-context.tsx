@@ -407,9 +407,12 @@ function mapSettings(
 
   const domain = (raw.domain_settings || {}) as Record<string, unknown>
   const schedule = (raw.backup_schedule || {}) as Record<string, unknown>
-  const buckets = Array.isArray(raw.s3_buckets)
-    ? (raw.s3_buckets as Record<string, unknown>[])
-    : []
+  const buckets =
+    Array.isArray(raw.s3_buckets) && raw.s3_buckets.length > 0
+      ? (raw.s3_buckets as Record<string, unknown>[])
+      : Array.isArray((stored as Record<string, unknown>).s3Buckets)
+      ? ((stored as Record<string, unknown>).s3Buckets as Record<string, unknown>[])
+      : []
 
   const settings: PlatformSettings = {
     ...DEFAULT_SETTINGS,
@@ -427,9 +430,7 @@ function mapSettings(
       accessKey: String(bucket.accessKeyId || bucket.accessKey || ""),
       secretKey: String(bucket.secretAccessKey || bucket.secretKey || ""),
       forcePathStyle: Boolean(bucket.forcePathStyle),
-      retentionDays: Number(bucket.retentionDays || 30),
       isDefault: Boolean(bucket.isDefault),
-      purpose: (bucket.purpose as S3BucketPurpose) || "general",
       status: "connected",
     })),
     backupSchedule: {
@@ -1401,8 +1402,6 @@ export function PlatformDataProvider({
             secretAccessKey: bucket.secretKey,
             isDefault: bucket.isDefault,
             forcePathStyle: bucket.forcePathStyle,
-            retentionDays: bucket.retentionDays,
-            purpose: bucket.purpose,
           }))
         )
         keys.push("s3_buckets")

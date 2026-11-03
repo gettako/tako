@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"gettako.dev/tako/internal/events"
@@ -256,6 +257,34 @@ func TestSettingsS3AndNotificationTestEndpoints(t *testing.T) {
 		_ = json.NewDecoder(w.Body).Decode(&resp)
 		if !resp.OK {
 			t.Errorf("expected ok=true for reachable mock S3, got error: %s", resp.Error)
+		}
+	})
+
+	t.Run("S3_Test_Failure_On_403_Forbidden", func(t *testing.T) {
+		mockS3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer mockS3.Close()
+
+		payload, _ := json.Marshal(TestS3Request{
+			Endpoint:       mockS3.URL,
+			Bucket:         "test-forbidden-backups",
+			AccessKey:      "AKIA_INVALID",
+			SecretKey:      "INVALID_SECRET",
+			ForcePathStyle: true,
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/settings/s3/test", bytes.NewReader(payload))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		var resp TestS3Response
+		_ = json.NewDecoder(w.Body).Decode(&resp)
+		if resp.OK {
+			t.Errorf("expected ok=false for 403 Forbidden mock S3, got ok=true")
+		}
+		if !strings.Contains(resp.Error, "403") {
+			t.Errorf("expected 403 in error message, got: %s", resp.Error)
 		}
 	})
 

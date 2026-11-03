@@ -29,14 +29,10 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import {
-  SearchableSelect,
-  SelectOption,
-} from "@/components/ui/searchable-select"
 import { usePlatformData } from "@/context/platform-data-context"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { isHttpUrl } from "@/lib/validation"
-import { S3BucketConfig, S3BucketPurpose } from "@/types/platform"
+import { S3BucketConfig } from "@/types/platform"
 import { cn } from "@/lib/utils"
 
 const s3BucketSchema = z
@@ -46,7 +42,6 @@ const s3BucketSchema = z
       .trim()
       .min(2, "Bucket display label must be at least 2 characters.")
       .max(80, "Bucket display label must be 80 characters or fewer."),
-    purpose: z.enum(["artifacts", "telemetry", "cache", "backups", "general"]),
     endpoint: z
       .string()
       .trim()
@@ -62,14 +57,6 @@ const s3BucketSchema = z
         /^[a-z0-9][a-z0-9.-]*[a-z0-9]$/,
         "Use lowercase letters, numbers, dots, and hyphens only."
       ),
-    retentionDays: z
-      .string()
-      .trim()
-      .regex(/^\d+$/, "Retention must be a number.")
-      .refine((value) => {
-        const days = Number(value)
-        return days >= 1 && days <= 3650
-      }, "Retention must be between 1 and 3650 days."),
     accessKey: z.string().trim().max(128, "Access key is too long."),
     secretKey: z.string().max(256, "Secret key is too long."),
   })
@@ -110,7 +97,7 @@ const PROVIDER_PRESETS = [
     name: "Cloudflare R2",
     endpoint: "https://<account-id>.r2.cloudflarestorage.com",
     region: "auto",
-    forcePathStyle: false,
+    forcePathStyle: true,
     placeholderBucket: "tako-telemetry-cold",
   },
   {
@@ -129,40 +116,6 @@ const PROVIDER_PRESETS = [
   },
 ]
 
-const PURPOSES: { id: S3BucketPurpose; label: string; desc: string }[] = [
-  {
-    id: "artifacts",
-    label: "Build Artifacts",
-    desc: "Application tarballs and docker context layers",
-  },
-  {
-    id: "telemetry",
-    label: "Telemetry & Logs",
-    desc: "Long term agent metrics and trace archives",
-  },
-  {
-    id: "cache",
-    label: "Layer Cache",
-    desc: "Compile dependencies and container layer cache",
-  },
-  {
-    id: "backups",
-    label: "Cluster Backups",
-    desc: "State snapshots and database backups",
-  },
-  {
-    id: "general",
-    label: "General Storage",
-    desc: "Shared multi-purpose edge object storage",
-  },
-]
-
-const PURPOSE_OPTIONS: SelectOption[] = PURPOSES.map((p) => ({
-  value: p.id,
-  label: p.label,
-  description: p.desc,
-}))
-
 interface S3BucketFormContentProps {
   bucket: S3BucketConfig | null
   onSave: (bucket: S3BucketConfig) => void
@@ -179,9 +132,6 @@ function S3BucketFormContent({
   const isEditing = !!bucket
 
   const [name, setName] = React.useState(bucket?.name || "")
-  const [purpose, setPurpose] = React.useState<S3BucketPurpose>(
-    bucket?.purpose || "artifacts"
-  )
   const [endpoint, setEndpoint] = React.useState(
     bucket?.endpoint || "https://s3.ap-southeast-1.amazonaws.com"
   )
@@ -190,9 +140,6 @@ function S3BucketFormContent({
   const [accessKey, setAccessKey] = React.useState(bucket?.accessKey || "")
   const [secretKey, setSecretKey] = React.useState(bucket?.secretKey || "")
   const [showSecretKey, setShowSecretKey] = React.useState(false)
-  const [retentionDays, setRetentionDays] = React.useState(
-    bucket ? bucket.retentionDays.toString() : "30"
-  )
   const [forcePathStyle, setForcePathStyle] = React.useState(
     bucket?.forcePathStyle ?? false
   )
@@ -271,29 +218,23 @@ function S3BucketFormContent({
     e.preventDefault()
     const valid = validate({
       name,
-      purpose,
       endpoint,
       region,
       bucketName,
-      retentionDays,
       accessKey,
       secretKey,
     })
     if (!valid) return
 
-    const retention = Number.parseInt(retentionDays, 10)
-
     const updatedBucket: S3BucketConfig = {
       id: bucket?.id || `s3-bkt-${Math.random().toString(36).substring(2, 9)}`,
       name: name.trim(),
-      purpose,
       endpoint: endpoint.trim(),
       bucket: bucketName.trim(),
       region: region.trim() || "auto",
       accessKey: accessKey.trim(),
       secretKey: secretKey.trim(),
       forcePathStyle,
-      retentionDays: retention,
       isDefault: isDefault || existingCount === 0,
       status:
         testStatus === "success" ? "connected" : bucket?.status || "connected",
@@ -351,12 +292,9 @@ function S3BucketFormContent({
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <FieldGroup className="gap-3.5">
-          {/* Display Name and Purpose */}
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-            <Field
-              data-invalid={Boolean(errors.name)}
-              className="sm:col-span-2"
-            >
+          {/* Display Name and Target Bucket */}
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+            <Field data-invalid={Boolean(errors.name)}>
               <FieldLabel htmlFor="s3-modal-name" className="text-xs">
                 Bucket Display Label
               </FieldLabel>
@@ -367,7 +305,7 @@ function S3BucketFormContent({
                   setName(e.target.value)
                   clearError("name")
                 }}
-                placeholder="e.g. Primary Build Artifacts"
+                placeholder="e.g. Primary Cloudflare R2"
                 aria-invalid={Boolean(errors.name)}
                 aria-describedby={
                   errors.name ? "s3-modal-name-error" : undefined
@@ -380,23 +318,27 @@ function S3BucketFormContent({
               </FieldError>
             </Field>
 
-            <Field data-invalid={Boolean(errors.purpose)}>
-              <FieldLabel htmlFor="s3-modal-purpose" className="text-xs">
-                Storage Purpose
+            <Field data-invalid={Boolean(errors.bucketName)}>
+              <FieldLabel htmlFor="s3-modal-bucket" className="text-xs">
+                Target Bucket Name
               </FieldLabel>
-              <SearchableSelect
-                id="s3-modal-purpose"
-                value={purpose}
-                onChange={(val) => {
-                  setPurpose(val as S3BucketPurpose)
-                  clearError("purpose")
+              <Input
+                id="s3-modal-bucket"
+                value={bucketName}
+                onChange={(e) => {
+                  setBucketName(e.target.value)
+                  clearError("bucketName")
                 }}
-                options={PURPOSE_OPTIONS}
-                placeholder="Select storage purpose..."
-                searchPlaceholder="Search purpose..."
+                placeholder="tako-backups-prod"
+                aria-invalid={Boolean(errors.bucketName)}
+                aria-describedby={
+                  errors.bucketName ? "s3-modal-bucket-error" : undefined
+                }
+                className="font-mono text-xs"
+                required
               />
-              <FieldError id="s3-modal-purpose-error" className="text-[11px]">
-                {errors.purpose}
+              <FieldError id="s3-modal-bucket-error" className="text-[11px]">
+                {errors.bucketName}
               </FieldError>
             </Field>
           </div>
@@ -441,7 +383,7 @@ function S3BucketFormContent({
                   setRegion(e.target.value)
                   clearError("region")
                 }}
-                placeholder="ap-southeast-1 or auto"
+                placeholder="auto or ap-southeast-1"
                 aria-invalid={Boolean(errors.region)}
                 aria-describedby={
                   errors.region ? "s3-modal-region-error" : undefined
@@ -450,62 +392,6 @@ function S3BucketFormContent({
               />
               <FieldError id="s3-modal-region-error" className="text-[11px]">
                 {errors.region}
-              </FieldError>
-            </Field>
-          </div>
-
-          {/* Bucket Name and Retention */}
-          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-            <Field
-              data-invalid={Boolean(errors.bucketName)}
-              className="sm:col-span-2"
-            >
-              <FieldLabel htmlFor="s3-modal-bucket" className="text-xs">
-                Bucket Name
-              </FieldLabel>
-              <Input
-                id="s3-modal-bucket"
-                value={bucketName}
-                onChange={(e) => {
-                  setBucketName(e.target.value)
-                  clearError("bucketName")
-                }}
-                placeholder="tako-artifacts-prod"
-                aria-invalid={Boolean(errors.bucketName)}
-                aria-describedby={
-                  errors.bucketName ? "s3-modal-bucket-error" : undefined
-                }
-                className="font-mono text-xs"
-                required
-              />
-              <FieldError id="s3-modal-bucket-error" className="text-[11px]">
-                {errors.bucketName}
-              </FieldError>
-            </Field>
-
-            <Field data-invalid={Boolean(errors.retentionDays)}>
-              <FieldLabel htmlFor="s3-modal-retention" className="text-xs">
-                Retention (Days)
-              </FieldLabel>
-              <Input
-                id="s3-modal-retention"
-                type="number"
-                min="1"
-                max="3650"
-                value={retentionDays}
-                onChange={(e) => {
-                  setRetentionDays(e.target.value)
-                  clearError("retentionDays")
-                }}
-                aria-invalid={Boolean(errors.retentionDays)}
-                aria-describedby={
-                  errors.retentionDays ? "s3-modal-retention-error" : undefined
-                }
-                className="font-mono text-xs"
-                required
-              />
-              <FieldError id="s3-modal-retention-error" className="text-[11px]">
-                {errors.retentionDays}
               </FieldError>
             </Field>
           </div>
@@ -613,8 +499,7 @@ function S3BucketFormContent({
                   Set as Default Ingress Storage Target
                 </label>
                 <p className="text-[11px] text-muted-foreground">
-                  Edge worker daemons will use this bucket as primary for build
-                  cache and artifacts.
+                  Primary target for cluster snapshots and automated backups.
                 </p>
               </div>
               <input
@@ -715,7 +600,7 @@ export function S3BucketModal({
 }: S3BucketModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-3rem)] sm:max-w-xl">
+      <DialogContent className="max-h-[calc(100dvh-3rem)] sm:max-w-2xl">
         {open && (
           <S3BucketFormContent
             key={bucket?.id || "new-bucket"}
