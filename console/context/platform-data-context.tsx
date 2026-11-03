@@ -1961,6 +1961,10 @@ export function PlatformDataProvider({
             htmlUrl: String(r.htmlUrl || ""),
             updatedAt: String(r.updatedAt || "Just now"),
             autoDeploy: Boolean(r.autoDeploy ?? true),
+            installationId:
+              typeof r.installationId === "number" ? r.installationId : undefined,
+            account: r.account ? String(r.account) : undefined,
+            accountType: r.accountType ? String(r.accountType) : undefined,
           }))
         )
       }

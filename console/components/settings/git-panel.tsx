@@ -472,11 +472,23 @@ export function GitPanel() {
                       variant="outline"
                       size="xs"
                       onClick={() => {
+                        const linkedRepo = syncedRepos.find((r) =>
+                          r.fullName
+                            .toLowerCase()
+                            .startsWith(prov.username.toLowerCase() + "/")
+                        )
+                        const installId =
+                          prov.installationId || linkedRepo?.installationId
+                        const accType =
+                          prov.accountType ||
+                          linkedRepo?.accountType ||
+                          "Organization"
+
                         const configUrl =
-                          prov.installationId && prov.installationId > 0
-                            ? prov.accountType?.toLowerCase() === "organization"
-                              ? `https://github.com/organizations/${prov.username}/settings/installations/${prov.installationId}`
-                              : `https://github.com/settings/installations/${prov.installationId}`
+                          installId && installId > 0
+                            ? accType.toLowerCase() === "organization"
+                              ? `https://github.com/organizations/${prov.username}/settings/installations/${installId}`
+                              : `https://github.com/settings/installations/${installId}`
                             : prov.installUrl ||
                               `https://github.com/apps/${prov.appSlug || "tako"}/installations/new`
                         window.open(configUrl, "_blank")

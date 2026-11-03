@@ -398,6 +398,9 @@ export interface SyncedGitRepo {
   htmlUrl: string
   updatedAt: string
   autoDeploy: boolean
+  installationId?: number
+  account?: string
+  accountType?: string
 }
 
 export interface BackupScheduleConfig {
