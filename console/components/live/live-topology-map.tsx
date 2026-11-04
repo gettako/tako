@@ -202,6 +202,50 @@ export function LiveTopologyMap({
     }
   }, [])
 
+  // Top Traffic Origin Distribution (Live)
+  const topOrigins = React.useMemo(() => {
+    const validEvents = (trafficEvents || []).filter(
+      (ev) => ev.clientIp && !isInternalTraffic(ev.clientIp, ev.path)
+    )
+
+    const counts: Record<
+      string,
+      { code: string; country: string; flag: string; count: number }
+    > = {}
+    let total = 0
+
+    for (const ev of validEvents) {
+      const meta = getClientOriginMeta(ev.clientIp)
+      if (!counts[meta.code]) {
+        counts[meta.code] = {
+          code: meta.code,
+          country: meta.country,
+          flag: meta.flag,
+          count: 0,
+        }
+      }
+      counts[meta.code].count += 1
+      total += 1
+    }
+
+    if (total === 0) {
+      return [
+        { code: "NL", country: "Netherlands", flag: "/images/flags/NL.png", percentage: 40 },
+        { code: "ID", country: "Indonesia", flag: "/images/flags/ID.png", percentage: 30 },
+        { code: "DE", country: "Germany", flag: "/images/flags/DE.png", percentage: 20 },
+        { code: "SG", country: "Singapore", flag: "/images/flags/SG.png", percentage: 10 },
+      ]
+    }
+
+    return Object.values(counts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4)
+      .map((item) => ({
+        ...item,
+        percentage: Math.round((item.count / total) * 100),
+      }))
+  }, [trafficEvents])
+
   // Process live incoming HTTP traffic events
   React.useEffect(() => {
     if (
@@ -1382,6 +1426,36 @@ export function LiveTopologyMap({
           1x
         </button>
       </div>
+
+      {/* Mini Top Origins Distribution (Bottom Left) */}
+      {topOrigins.length > 0 && (
+        <div className="absolute bottom-2 left-2 z-40 hidden sm:flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 px-2.5 py-1.5 shadow-md backdrop-blur-md font-mono text-[10.5px]">
+          <div className="flex items-center gap-1 text-muted-foreground font-semibold uppercase text-[9px] tracking-wider border-r border-border/70 pr-2">
+            <span>Origins</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            {topOrigins.map((origin) => (
+              <div
+                key={origin.code}
+                className="flex items-center gap-1"
+                title={`${origin.country}: ${origin.percentage}% of traffic`}
+              >
+                <Flag
+                  src={origin.flag}
+                  alt={`${origin.country} flag`}
+                  width={13}
+                  height={9}
+                  className="h-2.5 w-3.5 shrink-0 rounded-[2px] object-cover"
+                />
+                <span className="font-medium text-foreground">{origin.code}</span>
+                <span className="text-[9.5px] text-muted-foreground">
+                  {origin.percentage}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mobile Responsive Node Detail Modal Sheet (Rendered outside transformed container) */}
       {selectedNode && selectedGeo && (

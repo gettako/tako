@@ -3,6 +3,7 @@
 import * as React from "react"
 import {
   ArrowDown,
+  Download,
   Globe,
   Pause,
   Play,
@@ -350,7 +351,10 @@ export function LiveTelemetryLog({
         SAMPLE_HTTP_PATHS[Math.floor(Math.random() * SAMPLE_HTTP_PATHS.length)]
       const clientIp =
         CLIENT_IP_POOL[Math.floor(Math.random() * CLIENT_IP_POOL.length)]
-      const durationMs = Math.round((Math.random() * 28 + 1.2) * 10) / 10
+      const isSlow = Math.random() < 0.12
+      const durationMs = isSlow
+        ? Math.round((Math.random() * 850 + 420) * 10) / 10
+        : Math.round((Math.random() * 28 + 1.2) * 10) / 10
 
       const ev: HttpTrafficEvent = {
         id: `http-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -434,6 +438,45 @@ export function LiveTelemetryLog({
       setHttpLogs([])
     } else {
       setLogs([])
+    }
+  }
+
+  const handleExportLogs = () => {
+    if (activeTab === "http") {
+      const csvHeader = "timestamp,status,method,duration_ms,path,client_ip,node_id,host\n"
+      const csvRows = filteredHttpLogs
+        .map((l) =>
+          [
+            `"${l.timestamp}"`,
+            l.statusCode,
+            `"${l.method}"`,
+            l.durationMs,
+            `"${l.path.replace(/"/g, '""')}"`,
+            `"${l.clientIp}"`,
+            `"${l.nodeId}"`,
+            `"${(l.host || "").replace(/"/g, '""')}"`,
+          ].join(",")
+        )
+        .join("\n")
+
+      const blob = new Blob([csvHeader + csvRows], { type: "text/csv;charset=utf-8;" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `tako-access-logs-${Date.now()}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } else {
+      const text = filteredSystemLogs
+        .map((l) => `[${l.timestamp}] [${l.level.toUpperCase()}] [${l.nodeName || l.nodeId}] ${l.message}`)
+        .join("\n")
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8;" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `tako-system-logs-${Date.now()}.log`
+      a.click()
+      URL.revokeObjectURL(url)
     }
   }
 
@@ -572,6 +615,18 @@ export function LiveTelemetryLog({
               aria-label="Clear log buffer"
             >
               <Trash2 className="size-3" />
+            </Button>
+
+            {/* Export Filtered Logs */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportLogs}
+              className="h-6.5 gap-1 px-1.5 text-[10.5px] text-muted-foreground hover:text-foreground sm:h-7 sm:px-2 sm:text-[11px]"
+              title={`Export filtered ${activeTab === "http" ? "HTTP access" : "system"} logs`}
+            >
+              <Download className="size-3" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
           </div>
         </div>
@@ -799,8 +854,24 @@ export function LiveTelemetryLog({
                       {entry.method}
                     </span>
 
-                    {/* Duration / Latency */}
-                    <span className="shrink-0 text-[10px] text-muted-foreground sm:text-[10.5px]">
+                    {/* Duration / Latency with Slow Request Highlighting */}
+                    <span
+                      className={cn(
+                        "shrink-0 rounded px-1 py-0.2 text-[10px] sm:text-[10.5px] transition-colors",
+                        entry.durationMs >= 1000
+                          ? "border border-red-500/40 bg-red-950/40 text-red-300 font-bold"
+                          : entry.durationMs >= 350
+                            ? "border border-amber-500/40 bg-amber-950/40 text-amber-300 font-medium"
+                            : "text-muted-foreground"
+                      )}
+                      title={
+                        entry.durationMs >= 1000
+                          ? "Critical slow request: >=1000ms"
+                          : entry.durationMs >= 350
+                            ? "Moderate latency: >=350ms"
+                            : undefined
+                      }
+                    >
                       {entry.durationMs.toFixed(1)}ms
                     </span>
 
