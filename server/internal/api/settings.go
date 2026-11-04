@@ -180,6 +180,10 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				return
 			}
 
+			if key == "domain_settings" {
+				_ = SyncConsoleTraefikConfig(r.Context(), orch)
+			}
+
 			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 				Action:     "update_setting",
 				TargetType: "settings",
@@ -208,6 +212,10 @@ func registerSettingsRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 					Key:   k,
 					Value: string(valBytes),
 				})
+			}
+
+			if _, hasDomainSettings := batch["domain_settings"]; hasDomainSettings {
+				_ = SyncConsoleTraefikConfig(r.Context(), orch)
 			}
 
 			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{

@@ -1,42 +1,9 @@
 # Dynamic routing configuration for Tako Console Dashboard
 # Physical host location: /etc/tako/traefik/tako.yml
+# When no custom domain is configured in Settings -> Domain,
+# console is only accessible directly via port 3000.
+# Unassigned domains requesting port 80/443 will receive HTTP 404 Not Found.
 http:
-  routers:
-    # Terminal WebSocket PTY stream direct to backend
-    tako-terminal-secure:
-      rule: "PathPrefix(`/api/v1/services/`) && PathRegexp(`/api/v1/services/[^/]+/terminal`)"
-      entryPoints:
-        - websecure
-      priority: 10
-      tls:
-        certResolver: letsencrypt
-      service: tako-server
-
-    tako-terminal:
-      rule: "PathPrefix(`/api/v1/services/`) && PathRegexp(`/api/v1/services/[^/]+/terminal`)"
-      entryPoints:
-        - web
-      priority: 10
-      service: tako-server
-
-    # HTTPS: Console served on websecure
-    tako-console-secure:
-      rule: "PathPrefix(`/`)"
-      entryPoints:
-        - websecure
-      priority: 1
-      tls:
-        certResolver: letsencrypt
-      service: tako-console
-
-    # HTTP: Console served on web
-    tako-console:
-      rule: "PathPrefix(`/`)"
-      entryPoints:
-        - web
-      priority: 1
-      service: tako-console
-
   services:
     tako-server:
       loadBalancer:
@@ -46,3 +13,4 @@ http:
       loadBalancer:
         servers:
           - url: "http://tako-console:3000"
+

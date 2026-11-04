@@ -60,6 +60,11 @@ func main() {
 		log.Printf("[tako-server] warning: failed to ensure master node: %v", err)
 	}
 
+	// Synchronize Traefik dynamic routing configuration for Tako console on boot
+	if err := api.SyncConsoleTraefikConfig(context.Background(), orch); err != nil {
+		log.Printf("[tako-server] warning: failed to sync console traefik config: %v", err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

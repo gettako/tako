@@ -94,14 +94,50 @@ func getAssignedConsoleDomain(ctx context.Context, orch *orchestrator.Orchestrat
 }
 
 // generateConsoleTraefikYaml generates dynamic Traefik routing configuration for Tako Console.
+// When domain is empty, it returns baseline service definitions with no routers, meaning
+// Traefik will return 404 Not Found for any HTTP/HTTPS host, and console is only accessible
+// directly via port 3000.
 func generateConsoleTraefikYaml(domain string) string {
 	d := strings.TrimSpace(domain)
 	if d == "" {
-		return ""
+		return `# Dynamic configuration for Tako Console reverse proxy
+# Physical host location: /etc/tako/traefik/tako.yml
+# No custom domain assigned. Console is only accessible via direct port 3000.
+# HTTP/HTTPS requests on ports 80/443 for unassigned domains will return 404 Not Found.
+http:
+  services:
+    tako-server:
+      loadBalancer:
+        servers:
+          - url: "http://tako-server:8080"
+    tako-console:
+      loadBalancer:
+        servers:
+          - url: "http://tako-console:3000"
+`
 	}
 	return fmt.Sprintf(`# Dynamic configuration for Tako Console reverse proxy
+# Host-routed for domain: %s
 http:
   routers:
+    # Terminal WebSocket PTY stream direct to backend
+    tako-terminal-secure:
+      rule: "Host(%s) && PathPrefix(`+"`"+`/api/v1/services/`+"`"+`) && PathRegexp(`+"`"+`/api/v1/services/[^/]+/terminal`+"`"+`)"
+      entryPoints:
+        - websecure
+      priority: 110
+      tls:
+        certResolver: letsencrypt
+      service: tako-server
+
+    tako-terminal:
+      rule: "Host(%s) && PathPrefix(`+"`"+`/api/v1/services/`+"`"+`) && PathRegexp(`+"`"+`/api/v1/services/[^/]+/terminal`+"`"+`)"
+      entryPoints:
+        - web
+      priority: 110
+      service: tako-server
+
+    # HTTPS: Console served on websecure
     tako-console-secure:
       rule: "Host(%s)"
       entryPoints:
@@ -109,8 +145,9 @@ http:
       priority: 100
       tls:
         certResolver: letsencrypt
-      service: tako-console-svc
+      service: tako-console
 
+    # HTTP to HTTPS redirect
     tako-console-redirect:
       rule: "Host(%s)"
       entryPoints:
@@ -118,7 +155,7 @@ http:
       priority: 100
       middlewares:
         - tako-redirect-ssl
-      service: tako-console-svc
+      service: tako-console
 
   middlewares:
     tako-redirect-ssl:
@@ -127,11 +164,34 @@ http:
         permanent: true
 
   services:
-    tako-console-svc:
+    tako-server:
+      loadBalancer:
+        servers:
+          - url: "http://tako-server:8080"
+    tako-console:
       loadBalancer:
         servers:
           - url: "http://tako-console:3000"
-`, "`"+d+"`", "`"+d+"`")
+`, d, "`"+d+"`", "`"+d+"`", "`"+d+"`", "`"+d+"`")
+}
+
+// SyncConsoleTraefikConfig synchronizes /etc/tako/traefik/tako.yml on disk
+// according to the current domain_settings in the database.
+func SyncConsoleTraefikConfig(ctx context.Context, orch *orchestrator.Orchestrator) error {
+	domain := getAssignedConsoleDomain(ctx, orch)
+	content := generateConsoleTraefikYaml(domain)
+
+	traefikDir := "/etc/tako/traefik"
+	if fi, err := os.Stat(traefikDir); err == nil && fi.IsDir() {
+		_ = os.WriteFile(filepath.Join(traefikDir, "tako.yml"), []byte(content), 0644)
+	}
+
+	dynamicDir := filepath.Join(traefikDir, "dynamic")
+	if fi, err := os.Stat(dynamicDir); err == nil && fi.IsDir() {
+		_ = os.WriteFile(filepath.Join(dynamicDir, "tako.yml"), []byte(content), 0644)
+	}
+
+	return nil
 }
 
 func defaultTraefikStaticConfig() string {
@@ -285,16 +345,7 @@ func loadNodeTraefikFiles(ctx context.Context, orch *orchestrator.Orchestrator, 
 		}
 	} else {
 		if existing, exists := files["tako.yml"]; exists && !existing.IsCustom {
-			hasPhysical := false
-			if _, err := os.Stat("/etc/tako/traefik/dynamic/tako.yml"); err == nil {
-				hasPhysical = true
-			}
-			if _, err := os.Stat("/etc/tako/traefik/tako.yml"); err == nil {
-				hasPhysical = true
-			}
-			if !hasPhysical {
-				delete(files, "tako.yml")
-			}
+			delete(files, "tako.yml")
 		}
 	}
 
@@ -473,6 +524,12 @@ func handleSaveNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFunc
 				_ = os.WriteFile(filepath.Join(traefikDir, "traefik.yml"), []byte(req.Content), 0644)
 			}
 		} else {
+			if filename == "tako.yml" {
+				traefikDir := "/etc/tako/traefik"
+				if fi, err := os.Stat(traefikDir); err == nil && fi.IsDir() {
+					_ = os.WriteFile(filepath.Join(traefikDir, "tako.yml"), []byte(req.Content), 0644)
+				}
+			}
 			dynamicDir := "/etc/tako/traefik/dynamic"
 			if fi, err := os.Stat(dynamicDir); err == nil && fi.IsDir() {
 				targetFilePath := filepath.Join(dynamicDir, filename)
@@ -542,6 +599,11 @@ func handleDeleteNodeTraefikFile(orch *orchestrator.Orchestrator) http.HandlerFu
 		dynamicDir := "/etc/tako/traefik/dynamic"
 		filePath := filepath.Join(dynamicDir, filename)
 		_ = os.Remove(filePath)
+		if filename == "tako.yml" {
+			_ = os.Remove("/etc/tako/traefik/tako.yml")
+			// Reset to default configuration according to current domain assignment
+			_ = SyncConsoleTraefikConfig(r.Context(), orch)
+		}
 
 		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 			Action:     "delete_node_traefik_file",
