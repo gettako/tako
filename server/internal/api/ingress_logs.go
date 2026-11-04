@@ -340,6 +340,8 @@ func generateTraefikAccessLogs(
 		"/var/log/traefik/access.log",
 		"/etc/tako/traefik/logs/access.log",
 		"/etc/tako/traefik/access.log",
+		"/etc/tako/traefik/dynamic/access.log",
+		"/etc/traefik/dynamic/access.log",
 		"/etc/traefik/access.log",
 		"/traefik/logs/access.log",
 		"/var/log/traefik.log",
