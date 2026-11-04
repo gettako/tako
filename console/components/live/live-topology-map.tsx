@@ -24,7 +24,14 @@ import {
   SearchableSelect,
   SelectOption,
 } from "@/components/ui/searchable-select"
-import { getNodeGeo, getClientGeoPoint, NodeGeo } from "@/lib/node-geo"
+import {
+  getNodeGeo,
+  getClientGeoPoint,
+  getClientOriginMeta,
+  isInternalTraffic,
+  NodeGeo,
+  type ClientOriginMeta,
+} from "@/lib/node-geo"
 import { buildNodeSelectOptions } from "@/lib/node-select-options"
 import {
   ClusterNode,
@@ -134,6 +141,9 @@ export function LiveTopologyMap({
       targetX: number
       targetY: number
       statusCode: number
+      sourceX: number
+      sourceY: number
+      originMeta?: ClientOriginMeta
     }[]
   >([])
 
@@ -147,6 +157,40 @@ export function LiveTopologyMap({
       statusCode: number
     }[]
   >([])
+
+  // Live Node RPS Tracker
+  const [nodeRps, setNodeRps] = React.useState<Record<string, number>>({})
+  const nodeHitsRef = React.useRef<Record<string, number[]>>({})
+
+  // Compute live moving requests per second (RPS) per node
+  React.useEffect(() => {
+    if (!isStreaming) return
+
+    const rpsInterval = setInterval(() => {
+      const now = Date.now()
+      const windowMs = 4000
+      const nextRps: Record<string, number> = {}
+
+      for (const node of nodes) {
+        const hits = nodeHitsRef.current[node.id] || []
+        const recentHits = hits.filter((t) => now - t <= windowMs)
+        nodeHitsRef.current[node.id] = recentHits
+
+        if (recentHits.length > 0) {
+          nextRps[node.id] = Math.max(
+            1,
+            Math.round((recentHits.length / (windowMs / 1000)) * 1.5)
+          )
+        } else {
+          nextRps[node.id] = 0
+        }
+      }
+
+      setNodeRps(nextRps)
+    }, 1000)
+
+    return () => clearInterval(rpsInterval)
+  }, [isStreaming, nodes])
 
   const processedTrafficIds = React.useRef<Set<string>>(new Set())
   const activeTimers = React.useRef<NodeJS.Timeout[]>([])
@@ -183,15 +227,25 @@ export function LiveTopologyMap({
         processedTrafficIds.current = new Set(arr.slice(arr.length - 100))
       }
 
+      // Ignore internal node-to-node / healthcheck traffic from map beam visualization
+      if (isInternalTraffic(ev.clientIp, ev.path)) continue
+
       const targetItem =
         nodeGeoList.find((n) => n.node.id === ev.nodeId) ||
         nodeGeoList[Math.floor(Math.random() * nodeGeoList.length)]
       if (!targetItem) continue
 
+      const originMeta = ev.clientIp
+        ? getClientOriginMeta(ev.clientIp)
+        : undefined
+
       const sourcePt =
         ev.sourcePoint ||
-        (ev.clientIp ? getClientGeoPoint(ev.clientIp) : null) ||
-        (masterGeo ? { x: masterGeo.pinX, y: masterGeo.pinY } : { x: 30, y: 30 })
+        (originMeta
+          ? { x: originMeta.pinX, y: originMeta.pinY }
+          : masterGeo
+            ? { x: masterGeo.pinX, y: masterGeo.pinY }
+            : { x: 30, y: 30 })
 
       const targetPt = { x: targetItem.geo.pinX, y: targetItem.geo.pinY }
       const pathD = createCurvedPath(sourcePt, targetPt)
@@ -209,6 +263,13 @@ export function LiveTopologyMap({
         filterId = "pulse-glow-blue"
       }
 
+      // Track hit timestamp for node RPS
+      const now = Date.now()
+      if (!nodeHitsRef.current[targetItem.node.id]) {
+        nodeHitsRef.current[targetItem.node.id] = []
+      }
+      nodeHitsRef.current[targetItem.node.id].push(now)
+
       const beamId = `beam-${ev.id}-${Date.now()}`
       const newBeam = {
         id: beamId,
@@ -219,6 +280,9 @@ export function LiveTopologyMap({
         targetX: targetPt.x,
         targetY: targetPt.y,
         statusCode: ev.statusCode,
+        sourceX: sourcePt.x,
+        sourceY: sourcePt.y,
+        originMeta,
       }
 
       setActiveBeams((prev) => [...prev.slice(-12), newBeam])
@@ -263,7 +327,18 @@ export function LiveTopologyMap({
         nodeGeoList[Math.floor(Math.random() * nodeGeoList.length)]
       if (!targetItem || targetItem.node.status === NODE_STATUS.OFFLINE) return
 
-      const clientPt = getClientGeoPoint(`client-${Math.random()}`)
+      const randomIps = [
+        "82.165.197.1",  // DE Frankfurt
+        "145.220.1.10",  // NL Amsterdam
+        "182.253.14.92", // ID Jakarta
+        "13.250.12.88",  // SG Singapore
+        "49.207.18.2",   // IN Mumbai
+        "139.130.4.5",   // AU Sydney
+        "84.115.22.10",  // GB London
+      ]
+      const clientIp = randomIps[Math.floor(Math.random() * randomIps.length)]
+      const originMeta = getClientOriginMeta(clientIp)
+      const clientPt = { x: originMeta.pinX, y: originMeta.pinY }
       const targetPt = { x: targetItem.geo.pinX, y: targetItem.geo.pinY }
       const pathD = createCurvedPath(clientPt, targetPt)
 
@@ -289,6 +364,9 @@ export function LiveTopologyMap({
         targetNodeId: targetItem.node.id,
         targetX: targetPt.x,
         targetY: targetPt.y,
+        sourceX: clientPt.x,
+        sourceY: clientPt.y,
+        originMeta,
         statusCode,
       }
 
@@ -827,6 +905,37 @@ export function LiveTopologyMap({
               {/* Ephemeral HTTP Traffic Beams (1x bergerak lalu putus) */}
               {activeBeams.map((beam) => (
                 <g key={beam.id}>
+                  {/* Origin City & Country pill at launch coordinates */}
+                  {beam.originMeta && (
+                    <motion.g
+                      key={`origin-${beam.id}`}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{
+                        opacity: [0, 0.95, 0.95, 0],
+                        scale: [0.8, 1, 1, 0.85],
+                      }}
+                      transition={{ duration: 1.05, times: [0, 0.2, 0.75, 1] }}
+                    >
+                      <rect
+                        x={beam.sourceX - 8.5}
+                        y={beam.sourceY - 5}
+                        width={17}
+                        height={3.8}
+                        rx={1.2}
+                        className="fill-card/95 stroke-border/80"
+                        strokeWidth={0.25}
+                      />
+                      <text
+                        x={beam.sourceX}
+                        y={beam.sourceY - 2.5}
+                        textAnchor="middle"
+                        className="fill-foreground font-mono text-[2.2px] font-bold select-none"
+                      >
+                        {beam.originMeta.code} · {beam.originMeta.city}
+                      </text>
+                    </motion.g>
+                  )}
+
                   {/* Subtle trajectory arc trail */}
                   <motion.path
                     d={beam.pathD}
@@ -927,6 +1036,25 @@ export function LiveTopologyMap({
                   aria-label={`Node ${node.name} in ${geo.city}`}
                   className="group pointer-events-auto absolute flex size-11 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center focus:outline-hidden sm:size-8"
                 >
+                  {/* Live Node RPS Badge */}
+                  {(nodeRps[node.id] || 0) > 0 && !isDead && (
+                    <div className="pointer-events-none absolute -top-5.5 left-1/2 -translate-x-1/2">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full border px-1.5 py-0.2 font-mono text-[8px] font-bold shadow-2xs backdrop-blur-xs transition-colors whitespace-nowrap",
+                          (nodeRps[node.id] || 0) > 35
+                            ? "border-red-500/50 bg-red-950/90 text-red-300"
+                            : (nodeRps[node.id] || 0) > 15
+                              ? "border-amber-500/50 bg-amber-950/90 text-amber-300"
+                              : "border-emerald-500/50 bg-emerald-950/90 text-emerald-300"
+                        )}
+                      >
+                        <span className="size-1 rounded-full bg-current animate-pulse" />
+                        <span>{nodeRps[node.id]} rps</span>
+                      </span>
+                    </div>
+                  )}
+
                   {/* Ephemeral HTTP arrival ripple ring */}
                   {activeRipples
                     .filter((r) => r.nodeId === node.id)

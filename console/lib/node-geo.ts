@@ -336,22 +336,78 @@ const KNOWN_IP_ORIGINS: Record<string, string> = {
   "145.220.1.10": "NL", // Amsterdam, Netherlands
 }
 
-export function getClientGeoPoint(clientIp: string): { x: number; y: number } {
-  const directCode = KNOWN_IP_ORIGINS[clientIp]
-  if (directCode && KNOWN_LOCATIONS[directCode]) {
-    const loc = KNOWN_LOCATIONS[directCode]
-    const proj = projectCoordinatesToPercent(loc.lat, loc.lng)
-    return { x: proj.pinX, y: proj.pinY }
+export interface ClientOriginMeta {
+  code: string
+  country: string
+  city: string
+  flag: string
+  pinX: number
+  pinY: number
+}
+
+export function isInternalTraffic(clientIp?: string, path?: string): boolean {
+  if (path) {
+    const cleanPath = path.toLowerCase().split("?")[0]
+    if (
+      cleanPath === "/health" ||
+      cleanPath === "/ping" ||
+      cleanPath === "/metrics" ||
+      cleanPath === "/favicon.ico" ||
+      cleanPath.endsWith("/health") ||
+      cleanPath.endsWith("/ping")
+    ) {
+      return true
+    }
   }
 
-  const keys = Object.keys(KNOWN_LOCATIONS)
-  let hash = 0
-  for (let i = 0; i < clientIp.length; i++) {
-    hash = (hash << 5) - hash + clientIp.charCodeAt(i)
-    hash |= 0
+  if (!clientIp) return false
+  const cleanIp = clientIp.trim().toLowerCase()
+  if (
+    cleanIp === "127.0.0.1" ||
+    cleanIp === "localhost" ||
+    cleanIp === "::1" ||
+    cleanIp.startsWith("10.") ||
+    cleanIp.startsWith("192.168.") ||
+    cleanIp.startsWith("169.254.") ||
+    (cleanIp.startsWith("172.") &&
+      parseInt(cleanIp.split(".")[1] || "0", 10) >= 16 &&
+      parseInt(cleanIp.split(".")[1] || "0", 10) <= 31)
+  ) {
+    return true
   }
-  const idx = Math.abs(hash) % keys.length
-  const loc = KNOWN_LOCATIONS[keys[idx]]
+
+  return false
+}
+
+export function getClientOriginMeta(clientIp: string): ClientOriginMeta {
+  const directCode = KNOWN_IP_ORIGINS[clientIp]
+  let loc = directCode ? KNOWN_LOCATIONS[directCode] : null
+  let code = directCode || "GLOBAL"
+
+  if (!loc) {
+    const keys = Object.keys(KNOWN_LOCATIONS)
+    let hash = 0
+    for (let i = 0; i < clientIp.length; i++) {
+      hash = (hash << 5) - hash + clientIp.charCodeAt(i)
+      hash |= 0
+    }
+    const idx = Math.abs(hash) % keys.length
+    code = keys[idx]
+    loc = KNOWN_LOCATIONS[code]
+  }
+
   const proj = projectCoordinatesToPercent(loc.lat, loc.lng)
-  return { x: proj.pinX, y: proj.pinY }
+  return {
+    code,
+    country: loc.country,
+    city: loc.city,
+    flag: loc.flag,
+    pinX: proj.pinX,
+    pinY: proj.pinY,
+  }
+}
+
+export function getClientGeoPoint(clientIp: string): { x: number; y: number } {
+  const meta = getClientOriginMeta(clientIp)
+  return { x: meta.pinX, y: meta.pinY }
 }

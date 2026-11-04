@@ -3,6 +3,8 @@ import {
   calculateGeoDistanceKm,
   calculateRealisticLatency,
   getClientGeoPoint,
+  getClientOriginMeta,
+  isInternalTraffic,
 } from "@/lib/node-geo"
 import { ClusterNode } from "@/types/platform"
 
@@ -142,5 +144,38 @@ describe("Live Topology & Network Latency Telemetry", () => {
     const pt1Repeat = getClientGeoPoint("182.253.14.92")
     expect(pt1Repeat.x).toBe(pt1.x)
     expect(pt1Repeat.y).toBe(pt1.y)
+  })
+
+  it("identifies internal / healthcheck traffic accurately", () => {
+    // Path-based internal checks
+    expect(isInternalTraffic("8.8.8.8", "/health")).toBe(true)
+    expect(isInternalTraffic("8.8.8.8", "/ping")).toBe(true)
+    expect(isInternalTraffic("8.8.8.8", "/metrics")).toBe(true)
+    expect(isInternalTraffic("8.8.8.8", "/api/v1/health")).toBe(true)
+
+    // IP-based private ranges
+    expect(isInternalTraffic("127.0.0.1", "/api/v1/services")).toBe(true)
+    expect(isInternalTraffic("10.0.0.5", "/api/v1/services")).toBe(true)
+    expect(isInternalTraffic("192.168.1.50", "/api/v1/services")).toBe(true)
+    expect(isInternalTraffic("172.18.0.2", "/api/v1/services")).toBe(true)
+
+    // Real external customer traffic
+    expect(isInternalTraffic("145.220.1.10", "/dashboard")).toBe(false)
+    expect(isInternalTraffic("82.165.197.1", "/api/v1/deployments")).toBe(false)
+  })
+
+  it("resolves client origin metadata with country, city, flag and coordinates", () => {
+    const metaNl = getClientOriginMeta("145.220.1.10")
+    expect(metaNl.code).toBe("NL")
+    expect(metaNl.city).toBe("Amsterdam")
+    expect(metaNl.country).toBe("Netherlands")
+    expect(metaNl.flag).toContain("NL.png")
+    expect(metaNl.pinX).toBeGreaterThan(0)
+    expect(metaNl.pinY).toBeGreaterThan(0)
+
+    const metaId = getClientOriginMeta("182.253.14.92")
+    expect(metaId.code).toBe("ID")
+    expect(metaId.city).toBe("Jakarta")
+    expect(metaId.flag).toContain("ID.png")
   })
 })

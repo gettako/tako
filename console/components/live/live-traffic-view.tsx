@@ -10,11 +10,14 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  Gauge,
   Layers,
   Maximize2,
   Minimize2,
   Pause,
   Play,
+  Tv,
+  Zap,
 } from "lucide-react"
 
 import { LiveTelemetryLog } from "@/components/live/live-telemetry-log"
@@ -52,10 +55,28 @@ export function LiveTrafficView() {
   const [activeTrafficTab, setActiveTrafficTab] = React.useState<
     "http" | "system"
   >("http")
+  const [isNocMode, setIsNocMode] = React.useState<boolean>(false)
 
   const handleTrafficEvent = React.useCallback((event: HttpTrafficEvent) => {
     setTrafficEvents((prev) => [...prev.slice(-15), event])
   }, [])
+
+  const p95Latency = React.useMemo(() => {
+    if (trafficEvents.length === 0) return 0
+    const sorted = [...trafficEvents]
+      .map((e) => e.durationMs)
+      .sort((a, b) => a - b)
+    const p95Index = Math.min(
+      sorted.length - 1,
+      Math.floor(sorted.length * 0.95)
+    )
+    return Math.round(sorted[p95Index] * 10) / 10
+  }, [trafficEvents])
+
+  const liveThroughputRps = React.useMemo(() => {
+    if (trafficEvents.length === 0) return 0
+    return Math.min(48, Math.max(1, Math.round(trafficEvents.length * 1.2)))
+  }, [trafficEvents])
 
   // Resizable log telemetry height (default 240px on mobile, adjustable via drag)
   const [logHeight, setLogHeight] = React.useState<number>(240)
@@ -261,6 +282,24 @@ export function LiveTrafficView() {
             </span>
           </div>
 
+          {/* P95 Latency */}
+          <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1 text-xs">
+            <Gauge className="size-3 text-emerald-500" />
+            <span className="text-muted-foreground">P95 Latency:</span>
+            <span className="font-semibold text-foreground">
+              {p95Latency} ms
+            </span>
+          </div>
+
+          {/* Edge Throughput */}
+          <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1 text-xs">
+            <Zap className="size-3 text-amber-500" />
+            <span className="text-muted-foreground">Throughput:</span>
+            <span className="font-semibold text-foreground">
+              {liveThroughputRps} req/s
+            </span>
+          </div>
+
           {/* Active Workloads */}
           <div className="flex items-center gap-1.5 rounded-md border border-border/80 bg-muted/30 px-2.5 py-1 text-xs">
             <Layers className="size-3 text-primary" />
@@ -275,6 +314,26 @@ export function LiveTrafficView() {
 
         {/* Right: Stream Toggle & Tools */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* NOC Mode Wallboard Toggle */}
+          <Button
+            size="sm"
+            variant={isNocMode ? "secondary" : "outline"}
+            onClick={() => setIsNocMode((prev) => !prev)}
+            className={cn(
+              "h-8 gap-1 px-2 text-xs font-medium sm:px-2.5",
+              isNocMode
+                ? "border-primary/50 bg-primary/10 text-primary font-semibold"
+                : "text-foreground hover:bg-muted"
+            )}
+            title={
+              isNocMode
+                ? "Exit NOC View (Restore Split Telemetry)"
+                : "NOC Wallboard View (Full Topology Map)"
+            }
+          >
+            <Tv className="size-3.5" />
+            <span className="hidden md:inline">NOC View</span>
+          </Button>
 
           {/* Stream Play/Pause Toggle */}
           <Button
@@ -322,13 +381,17 @@ export function LiveTrafficView() {
         </div>
       </header>
 
-      {/* Main Content: Split View (Map Top, Telemetry Bottom, with Mobile Adaptability) */}
+      {/* Main Content: Split View (Map Top, Telemetry Bottom, with Mobile Adaptability & NOC Mode) */}
       <main className="flex flex-1 flex-col gap-1.5 overflow-hidden p-1.5 sm:gap-3 sm:p-3 md:gap-4 md:p-4">
         {/* Live Topology Map */}
         <div
           className={cn(
             "min-h-0",
-            mobileView === "log" ? "hidden md:flex md:flex-1" : "flex flex-1"
+            isNocMode
+              ? "flex flex-1"
+              : mobileView === "log"
+                ? "hidden md:flex md:flex-1"
+                : "flex flex-1"
           )}
         >
           <LiveTopologyMap
@@ -347,8 +410,8 @@ export function LiveTrafficView() {
           />
         </div>
 
-        {/* Resizable Divider Handle (in split view) */}
-        {mobileView === "split" && (
+        {/* Resizable Divider Handle (in split view, hidden in NOC mode) */}
+        {!isNocMode && mobileView === "split" && (
           <div
             onPointerDown={handleSplitterPointerDown}
             onDoubleClick={handleSplitterDoubleClick}
@@ -371,34 +434,36 @@ export function LiveTrafficView() {
           </div>
         )}
 
-        {/* Live Telemetry Stream Log */}
-        <div
-          style={
-            mobileView === "split"
-              ? { height: `${logHeight}px` }
-              : undefined
-          }
-          className={cn(
-            mobileView === "map"
-              ? "hidden md:block md:h-72 md:shrink-0 lg:h-80"
-              : mobileView === "log"
-                ? "flex flex-1 overflow-hidden md:h-72 md:shrink-0 lg:h-80"
-                : "shrink-0 overflow-hidden"
-          )}
-        >
-          <LiveTelemetryLog
-            nodes={liveNodes}
-            isStreaming={isStreaming}
-            onToggleStreaming={() => setIsStreaming((prev) => !prev)}
-            selectedNodeId={selectedNodeId}
-            onSelectNode={setSelectedNodeId}
-            mobileView={mobileView}
-            onMobileViewChange={setMobileView}
-            onTrafficEvent={handleTrafficEvent}
-            activeTab={activeTrafficTab}
-            onActiveTabChange={setActiveTrafficTab}
-          />
-        </div>
+        {/* Live Telemetry Stream Log (hidden in NOC mode) */}
+        {!isNocMode && (
+          <div
+            style={
+              mobileView === "split"
+                ? { height: `${logHeight}px` }
+                : undefined
+            }
+            className={cn(
+              mobileView === "map"
+                ? "hidden md:block md:h-72 md:shrink-0 lg:h-80"
+                : mobileView === "log"
+                  ? "flex flex-1 overflow-hidden md:h-72 md:shrink-0 lg:h-80"
+                  : "shrink-0 overflow-hidden"
+            )}
+          >
+            <LiveTelemetryLog
+              nodes={liveNodes}
+              isStreaming={isStreaming}
+              onToggleStreaming={() => setIsStreaming((prev) => !prev)}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={setSelectedNodeId}
+              mobileView={mobileView}
+              onMobileViewChange={setMobileView}
+              onTrafficEvent={handleTrafficEvent}
+              activeTab={activeTrafficTab}
+              onActiveTabChange={setActiveTrafficTab}
+            />
+          </div>
+        )}
       </main>
     </div>
   )

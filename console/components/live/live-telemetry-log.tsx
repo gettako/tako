@@ -8,6 +8,8 @@ import {
   Play,
   Search,
   Server,
+  Shield,
+  ShieldAlert,
   Terminal,
   Trash2,
   X,
@@ -20,6 +22,7 @@ import {
   SelectOption,
 } from "@/components/ui/searchable-select"
 import { buildNodeSelectOptions } from "@/lib/node-select-options"
+import { isInternalTraffic } from "@/lib/node-geo"
 import { getAccessLogs } from "@/services/monitoring.service"
 import {
   ClusterNode,
@@ -185,6 +188,16 @@ export function LiveTelemetryLog({
   const [httpLogs, setHttpLogs] = React.useState<HttpTrafficEvent[]>([])
   const [httpStatusFilter, setHttpStatusFilter] = React.useState<string>("all")
   const [httpMethodFilter, setHttpMethodFilter] = React.useState<string>("all")
+  const [hideInternal, setHideInternal] = React.useState<boolean>(true)
+  const [blockedIps, setBlockedIps] = React.useState<Set<string>>(new Set())
+  const [recentlyBlockedIp, setRecentlyBlockedIp] = React.useState<string | null>(null)
+
+  const handleQuickBlockIp = (ip: string) => {
+    setBlockedIps((prev) => new Set(prev).add(ip))
+    setRecentlyBlockedIp(ip)
+    const t = setTimeout(() => setRecentlyBlockedIp(null), 5000)
+    return () => clearTimeout(t)
+  }
 
   // Shared Filters & Search
   const [internalFilterNode, setInternalFilterNode] =
@@ -390,6 +403,10 @@ export function LiveTelemetryLog({
   // Filtered HTTP Logs
   const filteredHttpLogs = React.useMemo(() => {
     return httpLogs.filter((log) => {
+      // Hide internal node-to-node / health check traffic if toggle is enabled
+      if (hideInternal && isInternalTraffic(log.clientIp, log.path)) {
+        return false
+      }
       if (activeFilterNode !== "all" && log.nodeId !== activeFilterNode) {
         return false
       }
@@ -410,7 +427,7 @@ export function LiveTelemetryLog({
       }
       return true
     })
-  }, [httpLogs, activeFilterNode, httpStatusFilter, httpMethodFilter, searchQuery])
+  }, [httpLogs, activeFilterNode, httpStatusFilter, httpMethodFilter, searchQuery, hideInternal])
 
   const clearLogs = () => {
     if (activeTab === "http") {
@@ -604,6 +621,26 @@ export function LiveTelemetryLog({
                   </button>
                 ))}
               </div>
+
+              {/* Hide Internal / Healthchecks Toggle */}
+              <button
+                type="button"
+                onClick={() => setHideInternal((prev) => !prev)}
+                className={cn(
+                  "hidden shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors sm:inline-flex sm:text-[11px]",
+                  hideInternal
+                    ? "border-primary/50 bg-primary/10 text-primary font-semibold"
+                    : "border-border/70 bg-background/80 text-muted-foreground hover:text-foreground"
+                )}
+                title={
+                  hideInternal
+                    ? "Hiding internal traffic (health checks, loopback). Click to show all."
+                    : "Showing all traffic including internal. Click to hide."
+                }
+              >
+                <Shield className="size-3" />
+                <span>{hideInternal ? "Hide Internal" : "Show Internal"}</span>
+              </button>
             </>
           ) : (
             /* System Log Level Filter Pills */
@@ -670,6 +707,25 @@ export function LiveTelemetryLog({
           </div>
         </div>
       </div>
+
+      {/* Alert banner when IP is blocked */}
+      {recentlyBlockedIp && (
+        <div className="flex shrink-0 items-center justify-between border-b border-red-500/30 bg-red-950/40 px-3 py-1 font-mono text-[10.5px] text-red-300">
+          <div className="flex items-center gap-1.5">
+            <ShieldAlert className="size-3.5 text-red-400" />
+            <span>
+              Edge security rule applied: IP <strong>{recentlyBlockedIp}</strong> has been rate-limited / blocked.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRecentlyBlockedIp(null)}
+            className="cursor-pointer text-red-400 hover:text-red-200"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      )}
 
       {/* Terminal Output Area */}
       <div
@@ -771,6 +827,29 @@ export function LiveTelemetryLog({
                       from {entry.clientIp}
                       {entry.host ? ` -> ${entry.host}` : ""}
                     </span>
+
+                    {/* Quick Action: Block / Rate-limit IP */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleQuickBlockIp(entry.clientIp)
+                      }}
+                      className={cn(
+                        "ml-auto hidden cursor-pointer items-center gap-1 rounded px-1.5 py-0.2 text-[9px] font-medium transition-colors sm:inline-flex",
+                        blockedIps.has(entry.clientIp)
+                          ? "bg-red-500/20 text-red-400 cursor-default"
+                          : "bg-muted/50 text-muted-foreground hover:bg-red-500/15 hover:text-red-400"
+                      )}
+                      title={
+                        blockedIps.has(entry.clientIp)
+                          ? `IP ${entry.clientIp} is blocked`
+                          : `Block / rate-limit IP ${entry.clientIp} at Traefik edge`
+                      }
+                    >
+                      <ShieldAlert className="size-2.5" />
+                      <span>{blockedIps.has(entry.clientIp) ? "Blocked" : "Block"}</span>
+                    </button>
                   </div>
                 )
               })}
