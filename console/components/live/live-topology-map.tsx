@@ -827,64 +827,59 @@ export function LiveTopologyMap({
               {/* Ephemeral HTTP Traffic Beams (1x bergerak lalu putus) */}
               {activeBeams.map((beam) => (
                 <g key={beam.id}>
-                  {/* Subtle trajectory arc */}
-                  <path
+                  {/* Subtle trajectory arc trail */}
+                  <motion.path
                     d={beam.pathD}
                     fill="none"
                     stroke={beam.color}
-                    strokeWidth="0.34"
-                    strokeOpacity="0.7"
-                    strokeDasharray="2.5 2.5"
-                  >
-                    <animate
-                      attributeName="stroke-opacity"
-                      values="0.1;0.8;0"
-                      dur="0.9s"
-                      fill="freeze"
-                    />
-                  </path>
-                  {/* Glowing photon traveling along the arc */}
-                  <circle
-                    r="0.75"
-                    fill={beam.color}
+                    strokeWidth={0.34}
+                    strokeDasharray="2 2"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{
+                      pathLength: [0, 1],
+                      opacity: [0, 0.75, 0],
+                    }}
+                    transition={{
+                      duration: 1.05,
+                      times: [0, 0.4, 1],
+                      ease: "easeInOut",
+                    }}
+                  />
+                  {/* Glowing photon beam traveling along the curve */}
+                  <motion.path
+                    d={beam.pathD}
+                    fill="none"
+                    stroke={beam.color}
+                    strokeWidth={0.7}
+                    strokeLinecap="round"
                     filter={`url(#${beam.filterId})`}
-                  >
-                    <animateMotion
-                      path={beam.pathD}
-                      dur="0.9s"
-                      fill="freeze"
-                      repeatCount="1"
-                    />
-                  </circle>
+                    initial={{ pathOffset: 0, pathLength: 0.15, opacity: 0 }}
+                    animate={{
+                      pathOffset: [0, 0.85],
+                      opacity: [0, 1, 1, 0],
+                    }}
+                    transition={{
+                      duration: 0.95,
+                      times: [0, 0.1, 0.85, 1],
+                      ease: "easeInOut",
+                    }}
+                  />
                 </g>
               ))}
 
               {/* Ephemeral HTTP Arrival Ripples on Destination Node */}
               {activeRipples.map((ripple) => (
                 <g key={ripple.id}>
-                  <circle
+                  <motion.circle
                     cx={ripple.x}
                     cy={ripple.y}
-                    r="0.8"
                     fill="none"
                     stroke={ripple.color}
-                    strokeWidth="0.38"
-                  >
-                    <animate
-                      attributeName="r"
-                      from="0.8"
-                      to="3.5"
-                      dur="0.6s"
-                      fill="freeze"
-                    />
-                    <animate
-                      attributeName="stroke-opacity"
-                      from="0.9"
-                      to="0"
-                      dur="0.6s"
-                      fill="freeze"
-                    />
-                  </circle>
+                    strokeWidth={0.42}
+                    initial={{ r: 0.8, opacity: 0.95 }}
+                    animate={{ r: 4.8, opacity: 0 }}
+                    transition={{ duration: 0.65, ease: "easeOut" }}
+                  />
                 </g>
               ))}
             </svg>
@@ -936,10 +931,13 @@ export function LiveTopologyMap({
                   {activeRipples
                     .filter((r) => r.nodeId === node.id)
                     .map((r) => (
-                      <span
+                      <motion.span
                         key={r.id}
+                        initial={{ scale: 0.6, opacity: 1 }}
+                        animate={{ scale: 3.2, opacity: 0 }}
+                        transition={{ duration: 0.7, ease: "easeOut" }}
                         style={{ borderColor: r.color }}
-                        className="pointer-events-none absolute size-8 rounded-full animate-ping ring-2"
+                        className="pointer-events-none absolute size-8 rounded-full border-2"
                       />
                     ))}
                   {/* Radar pulse aura */}

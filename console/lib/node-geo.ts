@@ -323,7 +323,27 @@ export function calculateRealisticLatency(
   return Math.max(1, Math.round(baseLatency + jitter))
 }
 
+const KNOWN_IP_ORIGINS: Record<string, string> = {
+  "182.253.14.92": "ID", // Jakarta, Indonesia
+  "13.250.12.88": "SG", // Singapore
+  "133.242.18.4": "JP", // Tokyo, Japan
+  "198.51.100.42": "US", // San Francisco, USA
+  "84.115.22.10": "DE", // Frankfurt, Germany
+  "82.165.197.1": "GB", // London, UK
+  "139.130.4.5": "AU", // Sydney, Australia
+  "177.136.25.1": "BR", // Sao Paulo, Brazil
+  "49.207.18.2": "IN", // Mumbai, India
+  "145.220.1.10": "NL", // Amsterdam, Netherlands
+}
+
 export function getClientGeoPoint(clientIp: string): { x: number; y: number } {
+  const directCode = KNOWN_IP_ORIGINS[clientIp]
+  if (directCode && KNOWN_LOCATIONS[directCode]) {
+    const loc = KNOWN_LOCATIONS[directCode]
+    const proj = projectCoordinatesToPercent(loc.lat, loc.lng)
+    return { x: proj.pinX, y: proj.pinY }
+  }
+
   const keys = Object.keys(KNOWN_LOCATIONS)
   let hash = 0
   for (let i = 0; i < clientIp.length; i++) {
