@@ -26,7 +26,12 @@ import { usePlatformData } from "@/context/platform-data-context"
 import { calculateRealisticLatency } from "@/lib/node-geo"
 import { isPrivateIp } from "@/lib/geoip"
 import { cn } from "@/lib/utils"
-import { NODE_ROLE, NODE_STATUS, SERVICE_STATUS } from "@/types/platform"
+import {
+  NODE_ROLE,
+  NODE_STATUS,
+  SERVICE_STATUS,
+  type HttpTrafficEvent,
+} from "@/types/platform"
 
 export function LiveTrafficView() {
   const searchParams = useSearchParams()
@@ -43,6 +48,14 @@ export function LiveTrafficView() {
   const [mobileView, setMobileView] = React.useState<"split" | "map" | "log">(
     "split"
   )
+  const [trafficEvents, setTrafficEvents] = React.useState<HttpTrafficEvent[]>([])
+  const [activeTrafficTab, setActiveTrafficTab] = React.useState<
+    "http" | "system"
+  >("http")
+
+  const handleTrafficEvent = React.useCallback((event: HttpTrafficEvent) => {
+    setTrafficEvents((prev) => [...prev.slice(-15), event])
+  }, [])
 
   // Resizable log telemetry height (default 240px on mobile, adjustable via drag)
   const [logHeight, setLogHeight] = React.useState<number>(240)
@@ -329,6 +342,8 @@ export function LiveTrafficView() {
             totalNodes={totalNodes}
             offlineNodes={offlineNodes}
             avgLatency={avgLatency}
+            trafficEvents={trafficEvents}
+            activeTrafficTab={activeTrafficTab}
           />
         </div>
 
@@ -379,6 +394,9 @@ export function LiveTrafficView() {
             onSelectNode={setSelectedNodeId}
             mobileView={mobileView}
             onMobileViewChange={setMobileView}
+            onTrafficEvent={handleTrafficEvent}
+            activeTab={activeTrafficTab}
+            onActiveTabChange={setActiveTrafficTab}
           />
         </div>
       </main>

@@ -529,3 +529,19 @@ export interface AuditLogEntry {
   details: string
   status: "success" | "failure"
 }
+
+export interface HttpTrafficEvent {
+  id: string
+  timestamp: string
+  clientIp: string
+  method: string
+  path: string
+  statusCode: number
+  durationMs: number
+  routerName?: string
+  serviceName?: string
+  nodeId: string
+  nodeName?: string
+  host?: string
+  sourcePoint?: { x: number; y: number }
+}

@@ -322,3 +322,16 @@ export function calculateRealisticLatency(
   const baseLatency = 12 + distanceKm * 0.0162
   return Math.max(1, Math.round(baseLatency + jitter))
 }
+
+export function getClientGeoPoint(clientIp: string): { x: number; y: number } {
+  const keys = Object.keys(KNOWN_LOCATIONS)
+  let hash = 0
+  for (let i = 0; i < clientIp.length; i++) {
+    hash = (hash << 5) - hash + clientIp.charCodeAt(i)
+    hash |= 0
+  }
+  const idx = Math.abs(hash) % keys.length
+  const loc = KNOWN_LOCATIONS[keys[idx]]
+  const proj = projectCoordinatesToPercent(loc.lat, loc.lng)
+  return { x: proj.pinX, y: proj.pinY }
+}

@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test"
 import {
   calculateGeoDistanceKm,
   calculateRealisticLatency,
+  getClientGeoPoint,
 } from "@/lib/node-geo"
 import { ClusterNode } from "@/types/platform"
 
@@ -120,5 +121,26 @@ describe("Live Topology & Network Latency Telemetry", () => {
 
     expect(jitteredPlus).toBe(base + 3)
     expect(jitteredMinus).toBe(base - 3)
+  })
+
+  it("projects client IP to valid map coordinates with getClientGeoPoint", () => {
+    const pt1 = getClientGeoPoint("182.253.14.92")
+    const pt2 = getClientGeoPoint("198.51.100.42")
+
+    // Map bounds: width 198, height 100
+    expect(pt1.x).toBeGreaterThanOrEqual(0)
+    expect(pt1.x).toBeLessThanOrEqual(198)
+    expect(pt1.y).toBeGreaterThanOrEqual(0)
+    expect(pt1.y).toBeLessThanOrEqual(100)
+
+    expect(pt2.x).toBeGreaterThanOrEqual(0)
+    expect(pt2.x).toBeLessThanOrEqual(198)
+    expect(pt2.y).toBeGreaterThanOrEqual(0)
+    expect(pt2.y).toBeLessThanOrEqual(100)
+
+    // Deterministic: same IP yields identical coordinates
+    const pt1Repeat = getClientGeoPoint("182.253.14.92")
+    expect(pt1Repeat.x).toBe(pt1.x)
+    expect(pt1Repeat.y).toBe(pt1.y)
   })
 })

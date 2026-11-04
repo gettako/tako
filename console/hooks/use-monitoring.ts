@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import {
   getAccessLogs,
   getClusterMetrics,
+  type GetAccessLogsParams,
 } from "@/services/monitoring.service"
 
 export const monitoringKeys = {
@@ -22,10 +23,13 @@ export function useClusterMetrics(range = "1h", polling = true) {
   })
 }
 
-export function useAccessLogs(limit = 100, polling = true) {
+export function useAccessLogs(
+  params: number | GetAccessLogsParams = 100,
+  polling = true
+) {
   return useQuery({
-    queryKey: monitoringKeys.accessLogs(limit),
-    queryFn: () => getAccessLogs(limit),
+    queryKey: monitoringKeys.accessLogs(params),
+    queryFn: () => getAccessLogs(params),
     refetchInterval: () => (polling ? 10000 : false),
   })
 }

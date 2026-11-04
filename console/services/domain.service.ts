@@ -26,6 +26,14 @@ export const DEFAULT_TRAEFIK_STATIC_YAML = `global:
 api:
   dashboard: false
 
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+  format: json
+  bufferingSize: 50
+  filters:
+    retryAttempts: true
+    minDuration: "10ms"
+
 providers:
   docker:
     exposedByDefault: false

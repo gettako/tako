@@ -24,12 +24,17 @@ import {
   SearchableSelect,
   SelectOption,
 } from "@/components/ui/searchable-select"
-import { getNodeGeo, NodeGeo } from "@/lib/node-geo"
+import { getNodeGeo, getClientGeoPoint, NodeGeo } from "@/lib/node-geo"
 import { buildNodeSelectOptions } from "@/lib/node-select-options"
-import { ClusterNode, NODE_ROLE, NODE_STATUS } from "@/types/platform"
+import {
+  ClusterNode,
+  NODE_ROLE,
+  NODE_STATUS,
+  type HttpTrafficEvent,
+} from "@/types/platform"
 import { cn } from "@/lib/utils"
 
-interface LiveTopologyMapProps {
+export interface LiveTopologyMapProps {
   nodes: ClusterNode[]
   selectedNodeId: string | null
   onSelectNode: (id: string | null) => void
@@ -42,6 +47,8 @@ interface LiveTopologyMapProps {
   offlineNodes?: number
   avgLatency?: number
   fullscreenHref?: Route | string
+  trafficEvents?: HttpTrafficEvent[]
+  activeTrafficTab?: "http" | "system"
 }
 
 export function LiveTopologyMap({
@@ -56,6 +63,8 @@ export function LiveTopologyMap({
   offlineNodes: _offlineNodes = 0,
   avgLatency = 0,
   fullscreenHref,
+  trafficEvents,
+  activeTrafficTab: _activeTrafficTab,
 }: LiveTopologyMapProps) {
   const map = React.useMemo(
     () => new DottedMap({ height: 100, grid: "diagonal" }),
@@ -113,6 +122,203 @@ export function LiveTopologyMap({
       geo: getNodeGeo(node),
     }))
   }, [nodes])
+
+  // Ephemeral HTTP Request Traffic Beams & Arrival Ripples
+  const [activeBeams, setActiveBeams] = React.useState<
+    {
+      id: string
+      pathD: string
+      color: string
+      filterId: string
+      targetNodeId: string
+      targetX: number
+      targetY: number
+      statusCode: number
+    }[]
+  >([])
+
+  const [activeRipples, setActiveRipples] = React.useState<
+    {
+      id: string
+      x: number
+      y: number
+      color: string
+      nodeId: string
+      statusCode: number
+    }[]
+  >([])
+
+  const processedTrafficIds = React.useRef<Set<string>>(new Set())
+  const activeTimers = React.useRef<NodeJS.Timeout[]>([])
+
+  React.useEffect(() => {
+    return () => {
+      activeTimers.current.forEach(clearTimeout)
+      activeTimers.current = []
+    }
+  }, [])
+
+  // Process live incoming HTTP traffic events
+  React.useEffect(() => {
+    if (
+      !isStreaming ||
+      !trafficEvents ||
+      trafficEvents.length === 0 ||
+      nodeGeoList.length === 0
+    ) {
+      return
+    }
+
+    const newEvents = trafficEvents.filter(
+      (ev) => !processedTrafficIds.current.has(ev.id)
+    )
+    if (newEvents.length === 0) return
+
+    // Cap to latest 4 events at a time so animations stay crisp and lightweight
+    const slice = newEvents.slice(-4)
+    for (const ev of slice) {
+      processedTrafficIds.current.add(ev.id)
+      if (processedTrafficIds.current.size > 200) {
+        const arr = Array.from(processedTrafficIds.current)
+        processedTrafficIds.current = new Set(arr.slice(arr.length - 100))
+      }
+
+      const targetItem =
+        nodeGeoList.find((n) => n.node.id === ev.nodeId) ||
+        nodeGeoList[Math.floor(Math.random() * nodeGeoList.length)]
+      if (!targetItem) continue
+
+      const sourcePt =
+        ev.sourcePoint ||
+        (ev.clientIp ? getClientGeoPoint(ev.clientIp) : null) ||
+        (masterGeo ? { x: masterGeo.pinX, y: masterGeo.pinY } : { x: 30, y: 30 })
+
+      const targetPt = { x: targetItem.geo.pinX, y: targetItem.geo.pinY }
+      const pathD = createCurvedPath(sourcePt, targetPt)
+
+      let color = "#10b981"
+      let filterId = "pulse-glow-green"
+      if (ev.statusCode >= 500) {
+        color = "#ef4444"
+        filterId = "pulse-glow-red"
+      } else if (ev.statusCode >= 400) {
+        color = "#f59e0b"
+        filterId = "pulse-glow-amber"
+      } else if (ev.statusCode >= 300) {
+        color = "#38bdf8"
+        filterId = "pulse-glow-blue"
+      }
+
+      const beamId = `beam-${ev.id}-${Date.now()}`
+      const newBeam = {
+        id: beamId,
+        pathD,
+        color,
+        filterId,
+        targetNodeId: targetItem.node.id,
+        targetX: targetPt.x,
+        targetY: targetPt.y,
+        statusCode: ev.statusCode,
+      }
+
+      setActiveBeams((prev) => [...prev.slice(-12), newBeam])
+
+      // At 900ms (arrival): remove beam, create ripple on target node
+      const arrivalTimer = setTimeout(() => {
+        setActiveBeams((prev) => prev.filter((b) => b.id !== beamId))
+
+        const rippleId = `ripple-${beamId}`
+        const newRipple = {
+          id: rippleId,
+          x: targetPt.x,
+          y: targetPt.y,
+          color,
+          nodeId: targetItem.node.id,
+          statusCode: ev.statusCode,
+        }
+        setActiveRipples((prev) => [...prev.slice(-8), newRipple])
+
+        const endTimer = setTimeout(() => {
+          setActiveRipples((prev) => prev.filter((r) => r.id !== rippleId))
+        }, 600)
+        activeTimers.current.push(endTimer)
+      }, 900)
+
+      activeTimers.current.push(arrivalTimer)
+    }
+  }, [trafficEvents, isStreaming, nodeGeoList, masterGeo])
+
+  // Periodic ambient HTTP packet simulation when no explicit events are passed
+  React.useEffect(() => {
+    if (
+      !isStreaming ||
+      (trafficEvents && trafficEvents.length > 0) ||
+      nodeGeoList.length === 0
+    ) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      const targetItem =
+        nodeGeoList[Math.floor(Math.random() * nodeGeoList.length)]
+      if (!targetItem || targetItem.node.status === NODE_STATUS.OFFLINE) return
+
+      const clientPt = getClientGeoPoint(`client-${Math.random()}`)
+      const targetPt = { x: targetItem.geo.pinX, y: targetItem.geo.pinY }
+      const pathD = createCurvedPath(clientPt, targetPt)
+
+      const statusChoices = [200, 200, 200, 204, 304, 404, 502]
+      const statusCode =
+        statusChoices[Math.floor(Math.random() * statusChoices.length)]
+      let color = "#10b981"
+      let filterId = "pulse-glow-green"
+      if (statusCode >= 500) {
+        color = "#ef4444"
+        filterId = "pulse-glow-red"
+      } else if (statusCode >= 400) {
+        color = "#f59e0b"
+        filterId = "pulse-glow-amber"
+      }
+
+      const beamId = `beam-ambient-${Date.now()}`
+      const newBeam = {
+        id: beamId,
+        pathD,
+        color,
+        filterId,
+        targetNodeId: targetItem.node.id,
+        targetX: targetPt.x,
+        targetY: targetPt.y,
+        statusCode,
+      }
+
+      setActiveBeams((prev) => [...prev.slice(-10), newBeam])
+
+      const arrivalTimer = setTimeout(() => {
+        setActiveBeams((prev) => prev.filter((b) => b.id !== beamId))
+
+        const rippleId = `ripple-${beamId}`
+        const newRipple = {
+          id: rippleId,
+          x: targetPt.x,
+          y: targetPt.y,
+          color,
+          nodeId: targetItem.node.id,
+          statusCode,
+        }
+        setActiveRipples((prev) => [...prev.slice(-6), newRipple])
+
+        const endTimer = setTimeout(() => {
+          setActiveRipples((prev) => prev.filter((r) => r.id !== rippleId))
+        }, 600)
+        activeTimers.current.push(endTimer)
+      }, 900)
+
+      activeTimers.current.push(arrivalTimer)
+    }, 2800)
+
+    return () => clearInterval(interval)
+  }, [isStreaming, trafficEvents, nodeGeoList])
 
   // Searchable select options for quick node jumping
   const mapNodeOptions: SelectOption[] = React.useMemo(
@@ -498,6 +704,32 @@ export function LiveTopologyMap({
                     <feMergeNode in="SourceGraphic" />
                   </feMerge>
                 </filter>
+                <filter
+                  id="pulse-glow-amber"
+                  x="-50%"
+                  y="-50%"
+                  width="200%"
+                  height="200%"
+                >
+                  <feGaussianBlur stdDeviation="0.45" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+                <filter
+                  id="pulse-glow-blue"
+                  x="-50%"
+                  y="-50%"
+                  width="200%"
+                  height="200%"
+                >
+                  <feGaussianBlur stdDeviation="0.4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
               </defs>
 
               {nodeGeoList.map(({ node, geo }, idx) => {
@@ -592,6 +824,69 @@ export function LiveTopologyMap({
                   </g>
                 )
               })()}
+              {/* Ephemeral HTTP Traffic Beams (1x bergerak lalu putus) */}
+              {activeBeams.map((beam) => (
+                <g key={beam.id}>
+                  {/* Subtle trajectory arc */}
+                  <path
+                    d={beam.pathD}
+                    fill="none"
+                    stroke={beam.color}
+                    strokeWidth="0.34"
+                    strokeOpacity="0.7"
+                    strokeDasharray="2.5 2.5"
+                  >
+                    <animate
+                      attributeName="stroke-opacity"
+                      values="0.1;0.8;0"
+                      dur="0.9s"
+                      fill="freeze"
+                    />
+                  </path>
+                  {/* Glowing photon traveling along the arc */}
+                  <circle
+                    r="0.75"
+                    fill={beam.color}
+                    filter={`url(#${beam.filterId})`}
+                  >
+                    <animateMotion
+                      path={beam.pathD}
+                      dur="0.9s"
+                      fill="freeze"
+                      repeatCount="1"
+                    />
+                  </circle>
+                </g>
+              ))}
+
+              {/* Ephemeral HTTP Arrival Ripples on Destination Node */}
+              {activeRipples.map((ripple) => (
+                <g key={ripple.id}>
+                  <circle
+                    cx={ripple.x}
+                    cy={ripple.y}
+                    r="0.8"
+                    fill="none"
+                    stroke={ripple.color}
+                    strokeWidth="0.38"
+                  >
+                    <animate
+                      attributeName="r"
+                      from="0.8"
+                      to="3.5"
+                      dur="0.6s"
+                      fill="freeze"
+                    />
+                    <animate
+                      attributeName="stroke-opacity"
+                      from="0.9"
+                      to="0"
+                      dur="0.6s"
+                      fill="freeze"
+                    />
+                  </circle>
+                </g>
+              ))}
             </svg>
           )}
 
@@ -637,6 +932,16 @@ export function LiveTopologyMap({
                   aria-label={`Node ${node.name} in ${geo.city}`}
                   className="group pointer-events-auto absolute flex size-11 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center focus:outline-hidden sm:size-8"
                 >
+                  {/* Ephemeral HTTP arrival ripple ring */}
+                  {activeRipples
+                    .filter((r) => r.nodeId === node.id)
+                    .map((r) => (
+                      <span
+                        key={r.id}
+                        style={{ borderColor: r.color }}
+                        className="pointer-events-none absolute size-8 rounded-full animate-ping ring-2"
+                      />
+                    ))}
                   {/* Radar pulse aura */}
                   <span
                     className={cn(
