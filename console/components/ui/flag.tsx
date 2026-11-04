@@ -21,6 +21,7 @@ export function Flag({ src, alt, width, height, className, title }: FlagProps) {
       height={height}
       unoptimized
       className={cn("w-auto shrink-0 rounded-[2px]", className)}
+      style={{ maxHeight: height ? `${height}px` : undefined }}
     />
   )
 }
