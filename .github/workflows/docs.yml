@@ -1,0 +1,49 @@
+name: Docs Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'api/openapi.yaml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'api/openapi.yaml'
+      - '.github/workflows/docs.yml'
+
+jobs:
+  validate-docs:
+    name: Validate Mintlify Docs & OpenAPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: '**/package.json'
+
+      - name: Ensure OpenAPI spec is synced
+        run: |
+          if [ -f "api/openapi.yaml" ]; then
+            cp -f api/openapi.yaml docs/openapi.yaml
+          fi
+
+      - name: Install Mintlify CLI
+        run: npm install -g mintlify
+
+      - name: Run Mintlify validation
+        working-directory: docs
+        run: mintlify validate
+
+      - name: Check for broken links
+        working-directory: docs
+        run: mintlify broken-links --check-anchors
+

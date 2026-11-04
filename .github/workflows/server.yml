@@ -1,0 +1,43 @@
+name: Server CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'api/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - '.github/workflows/server.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - 'api/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - '.github/workflows/server.yml'
+
+jobs:
+  test-server:
+    name: Test & Build Server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.work'
+          cache: true
+
+      - name: Run Server Tests
+        working-directory: server
+        run: go test -v -race ./...
+
+      - name: Build Server Binary
+        working-directory: server
+        run: go build -v ./cmd/server
+

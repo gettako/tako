@@ -1,0 +1,84 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Tako Documentation",
+  "colors": {
+    "primary": "#DB3E1F",
+    "light": "#ff552e",
+    "dark": "#b93016"
+  },
+  "appearance": {
+    "default": "dark"
+  },
+  "background": {
+    "color": {
+      "dark": "#0b0c14"
+    }
+  },
+  "fonts": {
+    "family": "Inter",
+    "heading": {
+      "family": "Inter"
+    }
+  },
+  "logo": {
+    "light": "/logo/light.png",
+    "dark": "/logo/dark.png",
+    "href": "https://gettako.dev"
+  },
+  "favicon": "/favicon.ico",
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/gettako/tako"
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/gettako/tako"
+    }
+  },
+  "search": {
+    "prompt": "Search..."
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "icon": "rocket",
+            "pages": ["introduction", "quickstart", "architecture"]
+          },
+          {
+            "group": "Operations & Workflows",
+            "icon": "server",
+            "pages": [
+              "guides/deployments",
+              "guides/monitoring",
+              "guides/backups",
+              "guides/configuration"
+            ]
+          },
+          {
+            "group": "Deep Dive",
+            "icon": "compass",
+            "pages": ["limitations", "comparison"]
+          },
+          {
+            "group": "API Reference Guide",
+            "icon": "code",
+            "pages": ["api-reference/overview"]
+          }
+        ]
+      },
+      {
+        "tab": "API Endpoints",
+        "openapi": "openapi.yaml"
+      }
+    ]
+  }
+}

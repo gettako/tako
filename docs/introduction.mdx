@@ -1,0 +1,66 @@
+---
+title: "Introduction"
+description: "High-performance edge infrastructure, agent telemetry, and self-hosted application deployment platform."
+---
+
+## What is Tako?
+
+**Tako** is a modern, self-hosted deployment platform engineered for developers and engineering teams who want the frictionless experience of managed PaaS platforms (such as Vercel, Render, or Heroku) on their own bare-metal servers or VPS instances—without the crippling resource overhead or operational complexity.
+
+The platform is architected around three cohesive components:
+1. **Control Plane (`tako-server`)**: A lightweight Go server managing clusters, deployments, users, domains, backups, and real-time events.
+2. **Edge Daemon (`tako-agent`)**: An ultra-lean Go daemon running on each worker node that communicates directly with the local Docker engine and manages local Traefik routing dynamically.
+3. **Operator Console (`tako-console`)**: A responsive Next.js web interface providing real-time cluster telemetry, server metrics, terminal streaming, deployment history, and node health management.
+
+---
+
+## Background & Design Philosophy
+
+### 1. The Dilemma of Modern Self-Hosting
+For years, teams seeking to self-host their applications faced two unsatisfactory extremes:
+- **Bulky Traditional PaaS Stacks:** Most open-source self-hosted PaaS platforms rely on heavy multi-container stacks (PHP/Laravel, monolithic Node.js runtimes, external PostgreSQL servers, Redis brokers, and separate WebSocket servers). These architectures frequently consume 1 GB to 2.5 GB of RAM just running the control plane before any customer workload even starts. Furthermore, multi-server management typically relies on running remote SSH commands from the master server into worker nodes, requiring port 22 to remain publicly accessible and exposing root private SSH keys.
+- **Extreme Kubernetes Complexity:** Kubernetes and its k3s/k8s distributions offer multi-node scalability, but introduce overwhelming operational burdens: etcd consensus clusters, CNI networking plugins (Calico/Flannel), custom resource definitions (CRDs), thousands of lines of YAML manifests, and a steep learning curve that overburdens small and medium engineering teams.
+
+### 2. The Tako Approach
+Tako was engineered from scratch with a **"Lean, Secure, and Edge-First"** philosophy:
+- **Zero-Dependency Database (Embedded SQLite WAL):** Tako persists all control plane state within an embedded SQLite database using WAL (Write-Ahead Logging) mode. This delivers sub-microsecond in-memory reads without network latency, eliminates external database server maintenance (no PostgreSQL/MySQL instances required), and allows instant single-file snapshot backups.
+- **Outbound-Only gRPC Bidirectional Streaming:** Worker nodes (`tako-agent`) never open inbound ports for management traffic. Instead, each agent establishes an outbound persistent TLS gRPC connection (`StreamTasks` and `StreamTelemetry`) to the master control plane. Worker nodes remain completely isolated behind NAT or strict firewalls without needing exposed SSH ports or shared private keys.
+- **Native Traefik Dynamic Provider Integration:** Every node (both master and workers) runs a local Traefik reverse proxy that continuously watches a local file-based dynamic routing directory (`/etc/tako/traefik/dynamic`). When the agent completes a deployment or rollback, it updates the configuration files atomically, triggering instant traffic re-routing and Let's Encrypt TLS certificate provisioning without restarting the proxy process.
+
+---
+
+## Core Capabilities
+
+- **Real-Time Telemetry & Global Topology:** Monitor CPU, RAM, disk I/O, network rx/tx throughput, gRPC round-trip latency, and geographical client origin distribution in real time.
+- **Zero-Downtime Rolling Deployments:** Deployments spin up isolated preview containers and run comprehensive health checks before updating canonical ingress routes.
+- **Multi-Node Cluster Scheduling:** Connect distributed VPS or bare-metal servers across multiple cloud regions using a single enrollment command.
+- **Native Container Registry Integration:** Full support for GitHub Container Registry (GHCR), Docker Hub, AWS ECR, and custom self-hosted private registries.
+- **Automated S3 Backups:** Automated scheduling and execution of database snapshots and persistent volume backups directly to any S3-compatible storage (AWS S3, Cloudflare R2, MinIO).
+- **Audit Logging & Security:** Comprehensive operator activity trails with detailed incident reporting and AES-GCM credential encryption.
+
+---
+
+## Next Steps
+
+Explore the following guides to get started with Tako:
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install the Tako master server and deploy your first application in minutes.
+  </Card>
+  <Card title="System Architecture" icon="diagram-project" href="/architecture">
+    Learn how gRPC streaming, the edge daemon, and Traefik routing work under the hood.
+  </Card>
+  <Card title="Deployments Guide" icon="server" href="/guides/deployments">
+    Learn how to deploy from Git repositories, pre-built Docker images, and private registries.
+  </Card>
+  <Card title="Monitoring & Observability" icon="chart-line" href="/guides/monitoring">
+    Explore real-time cluster telemetry, gRPC RTT latency, and live Traefik ingress logs.
+  </Card>
+  <Card title="Backups & Disaster Recovery" icon="shield-check" href="/guides/backups">
+    Configure automated SQLite snapshots, S3 cloud storage, and bare-metal recovery.
+  </Card>
+  <Card title="Platform Comparison" icon="code-compare" href="/comparison">
+    A factual architectural and performance comparison of Tako vs Coolify vs Dokploy.
+  </Card>
+</CardGroup>

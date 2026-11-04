@@ -1,0 +1,79 @@
+---
+title: "Configuration Reference"
+description: "Complete reference of environment variables, CLI flags, and runtime defaults for tako-server and tako-agent."
+---
+
+## Configuration Overview
+
+Tako follows twelve-factor application principles. All settings can be configured via environment variables or command-line flags.
+
+---
+
+## 1. Master Server Configuration (`tako-server`)
+
+The control plane reads configuration from the environment upon startup.
+
+| Environment Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `TAKO_HTTP_PORT` / `TAKO_PORT` | `8080` | TCP port on which the REST API and HTTP server listen. |
+| `TAKO_GRPC_PORT` | `50051` | TCP port for gRPC streaming connections with worker agents. |
+| `TAKO_DB_PATH` | `tako.db` | Filesystem path to the embedded SQLite database file. |
+| `TAKO_ENV` | `development` | Runtime environment mode (`development` or `production`). |
+| `TAKO_AGENT_SECRET` | *empty* | Shared secret or enrollment token used to authorize incoming agent connections. |
+| `TAKO_INITIAL_ADMIN_EMAIL` | `admin@gettako.dev` | Email address for initial bootstrap administrator account creation. |
+| `TAKO_INITIAL_ADMIN_PASSWORD` | `admin123456` | Initial password for the bootstrap administrator account. |
+| `TAKO_NODE_NAME` | `tako-master-01` | Human-readable identifier for the master node. |
+| `TAKO_BACKUP_DIR` | `/data/backups` | Filesystem path where local snapshot archives (`.tar.gz`) are stored. |
+
+### Minimal Master `.env` Example
+```bash
+TAKO_ENV=production
+TAKO_HTTP_PORT=8080
+TAKO_GRPC_PORT=50051
+TAKO_DB_PATH=/etc/tako/data/tako.db
+TAKO_AGENT_SECRET=super-secure-cluster-token
+TAKO_INITIAL_ADMIN_EMAIL=operator@example.com
+TAKO_INITIAL_ADMIN_PASSWORD=change-me-immediately-123
+```
+
+---
+
+## 2. Worker Agent Configuration (`tako-agent`)
+
+The worker daemon can be configured via environment variables or CLI flags passed to the binary.
+
+| Flag | Environment Variable | Default Value | Description |
+| :--- | :--- | :--- | :--- |
+| `--master-url` | `TAKO_MASTER_URL` | `127.0.0.1:50051` | Address (`host:port`) of the master gRPC server. |
+| `--token` | `TAKO_ENROLL_TOKEN` | *empty* | Enrollment token matching master's `TAKO_AGENT_SECRET`. |
+| `--node-id` | `TAKO_NODE_ID` | *auto-generated* | Unique identifier for this worker node. |
+| `--node-name` | `TAKO_NODE_NAME` | `$HOSTNAME` | Human-readable name displayed in the console. |
+| `--role` | `TAKO_NODE_ROLE` | `worker` | Node role classification (`leader` or `worker`). |
+| `--ip-address` | `TAKO_IP_ADDRESS` | *auto-detected* | Private/internal IP address of the node. |
+| `--public-ip` | `TAKO_PUBLIC_IP` | *auto-detected* | Public IPv4 address probed via external echo endpoints. |
+| `--interval` | `TAKO_METRICS_INTERVAL` | `3s` | Interval for streaming heartbeat and telemetry metrics. |
+| `--state-file` | `TAKO_STATE_FILE` | `/tmp/tako-agent.json` | Path where local node registration state is persisted. |
+| `--insecure` | `TAKO_INSECURE` | `true` | Connect via insecure gRPC (disable TLS verification for dev). |
+| *N/A* | `TAKO_TRAEFIK_DYNAMIC_DIR`| `/etc/tako/traefik/dynamic` | Directory where Traefik dynamic YAML routes are written. |
+
+### Minimal Worker `.env` Example
+```bash
+TAKO_MASTER_URL=master.example.com:50051
+TAKO_ENROLL_TOKEN=super-secure-cluster-token
+TAKO_NODE_NAME=edge-sg-01
+TAKO_NODE_ROLE=worker
+TAKO_METRICS_INTERVAL=3s
+TAKO_TRAEFIK_DYNAMIC_DIR=/etc/tako/traefik/dynamic
+```
+
+---
+
+## 3. Web Console Configuration (`tako-console`)
+
+The Next.js operator console connects to the master server via its internal API proxy:
+
+| Environment Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `TAKO_API_URL` | `http://127.0.0.1:8080` | Internal URL pointing to the `tako-server` REST API. |
+| `PORT` | `3000` | Port on which the Next.js server listens. |
+

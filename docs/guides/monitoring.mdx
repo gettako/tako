@@ -1,0 +1,65 @@
+---
+title: "Monitoring & Observability"
+description: "How to monitor cluster health, node telemetry, live HTTP traffic, gRPC latency, and ingress access logs in Tako."
+---
+
+## Observability Overview
+
+Tako features built-in, real-time observability across all cluster nodes and deployed workloads without requiring external monitoring agents or heavy time-series databases.
+
+The observability stack gathers metrics across three dimensions:
+1. **Node & System Telemetry**: CPU utilization, RAM consumption, disk storage, and network interface I/O.
+2. **Cluster Transport Latency**: Continuous round-trip time (RTT) tracking over the persistent gRPC stream between the Master and Worker nodes.
+3. **Edge Traffic & Access Logs**: Real-time HTTP ingress metrics, response code distributions, slow request detection, and geographic client origins parsed from Traefik.
+
+---
+
+## 1. Node Telemetry & Resource Utilization
+
+The `tako-agent` collects kernel and Docker metrics every few seconds and streams them directly to the master server via the `StreamTelemetry` gRPC RPC.
+
+### Key Metrics Monitored
+- **CPU Usage (%)**: Real-time aggregated CPU load per node and per container.
+- **RAM Usage (MB / %)**: Exact memory allocations and limits.
+- **Disk I/O & Storage**: Disk read/write rates and root partition utilization.
+- **Network Throughput**: Received (`rx`) and transmitted (`tx`) bandwidth in megabytes.
+
+In the **Nodes** view, each node card provides real-time gauges. Selecting a node opens historical metric charts with customizable time windows (1h, 6h, 24h, 7d).
+
+---
+
+## 2. Cluster Transport Latency (gRPC RTT)
+
+Because worker nodes maintain an active bidirectional gRPC stream with the master control plane, Tako continuously measures transport latency:
+- **Loopback Latency**: Master nodes communicating with local agents typically report `< 1ms` latency.
+- **Regional Worker Latency**: Distributed edge workers across distant cloud regions (e.g., US, Europe, Asia) display realistic network RTT.
+- **Heartbeat & Liveness**: If a node fails to report heartbeats within the configured threshold (default: 30 seconds), the control plane automatically marks the node as **Offline** and alerts operators.
+
+---
+
+## 3. Live Traffic & Global Topology Map
+
+Tako Console includes a dedicated **Live Traffic** center powered by real-time Traefik log streaming:
+- **Global Ingress Map**: Client IP addresses are resolved to geographic coordinates, displaying an interactive dot map of global traffic origin.
+- **Slow Request Highlighter**: HTTP requests exceeding 1,000ms are flagged automatically to assist in pinpointing database bottlenecks or unoptimized endpoints.
+- **Client Origin Metadata**: Requests display country flags, cities, and ISP/ASN identification.
+- **Internal Traffic Filtering**: Health checks, container probe pings, and internal proxy calls can be toggled on/off to isolate real user traffic.
+
+---
+
+## 4. Ingress Access Logs & Error Rates
+
+Traefik logs structured access events to `/var/log/tako/traefik/access.log`. The Tako server tails and parses these events:
+- **HTTP Status Code Tracking**: Real-time breakdowns of `2xx`, `3xx`, `4xx`, and `5xx` responses.
+- **Top Origin Analysis**: Identify top IP addresses, user agents, and high-frequency endpoints to detect potential DDoS or scraping activity.
+- **Log Export**: Download access logs in JSON or CSV format directly from the console for external SIEM analysis.
+
+---
+
+## 5. Automated Health Checks
+
+Every service container can specify custom health check parameters:
+- **Health Check Path**: The HTTP endpoint to probe (e.g., `/healthz` or `/api/status`).
+- **Interval & Timeout**: Probe frequency and maximum waiting time before declaring a check failed.
+- **Restart Policy**: Automatically restart unhealthy containers or notify operators via audit event streams.
+

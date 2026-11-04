@@ -1,0 +1,113 @@
+---
+title: "Deployments Guide"
+description: "Comprehensive guide to deploying applications from Git repositories, container registries, managing environment variables, and zero-downtime rollbacks."
+---
+
+## Deployment Workflows
+
+Tako supports flexible deployment pipelines designed for modern developer workflows. You can deploy services directly from raw source code in a Git repository or from pre-built container images stored in public and private container registries.
+
+---
+
+## 1. Deploying from a Git Repository
+
+Tako's internal `GitBuilder` handles repository cloning, commit resolution, and Dockerfile compilation automatically.
+
+### Configuration Steps
+1. Navigate to your project in the Tako Console and click **New Service**.
+2. Select **Git Repository** as the deployment source.
+3. Configure the following parameters:
+   - **Repository URL**: Standard HTTPS Git URL (e.g., `https://github.com/org/repo.git`).
+   - **Target Branch**: Branch to track (e.g., `main` or `production`).
+   - **Dockerfile Path**: Relative path to the Dockerfile within the repository (default: `Dockerfile`).
+   - **Build Context**: Relative path for the Docker build context (default: `.`).
+   - **Git Credentials**: For private repositories, attach a Personal Access Token (PAT) or deploy key configured in your project settings.
+4. Click **Deploy Service**.
+
+### The Build Execution Process
+When a Git deployment is triggered:
+1. `tako-agent` checks out the target repository and captures the exact commit hash and author metadata.
+2. The agent executes a localized Docker build with cache optimizations.
+3. The resulting container image is tagged uniquely with the short commit hash (`tako-app-<service>-<commit>`).
+
+---
+
+## 2. Deploying Pre-Built Container Images
+
+For teams with existing CI/CD pipelines (e.g., GitHub Actions building images and pushing to GHCR), deploying pre-built images provides the fastest and most reproducible workflow.
+
+### Using Public Registries
+Specify standard container image references:
+```text
+nginx:alpine
+redis:7-alpine
+ghcr.io/org/api:v1.2.0
+```
+
+### Using Private Registries (GHCR, Docker Hub, AWS ECR)
+To deploy from a private registry:
+1. Go to **Settings > Registries** in the Tako Console.
+2. Click **Add Registry** and select your provider:
+   - **GitHub Container Registry (`ghcr.io`)**: Provide your GitHub username and a token with `read:packages` scope.
+   - **Docker Hub (`docker.io`)**: Provide your Docker ID and Access Token.
+   - **AWS ECR / Custom Registry**: Provide the registry URL, username, and authentication token.
+3. In your service configuration, reference the full image name (`ghcr.io/your-org/private-service:v1.0.0`). Tako automatically injects the authenticated pull credentials during deployment.
+
+---
+
+## 3. Environment Variables & Secret Encryption
+
+Environment variables configure runtime behavior without altering container images:
+- **AES-GCM Encryption**: All sensitive environment variable values and registry credentials are encrypted at rest using AES-GCM before being persisted in the SQLite store.
+- **Dynamic Injection**: Variables are injected securely into the container runtime environment during container creation.
+- **Bulk Import**: Paste raw `.env` formatted content directly into the console editor to update multiple variables simultaneously.
+
+---
+
+## 4. Port Management & Dynamic Ingress
+
+Tako simplifies network routing through local Traefik dynamic provider integration:
+- **Internal Port**: Specify the port your application listens on inside the container (e.g., `3000` for Next.js, `8080` for Go/Java).
+- **Public Host Port (Optional)**: If you are running services that require direct TCP access (such as PostgreSQL on `:5432` or Redis on `:6379`), you can bind an explicit host port.
+- **Virtual Host Routing**: For HTTP/HTTPS web services, Traefik automatically routes incoming requests based on the configured domain names without needing host port conflicts.
+
+---
+
+## 5. Health Checks & Zero-Downtime Rollbacks
+
+Every deployment executes an automated verification routine:
+1. **Isolated Preview**: The new container starts on an internal port and generates a temporary dynamic preview route.
+2. **Probing**: Traefik probes the designated health check endpoint (default: `/` or custom `/health`).
+3. **Atomic Switchover**: Once the container returns HTTP 200, Traefik switches the canonical domain route to the new container.
+4. **Automatic Rollback**: If the new container fails health verification within the configurable timeout period, the preview container is terminated, the previous healthy container continues serving traffic, and the deployment is marked as `FAILED`.
+
+---
+
+## 6. Triggering Deployments via CI/CD Webhooks
+
+You can automate deployments upon pushing to your main branch using GitHub Actions, GitLab CI, or custom webhooks:
+
+```bash
+curl -X POST "https://api.yourdomain.com/api/v1/services/<SERVICE_ID>/deploy" \
+  -H "Authorization: Bearer <API_TOKEN>" \
+  -H "Content-Type: application/json"
+```
+
+### Example GitHub Actions Workflow
+```yaml
+name: Deploy to Tako
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Tako Deployment
+        run: |
+          curl -X POST "${{ secrets.TAKO_SERVER_URL }}/api/v1/services/${{ secrets.TAKO_SERVICE_ID }}/deploy" \
+            -H "Authorization: Bearer ${{ secrets.TAKO_API_TOKEN }}" \
+            -H "Content-Type: application/json"
+```
+

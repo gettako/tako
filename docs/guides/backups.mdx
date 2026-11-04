@@ -1,0 +1,110 @@
+---
+title: "Backups & Disaster Recovery"
+description: "How to configure automated SQLite snapshots, S3-compatible cloud backups, and perform atomic disaster recovery in Tako."
+---
+
+## Backup Architecture
+
+Data integrity and effortless disaster recovery are core tenets of Tako. Unlike platforms requiring separate PostgreSQL, MySQL, or Redis dump utilities, Tako manages state through a single embedded SQLite database in WAL (Write-Ahead Logging) mode and local persistent container volumes.
+
+Tako provides two layers of backup protection:
+1. **Cluster State Snapshots**: Live SQLite snapshots using `VACUUM INTO` combined with `.tar.gz` compression, SHA-256 checksum validation, and automatic S3 upload.
+2. **Service Volume Backups**: Application persistent storage archives synced directly to S3-compatible object storage.
+
+---
+
+## 1. How Live SQLite Snapshots Work
+
+Traditional SQLite file copying while a server is actively writing can result in database corruption. Tako avoids this by leveraging SQLite's native online backup primitive:
+
+```text
+VACUUM INTO '/data/backups/temp-<snapshot-id>.db'
+```
+
+### The Snapshot Sequence
+1. **Non-Blocking Checkpoint**: The server initiates an atomic `VACUUM INTO` transaction. Active read and write operations continue without downtime or locking.
+2. **Archive Compression**: The snapshot is compressed into a timestamped `.tar.gz` archive (e.g., `tako-cluster-snapshot-2026-11-05-040000.tar.gz`).
+3. **Integrity Checksum**: A SHA-256 cryptographic hash is generated and verified.
+4. **S3 Cloud Sync**: If a default S3 bucket is configured, the archive is uploaded immediately using AWS SigV4.
+5. **Audit Record**: Snapshot metadata (size in MB, duration in ms, checksum) is recorded in cluster audit logs.
+
+---
+
+## 2. Configuring S3 Cloud Storage
+
+Tako supports any S3-compatible storage provider, including **AWS S3**, **Cloudflare R2**, **MinIO**, **Backblaze B2**, and **Wasabi**.
+
+### Setup via Operator Console
+1. Navigate to **Settings > S3 Storage** in the Tako Console.
+2. Click **Configure S3 Bucket** and enter your credentials:
+   - **Endpoint**: Custom S3 endpoint URL (e.g., `https://<account_id>.r2.cloudflarestorage.com` or `https://s3.us-east-1.amazonaws.com`).
+   - **Region**: Storage region (e.g., `us-east-1` or `auto` for Cloudflare R2).
+   - **Bucket Name**: Name of your target bucket (e.g., `tako-backups-prod`).
+   - **Access Key ID**: Your S3 access key.
+   - **Secret Access Key**: Your S3 secret key (encrypted at rest with AES-GCM).
+   - **Set as Default**: Toggle ON to designate this destination for automated cluster snapshots.
+3. Click **Test & Save Configuration**. Tako validates bucket connectivity and write permissions before saving.
+
+---
+
+## 3. Creating Snapshots via REST API
+
+You can trigger on-demand snapshots programmatically via cURL or scheduled cron jobs:
+
+```bash
+curl -X POST "https://api.yourdomain.com/api/v1/backups/snapshot" \
+  -H "Authorization: Bearer <ADMIN_API_TOKEN>" \
+  -H "Content-Type: application/json"
+```
+
+### Response
+```json
+{
+  "ok": true,
+  "snapshotSizeMb": 4.82,
+  "durationMs": 142,
+  "snapshot": {
+    "id": "snap-1793820942000",
+    "filename": "tako-cluster-snapshot-2026-11-05-040000.tar.gz",
+    "sizeBytes": 5054136,
+    "sizeMb": 4.82,
+    "checksum": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "status": "stored",
+    "createdAt": "2026-11-05T04:00:00Z"
+  }
+}
+```
+
+---
+
+## 4. Disaster Recovery & Restoration
+
+If a master server experiences hardware failure, you can restore full cluster state onto a fresh server in minutes:
+
+### Automated Restore via Console or API
+If the Tako server is running:
+1. Open **Settings > Backups**.
+2. Select the snapshot and click **Restore**.
+3. Or dispatch an API restore request:
+   ```bash
+   curl -X POST "https://api.yourdomain.com/api/v1/backups/restore" \
+     -H "Authorization: Bearer <ADMIN_API_TOKEN>" \
+     -H "Content-Type: application/json" \
+     -d '{"snapshotId": "snap-1793820942000"}'
+   ```
+4. The server extracts the snapshot, validates archive integrity, and replaces the database atomically.
+
+### Manual Bare-Metal Recovery
+If the server is completely offline:
+1. Download the latest `.tar.gz` archive from your S3 bucket.
+2. Extract the archive:
+   ```bash
+   tar -xzf tako-cluster-snapshot-2026-11-05-040000.tar.gz
+   ```
+3. Copy the extracted SQLite database file to your configured database path:
+   ```bash
+   sudo cp tako.db /etc/tako/data/tako.db
+   ```
+4. Start the Tako containers (`docker compose up -d`).
+5. Connected worker agents will automatically reconnect over gRPC, resume telemetry streaming, and sync container states.
+

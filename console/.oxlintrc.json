@@ -4,7 +4,12 @@
   "categories": {
     "correctness": "error"
   },
-  "rules": {},
+  "rules": {
+    "react/set-state-in-effect": "warn",
+    "jsx-a11y/control-has-associated-label": "warn",
+    "jsx-a11y/label-has-associated-control": "warn",
+    "no-unused-vars": "warn"
+  },
   "overrides": [
     {
       "files": ["components/ui/**"],

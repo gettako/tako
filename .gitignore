@@ -51,6 +51,11 @@ node_modules/
 .turbo/
 *.tsbuildinfo
 next-env.d.ts
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # IDE & Editors
 .idea/

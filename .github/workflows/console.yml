@@ -1,0 +1,47 @@
+name: Console CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'console/**'
+      - '.github/workflows/console.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'console/**'
+      - '.github/workflows/console.yml'
+
+jobs:
+  test-console:
+    name: Test & Build Console
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        working-directory: console
+        run: bun install --frozen-lockfile
+
+      - name: Run Linter
+        working-directory: console
+        run: bun run lint
+
+      - name: Run Tests
+        working-directory: console
+        run: bun test
+
+      - name: Run TypeScript Typecheck
+        working-directory: console
+        run: bun run typecheck
+
+      - name: Run Next.js Production Build
+        working-directory: console
+        run: bun run build

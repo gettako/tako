@@ -1,0 +1,94 @@
+---
+title: "Quickstart"
+description: "Step-by-step guide to installing Tako and deploying your first application in minutes."
+---
+
+## Server Prerequisites
+
+Before installing Tako, ensure your server meets the following minimum requirements:
+- **Operating System**: Linux (Ubuntu 22.04+, Debian 12+, Rocky Linux 9+, or Arch Linux) with `x86_64` / `amd64` or `aarch64` / `arm64` architecture.
+- **Minimum Hardware (Master Node)**:
+  - 1 CPU Core
+  - 1 GB RAM (The Tako control plane requires < 100 MB RAM; the remaining capacity is available for your workloads)
+  - 10 GB Disk Storage
+- **Minimum Hardware (Worker Node)**:
+  - 1 CPU Core
+  - 512 MB RAM (The edge agent requires ~20 MB RAM)
+- **Network Ports**:
+  - `80/tcp` and `443/tcp`: Ingress HTTP & HTTPS traffic (Traefik)
+  - `50051/tcp`: gRPC port on the Master server (only needs to be reachable by Worker nodes)
+
+---
+
+## Step 1: Install the Master Node
+
+Execute the official one-line installation script to automatically provision Docker Engine, Traefik, `tako-server`, and `tako-console`:
+
+```bash
+curl -fsSL https://gettako.dev/install.sh | sudo bash
+```
+
+The installer performs the following operations:
+1. Verifies system dependencies (Docker, Docker Compose, `curl`).
+2. Configures configuration directories at `/etc/tako`.
+3. Boots `tako-traefik`, `tako-server`, and `tako-console` containers.
+4. Initializes the local SQLite database at `/etc/tako/data/tako.db` with WAL mode enabled.
+
+When installation finishes, your terminal will display initial access credentials and the console URL.
+
+---
+
+## Step 2: Access the Operator Console
+
+1. Open your browser and navigate to your server's IP address or domain:
+   ```text
+   http://<SERVER_IP>:3000
+   ```
+   *(Or via HTTPS if Traefik has already been configured with your domain).*
+2. Create the Root Administrator account on the initial setup screen.
+3. You will be redirected to the **Tako Dashboard**, displaying cluster health, real-time resource utilization, and master node status.
+
+---
+
+## Step 3: Enroll a Worker Node (Optional)
+
+To distribute container workloads across additional servers:
+
+1. In the Tako Console, navigate to the **Nodes** view and click **Add Node**.
+2. Specify the node's identifier (e.g., `sg-edge-01`) and geographical region.
+3. The console will generate an enrollment token and a ready-to-run command:
+   ```bash
+   curl -fsSL https://gettako.dev/install.sh | sudo bash -s -- --role agent \
+     --server-url https://master.yourdomain.com:50051 \
+     --token <ENROLLMENT_TOKEN>
+   ```
+4. Run this command on your worker server.
+5. `tako-agent` immediately dials out to the master server via TLS gRPC. Within seconds, the node status switches to **Online** in the console, streaming live CPU, RAM, and network telemetry.
+
+---
+
+## Step 4: Deploy Your First Service
+
+To deploy an application:
+
+1. In the Tako Console, open **Projects** and create a project (e.g., `Production Apps`).
+2. Inside the project, click **New Service**.
+3. Select your deployment source:
+   - **Git Repository**: Provide the repository URL (GitHub, GitLab, or any Git host), target branch (e.g., `main`), and optional build path.
+   - **Docker Image**: Specify the container image (e.g., `nginx:alpine` or an image from GitHub Container Registry).
+4. Configure internal container ports (e.g., port `3000` or `80`).
+5. Click **Deploy Service**.
+
+`tako-server` schedules the deployment to the designated node. You can watch build logs and container startup logs stream live directly in the console.
+
+---
+
+## Step 5: Configure Custom Domains & Automated TLS
+
+To bind a custom domain with automated SSL:
+
+1. Create a DNS `A` or `CNAME` record pointing your domain (e.g., `app.example.com`) to the public IP of the node hosting the service.
+2. Under the **Domains** tab in the service view, add `app.example.com`.
+3. Save changes.
+
+`tako-agent` updates the local Traefik dynamic configuration atomically. Traefik automatically requests a valid TLS certificate from Let's Encrypt via HTTP challenge and activates HTTPS instantly.

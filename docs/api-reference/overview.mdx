@@ -1,0 +1,89 @@
+---
+title: "API Overview"
+description: "Integration guide, authentication methods, and response formats for the Tako Control Plane REST API."
+---
+
+## API Overview
+
+The Tako Control Plane provides a comprehensive RESTful API for automating and managing every aspect of the platform: projects, services, deployments, worker nodes, custom domains, container registries, audit logs, and real-time telemetry.
+
+All API endpoints are rooted at `/api/v1` and exchange standard JSON payloads.
+
+### Base URL
+
+```text
+http://<MASTER_SERVER_IP>:8080/api/v1
+```
+*(Or via your production HTTPS domain: `https://api.yourdomain.com/api/v1`)*.
+
+---
+
+## Authentication
+
+Tako supports two authentication methods:
+
+### 1. Cookie-Based Session (Tako Console)
+When operators sign in through the Tako Console web interface, the server issues an HTTP-only secure cookie named `tako_session`. This cookie is automatically attached to subsequent requests dispatched to `/api/v1/*`.
+
+### 2. Bearer API Token (CI/CD & Automation)
+For programmatic access (such as GitHub Actions, GitLab CI, curl, or internal microservices), supply a Personal Access Token in the `Authorization` header:
+
+```bash
+curl -X GET "https://api.yourdomain.com/api/v1/projects" \
+  -H "Authorization: Bearer <YOUR_API_TOKEN>" \
+  -H "Accept: application/json"
+```
+
+---
+
+## Standard Response Format
+
+### Success (200 / 201)
+Successful API operations return structured JSON payloads corresponding to the requested resource:
+
+```json
+{
+  "id": "proj-902183",
+  "name": "Production E-Commerce",
+  "environment": "production",
+  "createdAt": "2026-11-05T01:15:30Z"
+}
+```
+
+### Errors (4xx / 5xx)
+If a validation error or internal fault occurs, the API returns a standardized error envelope:
+
+```json
+{
+  "error": "Resource not found",
+  "message": "Service with ID 'svc-xyz' does not exist in this project",
+  "code": 404
+}
+```
+
+---
+
+## Quick Examples
+
+<CodeGroup>
+```bash Health Check
+curl -X GET "https://api.yourdomain.com/health"
+```
+
+```bash List Projects
+curl -X GET "https://api.yourdomain.com/api/v1/projects" \
+  -H "Authorization: Bearer tako_pat_xxxxxxxx"
+```
+
+```bash Trigger Deployment
+curl -X POST "https://api.yourdomain.com/api/v1/services/svc-123/deploy" \
+  -H "Authorization: Bearer tako_pat_xxxxxxxx" \
+  -H "Content-Type: application/json"
+```
+</CodeGroup>
+
+---
+
+## Endpoint Specification
+
+Navigate using the sidebar under the **API Endpoints** tab to explore interactive documentation and code examples for all 16 Tako API domains (Auth, Deployments, Nodes, Services, Projects, Backups, Ingress, Metrics, etc.), generated directly from the official OpenAPI 3.1.0 specification.

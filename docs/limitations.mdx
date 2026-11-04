@@ -1,0 +1,56 @@
+---
+title: "Limitations"
+description: "Transparent documentation of technical boundaries, architecture trade-offs, and operational scope of Tako."
+---
+
+## Transparent System Boundaries
+
+Tako is intentionally engineered to prioritize high performance, operational simplicity, and an ultra-low resource footprint. Every architectural decision introduces specific trade-offs. This document outlines Tako's technical limitations transparently so engineering teams can accurately assess whether Tako is the right fit for their infrastructure.
+
+---
+
+### 1. Single-Master Architecture (SQLite WAL)
+- **Single-Writer Model**: Tako utilizes an embedded **SQLite** database operating in **WAL (Write-Ahead Logging)** mode on the master node. This provides sub-microsecond in-memory reads without network latency and avoids the operational overhead of running PostgreSQL or Redis clusters.
+- **Limitation**: Only a single master instance can perform database writes at any given time. While a single master easily manages dozens of worker nodes and hundreds of services without performance degradation, Tako does not provide an active-active, globally distributed multi-master database.
+- **Recommended Strategy**: Use Tako's built-in automated S3 backup integration to snapshot the SQLite database to object storage at scheduled intervals. If the master server fails, a replacement instance can be restored in minutes from the latest snapshot.
+
+---
+
+### 2. Standard Docker-Centric Orchestration (Non-Kubernetes)
+- **Direct Container Management**: Tako orchestrates containers directly through the local Docker Engine API on each worker node.
+- **Limitation**: Tako intentionally avoids Kubernetes abstractions (such as Pods, StatefulSets, DaemonSets, Helm charts, or CRDs).
+- **When to Choose Alternatives**: If your organization has strict compliance requirements mandating the CNCF/Kubernetes ecosystem, or requires complex multi-cluster service meshes (e.g., Istio, Linkerd), a pure Kubernetes platform is the appropriate choice.
+
+---
+
+### 3. Stateful Storage & Shared Volume Limitations
+- **Node-Local Storage**: Persistent container volumes are stored on the local disk of the node hosting the container.
+- **Limitation**: If a container is rescheduled or manually migrated to a different physical node, its local persistent volume does not automatically replicate across machines.
+- **Recommended Strategy**: For stateful applications requiring high availability across multiple physical nodes, leverage external S3-compatible object storage (e.g., AWS S3, Cloudflare R2, MinIO) or mount a distributed filesystem at the OS level (such as NFS, AWS EFS, or Ceph).
+
+---
+
+### 4. Global Multi-Node Ingress Load Balancing
+- **Per-Node Traefik Ingress**: Every Tako node runs an independent local Traefik instance managing routes for containers residing on that specific node.
+- **Limitation**: Traefik on Node A does not automatically proxy or load-balance incoming HTTP requests to containers running on Node B.
+- **Recommended Strategy**: If you run multiple replicas of a service across separate nodes and wish to balance traffic under a single domain name, place an external load balancing layer in front of the nodes:
+  - **Cloudflare Load Balancing / DNS Round-Robin**
+  - **Upstream Hardware or Cloud Load Balancer** (HAProxy, AWS ALB, NGINX)
+
+---
+
+### 5. Node Operating System Requirements
+- **Kernel Requirements**: `tako-server` and `tako-agent` require a modern Linux environment with cgroups v2 and Docker Engine support.
+- **Limitation**: Production nodes cannot run natively on Windows Server or macOS (although the Tako Console and CLI tooling can run on any operating system for local development).
+
+---
+
+### Decision Matrix
+
+| Scenario | Suitable for Tako? | Alternative Solutions |
+| :--- | :---: | :--- |
+| Single-node VPS or Multi-node cluster (1 - 50 servers) | **Highly Recommended** | Coolify, Dokploy |
+| Web applications, APIs, microservices, background workers | **Highly Recommended** | Render, Heroku |
+| Budget or resource-constrained VPS instances (512 MB – 2 GB RAM) | **Highly Recommended** | Dokploy |
+| Thousands of servers requiring active-active multi-region masters | Not Recommended | Kubernetes (EKS/GKE), Nomad |
+| Absolute requirement for Kubernetes CRDs / Helm charts | Not Recommended | K3s, Talos Linux, Kubernetes |

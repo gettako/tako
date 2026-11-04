@@ -1,0 +1,85 @@
+/* Custom CSS for Tako Docs matching console design system tokens */
+:root {
+  --radius: 4px;
+  --sidebar-width: 17rem;
+  --content-width: 58rem;
+}
+
+/* Sharp borders matching console tokens (sm: 2px, md: 4px, lg: 6px) */
+[class*="rounded-"] {
+  border-radius: 4px !important;
+}
+
+button, input, select, textarea, pre, code, .card, [data-component-part] {
+  border-radius: 4px !important;
+}
+
+/* Console dark background tokens */
+.dark body, .dark #sidebar, .dark #navbar, .dark {
+  background-color: #0b0c14 !important;
+}
+
+.dark .border {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Brand header logo matching console size-7 (28px) */
+#sidebar .nav-logo {
+  height: 1.75rem !important;
+  max-width: 14rem !important;
+}
+
+/* Match console layout: 2rem (32px / lg:px-8) gap between sidebar and main content */
+#content-container {
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+}
+
+/* Align Maple top header nav tabs to 32px padding boundary matching console header */
+#navbar-transition-maple {
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+}
+
+/* Widen main content area and align left with the 32px gap */
+#content-area {
+  margin-left: 0 !important;
+  min-width: 0 !important;
+  max-width: var(--content-width, 58rem) !important;
+  width: 100% !important;
+}
+
+@media (min-width: 1536px) {
+  :root {
+    --content-width: 64rem;
+  }
+  #content-area {
+    max-width: var(--content-width, 64rem) !important;
+  }
+}
+
+/* Enforce single-line display (no-wrap with ellipsis) on sidebar navigation and TOC */
+#sidebar a,
+#sidebar a span,
+#sidebar .sidebar-group a,
+nav[aria-label="Pages"] a,
+nav[aria-label="Pages"] a span,
+nav[aria-label="Table of contents"] a,
+nav[aria-label="Table of contents"] a span,
+#table-of-contents a,
+#table-of-contents a span,
+[data-component-part="toc"] a,
+[data-component-part="toc"] a span {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  word-break: normal !important;
+  hyphens: none !important;
+}
+
+#sidebar div[class*="flex-wrap"],
+nav[aria-label="Table of contents"] div[class*="flex-wrap"] {
+  flex-wrap: nowrap !important;
+}
+
+

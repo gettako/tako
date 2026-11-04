@@ -1,0 +1,43 @@
+name: Agent CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'agent/**'
+      - 'api/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - '.github/workflows/agent.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'agent/**'
+      - 'api/**'
+      - 'go.work'
+      - 'go.work.sum'
+      - '.github/workflows/agent.yml'
+
+jobs:
+  test-agent:
+    name: Test & Build Agent
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.work'
+          cache: true
+
+      - name: Run Agent Tests
+        working-directory: agent
+        run: go test -v -race ./...
+
+      - name: Build Agent Binary
+        working-directory: agent
+        run: go build -v ./cmd/agent
+
