@@ -905,36 +905,16 @@ export function LiveTopologyMap({
               {/* Ephemeral HTTP Traffic Beams (1x bergerak lalu putus) */}
               {activeBeams.map((beam) => (
                 <g key={beam.id}>
-                  {/* Origin City & Country pill at launch coordinates */}
-                  {beam.originMeta && (
-                    <motion.g
-                      key={`origin-${beam.id}`}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{
-                        opacity: [0, 0.95, 0.95, 0],
-                        scale: [0.8, 1, 1, 0.85],
-                      }}
-                      transition={{ duration: 1.05, times: [0, 0.2, 0.75, 1] }}
-                    >
-                      <rect
-                        x={beam.sourceX - 8.5}
-                        y={beam.sourceY - 5}
-                        width={17}
-                        height={3.8}
-                        rx={1.2}
-                        className="fill-card/95 stroke-border/80"
-                        strokeWidth={0.25}
-                      />
-                      <text
-                        x={beam.sourceX}
-                        y={beam.sourceY - 2.5}
-                        textAnchor="middle"
-                        className="fill-foreground font-mono text-[2.2px] font-bold select-none"
-                      >
-                        {beam.originMeta.code} · {beam.originMeta.city}
-                      </text>
-                    </motion.g>
-                  )}
+                  {/* Subtle launch pulse dot at client origin */}
+                  <motion.circle
+                    cx={beam.sourceX}
+                    cy={beam.sourceY}
+                    r={0.9}
+                    fill={beam.color}
+                    initial={{ scale: 0.6, opacity: 0.9 }}
+                    animate={{ scale: [0.6, 1.8, 0], opacity: [0.9, 0.4, 0] }}
+                    transition={{ duration: 0.75, ease: "easeOut" }}
+                  />
 
                   {/* Subtle trajectory arc trail */}
                   <motion.path
@@ -993,6 +973,65 @@ export function LiveTopologyMap({
               ))}
             </svg>
           )}
+
+          {/* Ephemeral Client Origin Badges Overlaid Directly on Map Coordinates */}
+          {(() => {
+            const seenOrigins = new Set<string>()
+            const latestPerOrigin: typeof activeBeams = []
+            for (let i = activeBeams.length - 1; i >= 0; i--) {
+              const b = activeBeams[i]
+              if (!b.originMeta) continue
+              const key = `${b.originMeta.code}-${b.originMeta.city}`
+              if (!seenOrigins.has(key)) {
+                seenOrigins.add(key)
+                latestPerOrigin.push(b)
+              }
+            }
+            return latestPerOrigin.map((beam) => {
+              if (!beam.originMeta) return null
+              const percentX = (beam.sourceX / 198) * 100
+              const percentY = beam.sourceY
+
+              return (
+                <motion.div
+                  key={`origin-badge-${beam.id}`}
+                  initial={{ opacity: 0, scale: 0.85, y: 3 }}
+                  animate={{
+                    opacity: [0, 1, 1, 0],
+                    scale: [0.85, 1, 1, 0.9],
+                    y: [3, 0, 0, -3],
+                  }}
+                  transition={{
+                    duration: 1.05,
+                    times: [0, 0.15, 0.75, 1],
+                    ease: "easeOut",
+                  }}
+                  style={{
+                    left: `${percentX}%`,
+                    top: `${percentY}%`,
+                  }}
+                  className="pointer-events-none absolute z-25 -translate-x-1/2 -translate-y-full pb-1 whitespace-nowrap select-none"
+                >
+                  <span
+                    style={{
+                      transform: `scale(${Math.min(1.15, Math.max(0.75, 1 / (zoom * 0.85)))})`,
+                      transformOrigin: "center bottom",
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border/80 bg-background/90 px-2 py-0.5 font-mono text-[9.5px] font-medium text-foreground shadow-2xs backdrop-blur-xs transition-all sm:text-[10.5px]"
+                  >
+                    <Flag
+                      src={beam.originMeta.flag}
+                      alt={`${beam.originMeta.country} flag`}
+                      width={14}
+                      height={10}
+                      className="h-2.5 w-3.5 shrink-0 rounded-[2px] object-cover"
+                    />
+                    <span>{beam.originMeta.city}</span>
+                  </span>
+                </motion.div>
+              )
+            })
+          })()}
 
           {/* Node Badges Overlaid Directly on Map Coordinates */}
           {nodeGeoList.map(({ node, geo }) => {
