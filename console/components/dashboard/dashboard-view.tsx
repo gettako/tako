@@ -1,7 +1,17 @@
 "use client"
 
 import * as React from "react"
-import { FolderGit2, Layers, Plus, Radio, Server } from "lucide-react"
+import Link from "next/link"
+import {
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
+  FolderGit2,
+  Layers,
+  Plus,
+  Radio,
+  Server,
+} from "lucide-react"
 
 import { AddNodeDialog } from "@/components/nodes/add-node-dialog"
 import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
@@ -94,7 +104,29 @@ export function DashboardView() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/monitor">
+            <Button
+              variant="outline"
+              size="md"
+              className="gap-1.5 text-xs text-foreground hover:border-blue-500/50 hover:bg-blue-500/10"
+            >
+              <Activity className="size-3.5 text-blue-500" />
+              <span>Monitor Node</span>
+            </Button>
+          </Link>
+
+          <Link href="/live">
+            <Button
+              variant="outline"
+              size="md"
+              className="gap-1.5 text-xs text-foreground hover:border-emerald-500/50 hover:bg-emerald-500/10"
+            >
+              <Radio className="size-3.5 animate-pulse text-emerald-500" />
+              <span>Monitor HTTP</span>
+            </Button>
+          </Link>
+
           <Button
             variant="outline"
             size="md"
@@ -119,22 +151,33 @@ export function DashboardView() {
       {/* Aggregate Metric Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Nodes */}
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between font-mono text-xs text-muted-foreground">
-            <span>Edge Nodes</span>
-            <Server className="size-4 text-primary" />
+        <div className="flex flex-col justify-between rounded-lg border border-border bg-card p-4 shadow-xs">
+          <div>
+            <div className="flex items-center justify-between font-mono text-xs text-muted-foreground">
+              <span>Edge Nodes</span>
+              <Server className="size-4 text-primary" />
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-bold text-foreground">
+                {nodes.length}
+              </span>
+              <span className="font-mono text-xs text-muted-foreground">
+                ({nodes.filter((n) => n.status === NODE_STATUS.ONLINE).length}{" "}
+                online)
+              </span>
+            </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono text-2xl font-bold text-foreground">
-              {nodes.length}
+          <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2.5 font-mono text-[11px] text-muted-foreground">
+            <span>
+              {totalCores} vCPUs • {totalMemory} GB RAM
             </span>
-            <span className="font-mono text-xs text-muted-foreground">
-              ({nodes.filter((n) => n.status === NODE_STATUS.ONLINE).length}{" "}
-              online)
-            </span>
-          </div>
-          <div className="mt-2 font-mono text-[11px] text-muted-foreground">
-            {totalCores} vCPUs • {totalMemory} GB RAM
+            <Link
+              href="/monitor"
+              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            >
+              <span>Monitor</span>
+              <ArrowUpRight className="size-3" />
+            </Link>
           </div>
         </div>
 
@@ -181,38 +224,49 @@ export function DashboardView() {
           </div>
         </div>
 
-        {/* gRPC Ingestion */}
-        <div className="rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-center justify-between font-mono text-xs text-muted-foreground">
-            <span>gRPC Telemetry</span>
-            <Radio
-              className={cn(
-                "size-4",
-                onlineNodes.length > 0
-                  ? "animate-pulse text-emerald-500"
-                  : "text-muted-foreground"
-              )}
-            />
+        {/* gRPC Ingestion & HTTP Traffic */}
+        <div className="flex flex-col justify-between rounded-lg border border-border bg-card p-4 shadow-xs">
+          <div>
+            <div className="flex items-center justify-between font-mono text-xs text-muted-foreground">
+              <span>gRPC & Ingress Traffic</span>
+              <Radio
+                className={cn(
+                  "size-4",
+                  onlineNodes.length > 0
+                    ? "animate-pulse text-emerald-500"
+                    : "text-muted-foreground"
+                )}
+              />
+            </div>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-bold text-foreground">
+                {avgLatency !== null ? `${avgLatency}ms` : "Offline"}
+              </span>
+              <span
+                className={cn(
+                  "font-mono text-xs",
+                  onlineNodes.length > 0
+                    ? "text-emerald-500"
+                    : "text-muted-foreground"
+                )}
+              >
+                {onlineNodes.length > 0 ? "Stream live" : "No active nodes"}
+              </span>
+            </div>
           </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-mono text-2xl font-bold text-foreground">
-              {avgLatency !== null ? `${avgLatency}ms` : "Offline"}
+          <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2.5 font-mono text-[11px] text-muted-foreground">
+            <span className="truncate pr-1">
+              {onlineNodes.length > 0
+                ? `${avgCpu}% CPU • ${avgMem}% RAM`
+                : "Avg latency to edge agents"}
             </span>
-            <span
-              className={cn(
-                "font-mono text-xs",
-                onlineNodes.length > 0
-                  ? "text-emerald-500"
-                  : "text-muted-foreground"
-              )}
+            <Link
+              href="/live"
+              className="inline-flex shrink-0 items-center gap-1 font-medium text-emerald-500 hover:underline"
             >
-              {onlineNodes.length > 0 ? "Stream live" : "No active nodes"}
-            </span>
-          </div>
-          <div className="mt-2 font-mono text-[11px] text-muted-foreground">
-            {onlineNodes.length > 0
-              ? `Avg load: ${avgCpu}% CPU, ${avgMem}% RAM`
-              : "Avg latency to edge agents"}
+              <span>Monitor HTTP</span>
+              <ArrowUpRight className="size-3" />
+            </Link>
           </div>
         </div>
       </div>
@@ -234,10 +288,17 @@ export function DashboardView() {
       {nodes.length > 0 && (
         <section className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <h2 className="font-mono text-sm font-semibold tracking-wider text-muted-foreground uppercase">
                 Edge Nodes ({nodes.length})
               </h2>
+              <Link
+                href="/monitor"
+                className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground transition-colors hover:text-primary"
+              >
+                <span>Go to Monitor</span>
+                <ArrowRight className="size-3" />
+              </Link>
             </div>
 
             <ViewModeToggle
