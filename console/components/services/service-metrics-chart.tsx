@@ -4,7 +4,7 @@ import * as React from "react"
 import { Activity, ArrowUpRight, Cpu, Network, Server } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { apiGet } from "@/lib/api"
+import { useServiceMetrics } from "@/hooks/use-services"
 
 const METRICS_POLL_INTERVAL_MS = 5_000
 import {
@@ -46,7 +46,6 @@ export function ServiceMetricsChart({
   const [range, setRange] = React.useState<TimeRange>("1h")
   const [mode, setMode] = React.useState<MetricMode>("cpu")
   const [points, setPoints] = React.useState<ServicePoint[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
 
   const containerRef = React.useRef<HTMLDivElement>(null)
@@ -75,76 +74,36 @@ export function ServiceMetricsChart({
     chartWidth - CHART_PADDING.left - CHART_PADDING.right
   )
 
+  const { data: rawMetrics, isLoading } = useServiceMetrics(
+    serviceId,
+    range,
+    true
+  )
+
   React.useEffect(() => {
-    let active = true
-
-    async function loadMetrics() {
-      try {
-        const res = await apiGet<
-          | Array<{
-              timestamp: string
-              cpu: number
-              memory: number
-              memoryPercent?: number
-              networkRx: number
-              networkTx: number
-            }>
-          | {
-              points?: Array<{
-                timestamp: string
-                cpu: number
-                memory: number
-                memoryPercent?: number
-                networkRx: number
-                networkTx: number
-              }>
-            }
-        >(`/services/${encodeURIComponent(serviceId)}/metrics?range=${range}`)
-
-        if (!active) return
-
-        const rawList = Array.isArray(res) ? res : res?.points
-        if (Array.isArray(rawList)) {
-          const mapped: ServicePoint[] = rawList.map((p) => {
-            const d = new Date(p.timestamp)
-            const timeStr = !isNaN(d.getTime())
-              ? d.toTimeString().slice(0, 5)
-              : p.timestamp
-            return {
-              time: timeStr,
-              cpu: Math.max(0, Math.round(p.cpu * 100) / 100),
-              memoryMb: Math.max(0, p.memory),
-              memoryPercent:
-                p.memoryPercent ??
-                Math.min(
-                  100,
-                  Math.round((p.memory / (memoryLimitMb || 1024)) * 100)
-                ),
-              networkRx: Math.max(0, Math.round(p.networkRx * 10) / 10),
-              networkTx: Math.max(0, Math.round(p.networkTx * 10) / 10),
-            }
-          })
-          setPoints(mapped)
+    if (Array.isArray(rawMetrics) && rawMetrics.length > 0) {
+      const mapped: ServicePoint[] = rawMetrics.map((p) => {
+        const d = new Date(p.timestamp)
+        const timeStr = !isNaN(d.getTime())
+          ? d.toTimeString().slice(0, 5)
+          : p.timestamp
+        return {
+          time: timeStr,
+          cpu: Math.max(0, Math.round(p.cpu * 100) / 100),
+          memoryMb: Math.max(0, p.memory),
+          memoryPercent:
+            p.memoryPercent ??
+            Math.min(
+              100,
+              Math.round((p.memory / (memoryLimitMb || 1024)) * 100)
+            ),
+          networkRx: Math.max(0, Math.round(p.networkRx * 10) / 10),
+          networkTx: Math.max(0, Math.round(p.networkTx * 10) / 10),
         }
-      } catch {
-        // Retain previous or fallback points on fetch error
-      } finally {
-        if (active) {
-          setIsLoading(false)
-        }
-      }
+      })
+      setPoints(mapped)
     }
-
-    void loadMetrics()
-    const timer = setInterval(() => {
-      void loadMetrics()
-    }, METRICS_POLL_INTERVAL_MS)
-
-    return () => {
-      active = false
-      clearInterval(timer)
-    }
-  }, [serviceId, range, memoryLimitMb])
+  }, [rawMetrics, memoryLimitMb])
 
   // Extract values based on active mode
   const values = React.useMemo(() => {
@@ -297,7 +256,6 @@ export function ServiceMetricsChart({
                 size="sm"
                 onClick={() => {
                   setRange(r)
-                  setIsLoading(true)
                 }}
                 className={cn(
                   "h-6 rounded px-2 font-mono text-[11px] transition-colors",

@@ -20,11 +20,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { usePlatformData } from "@/context/platform-data-context"
+import {
+  useSessions,
+  useRevokeSession,
+  useRevokeAllOtherSessions,
+} from "@/hooks/use-auth"
 import type { UserSession } from "@/types/platform"
 
 export function ProfileSessionsTab() {
-  const { sessions, revokeSession, revokeAllOtherSessions } = usePlatformData()
+  const { data: sessions = [], isPending: isSessionsPending } = useSessions()
+  const revokeSessionMutation = useRevokeSession()
+  const revokeAllOtherSessionsMutation = useRevokeAllOtherSessions()
 
   const [revokeAllModalOpen, setRevokeAllModalOpen] = React.useState(false)
   const [revokeTarget, setRevokeTarget] = React.useState<UserSession | null>(
@@ -52,13 +58,13 @@ export function ProfileSessionsTab() {
 
   const handleRevokeConfirm = () => {
     if (revokeTarget) {
-      revokeSession(revokeTarget.id)
+      revokeSessionMutation.mutate(revokeTarget.id)
       setRevokeTarget(null)
     }
   }
 
   const handleRevokeAllConfirm = () => {
-    revokeAllOtherSessions()
+    revokeAllOtherSessionsMutation.mutate()
     setRevokeAllModalOpen(false)
   }
 

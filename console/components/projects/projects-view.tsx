@@ -11,17 +11,22 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
+import { useProjects, useDeleteProject } from "@/hooks/use-projects"
 import { usePlatformData } from "@/context/platform-data-context"
 import { Project } from "@/types/platform"
 
 export function ProjectsView() {
+  const { data: projects = [], isPending, isError } = useProjects()
+  const deleteProjectMutation = useDeleteProject()
   const {
-    projects,
     projectsViewMode,
     setProjectsViewMode,
-    deleteProject,
     setDataMode,
   } = usePlatformData()
+
+  const deleteProject = async (id: string) => {
+    await deleteProjectMutation.mutateAsync(id)
+  }
 
   const [createProjectOpen, setCreateProjectOpen] = React.useState(false)
   const [projectToDelete, setProjectToDelete] = React.useState<Project | null>(
@@ -83,8 +88,21 @@ export function ProjectsView() {
         </div>
       </div>
 
-      {/* Empty State when no projects exist */}
-      {projects.length === 0 ? (
+      {/* Loading state */}
+      {isPending ? (
+        <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-card">
+          <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+            <span className="size-2 animate-ping rounded-full bg-primary" />
+            Loading projects...
+          </div>
+        </div>
+      ) : isError ? (
+        <EmptyState
+          icon={FolderGit2}
+          title="Failed to Load Projects"
+          description="Could not connect to the cluster to retrieve projects."
+        />
+      ) : projects.length === 0 ? (
         <EmptyState
           icon={FolderGit2}
           title="No Projects Configured"

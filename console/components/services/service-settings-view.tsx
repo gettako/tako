@@ -47,12 +47,19 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { useUpdateServiceEnvVars } from "@/hooks/use-env"
+import { parseRawEnv } from "@/services/env.service"
 import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
 import { usePlatformData } from "@/context/platform-data-context"
-import { apiGet, apiPost, apiPut } from "@/lib/api"
+import {
+  useServiceBackups,
+  useSaveServiceBackups,
+  useTriggerServiceBackup,
+  useTestServiceHealthCheck,
+} from "@/hooks/use-services"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { getServiceContainers, resolveDomainContainer } from "@/lib/container"
 import {
@@ -161,6 +168,7 @@ export function ServiceSettingsView({
   nodes,
 }: ServiceSettingsViewProps) {
   const { updateService, deleteService, addAuditLog, settings } = usePlatformData()
+  const updateEnvMutation = useUpdateServiceEnvVars(service.id)
 
   const serviceContainers = getServiceContainers(service)
   const mainContainer =
@@ -311,59 +319,55 @@ export function ServiceSettingsView({
   )
 
   // Service Backup state (Multi-backup plans)
-  const [backupConfigs, setBackupConfigs] = React.useState<ServiceBackupConfig[]>([])
-  const [backupLoading, setBackupLoading] = React.useState(false)
-  const [backupSaving, setBackupSaving] = React.useState(false)
-  const [triggeringBackupId, setTriggeringBackupId] = React.useState<string | null>(null)
+  const { data: initialBackupConfigs, isLoading: backupLoading } =
+    useServiceBackups(service.id)
+  const saveBackupsMutation = useSaveServiceBackups(service.id)
+  const triggerBackupMutation = useTriggerServiceBackup(service.id)
+  const testHealthMutation = useTestServiceHealthCheck(service.id)
+
+  const [backupConfigs, setBackupConfigs] = React.useState<
+    ServiceBackupConfig[]
+  >([])
+  const backupSaving = saveBackupsMutation.isPending
+  const [triggeringBackupId, setTriggeringBackupId] = React.useState<
+    string | null
+  >(null)
   const [backupMessage, setBackupMessage] = React.useState<string | null>(null)
 
   // Backup Modal state (Create / Edit)
   const [backupModalOpen, setBackupModalOpen] = React.useState(false)
-  const [editingPlan, setEditingPlan] = React.useState<ServiceBackupConfig | null>(null)
+  const [editingPlan, setEditingPlan] =
+    React.useState<ServiceBackupConfig | null>(null)
 
   React.useEffect(() => {
-    let active = true
-    const fetchBackup = async () => {
-      setBackupLoading(true)
-      try {
-        const cfgs = await apiGet<ServiceBackupConfig[] | ServiceBackupConfig>(
-          `/services/${service.id}/backup`
-        )
-        if (active && cfgs) {
-          if (Array.isArray(cfgs)) {
-            setBackupConfigs(cfgs)
-          } else {
-            setBackupConfigs([cfgs])
-          }
-        }
-      } catch {
-        // Fallback default single plan
-        if (active) {
-          setBackupConfigs([
-            {
-              id: `backup-${Date.now().toString(36)}`,
-              name: "Database Backup",
-              enabled: false,
-              cronSchedule: "0 2 * * *",
-              targetContainer: mainContainer?.name || `tako-app-${service.slug || service.id}`,
-              databaseType: "auto",
-              databaseName: "",
-              databaseUser: "",
-              retentionDays: 14,
-              destinationBucketId: "",
-              prefix: `services/${service.slug || service.id}/backups/`,
-            },
-          ])
-        }
-      } finally {
-        if (active) setBackupLoading(false)
-      }
+    if (initialBackupConfigs && initialBackupConfigs.length > 0) {
+      setBackupConfigs(initialBackupConfigs)
+    } else if (!backupLoading && backupConfigs.length === 0) {
+      setBackupConfigs([
+        {
+          id: `backup-${Date.now().toString(36)}`,
+          name: "Database Backup",
+          enabled: false,
+          cronSchedule: "0 2 * * *",
+          targetContainer:
+            mainContainer?.name || `tako-app-${service.slug || service.id}`,
+          databaseType: "auto",
+          databaseName: "",
+          databaseUser: "",
+          retentionDays: 14,
+          destinationBucketId: "",
+          prefix: `services/${service.slug || service.id}/backups/`,
+        },
+      ])
     }
-    fetchBackup()
-    return () => {
-      active = false
-    }
-  }, [service.id, service.slug, mainContainer?.name])
+  }, [
+    initialBackupConfigs,
+    backupLoading,
+    mainContainer?.name,
+    service.slug,
+    service.id,
+    backupConfigs.length,
+  ])
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -502,28 +506,21 @@ export function ServiceSettingsView({
   }
 
   // Handle saving Env Vars
-  const handleSaveEnv = () => {
+  const handleSaveEnv = async () => {
     if (envMode === "raw") {
-      const parsed = envRawText
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith("#"))
-        .map((l) => {
-          const eq = l.indexOf("=")
-          if (eq === -1) return { key: l, value: "" }
-          let val = l.slice(eq + 1).trim()
-          if (
-            (val.startsWith('"') && val.endsWith('"')) ||
-            (val.startsWith("'") && val.endsWith("'"))
-          ) {
-            val = val.slice(1, -1)
-          }
-          return { key: l.slice(0, eq).trim(), value: val }
-        })
-        .filter((i) => i.key.length > 0)
-      setEnvVars(parsed)
+      const parsed = parseRawEnv(envRawText)
+      setEnvVars(
+        parsed.map((p, idx) => ({
+          id: `env-${idx}-${p.key}`,
+          key: p.key,
+          value: p.value,
+          isSecret: Boolean(p.isSecret),
+        }))
+      )
+      await updateEnvMutation.mutateAsync(parsed)
       updateService(service.id, { envVars: parsed })
     } else {
+      await updateEnvMutation.mutateAsync(envVars)
       updateService(service.id, { envVars })
       setEnvRawText(envVars.map((e) => `${e.key}=${e.value}`).join("\n"))
     }
@@ -558,12 +555,7 @@ export function ServiceSettingsView({
     setTestingHealth(true)
     setHealthTestResult(null)
     try {
-      const res = await apiPost<{
-        ok: boolean
-        message: string
-        latencyMs?: number
-        status?: number
-      }>(`/services/${service.id}/health-check/test`, {
+      const res = await testHealthMutation.mutateAsync({
         path: healthPath,
         port: Number.parseInt(healthPort, 10) || 80,
       })
@@ -595,13 +587,9 @@ export function ServiceSettingsView({
 
   // Handle saving backup configs (multi-plan)
   const handleSaveBackup = async () => {
-    setBackupSaving(true)
     setBackupMessage(null)
     try {
-      const updated = await apiPut<ServiceBackupConfig[]>(
-        `/services/${service.id}/backup`,
-        backupConfigs
-      )
+      const updated = await saveBackupsMutation.mutateAsync(backupConfigs)
       if (updated && Array.isArray(updated)) {
         setBackupConfigs(updated)
       }
@@ -611,8 +599,6 @@ export function ServiceSettingsView({
       setBackupMessage(
         err instanceof Error ? err.message : "Failed to save backup configurations."
       )
-    } finally {
-      setBackupSaving(false)
     }
   }
 
@@ -621,23 +607,13 @@ export function ServiceSettingsView({
     setTriggeringBackupId(planId || "all")
     setBackupMessage(null)
     try {
-      const res = await apiPost<{
-        ok: boolean
-        filename?: string
-        checksum?: string
-        s3Destination?: string
-        planName?: string
-        container?: string
-        error?: string
-      }>(`/services/${service.id}/backup`, {
-        backupId: planId,
-      })
-      if (res.ok) {
+      const res = await triggerBackupMutation.mutateAsync(planId || "")
+      if (res.success) {
         setBackupMessage(
-          `Backup executed for ${res.planName || "plan"} (${res.container || "target"}): ${res.filename}`
+          `Backup executed: ${res.message || res.filename || "Snapshot created"}`
         )
       } else {
-        setBackupMessage(res.error || "Failed to create service backup snapshot.")
+        setBackupMessage(res.message || "Failed to create service backup snapshot.")
       }
     } catch (err: unknown) {
       setBackupMessage(
@@ -690,13 +666,9 @@ export function ServiceSettingsView({
     setBackupModalOpen(false)
 
     // Save directly to server
-    setBackupSaving(true)
     setBackupMessage(null)
     try {
-      const updated = await apiPut<ServiceBackupConfig[]>(
-        `/services/${service.id}/backup`,
-        nextList
-      )
+      const updated = await saveBackupsMutation.mutateAsync(nextList)
       if (updated && Array.isArray(updated)) {
         setBackupConfigs(updated)
       }
@@ -706,8 +678,6 @@ export function ServiceSettingsView({
       setBackupMessage(
         err instanceof Error ? err.message : "Failed to save backup plan."
       )
-    } finally {
-      setBackupSaving(false)
     }
   }
 
@@ -721,10 +691,7 @@ export function ServiceSettingsView({
     setBackupConfigs(nextList)
 
     try {
-      await apiPut<ServiceBackupConfig[]>(
-        `/services/${service.id}/backup`,
-        nextList
-      )
+      await saveBackupsMutation.mutateAsync(nextList)
       setBackupMessage("Backup plan removed.")
     } catch (err: unknown) {
       setBackupMessage(
@@ -740,10 +707,7 @@ export function ServiceSettingsView({
     )
     setBackupConfigs(nextList)
     try {
-      await apiPut<ServiceBackupConfig[]>(
-        `/services/${service.id}/backup`,
-        nextList
-      )
+      await saveBackupsMutation.mutateAsync(nextList)
     } catch {
       // Revert if failed
       setBackupConfigs(backupConfigs)

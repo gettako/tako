@@ -14,7 +14,7 @@ import {
 import { TelemetryChart } from "@/components/monitor/telemetry-chart"
 import { Button } from "@/components/ui/button"
 import { ClusterNode } from "@/types/platform"
-import { apiGet } from "@/lib/api"
+import { useClusterMetrics } from "@/hooks/use-monitoring"
 
 const CLUSTER_METRICS_POLL_MS = 10_000
 import {
@@ -138,78 +138,41 @@ export function ClusterCharts({
   )
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null)
 
-  // Fetch real cluster telemetry points from API and poll periodically during streaming
+  const { data: clusterMetrics } = useClusterMetrics(range, isStreaming)
+
   React.useEffect(() => {
-    let active = true
-
-    async function loadMetrics() {
-      try {
-        const points = await apiGet<
-          {
-            timestamp: string
-            cpu: number
-            memory: number
-            memoryPercent?: number
-            networkRx: number
-            networkTx: number
-            disk: number
-            diskPercent?: number
-          }[]
-        >(`/metrics?range=${range}`)
-
-        if (!active) return
-        if (Array.isArray(points) && points.length > 0) {
-          const { totalMem, baseDisk } = getClusterBases(nodes)
-          const mapped: MetricPoint[] = points.map((p) => {
-            const d = new Date(p.timestamp)
-            const timeStr = !isNaN(d.getTime())
-              ? d.toTimeString().slice(0, 5)
-              : p.timestamp
-            const ramPercent =
-              p.memoryPercent ||
-              Math.min(100, Math.round((p.memory / (totalMem * 1024)) * 100))
-            let ramGb = Number((p.memory / 1024).toFixed(1))
-            if (totalMem > 0 && ramGb > totalMem && ramPercent > 0) {
-              ramGb = Number(((totalMem * ramPercent) / 100).toFixed(1))
-            }
-            const rxMb = Number((p.networkRx / 1024).toFixed(1))
-            const txMb = Number((p.networkTx / 1024).toFixed(1))
-            const diskPercent = p.diskPercent || Math.round(baseDisk)
-            return {
-              time: timeStr,
-              cpu: Math.max(0, Math.min(100, Math.round(p.cpu * 10) / 10)),
-              ramGb,
-              ramPercent,
-              rxMb,
-              txMb,
-              diskPercent,
-              diskReadMb: Number((rxMb * 0.5).toFixed(1)),
-              diskWriteMb: Number((txMb * 0.5).toFixed(1)),
-            }
-          })
-          if (mapped.length > 0) {
-            setData(mapped)
-          }
+    if (clusterMetrics && clusterMetrics.length > 0) {
+      const { totalMem, baseDisk } = getClusterBases(nodes)
+      const mapped: MetricPoint[] = clusterMetrics.map((p) => {
+        const d = new Date(p.time)
+        const timeStr = !isNaN(d.getTime()) ? d.toTimeString().slice(0, 5) : p.time
+        const ramPercent =
+          p.memoryPercent ||
+          Math.min(100, Math.round((p.memory / (totalMem * 1024)) * 100))
+        let ramGb = Number((p.memory / 1024).toFixed(1))
+        if (totalMem > 0 && ramGb > totalMem && ramPercent > 0) {
+          ramGb = Number(((totalMem * ramPercent) / 100).toFixed(1))
         }
-      } catch {
-        // Retain current points on fetch error
+        const rxMb = Number((p.networkRx / 1024).toFixed(1))
+        const txMb = Number((p.networkTx / 1024).toFixed(1))
+        const diskPercent = p.diskPercent || Math.round(baseDisk)
+        return {
+          time: timeStr,
+          cpu: Math.max(0, Math.min(100, Math.round(p.cpu * 10) / 10)),
+          ramGb,
+          ramPercent,
+          rxMb,
+          txMb,
+          diskPercent,
+          diskReadMb: Number((rxMb * 0.5).toFixed(1)),
+          diskWriteMb: Number((txMb * 0.5).toFixed(1)),
+        }
+      })
+      if (mapped.length > 0) {
+        setData(mapped)
       }
     }
-
-    void loadMetrics()
-
-    let timer: NodeJS.Timeout | undefined
-    if (isStreaming) {
-      timer = setInterval(() => {
-        void loadMetrics()
-      }, CLUSTER_METRICS_POLL_MS)
-    }
-
-    return () => {
-      active = false
-      if (timer) clearInterval(timer)
-    }
-  }, [range, nodes, isStreaming])
+  }, [clusterMetrics, nodes])
 
   const handleRangeChange = (newRange: TimeRange) => {
     setRange(newRange)

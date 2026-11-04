@@ -29,111 +29,27 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { NODE_ROLE, type ClusterNode } from "@/types/platform"
-import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api"
+import {
+  useDeleteNodeTraefikFile,
+  useNodeTraefikFile,
+  useNodeTraefikFiles,
+  useReloadNodeTraefik,
+  useSaveNodeTraefikFile,
+} from "@/hooks/use-domain"
+import {
+  DEFAULT_TAKO_CONSOLE_YAML,
+  DEFAULT_TRAEFIK_STATIC_YAML,
+  NEW_FILE_STARTER_TEMPLATE,
+  type TraefikConfigFileFull,
+  type TraefikConfigFileMeta,
+} from "@/services/domain.service"
 import { cn } from "@/lib/utils"
-
-export interface TraefikConfigFileMeta {
-  name: string
-  path: string
-  size: number
-  updatedAt: string
-  isCustom: boolean
-  type: string
-}
-
-export interface TraefikConfigFileFull extends TraefikConfigFileMeta {
-  content: string
-}
 
 interface NodeTraefikConfigViewProps {
   node: ClusterNode
   actorName: string
   onAuditLog?: (action: string, target: string, details: string) => void
 }
-
-const DEFAULT_TRAEFIK_STATIC_YAML = `global:
-  checkNewVersion: false
-  sendAnonymousUsage: false
-
-api:
-  dashboard: false
-
-providers:
-  docker:
-    exposedByDefault: false
-    network: tako-network
-    watch: true
-  file:
-    directory: /etc/tako/traefik/dynamic
-    watch: true
-
-entryPoints:
-  web:
-    address: ":80"
-  websecure:
-    address: ":443"
-
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: "admin@gettako.dev"
-      storage: "/acme.json"
-      httpChallenge:
-        entryPoint: web
-`
-
-const DEFAULT_TAKO_CONSOLE_YAML = `# Dynamic configuration for Tako Console reverse proxy
-http:
-  routers:
-    tako-console-secure:
-      rule: "Host(\`console.gettako.dev\`)"
-      entryPoints:
-        - websecure
-      priority: 100
-      tls:
-        certResolver: letsencrypt
-      service: tako-console-svc
-
-    tako-console-redirect:
-      rule: "Host(\`console.gettako.dev\`)"
-      entryPoints:
-        - web
-      priority: 100
-      middlewares:
-        - tako-redirect-ssl
-      service: tako-console-svc
-
-  middlewares:
-    tako-redirect-ssl:
-      redirectScheme:
-        scheme: https
-        permanent: true
-
-  services:
-    tako-console-svc:
-      loadBalancer:
-        servers:
-          - url: "http://tako-console:3000"
-`
-
-const NEW_FILE_STARTER_TEMPLATE = `# Dynamic routing configuration for service
-http:
-  routers:
-    my-service-router:
-      rule: "Host(\`example.com\`)"
-      entryPoints:
-        - websecure
-      priority: 100
-      tls:
-        certResolver: letsencrypt
-      service: my-service-backend
-
-  services:
-    my-service-backend:
-      loadBalancer:
-        servers:
-          - url: "http://tako-app-my-service:8080"
-`
 
 export function NodeTraefikConfigView({
   node,
@@ -142,16 +58,45 @@ export function NodeTraefikConfigView({
 }: NodeTraefikConfigViewProps) {
   const isMaster = node.role === NODE_ROLE.MASTER
 
-  const [files, setFiles] = React.useState<TraefikConfigFileMeta[]>([])
+  const {
+    data: rawFiles = [],
+    isLoading: isLoadingList,
+    refetch: fetchFiles,
+  } = useNodeTraefikFiles(node.id)
+
+  const files = React.useMemo(() => {
+    return isMaster ? rawFiles : rawFiles.filter((f) => f.name !== "tako.yml")
+  }, [rawFiles, isMaster])
+
   const [selectedFileName, setSelectedFileName] =
     React.useState<string>("traefik.yml")
+
+  React.useEffect(() => {
+    if (files.length > 0 && !files.some((f) => f.name === selectedFileName)) {
+      setSelectedFileName(files[0].name)
+    }
+  }, [files, selectedFileName])
+
+  const { data: fileData, isLoading: isLoadingFile } = useNodeTraefikFile(
+    node.id,
+    selectedFileName
+  )
+
   const [fileContent, setFileContent] = React.useState<string>("")
   const [savedContent, setSavedContent] = React.useState<string>("")
-  const [isLoadingList, setIsLoadingList] = React.useState(true)
-  const [isLoadingFile, setIsLoadingFile] = React.useState(false)
-  const [isSaving, setIsSaving] = React.useState(false)
+
+  React.useEffect(() => {
+    if (fileData) {
+      setFileContent(fileData.content ?? "")
+      setSavedContent(fileData.content ?? "")
+    }
+  }, [fileData])
+
+  const saveFileMutation = useSaveNodeTraefikFile(node.id)
+  const deleteFileMutation = useDeleteNodeTraefikFile(node.id)
+  const reloadMutation = useReloadNodeTraefik(node.id)
+
   const [saveSuccess, setSaveSuccess] = React.useState(false)
-  const [isReloading, setIsReloading] = React.useState(false)
   const [reloadSuccess, setReloadSuccess] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
@@ -164,125 +109,21 @@ export function NodeTraefikConfigView({
   const [createError, setCreateError] = React.useState<string | null>(null)
 
   const isDirty = fileContent !== savedContent
+  const isSaving = saveFileMutation.isPending
+  const isReloading = reloadMutation.isPending
 
   const selectedFileMeta = React.useMemo(() => {
     return files.find((f) => f.name === selectedFileName)
   }, [files, selectedFileName])
 
-  // Fetch list of files
-  const fetchFiles = React.useCallback(async () => {
-    setIsLoadingList(true)
-    setErrorMessage(null)
-    try {
-      const data = await apiGet<TraefikConfigFileMeta[]>(
-        `/nodes/${node.id}/traefik/files`
-      )
-      // Filter out tako.yml if node is not master
-      const filtered = isMaster
-        ? data
-        : data.filter((f) => f.name !== "tako.yml")
-
-      setFiles(filtered)
-
-      // Ensure selected file exists in the list
-      if (!filtered.some((f) => f.name === selectedFileName)) {
-        if (filtered.length > 0) {
-          setSelectedFileName(filtered[0].name)
-        }
-      }
-    } catch {
-      // Fallback defaults if node files endpoint is offline / mock
-      const fallbackFiles: TraefikConfigFileMeta[] = [
-        {
-          name: "traefik.yml",
-          path: "/etc/tako/traefik/traefik.yml",
-          size: DEFAULT_TRAEFIK_STATIC_YAML.length,
-          updatedAt: new Date().toISOString(),
-          isCustom: false,
-          type: "yaml",
-        },
-      ]
-      if (isMaster) {
-        fallbackFiles.push({
-          name: "tako.yml",
-          path: "/etc/tako/traefik/dynamic/tako.yml",
-          size: DEFAULT_TAKO_CONSOLE_YAML.length,
-          updatedAt: new Date().toISOString(),
-          isCustom: false,
-          type: "yaml",
-        })
-      }
-      setFiles(fallbackFiles)
-    } finally {
-      setIsLoadingList(false)
-    }
-  }, [node.id, isMaster, selectedFileName])
-
-  // Initial load
-  React.useEffect(() => {
-    let ignore = false
-    void (async () => {
-      if (!ignore) {
-        await fetchFiles()
-      }
-    })()
-    return () => {
-      ignore = true
-    }
-  }, [fetchFiles])
-
-  // Fetch specific file content when selected
-  React.useEffect(() => {
-    if (!selectedFileName) return
-
-    let cancelled = false
-    async function loadContent() {
-      setIsLoadingFile(true)
-      setErrorMessage(null)
-      try {
-        const fileData = await apiGet<TraefikConfigFileFull>(
-          `/nodes/${node.id}/traefik/files/${encodeURIComponent(selectedFileName)}`
-        )
-        if (!cancelled) {
-          setFileContent(fileData.content ?? "")
-          setSavedContent(fileData.content ?? "")
-        }
-      } catch {
-        // Fallback default content if API is unreachable
-        if (!cancelled) {
-          if (selectedFileName === "traefik.yml") {
-            setFileContent(DEFAULT_TRAEFIK_STATIC_YAML)
-            setSavedContent(DEFAULT_TRAEFIK_STATIC_YAML)
-          } else if (selectedFileName === "tako.yml") {
-            setFileContent(DEFAULT_TAKO_CONSOLE_YAML)
-            setSavedContent(DEFAULT_TAKO_CONSOLE_YAML)
-          } else {
-            setFileContent(NEW_FILE_STARTER_TEMPLATE)
-            setSavedContent(NEW_FILE_STARTER_TEMPLATE)
-          }
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingFile(false)
-        }
-      }
-    }
-
-    loadContent()
-    return () => {
-      cancelled = true
-    }
-  }, [node.id, selectedFileName])
-
   const handleSave = async () => {
     if (!selectedFileName) return
-    setIsSaving(true)
     setErrorMessage(null)
     try {
-      await apiPut(
-        `/nodes/${node.id}/traefik/files/${encodeURIComponent(selectedFileName)}`,
-        { content: fileContent }
-      )
+      await saveFileMutation.mutateAsync({
+        fileName: selectedFileName,
+        content: fileContent,
+      })
       setSavedContent(fileContent)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
@@ -292,21 +133,16 @@ export function NodeTraefikConfigView({
         `${node.name} (${selectedFileName})`,
         `Updated Traefik configuration file ${selectedFileName} on ${node.ipAddress}`
       )
-      // Refresh list to update file size and updatedAt timestamp
-      fetchFiles()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save file"
       setErrorMessage(msg)
-    } finally {
-      setIsSaving(false)
     }
   }
 
   const handleReload = async () => {
-    setIsReloading(true)
     setErrorMessage(null)
     try {
-      await apiPost(`/nodes/${node.id}/traefik/reload`, {})
+      await reloadMutation.mutateAsync()
       setReloadSuccess(true)
       setTimeout(() => setReloadSuccess(false), 3000)
 
@@ -319,8 +155,6 @@ export function NodeTraefikConfigView({
       const msg =
         err instanceof Error ? err.message : "Failed to reload Traefik"
       setErrorMessage(msg)
-    } finally {
-      setIsReloading(false)
     }
   }
 
@@ -335,16 +169,13 @@ export function NodeTraefikConfigView({
     }
 
     try {
-      await apiDelete(
-        `/nodes/${node.id}/traefik/files/${encodeURIComponent(filename)}`
-      )
+      await deleteFileMutation.mutateAsync(filename)
       onAuditLog?.(
         "Traefik File Deleted",
         `${node.name} (${filename})`,
         `Deleted Traefik dynamic configuration file ${filename} on ${node.ipAddress}`
       )
       setSelectedFileName("traefik.yml")
-      fetchFiles()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete file"
       alert(msg)
@@ -366,15 +197,14 @@ export function NodeTraefikConfigView({
     }
 
     try {
-      await apiPut(
-        `/nodes/${node.id}/traefik/files/${encodeURIComponent(cleanName)}`,
-        { content: NEW_FILE_STARTER_TEMPLATE }
-      )
+      await saveFileMutation.mutateAsync({
+        fileName: cleanName,
+        content: NEW_FILE_STARTER_TEMPLATE,
+      })
       setIsCreateOpen(false)
       setNewFileName("")
       setCreateError(null)
       setSelectedFileName(cleanName)
-      fetchFiles()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create file"
       setCreateError(msg)
@@ -409,7 +239,7 @@ export function NodeTraefikConfigView({
           <Button
             size="sm"
             variant="outline"
-            onClick={fetchFiles}
+            onClick={() => void fetchFiles()}
             disabled={isLoadingList}
             className="gap-1.5 text-xs"
             title="Refresh files"

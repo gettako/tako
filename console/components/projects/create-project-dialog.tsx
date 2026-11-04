@@ -26,6 +26,7 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
+import { useCreateProject } from "@/hooks/use-projects"
 import { usePlatformData } from "@/context/platform-data-context"
 import { useZodForm } from "@/hooks/use-zod-form"
 import {
@@ -88,7 +89,8 @@ export function CreateProjectDialog({
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }) {
-  const { addProject, nodes } = usePlatformData()
+  const { nodes } = usePlatformData()
+  const createProjectMutation = useCreateProject()
   const [internalOpen, setInternalOpen] = React.useState(false)
   const isControlled = open !== undefined
   const isOpen = isControlled ? open : internalOpen
@@ -144,18 +146,13 @@ export function CreateProjectDialog({
     })
     if (!valid) return
 
-    const newProj: Omit<Project, "id" | "createdAt" | "updatedAt"> = {
+    createProjectMutation.mutate({
       name: name.trim(),
       slug: slug || name.trim().toLowerCase(),
       description:
         description.trim() || "Managed deployment group orchestrated via gRPC",
       environment,
-      servicesCount: 0,
-      healthyServicesCount: 0,
-      targetNodeIds: [selectedNode],
-    }
-
-    addProject(newProj)
+    })
     setName("")
     setSlug("")
     setDescription("")
@@ -306,8 +303,13 @@ export function CreateProjectDialog({
               </Button>
             }
           />
-          <Button type="submit" form="create-project-form" size="sm">
-            Create Project
+          <Button
+            type="submit"
+            form="create-project-form"
+            size="sm"
+            disabled={createProjectMutation.isPending}
+          >
+            {createProjectMutation.isPending ? "Creating..." : "Create Project"}
           </Button>
         </DialogFooter>
       </DialogContent>

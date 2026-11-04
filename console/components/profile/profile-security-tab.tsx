@@ -39,6 +39,11 @@ import {
   SelectOption,
 } from "@/components/ui/searchable-select"
 import { usePlatformData } from "@/context/platform-data-context"
+import {
+  usePasskeys,
+  useAddPasskey,
+  useRemovePasskey,
+} from "@/hooks/use-auth"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { copyToClipboard } from "@/lib/clipboard"
 import type { UserPasskey } from "@/types/platform"
@@ -118,10 +123,10 @@ export function ProfileSecurityTab() {
     currentUser,
     updateCurrentUser,
     addAuditLog,
-    passkeys,
-    addPasskey,
-    removePasskey,
   } = usePlatformData()
+  const { data: passkeys = [] } = usePasskeys()
+  const addPasskeyMutation = useAddPasskey()
+  const removePasskeyMutation = useRemovePasskey()
 
   // 1. Password state
   const [currentPassword, setCurrentPassword] = React.useState("")
@@ -369,7 +374,10 @@ export function ProfileSecurityTab() {
     }
 
     try {
-      await addPasskey(keyName.trim(), credentialId)
+      await addPasskeyMutation.mutateAsync({
+        name: keyName.trim(),
+        credentialId,
+      })
       setIsRegistering(false)
       setRegisterSuccess(true)
 
@@ -387,7 +395,7 @@ export function ProfileSecurityTab() {
 
   const handleDeletePasskeyConfirm = () => {
     if (deleteTarget) {
-      removePasskey(deleteTarget.id)
+      removePasskeyMutation.mutate(deleteTarget.id)
       setDeleteTarget(null)
     }
   }

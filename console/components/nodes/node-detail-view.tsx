@@ -30,7 +30,12 @@ import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
 import { NodeMetricsCharts } from "@/components/nodes/node-metrics-charts"
 import { NodeTraefikConfigView } from "@/components/nodes/node-traefik-config-view"
 import { usePlatformData } from "@/context/platform-data-context"
-import { apiGet, apiPost } from "@/lib/api"
+import {
+  useNode,
+  usePingNode,
+  useRestartNodeAgent,
+  usePruneNodeDisk,
+} from "@/hooks/use-nodes"
 import { copyToClipboard } from "@/lib/clipboard"
 import { activeStatusDotClass } from "@/lib/status"
 import { cn } from "@/lib/utils"
@@ -65,6 +70,11 @@ interface NodeDetailViewProps {
 }
 
 export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
+  const { data: nodeQuery } = useNode(nodeId)
+  const pingMutation = usePingNode()
+  const restartAgentMutation = useRestartNodeAgent()
+  const pruneDiskMutation = usePruneNodeDisk()
+
   const {
     nodes,
     services,
@@ -73,7 +83,7 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
     deleteNode,
     addAuditLog,
   } = usePlatformData()
-  const node = nodes.find((n) => n.id === nodeId)
+  const node = nodeQuery || nodes.find((n) => n.id === nodeId)
   const actorName = currentUser.email || currentUser.name || "admin@gettako.dev"
 
   const [activeTab, setActiveTab] = React.useState<TabType>("metrics")
@@ -157,11 +167,10 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   }
 
   const handlePingNode = async () => {
+    if (!node) return
     setIsPinging(true)
-    const t0 = performance.now()
     try {
-      await apiGet(`/nodes/${node.id}`)
-      const roundtrip = Math.max(1, Math.round(performance.now() - t0))
+      const roundtrip = await pingMutation.mutateAsync(node.id)
       setCurrentPing(roundtrip)
     } catch {
       // If node is unreachable, accurately reflect null latency rather than fabricating fake numbers
@@ -172,9 +181,10 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   }
 
   const handleRestartAgent = async () => {
+    if (!node) return
     setIsRestartingAgent(true)
     try {
-      await apiPost(`/nodes/${node.id}/update`, {})
+      await restartAgentMutation.mutateAsync(node.id)
       addAuditLog({
         action: "Agent Restart Dispatched",
         category: "node",
@@ -193,9 +203,10 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
   }
 
   const handlePruneDisk = async () => {
+    if (!node) return
     setIsPruning(true)
     try {
-      await apiPost(`/nodes/${node.id}/prune`, {})
+      await pruneDiskMutation.mutateAsync(node.id)
       setPruneSuccess(true)
       addAuditLog({
         action: "Node Disk Pruned",

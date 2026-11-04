@@ -35,6 +35,7 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
+import { useCreateService } from "@/hooks/use-services"
 import { usePlatformData } from "@/context/platform-data-context"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { isHttpUrl } from "@/lib/validation"
@@ -448,7 +449,8 @@ function CreateServiceContent({
   initialType,
   onClose,
 }: CreateServiceContentProps) {
-  const { addService, addAuditLog, nodes } = usePlatformData()
+  const { addAuditLog, nodes } = usePlatformData()
+  const createServiceMutation = useCreateService()
 
   // Active Wizard Step: 1 = Source & Repo, 2 = Node & Specs, 3 = Review & Environment
   const [step, setStep] = React.useState<1 | 2 | 3>(1)
@@ -649,7 +651,7 @@ function CreateServiceContent({
         8080,
     ]
 
-    await addService({
+    await createServiceMutation.mutateAsync({
       projectId,
       nodeId: targetNode,
       name: name.trim(),

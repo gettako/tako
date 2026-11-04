@@ -15,7 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { ClusterNode } from "@/types/platform"
-import { apiGet } from "@/lib/api"
+import { useNodeMetrics } from "@/hooks/use-nodes"
 import {
   CHART_HEIGHT,
   CHART_INNER_HEIGHT,
@@ -140,6 +140,13 @@ export function NodeMetricsCharts({ node }: NodeMetricsChartsProps) {
   const [containerWidth, setContainerWidth] =
     React.useState<number>(CHART_WIDTH)
 
+  const { data: rawMetrics } = useNodeMetrics(
+    node.id,
+    range,
+    (node.totalMemoryGb || 8) * 1024,
+    true
+  )
+
   React.useEffect(() => {
     if (!containerRef.current) return
     const updateSize = () => {
@@ -156,92 +163,33 @@ export function NodeMetricsCharts({ node }: NodeMetricsChartsProps) {
     return () => ro.disconnect()
   }, [])
 
-  // Poll metrics from backend
+  // Sync metrics from TanStack Query hook
   React.useEffect(() => {
-    let active = true
-
-    async function loadMetrics() {
-      try {
-        const res = await apiGet<
-          Array<{
-            timestamp: string
-            cpu: number
-            memory: number
-            memoryPercent?: number
-            networkRx: number
-            networkTx: number
-            disk: number
-            diskPercent?: number
-            diskRead?: number
-            diskWrite?: number
-            swapUsedMb?: number
-            swapTotalMb?: number
-          }>
-        >(`/metrics?nodeId=${encodeURIComponent(node.id)}&range=${range}`)
-
-        if (!active) return
-
-        if (Array.isArray(res) && res.length > 0) {
-          const mapped: NodeMetricPoint[] = res.map((p) => {
-            const d = new Date(p.timestamp)
-            const timeStr = !isNaN(d.getTime())
-              ? d.toTimeString().slice(0, 5)
-              : p.timestamp
-            let ramGb = Number((p.memory / 1024).toFixed(1))
-            const ramPct =
-              p.memoryPercent ??
-              (node.totalMemoryGb
-                ? Math.round((ramGb / node.totalMemoryGb) * 100)
-                : 0)
-            if (node.totalMemoryGb > 0 && ramGb > node.totalMemoryGb && ramPct > 0) {
-              ramGb = Number(((node.totalMemoryGb * ramPct) / 100).toFixed(1))
-            }
-
-            return {
-              time: timeStr,
-              cpu: Math.max(0, Math.round(p.cpu * 10) / 10),
-              ramGb,
-              ramPercent: ramPct,
-              rxMb: Math.max(0, Math.round((p.networkRx / 1024) * 10) / 10),
-              txMb: Math.max(0, Math.round((p.networkTx / 1024) * 10) / 10),
-              diskReadMb: Math.max(
-                0,
-                Math.round(((p.diskRead || 14) / 1024) * 10) / 10
-              ),
-              diskWriteMb: Math.max(
-                0,
-                Math.round(((p.diskWrite || 28) / 1024) * 10) / 10
-              ),
-              diskPercent: p.diskPercent ?? node.diskPercent,
-              swapUsedMb: p.swapUsedMb ?? 0,
-              swapTotalMb: p.swapTotalMb ?? 0,
-              swapPercent:
-                p.swapTotalMb && p.swapTotalMb > 0
-                  ? Math.round(((p.swapUsedMb || 0) / p.swapTotalMb) * 100)
-                  : 0,
-            }
-          })
-          setPoints(mapped)
-        } else {
-          setPoints(generateNodeFallbackData(node, range))
+    if (rawMetrics && rawMetrics.length > 0) {
+      const mapped: NodeMetricPoint[] = rawMetrics.map((p) => {
+        const d = new Date(p.time)
+        const timeStr = !isNaN(d.getTime()) ? d.toTimeString().slice(0, 5) : p.time
+        const ramGb = Number((p.memoryUsedMb / 1024).toFixed(1))
+        return {
+          time: timeStr,
+          cpu: Math.max(0, Math.round(p.cpu * 10) / 10),
+          ramGb,
+          ramPercent: p.memoryPercent,
+          rxMb: Math.max(0, Math.round((p.networkRxKbps / 1024) * 10) / 10),
+          txMb: Math.max(0, Math.round((p.networkTxKbps / 1024) * 10) / 10),
+          diskReadMb: Math.max(0, Math.round((p.diskReadKbps / 1024) * 10) / 10),
+          diskWriteMb: Math.max(0, Math.round((p.diskWriteKbps / 1024) * 10) / 10),
+          diskPercent: p.diskPercent,
+          swapUsedMb: 0,
+          swapTotalMb: 0,
+          swapPercent: p.swapPercent,
         }
-      } catch {
-        setPoints(generateNodeFallbackData(node, range))
-      } finally {
-        if (active) setIsLoading(false)
-      }
+      })
+      setPoints(mapped)
+    } else {
+      setPoints(generateNodeFallbackData(node, range))
     }
-
-    void loadMetrics()
-    const timer = setInterval(() => {
-      void loadMetrics()
-    }, METRICS_POLL_INTERVAL_MS)
-
-    return () => {
-      active = false
-      clearInterval(timer)
-    }
-  }, [node, range])
+  }, [rawMetrics, node, range])
 
   // Chart layout sizing
   const cardWidth = Math.max(Math.floor((containerWidth - 16) / 2), 300)

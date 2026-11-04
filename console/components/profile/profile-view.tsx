@@ -10,6 +10,7 @@ import { ProfileSecurityTab } from "@/components/profile/profile-security-tab"
 import { ProfileSessionsTab } from "@/components/profile/profile-sessions-tab"
 import { siteConfig } from "@/config/site"
 import { usePlatformData } from "@/context/platform-data-context"
+import { useSessions } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
 import { motion } from "motion/react"
 
@@ -30,7 +31,8 @@ interface TabItem {
 }
 
 export function ProfileView() {
-  const { currentUser, sessions } = usePlatformData()
+  const { currentUser } = usePlatformData()
+  const { data: sessions = [] } = useSessions()
   const [activeTab, setActiveTab] = React.useState<ProfileTab>("general")
 
   React.useEffect(() => {

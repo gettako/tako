@@ -27,6 +27,67 @@ import {
   type ApiUser,
 } from "@/lib/api"
 import { subscribeGeoIp } from "@/lib/geoip"
+import { getAuditLogs, createAuditLog } from "@/services/audit.service"
+import {
+  getProjects,
+  createProject,
+  deleteProject as serviceDeleteProject,
+} from "@/services/projects.service"
+import {
+  getNodes,
+  updateNode as serviceUpdateNode,
+  deleteNode as serviceDeleteNode,
+  generateEnrollToken as serviceGenerateEnrollToken,
+} from "@/services/nodes.service"
+import {
+  getServices,
+  createService as serviceCreateService,
+  deleteService as serviceDeleteService,
+} from "@/services/services.service"
+import {
+  getServiceDeployments,
+  getDeploymentLogs,
+  triggerRollback as serviceTriggerRollback,
+} from "@/services/deployments.service"
+import {
+  getSnapshots,
+  createSnapshot as serviceCreateSnapshot,
+  restoreSnapshot as serviceRestoreSnapshot,
+  getRegistries,
+  addDockerRegistry as serviceAddDockerRegistry,
+  deleteDockerRegistry as serviceDeleteDockerRegistry,
+  getUsers,
+  addUserInvite as serviceAddUserInvite,
+  revokeUserInvite as serviceRevokeUserInvite,
+  updateUserRole as serviceUpdateUserRole,
+  deleteUser as serviceDeleteUser,
+  getGitProviders,
+  connectGitProvider as serviceConnectGitProvider,
+  disconnectGitProvider as serviceDisconnectGitProvider,
+  getSyncedRepos,
+  syncGitRepos as serviceSyncGitRepos,
+  toggleRepoAutoDeploy as serviceToggleRepoAutoDeploy,
+  getSystemVersion,
+  checkSystemVersion as serviceCheckSystemVersion,
+  updateSystem as serviceUpdateSystem,
+  testS3Bucket as serviceTestS3Bucket,
+  testNotifications as serviceTestNotifications,
+} from "@/services/settings.service"
+import {
+  getCurrentUser,
+  getPasskeys,
+  getSessions,
+  login as serviceLogin,
+  loginWithPasskey as serviceLoginWithPasskey,
+  logout as serviceLogout,
+  updateCurrentUser as serviceUpdateCurrentUser,
+  updatePassword as serviceUpdatePassword,
+  updateTwoFactor as serviceUpdateTwoFactor,
+  revokeSession as serviceRevokeSession,
+  revokeAllOtherSessions as serviceRevokeAllOtherSessions,
+  addPasskey as serviceAddPasskey,
+  removePasskey as serviceRemovePasskey,
+} from "@/services/auth.service"
 import {
   adaptAuditLog,
   adaptDeployment,
@@ -592,13 +653,13 @@ export function PlatformDataProvider({
   }, [])
 
   const refreshNodes = React.useCallback(async () => {
-    const data = await apiGet<ApiNode[]>("/nodes")
-    setNodes(data.map(adaptNode))
+    const data = await getNodes()
+    setNodes(data)
   }, [])
 
   const refreshProjects = React.useCallback(async () => {
-    const data = await apiGet<ApiProject[]>("/projects")
-    setProjects(data.map(adaptProject))
+    const data = await getProjects()
+    setProjects(data)
   }, [])
 
   const refreshServices = React.useCallback(async () => {
@@ -628,8 +689,8 @@ export function PlatformDataProvider({
   }, [])
 
   const refreshAuditLogs = React.useCallback(async () => {
-    const data = await apiGet<ApiAuditLog[]>("/audit-logs?limit=200")
-    setAuditLogs(data.map(adaptAuditLog))
+    const data = await getAuditLogs(200)
+    setAuditLogs(data)
   }, [])
 
   const refreshSettings = React.useCallback(async () => {
@@ -723,52 +784,33 @@ export function PlatformDataProvider({
   }, [loadProfileExtra])
 
   const refreshUsers = React.useCallback(async () => {
-    const data = await apiGet<ApiUser[]>("/auth/users")
-    setUsers(data.map(adaptUser))
+    const data = await getUsers()
+    setUsers(data)
   }, [])
 
   const refreshRegistries = React.useCallback(async () => {
-    const data = await apiGet<ApiRegistry[]>("/registries")
-    setRegistries(data.map(adaptRegistry))
+    const data = await getRegistries()
+    setRegistries(data)
   }, [])
 
   const refreshSnapshots = React.useCallback(async () => {
-    const data = await apiGet<ApiSnapshot[]>("/backups/snapshots")
-    setSnapshots(data.map(adaptSnapshot))
+    const data = await getSnapshots()
+    setSnapshots(data)
   }, [])
 
   const refreshSessions = React.useCallback(async () => {
-    const data = await apiGet<ApiSession[]>("/auth/sessions")
-    setSessions(
-      data.map((session) => ({
-        id: session.id,
-        device: session.device || "Browser Session",
-        browser: session.userAgent || "Unknown client",
-        ipAddress: session.ipAddress,
-        location: session.location || "Unknown location",
-        lastActive: session.lastActive || "Just now",
-        isCurrent: session.current,
-      }))
-    )
+    const data = await getSessions()
+    setSessions(data)
   }, [])
 
   const refreshPasskeys = React.useCallback(async () => {
-    const data = await apiGet<ApiPasskey[]>("/auth/passkeys")
-    setPasskeys(
-      data.map((passkey, index) => ({
-        id: passkey.id,
-        name: passkey.name,
-        credentialId: passkey.credentialId || "",
-        createdAt: passkey.createdAt,
-        lastUsedAt: passkey.lastUsedAt || "Never",
-        type: index % 2 === 0 ? "touch_id" : "security_key",
-      }))
-    )
+    const data = await getPasskeys()
+    setPasskeys(data)
   }, [])
 
   const refreshSystemVersion = React.useCallback(async () => {
     try {
-      const data = await apiGet<ApiSystemVersion>("/system/version")
+      const data = await getSystemVersion()
       setSystemVersion(data)
     } catch {
       setSystemVersion(null)
@@ -830,23 +872,9 @@ export function PlatformDataProvider({
   ])
 
   const loadCurrentUser = React.useCallback(async () => {
-    const data = await apiGet<{ authenticated: boolean; user: ApiCurrentUser }>(
-      "/auth/me"
-    )
-    const extra = await loadProfileExtra()
-    setCurrentUser(
-      mapCurrentUser(data.user, {
-        handle: (extra.handle as string) || undefined,
-        title: (extra.title as string) || undefined,
-        bio: (extra.bio as string) || undefined,
-        timezone: (extra.timezone as string) || undefined,
-        defaultLanding:
-          (extra.defaultLanding as CurrentUserProfile["defaultLanding"]) ||
-          undefined,
-        gpgKeyId: (extra.gpgKeyId as string) || undefined,
-      })
-    )
-  }, [loadProfileExtra])
+    const user = await getCurrentUser()
+    setCurrentUser(user)
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false
@@ -1003,13 +1031,7 @@ export function PlatformDataProvider({
     async (email: string, password: string) => {
       setError(null)
       try {
-        const res = await apiPost<{ token: string }>("/auth/login", {
-          email,
-          password,
-        })
-        if (res?.token) {
-          setAuthToken(res.token)
-        }
+        await serviceLogin(email, password)
         await loadCurrentUser()
         setStatus("authenticated")
         await refreshAll()
@@ -1026,12 +1048,7 @@ export function PlatformDataProvider({
     async (credentialId?: string) => {
       setError(null)
       try {
-        const res = await apiPost<{ token: string }>("/auth/passkey/login", {
-          credentialId: credentialId || "",
-        })
-        if (res?.token) {
-          setAuthToken(res.token)
-        }
+        await serviceLoginWithPasskey(credentialId)
         await loadCurrentUser()
         setStatus("authenticated")
         await refreshAll()
@@ -1048,12 +1065,7 @@ export function PlatformDataProvider({
   )
 
   const logout = React.useCallback(async () => {
-    try {
-      await apiPost("/auth/logout")
-    } catch {
-      // Ignore network failures during sign-out.
-    }
-    setAuthToken(null)
+    await serviceLogout()
     deployCloseRef.current?.()
     setStatus("unauthenticated")
     setError(null)
@@ -1077,7 +1089,7 @@ export function PlatformDataProvider({
       id: string,
       updates: { name?: string; ipAddress?: string; publicIp?: string }
     ) => {
-      await apiPatch(`/nodes/${id}`, updates)
+      await serviceUpdateNode(id, updates)
       await refreshNodes()
     },
     [refreshNodes]
@@ -1089,35 +1101,33 @@ export function PlatformDataProvider({
       if (node?.role === NODE_ROLE.MASTER) {
         throw new Error("Master node cannot be deleted")
       }
-      await apiDelete(`/nodes/${id}?force=true`)
+      await serviceDeleteNode(`${id}?force=true`)
       await Promise.all([refreshNodes(), refreshServices()])
     },
     [nodes, refreshNodes, refreshServices]
   )
 
   const generateEnrollToken = React.useCallback(async () => {
-    const data = await apiPost<{ token: string }>("/nodes/enroll-token")
-    return data.token
+    return serviceGenerateEnrollToken()
   }, [])
 
   const addProject = React.useCallback(
     async (project: CreateProjectInput) => {
-      const created = await apiPost<ApiProject>("/projects", {
+      const created = await createProject({
         name: project.name,
         slug: project.slug,
         description: project.description,
         environment: project.environment,
-        tags: [],
       })
       await refreshProjects()
-      return adaptProject(created)
+      return created
     },
     [refreshProjects]
   )
 
   const deleteProject = React.useCallback(
     async (id: string) => {
-      await apiDelete(`/projects/${id}`)
+      await serviceDeleteProject(id)
       await Promise.all([refreshProjects(), refreshServices()])
     },
     [refreshProjects, refreshServices]
@@ -1125,32 +1135,9 @@ export function PlatformDataProvider({
 
   const addService = React.useCallback(
     async (input: CreateServiceInput) => {
-      const created = await apiPost<ApiService>("/services", {
-        projectId: input.projectId,
-        nodeId: input.nodeId,
-        name: input.name,
-        slug: input.slug,
-        type: input.type,
-        repository: input.repository,
-        branch: input.branch,
-        dockerfile: input.dockerfile,
-        image: input.image,
-        ports: input.ports,
-        domains: input.domains,
-        environmentVars: input.environmentVars,
-        publishToHost: input.publishToHost,
-      })
-      if (created.id) {
-        await apiPatch(`/services/${created.id}`, {
-          replicas: input.replicas,
-          limits: {
-            cpuCores: input.limits.cpuCores,
-            memoryMb: input.limits.memoryMb,
-          },
-        })
-      }
+      const created = await serviceCreateService(input)
       await Promise.all([refreshServices(), refreshProjects()])
-      return adaptService(created)
+      return created
     },
     [refreshServices, refreshProjects]
   )
@@ -1202,7 +1189,7 @@ export function PlatformDataProvider({
 
   const deleteService = React.useCallback(
     async (id: string) => {
-      await apiDelete(`/services/${id}`)
+      await serviceDeleteService(id)
       await Promise.all([refreshServices(), refreshProjects()])
     },
     [refreshServices, refreshProjects]
@@ -1297,7 +1284,7 @@ export function PlatformDataProvider({
       if (!targetDeployment.id) {
         throw new Error("Select a deployment with a recorded revision")
       }
-      await apiPost(`/deployments/${targetDeployment.id}/rollback`, {})
+      await serviceTriggerRollback(targetDeployment.id)
       await Promise.allSettled([
         refreshServices(),
         refreshProjects(),
@@ -1309,10 +1296,7 @@ export function PlatformDataProvider({
 
   const fetchServiceDeployments = React.useCallback(
     async (serviceId: string) => {
-      const data = await apiGet<ApiDeployment[]>(
-        `/deployments?serviceId=${encodeURIComponent(serviceId)}`
-      )
-      const adapted = data.map(adaptDeployment)
+      const adapted = await getServiceDeployments(serviceId)
       setServices((prev) =>
         prev.map((s) =>
           s.id === serviceId ? { ...s, deploymentHistory: adapted } : s
@@ -1325,51 +1309,14 @@ export function PlatformDataProvider({
 
   const fetchDeploymentLogs = React.useCallback(
     async (deploymentId: string) => {
-      if (!deploymentId) return []
-      const text = await apiGet<string>(
-        `/deployments/${deploymentId}/logs/history`
-      )
-      const lines = String(text)
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-      return lines.map((line, index): DeploymentLogEntry => {
-        let timestamp = ""
-        let step = "Log"
-        let msg = line
-        const match = line.match(
-          /^\[(\d{2}:\d{2}:\d{2})\]\s+\[([^\]]+)\]\s+([\s\S]*)$/
-        )
-        if (match) {
-          timestamp = match[1]
-          step = match[2]
-          msg = match[3]
-        }
-        return {
-          id: `${deploymentId}-log-${index}`,
-          timestamp,
-          level: /error|failed/i.test(msg)
-            ? "error"
-            : step === "Live"
-              ? "success"
-              : "info",
-          step,
-          message: msg.trim(),
-        }
-      })
+      return getDeploymentLogs(deploymentId)
     },
     []
   )
 
   const addAuditLog = React.useCallback(
     async (entry: Omit<AuditLogEntry, "id" | "timestamp">) => {
-      await apiPost("/audit-logs", {
-        actorName: entry.actor.name,
-        action: entry.action,
-        targetType: entry.category,
-        targetName: entry.target,
-        metadata: { details: entry.details },
-      })
+      await createAuditLog(entry)
       await refreshAuditLogs()
     },
     [refreshAuditLogs]
@@ -1689,7 +1636,7 @@ export function PlatformDataProvider({
 
   const checkSystemVersion = React.useCallback(async () => {
     try {
-      const data = await apiPost<ApiSystemVersion>("/system/version/check", {})
+      const data = await serviceCheckSystemVersion()
       setSystemVersion(data)
       return data
     } catch {
@@ -1698,16 +1645,14 @@ export function PlatformDataProvider({
   }, [])
 
   const createSnapshot = React.useCallback(async () => {
-    const response = await apiPost<{ snapshot: ApiSnapshot }>(
-      "/backups/snapshot"
-    )
+    const snapshot = await serviceCreateSnapshot()
     await refreshSnapshots()
-    return adaptSnapshot(response.snapshot)
+    return snapshot
   }, [refreshSnapshots])
 
   const restoreSnapshot = React.useCallback(
     async (id: string) => {
-      await apiPost("/backups/restore", { snapshotId: id })
+      await serviceRestoreSnapshot(id)
       await Promise.allSettled([
         refreshNodes(),
         refreshProjects(),
@@ -1801,44 +1746,22 @@ export function PlatformDataProvider({
 
   const updateCurrentUser = React.useCallback(
     async (updates: Partial<CurrentUserProfile>) => {
-      if (
-        updates.name !== undefined ||
-        updates.email !== undefined ||
-        updates.avatarUrl !== undefined
-      ) {
-        await apiPut("/auth/profile", {
-          name: updates.name ?? currentUser.name,
-          email: updates.email ?? currentUser.email,
-          avatarUrl: updates.avatarUrl ?? currentUser.avatarUrl ?? "",
-        })
-      }
-      if (updates.twoFactorEnabled !== undefined) {
-        await apiPut("/auth/2fa", { enabled: updates.twoFactorEnabled })
-      }
-      const extra = {
-        handle: updates.handle ?? currentUser.handle,
-        title: updates.title ?? currentUser.title,
-        bio: updates.bio ?? currentUser.bio,
-        timezone: updates.timezone ?? currentUser.timezone,
-        defaultLanding: updates.defaultLanding ?? currentUser.defaultLanding,
-        gpgKeyId: updates.gpgKeyId ?? currentUser.gpgKeyId,
-      }
-      await persistSetting("user_profile_extra", extra)
+      await serviceUpdateCurrentUser(updates, currentUser)
       setCurrentUser((current) => ({ ...current, ...updates }))
     },
-    [currentUser, persistSetting]
+    [currentUser]
   )
 
   const updatePassword = React.useCallback(
     async (currentPassword: string, newPassword: string) => {
-      await apiPut("/auth/password", { currentPassword, newPassword })
+      await serviceUpdatePassword(currentPassword, newPassword)
     },
     []
   )
 
   const updateTwoFactor = React.useCallback(
     async (enabled: boolean) => {
-      await apiPut("/auth/2fa", { enabled })
+      await serviceUpdateTwoFactor(enabled)
       setCurrentUser((current) => ({ ...current, twoFactorEnabled: enabled }))
       await refreshAuditLogs()
     },
@@ -1847,20 +1770,20 @@ export function PlatformDataProvider({
 
   const revokeSession = React.useCallback(
     async (id: string) => {
-      await apiDelete(`/auth/sessions/${id}`)
+      await serviceRevokeSession(id)
       await refreshSessions()
     },
     [refreshSessions]
   )
 
   const revokeAllOtherSessions = React.useCallback(async () => {
-    await apiPost("/auth/sessions/revoke-others")
+    await serviceRevokeAllOtherSessions()
     await refreshSessions()
   }, [refreshSessions])
 
   const addPasskey = React.useCallback(
     async (name: string, credentialId?: string) => {
-      await apiPost("/auth/passkeys", { name, credentialId })
+      await serviceAddPasskey(name, credentialId)
       await refreshPasskeys()
       await refreshAuditLogs()
     },
@@ -1869,7 +1792,7 @@ export function PlatformDataProvider({
 
   const removePasskey = React.useCallback(
     async (id: string) => {
-      await apiDelete(`/auth/passkeys/${id}`)
+      await serviceRemovePasskey(id)
       await refreshPasskeys()
       await refreshAuditLogs()
     },
@@ -1923,7 +1846,7 @@ export function PlatformDataProvider({
 
   const updateUserRole = React.useCallback(
     async (id: string, role: UserRole) => {
-      await apiPut(`/auth/users/${id}/role`, { role })
+      await serviceUpdateUserRole(id, role)
       await refreshUsers()
     },
     [refreshUsers]
@@ -1931,7 +1854,7 @@ export function PlatformDataProvider({
 
   const deleteUser = React.useCallback(
     async (id: string) => {
-      await apiDelete(`/auth/users/${id}`)
+      await serviceDeleteUser(id)
       await refreshUsers()
     },
     [refreshUsers]
@@ -1939,12 +1862,7 @@ export function PlatformDataProvider({
 
   const addDockerRegistry = React.useCallback(
     async (registry: Omit<DockerRegistryConfig, "id" | "createdAt">) => {
-      await apiPost("/registries", {
-        name: registry.name,
-        serverUrl: registry.serverUrl,
-        username: registry.username,
-        password: registry.password,
-      })
+      await serviceAddDockerRegistry(registry)
       await refreshRegistries()
     },
     [refreshRegistries]
@@ -1952,7 +1870,7 @@ export function PlatformDataProvider({
 
   const deleteDockerRegistry = React.useCallback(
     async (id: string) => {
-      await apiDelete(`/registries/${id}`)
+      await serviceDeleteDockerRegistry(id)
       await refreshRegistries()
     },
     [refreshRegistries]

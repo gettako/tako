@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
+import { useProject, useDeleteProject } from "@/hooks/use-projects"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
 import { SERVICE_TYPE, type ServiceType } from "@/types/platform"
@@ -22,18 +23,23 @@ interface ProjectServicesViewProps {
 }
 
 export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
+  const { data: projectQuery, isPending: isProjectPending } = useProject(projectId)
+  const deleteProjectMutation = useDeleteProject()
   const {
     projects,
     services,
     servicesViewMode,
     setServicesViewMode,
     deleteService,
-    deleteProject,
     setDataMode,
   } = usePlatformData()
 
-  const project = projects.find((p) => p.id === projectId)
+  const project = projectQuery || projects.find((p) => p.id === projectId)
   const projectServices = services.filter((s) => s.projectId === projectId)
+
+  const deleteProject = async (id: string) => {
+    await deleteProjectMutation.mutateAsync(id)
+  }
 
   const [createServiceOpen, setCreateServiceOpen] = React.useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -50,6 +56,17 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
   )
 
   if (!project) {
+    if (isProjectPending) {
+      return (
+        <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-card">
+          <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+            <span className="size-2 animate-ping rounded-full bg-primary" />
+            Loading project...
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-6">
         <Link

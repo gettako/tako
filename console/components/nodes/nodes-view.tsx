@@ -12,12 +12,18 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
+import { useNodes, useDeleteNode } from "@/hooks/use-nodes"
 import { usePlatformData } from "@/context/platform-data-context"
 import { ClusterNode } from "@/types/platform"
 
 export function NodesView() {
-  const { nodes, nodesViewMode, setNodesViewMode, deleteNode } =
-    usePlatformData()
+  const { data: nodes = [], isPending, isError } = useNodes()
+  const deleteNodeMutation = useDeleteNode()
+  const { nodesViewMode, setNodesViewMode } = usePlatformData()
+
+  const deleteNode = async (id: string) => {
+    await deleteNodeMutation.mutateAsync(id)
+  }
 
   const [addNodeOpen, setAddNodeOpen] = React.useState(false)
   const [nodeToDelete, setNodeToDelete] = React.useState<ClusterNode | null>(
@@ -92,8 +98,21 @@ export function NodesView() {
         </div>
       </div>
 
-      {/* Empty State when no nodes exist */}
-      {nodes.length === 0 ? (
+      {/* Loading & error states */}
+      {isPending ? (
+        <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-card">
+          <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+            <span className="size-2 animate-ping rounded-full bg-primary" />
+            Loading cluster nodes...
+          </div>
+        </div>
+      ) : isError ? (
+        <EmptyState
+          icon={Server}
+          title="Failed to Load Nodes"
+          description="Could not connect to the cluster to retrieve node status."
+        />
+      ) : nodes.length === 0 ? (
         <EmptyState
           icon={Server}
           title="No Edge Nodes Connected"

@@ -28,6 +28,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { usePlatformData } from "@/context/platform-data-context"
 import {
+  useServiceDeployments,
+  useTriggerDeploy,
+  useTriggerRollback,
+} from "@/hooks/use-deployments"
+import {
   DEPLOYMENT_STATUS,
   DeploymentRecord,
   DeploymentStepName,
@@ -50,56 +55,20 @@ interface ServiceDeploymentsTabProps {
 }
 
 export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
+  const { activeDeployingId, deploymentLogs } = usePlatformData()
   const {
-    triggerDeploy,
-    triggerRollback,
-    activeDeployingId,
-    deploymentLogs,
-    fetchServiceDeployments,
-  } = usePlatformData()
+    data: fetchedDeployments = [],
+    isLoading: isLoadingHistory,
+    refetch: loadDeployments,
+  } = useServiceDeployments(service.id)
+
+  const triggerDeployMutation = useTriggerDeploy(service.id)
+  const triggerRollbackMutation = useTriggerRollback(service.id)
 
   const isDeploying =
     activeDeployingId === service.id ||
-    service.status === SERVICE_STATUS.DEPLOYING
-
-  const [fetchedDeployments, setFetchedDeployments] = React.useState<
-    DeploymentRecord[] | null
-  >(null)
-  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false)
-
-  const serviceId = service.id
-
-  const loadDeployments = React.useCallback(async () => {
-    if (!serviceId) return
-    setIsLoadingHistory(true)
-    try {
-      const records = await fetchServiceDeployments(serviceId)
-      setFetchedDeployments(records)
-    } catch (err) {
-      console.error("Failed to fetch deployments:", err)
-    } finally {
-      setIsLoadingHistory(false)
-    }
-  }, [fetchServiceDeployments, serviceId])
-
-  React.useEffect(() => {
-    let active = true
-    if (!serviceId) return
-
-    fetchServiceDeployments(serviceId)
-      .then((records) => {
-        if (active) {
-          setFetchedDeployments(records)
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch deployments:", err)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [fetchServiceDeployments, serviceId, isDeploying])
+    service.status === SERVICE_STATUS.DEPLOYING ||
+    triggerDeployMutation.isPending
 
   // Deployment history list
   const history = React.useMemo(() => {
@@ -298,7 +267,7 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
     if (!rollbackTarget) return
     setIsRollingBack(true)
     try {
-      await triggerRollback(service.id, rollbackTarget)
+      await triggerRollbackMutation.mutateAsync(rollbackTarget.id)
       await loadDeployments()
     } finally {
       setIsRollingBack(false)
@@ -406,7 +375,7 @@ export function ServiceDeploymentsTab({ service }: ServiceDeploymentsTabProps) {
               <Button
                 type="button"
                 size="sm"
-                onClick={() => triggerDeploy(service.id)}
+                onClick={() => triggerDeployMutation.mutate()}
                 className="gap-1.5 font-mono text-[11px] font-semibold text-primary-foreground"
               >
                 <Rocket className="size-3.5" />

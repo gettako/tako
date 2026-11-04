@@ -36,7 +36,14 @@ import {
   SearchableSelect,
   SelectOption,
 } from "@/components/ui/searchable-select"
-import { usePlatformData } from "@/context/platform-data-context"
+import {
+  useUsers,
+  useUserInvites,
+  useAddUserInvite,
+  useRevokeUserInvite,
+  useUpdateUserRole,
+  useDeleteUser,
+} from "@/hooks/use-settings"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { copyToClipboard } from "@/lib/clipboard"
 import { getInitials } from "@/lib/user"
@@ -108,14 +115,12 @@ const INVITE_EXPIRY_OPTIONS: SelectOption[] = [
 ]
 
 export function UsersPanel() {
-  const {
-    users,
-    invites,
-    addUserInvite,
-    revokeUserInvite,
-    updateUserRole,
-    deleteUser,
-  } = usePlatformData()
+  const { data: users = [], isPending: isUsersPending } = useUsers()
+  const { data: invites = [] } = useUserInvites()
+  const addUserInviteMutation = useAddUserInvite()
+  const revokeUserInviteMutation = useRevokeUserInvite()
+  const updateUserRoleMutation = useUpdateUserRole()
+  const deleteUserMutation = useDeleteUser()
 
   const [inviteModalOpen, setInviteModalOpen] = React.useState(false)
   const [inviteEmail, setInviteEmail] = React.useState("")
@@ -154,11 +159,11 @@ export function UsersPanel() {
       return
     }
 
-    const newInv = await addUserInvite(
-      inviteEmail.trim(),
-      inviteRole,
-      inviteExpiryDays
-    )
+    const newInv = await addUserInviteMutation.mutateAsync({
+      email: inviteEmail.trim(),
+      role: inviteRole,
+      expiryDays: inviteExpiryDays,
+    })
     setGeneratedInvite(newInv)
   }
 
@@ -213,7 +218,17 @@ export function UsersPanel() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {users.map((user) => {
+                {isUsersPending && users.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="py-8 text-center font-mono text-xs text-muted-foreground"
+                    >
+                      Loading operators...
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => {
                   const isOwner = user.role === "owner"
                   return (
                     <tr
@@ -252,7 +267,10 @@ export function UsersPanel() {
                             aria-label="Assigned Role"
                             value={user.role}
                             onChange={(val) =>
-                              updateUserRole(user.id, val as UserRole)
+                              updateUserRoleMutation.mutate({
+                                id: user.id,
+                                role: val as UserRole,
+                              })
                             }
                             options={TABLE_ROLE_OPTIONS}
                             searchPlaceholder="Filter role..."
@@ -294,7 +312,7 @@ export function UsersPanel() {
                       </td>
                     </tr>
                   )
-                })}
+                }))}
               </tbody>
             </table>
           </div>
@@ -374,7 +392,9 @@ export function UsersPanel() {
                             type="button"
                             variant="ghost"
                             size="xs"
-                            onClick={() => revokeUserInvite(inv.id)}
+                            onClick={() =>
+                              revokeUserInviteMutation.mutate(inv.id)
+                            }
                             className="text-[11px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                           >
                             Revoke
@@ -587,7 +607,7 @@ export function UsersPanel() {
               size="sm"
               onClick={() => {
                 if (userToDelete) {
-                  deleteUser(userToDelete.id)
+                  deleteUserMutation.mutate(userToDelete.id)
                   setUserToDelete(null)
                 }
               }}

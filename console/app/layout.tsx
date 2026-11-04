@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist_Mono, Inter } from "next/font/google"
 
 import "./globals.css"
+import { Providers } from "@/app/providers"
 import { PlatformDataProvider } from "@/context/platform-data-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import { siteConfig } from "@/config/site"
@@ -40,7 +41,9 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <PlatformDataProvider>{children}</PlatformDataProvider>
+          <Providers>
+            <PlatformDataProvider>{children}</PlatformDataProvider>
+          </Providers>
         </ThemeProvider>
       </body>
     </html>

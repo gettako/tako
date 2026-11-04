@@ -27,7 +27,14 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { EmptyState } from "@/components/ui/empty-state"
-import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api"
+import {
+  useCreateServiceCron,
+  useDeleteServiceCron,
+  useServiceCronRuns,
+  useServiceCrons,
+  useTriggerServiceCron,
+  useUpdateServiceCron,
+} from "@/hooks/use-services"
 import type { ApiCronJob, ApiCronRun } from "@/lib/api"
 import type { ProjectService } from "@/types/platform"
 import { cn } from "@/lib/utils"
@@ -44,9 +51,19 @@ const CRON_PRESETS = [
 ]
 
 export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
-  const [crons, setCrons] = React.useState<ApiCronJob[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [isRefreshing, setIsRefreshing] = React.useState(false)
+  const {
+    data: crons = [],
+    isLoading,
+    isFetching: isRefreshing,
+    refetch: refetchCrons,
+    error: cronsError,
+  } = useServiceCrons(service.id)
+
+  const createCronMutation = useCreateServiceCron(service.id)
+  const updateCronMutation = useUpdateServiceCron(service.id)
+  const deleteCronMutation = useDeleteServiceCron(service.id)
+  const triggerCronMutation = useTriggerServiceCron(service.id)
+
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   // Create Modal State
@@ -54,56 +71,21 @@ export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
   const [createName, setCreateName] = React.useState("")
   const [createSchedule, setCreateSchedule] = React.useState("0 * * * *")
   const [createCommand, setCreateCommand] = React.useState("")
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const isSubmitting = createCronMutation.isPending
 
   // Run History Modal State
   const [selectedCron, setSelectedCron] = React.useState<ApiCronJob | null>(
     null
   )
-  const [runs, setRuns] = React.useState<ApiCronRun[]>([])
-  const [isLoadingRuns, setIsLoadingRuns] = React.useState(false)
+  const { data: runs = [], isLoading: isLoadingRuns } = useServiceCronRuns(
+    service.id,
+    selectedCron?.id || "",
+    Boolean(selectedCron)
+  )
   const [runningJobId, setRunningJobId] = React.useState<string | null>(null)
 
-  const loadCrons = React.useCallback(async () => {
-    try {
-      const data = await apiGet<ApiCronJob[]>(`/services/${service.id}/crons`)
-      setCrons(data || [])
-      setErrorMessage(null)
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to load cron jobs"
-      setErrorMessage(msg)
-    } finally {
-      setIsLoading(false)
-      setIsRefreshing(false)
-    }
-  }, [service.id])
-
-  React.useEffect(() => {
-    let active = true
-    apiGet<ApiCronJob[]>(`/services/${service.id}/crons`)
-      .then((data) => {
-        if (active) {
-          setCrons(data || [])
-          setIsLoading(false)
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          const msg =
-            err instanceof Error ? err.message : "Failed to load cron jobs"
-          setErrorMessage(msg)
-          setIsLoading(false)
-        }
-      })
-    return () => {
-      active = false
-    }
-  }, [service.id])
-
   const handleRefresh = () => {
-    setIsRefreshing(true)
-    void loadCrons()
+    void refetchCrons()
   }
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -111,9 +93,8 @@ export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
     if (!createName.trim() || !createSchedule.trim() || !createCommand.trim())
       return
 
-    setIsSubmitting(true)
     try {
-      await apiPost(`/services/${service.id}/crons`, {
+      await createCronMutation.mutateAsync({
         name: createName.trim(),
         schedule: createSchedule.trim(),
         command: createCommand.trim(),
@@ -122,21 +103,18 @@ export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
       setCreateName("")
       setCreateSchedule("0 * * * *")
       setCreateCommand("")
-      void loadCrons()
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to create cron job")
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
   const handleToggleStatus = async (cron: ApiCronJob) => {
     const nextStatus = cron.status === "active" ? "paused" : "active"
     try {
-      await apiPatch(`/services/${service.id}/crons/${cron.id}`, {
-        status: nextStatus,
+      await updateCronMutation.mutateAsync({
+        cronId: cron.id,
+        updates: { status: nextStatus },
       })
-      void loadCrons()
     } catch (err: unknown) {
       alert(
         err instanceof Error ? err.message : "Failed to update cron job status"
@@ -148,8 +126,7 @@ export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
     if (!confirm(`Are you sure you want to delete cron job "${cron.name}"?`))
       return
     try {
-      await apiDelete(`/services/${service.id}/crons/${cron.id}`)
-      void loadCrons()
+      await deleteCronMutation.mutateAsync(cron.id)
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to delete cron job")
     }
@@ -158,11 +135,7 @@ export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
   const handleRunNow = async (cron: ApiCronJob) => {
     setRunningJobId(cron.id)
     try {
-      await apiPost(`/services/${service.id}/crons/${cron.id}/run`)
-      void loadCrons()
-      if (selectedCron?.id === cron.id) {
-        void viewHistory(cron)
-      }
+      await triggerCronMutation.mutateAsync(cron.id)
     } catch (err: unknown) {
       alert(
         err instanceof Error ? err.message : "Failed to trigger cron job run"
@@ -172,20 +145,8 @@ export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
     }
   }
 
-  const viewHistory = async (cron: ApiCronJob) => {
+  const viewHistory = (cron: ApiCronJob) => {
     setSelectedCron(cron)
-    setIsLoadingRuns(true)
-    try {
-      const data = await apiGet<ApiCronRun[]>(
-        `/services/${service.id}/crons/${cron.id}/runs`
-      )
-      setRuns(data || [])
-    } catch (err: unknown) {
-      console.error("Failed to load runs:", err)
-      setRuns([])
-    } finally {
-      setIsLoadingRuns(false)
-    }
   }
 
   return (

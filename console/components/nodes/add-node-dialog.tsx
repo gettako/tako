@@ -22,6 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { DEFAULT_PORTS } from "@/lib/api"
+import { useGenerateEnrollToken } from "@/hooks/use-nodes"
 import { usePlatformData } from "@/context/platform-data-context"
 
 export function AddNodeDialog({
@@ -33,16 +34,17 @@ export function AddNodeDialog({
   open?: boolean
   onOpenChange?: (open: boolean) => void
 }) {
-  const { generateEnrollToken, settings, nodes } = usePlatformData()
+  const { settings, nodes } = usePlatformData()
+  const generateTokenMutation = useGenerateEnrollToken()
   const [internalOpen, setInternalOpen] = React.useState(false)
   const isControlled = open !== undefined
   const isOpen = isControlled ? open : internalOpen
   const setIsOpen = isControlled ? onOpenChange! : setInternalOpen
 
   const [token, setToken] = React.useState<string | null>(null)
-  const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [initialCount, setInitialCount] = React.useState(nodes.length)
+  const isLoading = generateTokenMutation.isPending
 
   const grpcHost =
     settings.masterGrpcHost ||
@@ -50,17 +52,14 @@ export function AddNodeDialog({
   const grpcPort = settings.masterGrpcPort || DEFAULT_PORTS.GRPC
 
   const requestToken = React.useCallback(async () => {
-    setIsLoading(true)
     setError(null)
     try {
-      const generated = await generateEnrollToken()
+      const generated = await generateTokenMutation.mutateAsync()
       setToken(generated)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to issue token")
-    } finally {
-      setIsLoading(false)
     }
-  }, [generateEnrollToken])
+  }, [generateTokenMutation])
 
   React.useEffect(() => {
     if (isOpen && !token && !isLoading) {

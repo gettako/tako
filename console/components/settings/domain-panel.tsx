@@ -23,6 +23,12 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { usePlatformData } from "@/context/platform-data-context"
+import {
+  useDomainConfig,
+  useReloadTraefik,
+  useUpdateDomainConfig,
+  useVerifyDomain,
+} from "@/hooks/use-domain"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { copyToClipboard } from "@/lib/clipboard"
 import { isValidHostname, isValidIpv4 } from "@/lib/validation"
@@ -56,13 +62,24 @@ const domainSchema = z
   })
 
 export function DomainPanel() {
-  const {
-    nodes,
-    domainConfig,
-    updateDomainConfig,
-    verifyDomain,
-    reloadTraefik,
-  } = usePlatformData()
+  const { nodes } = usePlatformData()
+  const { data: initialDomainConfig } = useDomainConfig()
+  const updateDomainMutation = useUpdateDomainConfig()
+  const verifyDomainMutation = useVerifyDomain()
+  const reloadTraefikMutation = useReloadTraefik()
+
+  const fallbackDomainConfig = React.useMemo(() => ({
+    domain: "cluster.gettako.dev",
+    sslActive: true,
+    sslAutoRenew: true,
+    dnsProvider: "http01" as const,
+    cloudflareApiToken: "",
+    customDnsIp: "",
+    sslStatus: "pending_dns" as const,
+    dnsVerified: false,
+  }), [])
+
+  const domainConfig = initialDomainConfig ?? fallbackDomainConfig
 
   const leaderNode = nodes.find((n) => n.role === "master") || nodes[0]
   const detectedLeaderIp = leaderNode?.ipAddress || "142.250.190.46"
@@ -83,7 +100,17 @@ export function DomainPanel() {
   const [customIp, setCustomIp] = React.useState(domainConfig.customDnsIp || "")
   const { errors, validate, clearError } = useZodForm(domainSchema)
 
-  const [isVerifying, setIsVerifying] = React.useState(false)
+  React.useEffect(() => {
+    if (initialDomainConfig) {
+      setDomain(initialDomainConfig.domain)
+      setSslAutoRenew(initialDomainConfig.sslAutoRenew)
+      setDnsProvider(initialDomainConfig.dnsProvider)
+      setCloudflareToken(initialDomainConfig.cloudflareApiToken || "")
+      setCustomIp(initialDomainConfig.customDnsIp || "")
+      setShowCustomIp(Boolean(initialDomainConfig.customDnsIp))
+    }
+  }, [initialDomainConfig])
+
   const [verificationResult, setVerificationResult] = React.useState<{
     ok: boolean
     message: string
@@ -95,16 +122,18 @@ export function DomainPanel() {
         }
       : null
   )
-  const [isReloadingTraefik, setIsReloadingTraefik] = React.useState(false)
   const [saved, setSaved] = React.useState(false)
   const [copiedIp, setCopiedIp] = React.useState(false)
+
+  const isVerifying = verifyDomainMutation.isPending
+  const isReloadingTraefik = reloadTraefikMutation.isPending
+  const isSaving = updateDomainMutation.isPending
 
   const effectiveIp = customIp.trim() || detectedLeaderIp
 
   const handleVerifyDns = async () => {
-    setIsVerifying(true)
     try {
-      const res = await verifyDomain(domain.trim(), effectiveIp)
+      const res = await verifyDomainMutation.mutateAsync(domain.trim())
       setVerificationResult({
         ok: res.ok,
         message: res.message,
@@ -117,19 +146,14 @@ export function DomainPanel() {
             ? err.message
             : "Failed to verify domain DNS resolution.",
       })
-    } finally {
-      setIsVerifying(false)
     }
   }
 
   const handleReloadTraefik = async () => {
-    setIsReloadingTraefik(true)
     try {
-      await reloadTraefik(leaderNode?.id)
+      await reloadTraefikMutation.mutateAsync()
     } catch {
       // silently handle
-    } finally {
-      setIsReloadingTraefik(false)
     }
   }
 
@@ -140,12 +164,12 @@ export function DomainPanel() {
     }
   }
 
-  const handleSaveDomain = (e: React.FormEvent) => {
+  const handleSaveDomain = async (e: React.FormEvent) => {
     e.preventDefault()
     const valid = validate({ domain, customIp, dnsProvider, cloudflareToken })
     if (!valid) return
 
-    updateDomainConfig({
+    await updateDomainMutation.mutateAsync({
       domain: domain.trim(),
       sslAutoRenew,
       dnsProvider,
@@ -154,7 +178,7 @@ export function DomainPanel() {
       lastCheckedAt: "Just now",
     })
     setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    setTimeout(() => setSaved(false), 3000)
   }
 
   return (

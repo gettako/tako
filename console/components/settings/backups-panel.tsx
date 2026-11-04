@@ -37,6 +37,12 @@ import {
   SelectOption,
 } from "@/components/ui/searchable-select"
 import { usePlatformData } from "@/context/platform-data-context"
+import {
+  useSnapshots,
+  useCreateSnapshot,
+  useRestoreSnapshot,
+  useUpdateBackupSchedule,
+} from "@/hooks/use-settings"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { copyToClipboard } from "@/lib/clipboard"
 import { isValidTime } from "@/lib/validation"
@@ -108,13 +114,11 @@ const FREQUENCY_OPTIONS: SelectOption[] = [
 ]
 
 export function BackupsPanel() {
-  const {
-    settings,
-    snapshots,
-    createSnapshot,
-    restoreSnapshot,
-    updateBackupSchedule,
-  } = usePlatformData()
+  const { settings } = usePlatformData()
+  const { data: snapshots = [], isPending: isSnapshotsPending } = useSnapshots()
+  const createSnapshotMutation = useCreateSnapshot()
+  const restoreSnapshotMutation = useRestoreSnapshot()
+  const updateBackupScheduleMutation = useUpdateBackupSchedule()
 
   const s3Buckets = settings.s3Buckets ?? EMPTY_BUCKETS
   const currentSchedule = settings.backupSchedule || {
@@ -174,7 +178,7 @@ export function BackupsPanel() {
     })
     if (!valid) return
 
-    updateBackupSchedule({
+    updateBackupScheduleMutation.mutate({
       enabled,
       frequency,
       timeUtc,
@@ -188,7 +192,7 @@ export function BackupsPanel() {
   const handleTriggerManualBackup = async () => {
     setIsCreatingSnapshot(true)
     try {
-      await createSnapshot()
+      await createSnapshotMutation.mutateAsync()
       setSnapshotSuccess(true)
       setTimeout(() => setSnapshotSuccess(false), 2500)
     } finally {
@@ -206,7 +210,7 @@ export function BackupsPanel() {
     if (!selectedSnapshot) return
     setIsRestoring(true)
     try {
-      await restoreSnapshot(selectedSnapshot.id)
+      await restoreSnapshotMutation.mutateAsync(selectedSnapshot.id)
       setRestoreModalOpen(false)
     } finally {
       setIsRestoring(false)

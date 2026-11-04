@@ -30,7 +30,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { usePlatformData } from "@/context/platform-data-context"
+import {
+  useRegistries,
+  useAddRegistry,
+  useDeleteRegistry,
+} from "@/hooks/use-settings"
 import { useZodForm } from "@/hooks/use-zod-form"
 import { isValidHostname } from "@/lib/validation"
 import { DockerRegistryConfig } from "@/types/platform"
@@ -57,8 +61,10 @@ const registrySchema = z.object({
 })
 
 export function RegistriesPanel() {
-  const { registries, addDockerRegistry, deleteDockerRegistry } =
-    usePlatformData()
+  const { data: registries = [], isPending: isRegistriesPending } =
+    useRegistries()
+  const addRegistryMutation = useAddRegistry()
+  const deleteRegistryMutation = useDeleteRegistry()
 
   const [addModalOpen, setAddModalOpen] = React.useState(false)
   const [name, setName] = React.useState("")
@@ -91,7 +97,7 @@ export function RegistriesPanel() {
     const valid = validate({ name, serverUrl, username, password })
     if (!valid) return
 
-    addDockerRegistry({
+    addRegistryMutation.mutate({
       name: name.trim(),
       serverUrl: serverUrl.trim(),
       username: username.trim(),
@@ -120,7 +126,11 @@ export function RegistriesPanel() {
           }
         />
 
-        {registries.length === 0 ? (
+        {isRegistriesPending && registries.length === 0 ? (
+          <div className="py-12 text-center font-mono text-xs text-muted-foreground">
+            Loading container registries...
+          </div>
+        ) : registries.length === 0 ? (
           <div className="space-y-3 rounded-lg border border-dashed border-border px-4 py-12 text-center">
             <Boxes className="mx-auto size-10 text-muted-foreground/60" />
             <div className="space-y-1">
@@ -392,7 +402,7 @@ export function RegistriesPanel() {
               size="sm"
               onClick={() => {
                 if (registryToDelete) {
-                  deleteDockerRegistry(registryToDelete.id)
+                  deleteRegistryMutation.mutate(registryToDelete.id)
                   setRegistryToDelete(null)
                 }
               }}

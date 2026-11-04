@@ -31,12 +31,14 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
+import { useAuditLogs } from "@/hooks/use-audit"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
 import { AuditLogEntry } from "@/types/platform"
 
 export function AuditLogsView() {
-  const { auditLogs, setDataMode } = usePlatformData()
+  const { data: auditLogs = [], isPending, isError } = useAuditLogs()
+  const { setDataMode } = usePlatformData()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedCategory, setSelectedCategory] = React.useState("all")
@@ -157,6 +159,49 @@ export function AuditLogsView() {
     setIsExporting(false)
     setExportNotice(true)
     setTimeout(() => setExportNotice(false), 3000)
+  }
+
+  if (isPending) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            Audit Logs & Security Trail
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Immutable log of deployment actions, edge agent connections, and
+            security events.
+          </p>
+        </div>
+        <div className="flex h-64 items-center justify-center rounded-lg border border-border bg-card">
+          <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+            <span className="size-2 animate-ping rounded-full bg-primary" />
+            Loading audit trails...
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            Audit Logs & Security Trail
+          </h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Immutable log of deployment actions, edge agent connections, and
+            security events.
+          </p>
+        </div>
+        <EmptyState
+          icon={ScrollText}
+          title="Failed to Load Audit Logs"
+          description="Could not connect to the cluster to retrieve audit logs."
+        />
+      </div>
+    )
   }
 
   if (auditLogs.length === 0) {

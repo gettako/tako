@@ -20,7 +20,7 @@ import {
   SearchableSelect,
   type SelectOption,
 } from "@/components/ui/searchable-select"
-import { apiGet } from "@/lib/api"
+import { useServiceLogs } from "@/hooks/use-deployments"
 import { copyToClipboard } from "@/lib/clipboard"
 import { cn } from "@/lib/utils"
 import { SERVICE_STATUS, type ProjectService } from "@/types/platform"
@@ -220,41 +220,22 @@ export function ServiceLogsTab({ service }: ServiceLogsTabProps) {
     [main, sidecar]
   )
 
-  const fetchRealLogs = React.useCallback(async () => {
-    try {
-      const targetContainer = containerFilter === "all" ? main : containerFilter
-      const res = await apiGet<{ logs: string }>(
-        `/services/${service.id}/container-logs?containerName=${encodeURIComponent(targetContainer)}`
-      )
-      if (res && typeof res.logs === "string" && res.logs.trim().length > 0) {
-        const parsed = parseRawContainerLogs(res.logs, targetContainer)
-        if (parsed.length > 0) {
-          setLogs(parsed.slice(-MAX_LOG_ENTRIES))
-        }
+  const targetContainer = containerFilter === "all" ? main : containerFilter
+  const { data: rawLogs } = useServiceLogs(
+    service.id,
+    targetContainer,
+    100,
+    streamActive
+  )
+
+  React.useEffect(() => {
+    if (rawLogs && typeof rawLogs === "string" && rawLogs.trim().length > 0) {
+      const parsed = parseRawContainerLogs(rawLogs, targetContainer)
+      if (parsed.length > 0) {
+        setLogs(parsed.slice(-MAX_LOG_ENTRIES))
       }
-    } catch {
-      // Retain existing log state on temporary network blips
     }
-  }, [service.id, containerFilter, main])
-
-  // Initial fetch on mount or service change
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      void fetchRealLogs()
-    }, 50)
-    return () => clearTimeout(timer)
-  }, [service.id, fetchRealLogs])
-
-  // Periodic poll from real container endpoint when streaming is active
-  React.useEffect(() => {
-    if (!streamActive) return
-
-    const interval = setInterval(() => {
-      void fetchRealLogs()
-    }, STREAM_INTERVAL_MS)
-
-    return () => clearInterval(interval)
-  }, [streamActive, fetchRealLogs])
+  }, [rawLogs, targetContainer])
 
   const filteredLogs = React.useMemo(() => {
     return logs.filter((entry) => {
