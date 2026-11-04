@@ -161,6 +161,54 @@ func TestRegistriesAPI(t *testing.T) {
 		_ = sess // keep active
 	})
 
+	t.Run("Auto-match Registry by Image Domain Prefix", func(t *testing.T) {
+		nodeID := "node-reg-auto-01"
+		_, err := orch.RegisterNode(ctx, &takov1.RegisterNodeRequest{
+			NodeId:      nodeID,
+			Name:        "Registry Auto Test Node",
+			EnrollToken: "test-enroll",
+		})
+		if err != nil {
+			t.Fatalf("RegisterNode failed: %v", err)
+		}
+
+		taskChan := make(chan *takov1.MasterTask, 10)
+		sess := orch.RegisterAgentSession(nodeID, taskChan)
+		defer orch.UnregisterAgentSession(nodeID)
+
+		srv, err := orch.CreateService(ctx, orchestrator.CreateServiceParams{
+			ProjectID: "proj-reg-test",
+			NodeID:    nodeID,
+			Name:      "Auto App",
+			Slug:      "auto-app",
+			Image:     "ghcr.io/octocat/auto-private-app:latest",
+		})
+		if err != nil {
+			t.Fatalf("CreateService failed: %v", err)
+		}
+
+		_, err = orch.TriggerDeploy(ctx, srv.ID)
+		if err != nil {
+			t.Fatalf("TriggerDeploy failed: %v", err)
+		}
+
+		var receivedTask *takov1.MasterTask
+		select {
+		case receivedTask = <-taskChan:
+		case <-time.After(1 * time.Second):
+			t.Fatalf("timed out waiting for deployment task")
+		}
+
+		deployReq := receivedTask.GetDeploy()
+		if deployReq == nil {
+			t.Fatalf("expected Deploy task")
+		}
+		if deployReq.GetEnvVars()["_TAKO_REGISTRY_AUTH"] == "" {
+			t.Errorf("expected _TAKO_REGISTRY_AUTH to be auto-matched for ghcr.io image")
+		}
+		_ = sess
+	})
+
 	t.Run("Delete Registry", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodDelete, "/api/v1/registries/"+createdID, nil)
 		rec := httptest.NewRecorder()

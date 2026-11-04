@@ -162,12 +162,14 @@ describe("Data Adapters", () => {
         swapMb: 512,
       },
       maintenanceMode: false,
+      registryId: "reg-123",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
 
     const adapted = adaptService(rawService)
     expect(adapted.id).toBe("srv-1")
+    expect(adapted.registryId).toBe("reg-123")
     expect(adapted.status).toBe("running")
     expect(adapted.type).toBe("dockerfile")
     expect(adapted.portMappings[0]?.container).toBe(8080)

@@ -6,6 +6,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/registry"
 )
 
 // handleGitBuild clones the Git repository, resolves commits, and builds or caches the Docker image.
@@ -160,6 +162,27 @@ func (e *Executor) handleGitBuild(
 			Tags:       buildTags,
 			Dockerfile: dockerfileName,
 			Remove:     true,
+		}
+
+		if auth := req.GetEnvVars()["_TAKO_REGISTRY_AUTH"]; auth != "" {
+			if decoded, err := base64.StdEncoding.DecodeString(auth); err == nil {
+				var ac registry.AuthConfig
+				if err := json.Unmarshal(decoded, &ac); err == nil {
+					serverAddr := ac.ServerAddress
+					if serverAddr == "" {
+						serverAddr = "https://index.docker.io/v1/"
+					}
+					buildOpts.AuthConfigs = map[string]registry.AuthConfig{
+						serverAddr: ac,
+					}
+					if strings.Contains(serverAddr, "docker.io") {
+						buildOpts.AuthConfigs["docker.io"] = ac
+						buildOpts.AuthConfigs["https://index.docker.io/v1/"] = ac
+						buildOpts.AuthConfigs["registry-1.docker.io"] = ac
+					}
+					sendLog("Build", "Configured private registry authentication for image build", false)
+				}
+			}
 		}
 
 		resp, err := e.dockerCli.RawClient().ImageBuild(ctx, tarStream, buildOpts)

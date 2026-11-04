@@ -2,6 +2,7 @@ package deploy_test
 
 import (
 	"context"
+	"encoding/base64"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -157,6 +158,47 @@ func TestExecuteDeploy_InvalidGitRepoFails(t *testing.T) {
 	err := executor.ExecuteDeploy(context.Background(), req, stream)
 	if err == nil {
 		t.Fatalf("expected deployment to fail for non-existent git repository, got nil")
+	}
+}
+
+func TestExecuteDeploy_WithPrivateRegistryAuth(t *testing.T) {
+	executor := deploy.NewExecutor(nil)
+	stream := &mockDeployStream{}
+
+	authJSON := `{"username":"octocat","password":"secretpassword","serveraddress":"ghcr.io"}`
+	encodedAuth := base64.StdEncoding.EncodeToString([]byte(authJSON))
+
+	req := &takov1.DeployRequest{
+		DeploymentId: "dep-test-reg",
+		ServiceId:    "srv-test-reg",
+		ServiceName:  "private-app",
+		Image:        "ghcr.io/octocat/private-app:v1.0.0",
+		EnvVars: map[string]string{
+			"_TAKO_REGISTRY_AUTH": encodedAuth,
+			"APP_ENV":             "production",
+		},
+		Ports:   []int32{8080},
+		Domains: []string{"private.example.com"},
+	}
+
+	err := executor.ExecuteDeploy(context.Background(), req, stream)
+	if err != nil {
+		t.Fatalf("ExecuteDeploy with private registry auth failed: %v", err)
+	}
+
+	stream.mu.Lock()
+	chunks := stream.chunks
+	stream.mu.Unlock()
+
+	foundPushLoad := false
+	for _, c := range chunks {
+		if c.GetStep() == "Push/Load image" {
+			foundPushLoad = true
+			break
+		}
+	}
+	if !foundPushLoad {
+		t.Errorf("expected Push/Load image step in deployment logs")
 	}
 }
 

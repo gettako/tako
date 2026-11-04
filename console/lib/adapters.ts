@@ -462,6 +462,7 @@ export function adaptService(service: ApiService): ProjectService {
     maintenanceMode: service.maintenanceMode,
     autoRollbackEnabled: service.autoRollbackEnabled,
     autoScaling: service.autoScaling,
+    registryId: service.registryId,
     createdAt: service.createdAt,
     updatedAt: service.updatedAt,
   }

@@ -245,6 +245,7 @@ export interface ProjectService {
     scaleDownCpuPercent: number
     cooldownSeconds: number
   }
+  registryId?: string
   createdAt?: string
   updatedAt?: string
 }

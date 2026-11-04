@@ -818,17 +818,41 @@ func (o *Orchestrator) runDeploymentPipeline(srv db.Service, depID, previewDomai
 		if srv.MaintenanceMode == 1 {
 			envMap["TAKO_MAINTENANCE_MODE"] = "true"
 		}
+		var activeRegistry *db.Registry
 		if srv.RegistryID != "" {
 			if reg, err := o.queries.GetRegistryByID(bgCtx, srv.RegistryID); err == nil {
-				regPassword, _ := security.Decrypt(reg.Password)
-				authConfig := map[string]string{
-					"username":      reg.Username,
-					"password":      regPassword,
-					"serveraddress": reg.ServerUrl,
+				activeRegistry = &reg
+			}
+		} else if srv.Image != "" {
+			if regs, err := o.queries.ListRegistries(bgCtx); err == nil {
+				for _, r := range regs {
+					cleanURL := strings.TrimPrefix(strings.TrimPrefix(r.ServerUrl, "https://"), "http://")
+					cleanURL = strings.TrimSuffix(cleanURL, "/")
+					if strings.HasPrefix(srv.Image, cleanURL+"/") || strings.HasPrefix(srv.Image, cleanURL+":") {
+						activeRegistry = &r
+						break
+					}
+					if strings.Contains(cleanURL, "docker.io") && (strings.HasPrefix(srv.Image, "docker.io/") || (!strings.Contains(srv.Image, "/") && !strings.Contains(srv.Image, "."))) {
+						activeRegistry = &r
+						break
+					}
 				}
-				if authBytes, err := json.Marshal(authConfig); err == nil {
-					envMap["_TAKO_REGISTRY_AUTH"] = base64.StdEncoding.EncodeToString(authBytes)
-				}
+			}
+		}
+
+		if activeRegistry != nil {
+			regPassword, _ := security.Decrypt(activeRegistry.Password)
+			serverAddr := activeRegistry.ServerUrl
+			if strings.Contains(serverAddr, "docker.io") {
+				serverAddr = "https://index.docker.io/v1/"
+			}
+			authConfig := map[string]string{
+				"username":      activeRegistry.Username,
+				"password":      regPassword,
+				"serveraddress": serverAddr,
+			}
+			if authBytes, err := json.Marshal(authConfig); err == nil {
+				envMap["_TAKO_REGISTRY_AUTH"] = base64.StdEncoding.EncodeToString(authBytes)
 			}
 		}
 

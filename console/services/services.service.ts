@@ -28,6 +28,7 @@ export interface CreateServiceInput {
   publishToHost: boolean
   limits: { cpuCores: number; memoryMb: number }
   replicas: number
+  registryId?: string
 }
 
 export interface ServiceMetricPoint {
@@ -77,6 +78,7 @@ export async function createService(
       swapMb: 512,
     },
     replicas: input.replicas,
+    registryId: input.registryId,
   }
   const created = await apiPost<ApiService>("/services", payload)
   return adaptService(created)
@@ -105,6 +107,7 @@ export async function updateService(
     payload.autoRollbackEnabled = updates.autoRollbackEnabled
   if (updates.maintenanceMode !== undefined)
     payload.maintenanceMode = updates.maintenanceMode
+  if (updates.registryId !== undefined) payload.registryId = updates.registryId
 
   if (updates.resourceSpecs) {
     payload.limits = {

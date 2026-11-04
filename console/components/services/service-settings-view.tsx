@@ -167,7 +167,7 @@ export function ServiceSettingsView({
   service,
   nodes,
 }: ServiceSettingsViewProps) {
-  const { updateService, deleteService, addAuditLog, settings } = usePlatformData()
+  const { updateService, deleteService, addAuditLog, settings, registries = [] } = usePlatformData()
   const updateEnvMutation = useUpdateServiceEnvVars(service.id)
 
   const serviceContainers = getServiceContainers(service)
@@ -190,6 +190,7 @@ export function ServiceSettingsView({
   )
   const [gitBranch, setGitBranch] = React.useState(service.gitBranch)
   const [autoDeploy, setAutoDeploy] = React.useState(true)
+  const [registryId, setRegistryId] = React.useState(service.registryId || "")
 
   // Domains state
   const [domains, setDomains] = React.useState<ServiceDomain[]>(() => {
@@ -401,6 +402,7 @@ export function ServiceSettingsView({
         | "on-failure"
         | "unless-stopped",
       gitBranch,
+      registryId,
     })
     addAuditLog({
       action: "Service Settings Updated",
@@ -815,6 +817,31 @@ export function ServiceSettingsView({
                     options={RESTART_POLICY_OPTIONS}
                     placeholder="Select restart policy..."
                     searchPlaceholder="Search policy..."
+                  />
+                </Field>
+
+                <Field>
+                  <FieldLabel className="text-xs">
+                    Private Container Registry
+                  </FieldLabel>
+                  <SearchableSelect
+                    value={registryId}
+                    onChange={(val) => setRegistryId(val)}
+                    options={[
+                      {
+                        value: "",
+                        label: "Auto-detect / Public Registry",
+                        description:
+                          "Match registry credentials by image domain prefix, or use public registry",
+                      },
+                      ...registries.map((reg) => ({
+                        value: reg.id,
+                        label: reg.name,
+                        description: `${reg.serverUrl} (${reg.username})`,
+                      })),
+                    ]}
+                    placeholder="Select container registry..."
+                    searchPlaceholder="Search registry..."
                   />
                 </Field>
 
