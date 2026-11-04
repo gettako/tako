@@ -369,9 +369,12 @@ export function ServiceCronsTab({ service }: ServiceCronsTabProps) {
 
       {/* Create Cron Modal */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>New Scheduled Cron Job</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="size-4 shrink-0 text-primary" />
+              <span>New Scheduled Cron Job</span>
+            </DialogTitle>
             <DialogDescription>
               Configure recurring execution inside container {service.slug}.
             </DialogDescription>

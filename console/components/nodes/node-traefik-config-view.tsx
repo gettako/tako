@@ -499,7 +499,10 @@ export function NodeTraefikConfigView({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleCreateFile}>
             <DialogHeader>
-              <DialogTitle>New Traefik Dynamic File</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <FileCode2 className="size-4 shrink-0 text-primary" />
+                <span>New Traefik Dynamic File</span>
+              </DialogTitle>
               <DialogDescription>
                 Create a new dynamic YAML file in{" "}
                 <code className="font-mono text-foreground">

@@ -16,7 +16,7 @@ import { ViewModeToggle } from "@/components/ui/view-mode-toggle"
 import { useProject, useDeleteProject } from "@/hooks/use-projects"
 import { usePlatformData } from "@/context/platform-data-context"
 import { cn } from "@/lib/utils"
-import { SERVICE_TYPE, type ServiceType } from "@/types/platform"
+import { SERVICE_STATUS, SERVICE_TYPE, type ServiceType } from "@/types/platform"
 
 interface ProjectServicesViewProps {
   projectId: string
@@ -46,14 +46,44 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
   const [createServiceType, setCreateServiceType] =
     React.useState<ServiceType>(SERVICE_TYPE.DOCKERFILE)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [statusFilter, setStatusFilter] = React.useState<string>("all")
 
-  const filteredServices = projectServices.filter(
-    (s) =>
+  const runningCount = React.useMemo(
+    () => projectServices.filter((s) => s.status === SERVICE_STATUS.RUNNING).length,
+    [projectServices]
+  )
+  const deployingCount = React.useMemo(
+    () => projectServices.filter((s) => s.status === SERVICE_STATUS.DEPLOYING).length,
+    [projectServices]
+  )
+  const failedCount = React.useMemo(
+    () => projectServices.filter((s) => s.status === SERVICE_STATUS.FAILED).length,
+    [projectServices]
+  )
+  const stoppedCount = React.useMemo(
+    () => projectServices.filter((s) => s.status === SERVICE_STATUS.STOPPED).length,
+    [projectServices]
+  )
+  const totalContainers = React.useMemo(
+    () => projectServices.reduce((acc, s) => acc + (s.containers?.length || 1), 0),
+    [projectServices]
+  )
+  const uniqueNodesCount = React.useMemo(
+    () => new Set(projectServices.map((s) => s.targetNodeId).filter(Boolean)).size,
+    [projectServices]
+  )
+
+  const filteredServices = projectServices.filter((s) => {
+    const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
       s.targetNodeId.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+    const matchesStatus =
+      statusFilter === "all" || s.status === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
 
   if (!project) {
     if (isProjectPending) {
@@ -150,6 +180,144 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
         </div>
       </div>
 
+      {/* Compact Workload Health & Stats Strip */}
+      {projectServices.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card/60 px-3.5 py-2.5 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+          {/* Quick status filters */}
+          <div className="flex flex-wrap items-center gap-1.5 font-mono text-xs">
+            <span className="mr-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
+              Health:
+            </span>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              className={cn(
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                statusFilter === "all"
+                  ? "border border-border bg-background text-foreground shadow-xs"
+                  : "border border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
+              )}
+            >
+              <span>All</span>
+              <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                {projectServices.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setStatusFilter(
+                  statusFilter === SERVICE_STATUS.RUNNING
+                    ? "all"
+                    : SERVICE_STATUS.RUNNING
+                )
+              }
+              className={cn(
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                statusFilter === SERVICE_STATUS.RUNNING
+                  ? "border border-emerald-500/30 bg-background text-emerald-600 shadow-xs dark:text-emerald-400"
+                  : "border border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
+              )}
+            >
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              <span>Running</span>
+              <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-[10px] text-emerald-600 dark:text-emerald-400">
+                {runningCount}
+              </span>
+            </button>
+
+            {deployingCount > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === SERVICE_STATUS.DEPLOYING
+                      ? "all"
+                      : SERVICE_STATUS.DEPLOYING
+                  )
+                }
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  statusFilter === SERVICE_STATUS.DEPLOYING
+                    ? "border border-primary/30 bg-background text-primary shadow-xs"
+                    : "border border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                )}
+              >
+                <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+                <span>Deploying</span>
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary">
+                  {deployingCount}
+                </span>
+              </button>
+            )}
+
+            {failedCount > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === SERVICE_STATUS.FAILED
+                      ? "all"
+                      : SERVICE_STATUS.FAILED
+                  )
+                }
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  statusFilter === SERVICE_STATUS.FAILED
+                    ? "border border-destructive/30 bg-background text-destructive shadow-xs"
+                    : "border border-transparent text-destructive/80 hover:bg-background/60 hover:text-destructive"
+                )}
+              >
+                <span className="size-1.5 rounded-full bg-destructive" />
+                <span>Failed</span>
+                <span className="rounded bg-destructive/10 px-1.5 py-0.5 font-mono text-[10px] font-bold text-destructive">
+                  {failedCount}
+                </span>
+              </button>
+            )}
+
+            {stoppedCount > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setStatusFilter(
+                    statusFilter === SERVICE_STATUS.STOPPED
+                      ? "all"
+                      : SERVICE_STATUS.STOPPED
+                  )
+                }
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  statusFilter === SERVICE_STATUS.STOPPED
+                    ? "border border-border bg-background text-foreground shadow-xs"
+                    : "border border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
+                )}
+              >
+                <span className="size-1.5 rounded-full bg-muted-foreground" />
+                <span>Stopped</span>
+                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                  {stoppedCount}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* Aggregates: Containers & Target Nodes */}
+          <div className="flex items-center gap-3 font-mono text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <span>Containers:</span>
+              <strong className="text-foreground">{totalContainers}</strong>
+            </div>
+            <span className="text-muted-foreground/40">•</span>
+            <div className="flex items-center gap-1.5">
+              <span>Target Nodes:</span>
+              <strong className="text-foreground">{uniqueNodesCount}</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toolbar: Search + View Toggle */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative max-w-sm flex-1">
@@ -189,9 +357,16 @@ export function ProjectServicesView({ projectId }: ProjectServicesViewProps) {
         <EmptyState
           icon={Search}
           title="No Matching Services"
-          description={`No services matched "${searchQuery}". Check the query or reset filter.`}
-          actionLabel="Clear Filter"
-          onAction={() => setSearchQuery("")}
+          description={
+            statusFilter !== "all" || searchQuery
+              ? `No services matched the active filter${searchQuery ? ` ("${searchQuery}")` : ""}. Check the query or reset filter.`
+              : "No services found."
+          }
+          actionLabel="Reset Filters"
+          onAction={() => {
+            setSearchQuery("")
+            setStatusFilter("all")
+          }}
         />
       ) : servicesViewMode === "grid" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
