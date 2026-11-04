@@ -382,7 +382,8 @@ func (c *Client) RawClient() *client.Client {
 }
 
 // RebootHost requests a host system reboot via an ephemeral privileged container on the host Docker daemon.
-func (c *Client) RebootHost(ctx context.Context) error {
+// RunHostHelper spawns a privileged detached container that executes a shell command with access to host root and Docker socket.
+func (c *Client) RunHostHelper(ctx context.Context, helperNamePrefix string, shellCmd string) error {
 	if c.cli == nil {
 		return fmt.Errorf("docker client not available")
 	}
@@ -394,20 +395,18 @@ func (c *Client) RebootHost(ctx context.Context) error {
 		}
 	}
 
-	rebootCmd := `sync; (echo 1 > /host-proc/sys/kernel/sysrq 2>/dev/null || true); (echo b > /host-proc/sysrq-trigger 2>/dev/null || true); (chroot /host systemctl reboot 2>/dev/null || true); (chroot /host shutdown -r now 2>/dev/null || true); (chroot /host reboot 2>/dev/null || true); nsenter -t 1 -m -u -i -n -p reboot`
-
 	candidates := []string{imageToUse, "ghcr.io/gettako/tako-agent:latest", "alpine:3.20", "alpine:latest", "alpine"}
 	var lastErr error
 	var createdID string
 
 	for _, img := range candidates {
-		containerName := fmt.Sprintf("tako-host-reboot-%d", time.Now().UnixNano())
+		containerName := fmt.Sprintf("%s-%d", helperNamePrefix, time.Now().UnixNano())
 		resp, err := c.cli.ContainerCreate(
 			ctx,
 			&container.Config{
 				Image:      img,
 				Entrypoint: []string{"sh", "-c"},
-				Cmd:        []string{rebootCmd},
+				Cmd:        []string{shellCmd},
 			},
 			&container.HostConfig{
 				Privileged:  true,
@@ -416,6 +415,7 @@ func (c *Client) RebootHost(ctx context.Context) error {
 				IpcMode:     "host",
 				Binds: []string{
 					"/:/host",
+					"/var/run/docker.sock:/var/run/docker.sock",
 					"/proc:/host-proc",
 				},
 				AutoRemove: true,
@@ -432,15 +432,41 @@ func (c *Client) RebootHost(ctx context.Context) error {
 	}
 
 	if createdID == "" {
-		return fmt.Errorf("failed to create host reboot container: %w", lastErr)
+		return fmt.Errorf("failed to create helper container: %w", lastErr)
 	}
 
 	if err := c.cli.ContainerStart(ctx, createdID, container.StartOptions{}); err != nil {
 		_ = c.cli.ContainerRemove(ctx, createdID, container.RemoveOptions{Force: true})
-		return fmt.Errorf("failed to start host reboot container: %w", err)
+		return fmt.Errorf("failed to start helper container: %w", err)
 	}
 
 	return nil
+}
+
+// RebootHost schedules an orderly reboot of the host machine by trying
+// privileged docker helper containers, sysrq triggers, and systemctl fallbacks.
+func (c *Client) RebootHost(ctx context.Context) error {
+	rebootCmd := `sync; (echo 1 > /host-proc/sys/kernel/sysrq 2>/dev/null || true); (echo b > /host-proc/sysrq-trigger 2>/dev/null || true); (chroot /host systemctl reboot 2>/dev/null || true); (chroot /host shutdown -r now 2>/dev/null || true); (chroot /host reboot 2>/dev/null || true); nsenter -t 1 -m -u -i -n -p reboot`
+	return c.RunHostHelper(ctx, "tako-host-reboot", rebootCmd)
+}
+
+// UpdateControlPlane initiates rolling upgrade of control plane containers (server, console, agent, traefik)
+// while keeping host data (/opt/tako/data/sqlite) completely intact.
+func (c *Client) UpdateControlPlane(ctx context.Context) error {
+	cmd := `sync; if [ -d /host/opt/tako/src/.git ]; then chroot /host sh -c 'cd /opt/tako/src && git fetch origin && git reset --hard origin/main && cd /opt/tako && docker compose build && docker compose up -d'; elif [ -d /opt/tako/src/.git ]; then cd /opt/tako/src && git fetch origin && git reset --hard origin/main && cd /opt/tako && docker compose build && docker compose up -d; else chroot /host sh -c 'cd /opt/tako && (docker compose pull || true) && docker compose up -d' 2>/dev/null || (cd /opt/tako && docker compose up -d 2>/dev/null || true); fi`
+	return c.RunHostHelper(ctx, "tako-cp-updater", cmd)
+}
+
+// UpdateAgent initiates update of the local agent container without affecting other workloads.
+func (c *Client) UpdateAgent(ctx context.Context) error {
+	cmd := `sync; if [ -d /host/opt/tako/src/.git ]; then chroot /host sh -c 'cd /opt/tako/src && git fetch origin && git reset --hard origin/main && cd /opt/tako && docker compose build agent && docker compose up -d agent'; elif [ -d /opt/tako/src/.git ]; then cd /opt/tako/src && git fetch origin && git reset --hard origin/main && cd /opt/tako && docker compose build agent && docker compose up -d agent; else chroot /host sh -c 'cd /opt/tako && (docker compose pull agent 2>/dev/null || docker pull ghcr.io/gettako/tako-agent:latest 2>/dev/null || true) && (docker compose up -d agent 2>/dev/null || docker restart tako-agent || true)' 2>/dev/null || (docker restart tako-agent || true); fi`
+	return c.RunHostHelper(ctx, "tako-agent-updater", cmd)
+}
+
+// UpdateTraefik initiates update of the Traefik ingress container while preserving certificates and dynamic routes.
+func (c *Client) UpdateTraefik(ctx context.Context) error {
+	cmd := `sync; chroot /host sh -c 'cd /opt/tako && (docker compose pull traefik 2>/dev/null || docker pull traefik:latest 2>/dev/null || true) && (docker compose up -d traefik 2>/dev/null || docker restart tako-traefik || true)' 2>/dev/null || (docker pull traefik:latest 2>/dev/null && docker restart tako-traefik 2>/dev/null || true)`
+	return c.RunHostHelper(ctx, "tako-traefik-updater", cmd)
 }
 
 // Close closes the Docker client connection.

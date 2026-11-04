@@ -87,6 +87,21 @@ export async function restartNodeAgent(id: string): Promise<void> {
   await apiPost(`/nodes/${id}/update`, {})
 }
 
+export async function updateNodeAgent(
+  id: string
+): Promise<{ success: boolean; message: string }> {
+  return apiPost<{ success: boolean; message: string }>(`/nodes/${id}/update`, {})
+}
+
+export async function upgradeNodeTraefik(
+  id: string
+): Promise<{ success: boolean; message: string }> {
+  return apiPost<{ success: boolean; message: string }>(
+    `/nodes/${id}/traefik/upgrade`,
+    {}
+  )
+}
+
 export async function pruneNodeDisk(id: string): Promise<void> {
   await apiPost(`/nodes/${id}/prune`, {})
 }

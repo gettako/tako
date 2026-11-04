@@ -11,6 +11,8 @@ import {
   pruneNodeDisk,
   restartNodeAgent,
   updateNode,
+  updateNodeAgent,
+  upgradeNodeTraefik,
 } from "@/services/nodes.service"
 import type { ClusterNode } from "@/types/platform"
 
@@ -110,6 +112,29 @@ export function usePruneNodeDisk() {
 
   return useMutation({
     mutationFn: (id: string) => pruneNodeDisk(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: nodeKeys.detail(id) })
+    },
+  })
+}
+
+export function useUpdateNodeAgent() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => updateNodeAgent(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: nodeKeys.all })
+      queryClient.invalidateQueries({ queryKey: nodeKeys.detail(id) })
+    },
+  })
+}
+
+export function useUpgradeNodeTraefik() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => upgradeNodeTraefik(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: nodeKeys.detail(id) })
     },

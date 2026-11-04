@@ -10,6 +10,7 @@ import {
   reloadTraefik,
   saveNodeTraefikFile,
   updateDomainConfig,
+  upgradeNodeTraefik,
   verifyDomain,
 } from "@/services/domain.service"
 import type { ClusterDomainConfig } from "@/types/platform"
@@ -119,6 +120,12 @@ export function useDeleteNodeTraefikFile(nodeId: string) {
 export function useReloadNodeTraefik(nodeId: string) {
   return useMutation({
     mutationFn: () => reloadNodeTraefik(nodeId),
+  })
+}
+
+export function useUpgradeNodeTraefik(nodeId: string) {
+  return useMutation({
+    mutationFn: () => upgradeNodeTraefik(nodeId),
   })
 }
 

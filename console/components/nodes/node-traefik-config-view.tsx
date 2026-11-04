@@ -3,6 +3,7 @@
 import * as React from "react"
 import {
   AlertCircle,
+  ArrowUpCircle,
   Check,
   ChevronDown,
   ChevronRight,
@@ -35,14 +36,9 @@ import {
   useNodeTraefikFiles,
   useReloadNodeTraefik,
   useSaveNodeTraefikFile,
+  useUpgradeNodeTraefik,
 } from "@/hooks/use-domain"
-import {
-  DEFAULT_TAKO_CONSOLE_YAML,
-  DEFAULT_TRAEFIK_STATIC_YAML,
-  NEW_FILE_STARTER_TEMPLATE,
-  type TraefikConfigFileFull,
-  type TraefikConfigFileMeta,
-} from "@/services/domain.service"
+import { NEW_FILE_STARTER_TEMPLATE } from "@/services/domain.service"
 import { cn } from "@/lib/utils"
 
 interface NodeTraefikConfigViewProps {
@@ -95,9 +91,11 @@ export function NodeTraefikConfigView({
   const saveFileMutation = useSaveNodeTraefikFile(node.id)
   const deleteFileMutation = useDeleteNodeTraefikFile(node.id)
   const reloadMutation = useReloadNodeTraefik(node.id)
+  const upgradeTraefikMutation = useUpgradeNodeTraefik(node.id)
 
   const [saveSuccess, setSaveSuccess] = React.useState(false)
   const [reloadSuccess, setReloadSuccess] = React.useState(false)
+  const [upgradeSuccess, setUpgradeSuccess] = React.useState(false)
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
 
   // Dynamic directory collapse toggle
@@ -111,6 +109,26 @@ export function NodeTraefikConfigView({
   const isDirty = fileContent !== savedContent
   const isSaving = saveFileMutation.isPending
   const isReloading = reloadMutation.isPending
+  const isUpgradingTraefik = upgradeTraefikMutation.isPending
+
+  const handleUpgradeTraefik = async () => {
+    setErrorMessage(null)
+    try {
+      await upgradeTraefikMutation.mutateAsync()
+      setUpgradeSuccess(true)
+      setTimeout(() => setUpgradeSuccess(false), 3000)
+
+      onAuditLog?.(
+        "Traefik Upgrade Dispatched",
+        node.name,
+        `Triggered zero-downtime container upgrade for Traefik on ${node.ipAddress}`
+      )
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to upgrade Traefik engine"
+      setErrorMessage(msg)
+    }
+  }
 
   const selectedFileMeta = React.useMemo(() => {
     return files.find((f) => f.name === selectedFileName)
@@ -265,6 +283,30 @@ export function NodeTraefikConfigView({
               )}
             />
             <span>{reloadSuccess ? "Reloaded!" : "Reload Traefik"}</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleUpgradeTraefik}
+            disabled={isUpgradingTraefik}
+            className="gap-1.5 text-xs text-foreground hover:border-primary/50 hover:bg-primary/10"
+            title="Pull latest Traefik container image and perform rolling zero-downtime update while keeping SSL certs intact"
+          >
+            {isUpgradingTraefik ? (
+              <RefreshCw className="size-3.5 animate-spin text-primary" />
+            ) : upgradeSuccess ? (
+              <Check className="size-3.5 text-emerald-500" />
+            ) : (
+              <ArrowUpCircle className="size-3.5" />
+            )}
+            <span>
+              {upgradeSuccess
+                ? "Upgraded!"
+                : isUpgradingTraefik
+                  ? "Upgrading..."
+                  : "Upgrade Traefik Engine"}
+            </span>
           </Button>
 
           <Button

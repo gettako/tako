@@ -2,13 +2,14 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { Check, ChevronRight, Copy, Radio, Trash2 } from "lucide-react"
+import { ArrowUpCircle, Check, ChevronRight, Copy, Loader2, Radio, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Flag } from "@/components/ui/flag"
 import { OsIcon } from "@/components/ui/os-icon"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
 import { NODE_ROLE, NODE_STATUS, type ClusterNode } from "@/types/platform"
+import { useUpdateNodeAgent } from "@/hooks/use-nodes"
 import { copyToClipboard } from "@/lib/clipboard"
 import { formatNodeLocation } from "@/lib/adapters"
 import { activeStatusDotClass } from "@/lib/status"
@@ -21,6 +22,9 @@ interface NodeTableProps {
 
 export function NodeTable({ nodes, onDelete }: NodeTableProps) {
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
+  const [updatingNodeId, setUpdatingNodeId] = React.useState<string | null>(null)
+  const [updatedSuccessId, setUpdatedSuccessId] = React.useState<string | null>(null)
+  const updateAgentMutation = useUpdateNodeAgent()
 
   const handleCopyIp = async (id: string, ip: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
@@ -28,6 +32,19 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
     if (await copyToClipboard(ip)) {
       setCopiedId(id)
       setTimeout(() => setCopiedId(null), 2000)
+    }
+  }
+
+  const handleUpdateAgent = async (node: ClusterNode, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    e?.preventDefault()
+    setUpdatingNodeId(node.id)
+    try {
+      await updateAgentMutation.mutateAsync(node.id)
+      setUpdatedSuccessId(node.id)
+      setTimeout(() => setUpdatedSuccessId(null), 3000)
+    } finally {
+      setUpdatingNodeId(null)
     }
   }
 
@@ -142,22 +159,50 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
                       : `Last heartbeat ${node.lastHeartbeat}`
                   }
                 >
-                  <div className="flex items-center gap-1.5 text-foreground">
-                    <Radio
-                      className={cn(
-                        "size-3 shrink-0",
-                        node.agentConnected
-                          ? "text-emerald-500"
-                          : "text-destructive"
-                      )}
-                    />
-                    <span className="font-medium">
-                      {node.agentVersion || "v1.0.0"}
-                    </span>
-                    {!node.agentConnected && (
-                      <span className="text-[11px] text-muted-foreground">
-                        ({node.lastHeartbeat})
+                  <div className="flex items-center gap-2 text-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <Radio
+                        className={cn(
+                          "size-3 shrink-0",
+                          node.agentConnected
+                            ? "text-emerald-500"
+                            : "text-destructive"
+                        )}
+                      />
+                      <span className="font-medium">
+                        {node.agentVersion || "v1.0.0"}
                       </span>
+                      {!node.agentConnected && (
+                        <span className="text-[11px] text-muted-foreground">
+                          ({node.lastHeartbeat})
+                        </span>
+                      )}
+                    </div>
+                    {node.agentConnected && (
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        disabled={updatingNodeId === node.id}
+                        onClick={(e) => handleUpdateAgent(node, e)}
+                        className="size-5 text-muted-foreground transition-colors hover:text-primary"
+                        title={
+                          updatingNodeId === node.id
+                            ? "Dispatching agent update..."
+                            : updatedSuccessId === node.id
+                              ? "Update signal sent!"
+                              : "Update Agent to latest version"
+                        }
+                        aria-label="Update Agent"
+                      >
+                        {updatingNodeId === node.id ? (
+                          <Loader2 className="size-3 animate-spin text-primary" />
+                        ) : updatedSuccessId === node.id ? (
+                          <Check className="size-3 text-emerald-500" />
+                        ) : (
+                          <ArrowUpCircle className="size-3 hover:text-primary" />
+                        )}
+                      </Button>
                     )}
                   </div>
                 </td>
@@ -213,29 +258,71 @@ export function NodeTable({ nodes, onDelete }: NodeTableProps) {
 
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center justify-end gap-1.5">
-                    {onDelete && node.role !== NODE_ROLE.MASTER && (
+                    {node.agentConnected && (
                       <Button
                         type="button"
                         size="icon-xs"
                         variant="ghost"
+                        disabled={updatingNodeId === node.id}
+                        onClick={(e) => handleUpdateAgent(node, e)}
+                        className="size-7 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                        title={
+                          updatingNodeId === node.id
+                            ? "Updating Agent..."
+                            : updatedSuccessId === node.id
+                              ? "Agent update dispatched"
+                              : "Update Agent to latest version"
+                        }
+                      >
+                        {updatingNodeId === node.id ? (
+                          <Loader2 className="size-3.5 animate-spin text-primary" />
+                        ) : updatedSuccessId === node.id ? (
+                          <Check className="size-3.5 text-emerald-500" />
+                        ) : (
+                          <ArrowUpCircle className="size-3.5" />
+                        )}
+                      </Button>
+                    )}
+                    {onDelete && (
+                      <Button
+                        type="button"
+                        size="icon-xs"
+                        variant="ghost"
+                        disabled={node.role === NODE_ROLE.MASTER}
                         onClick={(e) => {
                           e.preventDefault()
                           e.stopPropagation()
-                          onDelete(node)
+                          if (node.role !== NODE_ROLE.MASTER) {
+                            onDelete(node)
+                          }
                         }}
-                        className="size-7 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        title="Remove node"
+                        className={cn(
+                          "size-7",
+                          node.role === NODE_ROLE.MASTER
+                            ? "cursor-not-allowed text-muted-foreground/25 hover:bg-transparent hover:text-muted-foreground/25"
+                            : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        )}
+                        title={
+                          node.role === NODE_ROLE.MASTER
+                            ? "Master control plane node cannot be deleted"
+                            : "Remove node"
+                        }
+                        aria-label={
+                          node.role === NODE_ROLE.MASTER
+                            ? "Master node cannot be deleted"
+                            : "Remove node"
+                        }
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
                     )}
                     <Link
                       href={`/nodes/${node.id}`}
-                      className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-muted"
+                      className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
                       title="Inspect node telemetry"
+                      aria-label={`Inspect ${node.name} telemetry`}
                     >
-                      <span>View</span>
-                      <ChevronRight className="size-3" />
+                      <ChevronRight className="size-4" />
                     </Link>
                   </div>
                 </td>

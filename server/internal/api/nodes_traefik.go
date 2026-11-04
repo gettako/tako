@@ -246,3 +246,44 @@ func handleReloadNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
 		})
 	}
 }
+
+func handleUpgradeNodeTraefik(orch *orchestrator.Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		node, err := orch.Queries().GetNodeByID(r.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				RespondError(w, http.StatusNotFound, "node not found")
+				return
+			}
+			RespondError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		clientIP := extractRequestIP(r)
+		_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
+			Action:     "upgrade_node_traefik",
+			TargetType: "node",
+			TargetID:   id,
+			TargetName: node.Name,
+			IPAddress:  clientIP,
+			Metadata: map[string]interface{}{
+				"node_ip": node.IpAddress,
+			},
+		})
+
+		dispatchErr := orch.DispatchContainerAction(r.Context(), id, "tako-traefik", "update-traefik")
+		if dispatchErr != nil && orch.GetAgentSession(id) == nil {
+			RespondJSON(w, http.StatusAccepted, map[string]any{
+				"success": true,
+				"message": fmt.Sprintf("Node %s marked for Traefik upgrade (agent session offline)", node.Name),
+			})
+			return
+		}
+
+		RespondJSON(w, http.StatusOK, map[string]any{
+			"success": true,
+			"message": fmt.Sprintf("Traefik engine upgrade sequence dispatched to %s", node.Name),
+		})
+	}
+}

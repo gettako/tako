@@ -63,6 +63,9 @@ export function OverviewPanel({ onNavigateToTab }: OverviewPanelProps) {
   const [isCheckingUpdate, setIsCheckingUpdate] = React.useState(false)
   const [isUpdating, setIsUpdating] = React.useState(false)
   const [updateDone, setUpdateDone] = React.useState(false)
+  const [updateTarget, setUpdateTarget] = React.useState<
+    "all" | "control-plane" | "agents" | "traefik"
+  >("all")
 
   // Real Computed Cluster Metrics
   const onlineNodes = nodes.filter((n) => n.status === NODE_STATUS.ONLINE)
@@ -99,12 +102,12 @@ export function OverviewPanel({ onNavigateToTab }: OverviewPanelProps) {
   const handleStartUpdate = async () => {
     setIsUpdating(true)
     try {
-      await updateSystem("all")
+      await updateSystem(updateTarget)
       setUpdateDone(true)
       setTimeout(() => {
         setUpdateModalOpen(false)
         setUpdateDone(false)
-      }, 1500)
+      }, 2000)
     } catch {
       //
     } finally {
@@ -482,7 +485,7 @@ export function OverviewPanel({ onNavigateToTab }: OverviewPanelProps) {
                   CURRENT VERSION
                 </span>
                 <span className="font-mono font-semibold text-foreground">
-                  v1.4.2-edge
+                  {systemVersion?.currentVersion || "v1.0.0"}
                 </span>
               </div>
               <span className="font-mono text-xs text-muted-foreground">→</span>
@@ -491,27 +494,60 @@ export function OverviewPanel({ onNavigateToTab }: OverviewPanelProps) {
                   TARGET VERSION
                 </span>
                 <span className="font-mono font-semibold text-primary">
-                  v1.5.0-release
+                  {systemVersion?.latestVersion || systemVersion?.currentVersion || "v1.0.0"}
                 </span>
+              </div>
+            </div>
+
+            {/* Target Component Selection */}
+            <div className="space-y-1.5 pb-2">
+              <label className="text-[11px] font-medium text-foreground">
+                Update Scope
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "all" as const, label: "Full Platform", desc: "Control plane & all nodes" },
+                  { id: "control-plane" as const, label: "Control Plane", desc: "Console, Server, Traefik" },
+                  { id: "agents" as const, label: "Edge Agents", desc: "Worker node daemons" },
+                  { id: "traefik" as const, label: "Traefik Ingress", desc: "Cluster reverse proxies" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    disabled={isUpdating}
+                    onClick={() => setUpdateTarget(item.id)}
+                    className={cn(
+                      "flex flex-col items-start rounded-md border p-2 text-left transition-colors",
+                      updateTarget === item.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-muted/20 text-muted-foreground hover:bg-muted/40"
+                    )}
+                  >
+                    <span className="font-semibold text-[11px] text-foreground">
+                      {item.label}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {item.desc}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
             <div className="space-y-1.5 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
               <div className="flex items-center gap-1.5 font-semibold text-primary">
                 <ShieldCheck className="size-3.5 shrink-0" />
-                <span>Zero-Downtime Rolling Update</span>
+                <span>Zero-Downtime & SQLite Data Protection</span>
               </div>
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Container images are refreshed via GitHub Container Registry.
-                SQLite schema migrations execute safely in WAL mode, and running
-                applications continue serving traffic uninterrupted.
+                An automatic point-in-time SQLite snapshot backup is generated before any container restart. Persistent volumes and WAL mode guarantee all database records, users, and service states remain 100% intact.
               </p>
             </div>
 
             {updateDone && (
               <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs font-medium text-emerald-500">
                 <CheckCircle2 className="size-4 shrink-0" />
-                <span>Platform updated successfully to v1.5.0-release!</span>
+                <span>Update dispatched successfully! Control plane and nodes are reloading.</span>
               </div>
             )}
           </div>

@@ -259,3 +259,7 @@ export async function deleteNodeTraefikFile(
 export async function reloadNodeTraefik(nodeId: string): Promise<void> {
   await apiPost(`/nodes/${nodeId}/traefik/reload`, {})
 }
+
+export async function upgradeNodeTraefik(nodeId: string): Promise<void> {
+  await apiPost(`/nodes/${nodeId}/traefik/upgrade`, {})
+}

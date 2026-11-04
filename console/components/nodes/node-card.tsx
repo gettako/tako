@@ -3,12 +3,14 @@
 import * as React from "react"
 import Link from "next/link"
 import {
+  ArrowUpCircle,
   Boxes,
   Check,
   ChevronRight,
   Copy,
   Cpu,
   HardDrive,
+  Loader2,
   Radio,
   Server,
   Trash2,
@@ -19,6 +21,7 @@ import { Flag } from "@/components/ui/flag"
 import { DockerIcon, OsIcon } from "@/components/ui/os-icon"
 import { NodeRoleBadge } from "@/components/nodes/node-role-badge"
 import { NODE_ROLE, NODE_STATUS, type ClusterNode } from "@/types/platform"
+import { useUpdateNodeAgent } from "@/hooks/use-nodes"
 import { copyToClipboard } from "@/lib/clipboard"
 import { formatNodeLocation } from "@/lib/adapters"
 import { statusDotClass } from "@/lib/status"
@@ -31,6 +34,9 @@ interface NodeCardProps {
 
 export function NodeCard({ node, onDelete }: NodeCardProps) {
   const [copied, setCopied] = React.useState(false)
+  const [isUpdating, setIsUpdating] = React.useState(false)
+  const [updateSuccess, setUpdateSuccess] = React.useState(false)
+  const updateAgentMutation = useUpdateNodeAgent()
 
   const handleCopyIp = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -38,6 +44,19 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
     if (await copyToClipboard(node.ipAddress)) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const handleUpdateAgent = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    e.preventDefault()
+    setIsUpdating(true)
+    try {
+      await updateAgentMutation.mutateAsync(node.id)
+      setUpdateSuccess(true)
+      setTimeout(() => setUpdateSuccess(false), 3000)
+    } finally {
+      setIsUpdating(false)
     }
   }
 
@@ -146,6 +165,32 @@ export function NodeCard({ node, onDelete }: NodeCardProps) {
                 ? node.agentVersion || "v1.0.0"
                 : node.lastHeartbeat || "offline"}
             </span>
+            {node.agentConnected && (
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                disabled={isUpdating}
+                onClick={handleUpdateAgent}
+                className="relative z-10 size-5 text-muted-foreground transition-colors hover:text-primary"
+                title={
+                  isUpdating
+                    ? "Dispatching agent update..."
+                    : updateSuccess
+                      ? "Update signal sent!"
+                      : "Update Agent to latest version"
+                }
+                aria-label="Update Agent"
+              >
+                {isUpdating ? (
+                  <Loader2 className="size-2.5 animate-spin text-primary" />
+                ) : updateSuccess ? (
+                  <Check className="size-2.5 text-emerald-500" />
+                ) : (
+                  <ArrowUpCircle className="size-2.5 hover:text-primary" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
 

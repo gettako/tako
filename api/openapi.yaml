@@ -310,6 +310,26 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
         '404':
           $ref: '#/components/responses/NotFoundError'
+  /api/v1/nodes/{id}/traefik/upgrade:
+    post:
+      summary: Upgrade node Traefik container
+      description: Pulls latest Traefik container image and performs zero-downtime rolling restart while preserving ACME SSL certificates and dynamic configurations.
+      operationId: upgradeNodeTraefik
+      tags:
+      - Nodes
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Operation succeeded
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
   /api/v1/nodes/{id}/traefik/files:
     get:
       summary: List Traefik configuration files on node

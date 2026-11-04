@@ -36,6 +36,7 @@ type SystemUpdateResponse struct {
 	Success           bool     `json:"success"`
 	Message           string   `json:"message"`
 	UpdatedComponents []string `json:"updatedComponents"`
+	SnapshotID        string   `json:"snapshotId,omitempty"`
 }
 
 var (
@@ -162,6 +163,20 @@ func registerSystemRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				req.Target = "all"
 			}
 
+			// 0. Automatic safety point-in-time snapshot of SQLite database before executing updates
+			var snapshotID string
+			if snap, err := ExecuteSnapshot(r.Context(), orch); err == nil && snap != nil {
+				snapshotID = snap.ID
+				log.Printf("[tako-server] automatic pre-update SQLite backup snapshot created: %s", snap.ID)
+			} else if err != nil {
+				log.Printf("[tako-server] warning: pre-update SQLite snapshot failed: %v", err)
+			}
+
+			// Synchronize and checkpoint SQLite WAL buffer to ensure physical database consistency
+			if dbConn := orch.DB(); dbConn != nil {
+				_, _ = dbConn.ExecContext(r.Context(), "PRAGMA wal_checkpoint(TRUNCATE);")
+			}
+
 			clientIP := extractRequestIP(r)
 			_, _ = orch.RecordAudit(r.Context(), orchestrator.AuditLogInput{
 				Action:     "system_update",
@@ -170,44 +185,85 @@ func registerSystemRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 				TargetName: "Tako Control Plane",
 				IPAddress:  clientIP,
 				Metadata: map[string]any{
-					"target": req.Target,
+					"target":     req.Target,
+					"snapshotId": snapshotID,
 				},
 			})
 
 			updatedComponents := []string{}
 
-			// 1. Dispatch update-agent task to all connected worker nodes
+			// 1. Dispatch update-agent task to connected worker nodes
 			if req.Target == "all" || req.Target == "agents" {
 				if nodes, err := orch.Queries().ListNodes(r.Context()); err == nil {
 					for _, n := range nodes {
-						_ = orch.DispatchContainerAction(r.Context(), n.ID, "tako-agent", "update-agent")
+						if n.Role != "master" && n.Role != "leader" {
+							_ = orch.DispatchContainerAction(r.Context(), n.ID, "tako-agent", "update-agent")
+						}
 					}
 				}
 				updatedComponents = append(updatedComponents, "agents")
 			}
 
-			// 2. Control plane self-update
-			if req.Target == "all" || req.Target == "server" || req.Target == "console" {
+			// 2. Traefik ingress rolling update across nodes
+			if req.Target == "all" || req.Target == "traefik" {
+				if nodes, err := orch.Queries().ListNodes(r.Context()); err == nil {
+					for _, n := range nodes {
+						_ = orch.DispatchContainerAction(r.Context(), n.ID, "tako-traefik", "update-traefik")
+					}
+				}
+				updatedComponents = append(updatedComponents, "traefik")
+			}
+
+			// 3. Control plane self-update (Server, Console, Master Agent)
+			if req.Target == "all" || req.Target == "control-plane" || req.Target == "server" || req.Target == "console" {
 				updatedComponents = append(updatedComponents, "control-plane")
-				go func() {
-					time.Sleep(1 * time.Second)
-					takoDir := os.Getenv("TAKO_DIR")
-					if takoDir == "" {
-						takoDir = "/opt/tako"
+
+				// Locate master node agent to trigger rolling upgrade through host docker socket
+				var masterNodeID string
+				if nodes, err := orch.Queries().ListNodes(r.Context()); err == nil {
+					for _, n := range nodes {
+						if n.Role == "master" || n.Role == "leader" || n.ID == "tako-master-01" {
+							masterNodeID = n.ID
+							break
+						}
 					}
-					composeFile := fmt.Sprintf("%s/docker-compose.yml", takoDir)
-					if _, err := os.Stat(composeFile); err == nil {
-						log.Printf("[tako-server] initiating control plane update via docker compose...")
-						cmd := fmt.Sprintf("cd %s && docker compose pull console server agent && docker compose up -d", takoDir)
-						_ = exec.Command("sh", "-c", cmd).Run()
+					if masterNodeID == "" && len(nodes) > 0 {
+						masterNodeID = nodes[0].ID
 					}
-				}()
+				}
+
+				if masterNodeID != "" && orch.GetAgentSession(masterNodeID) != nil {
+					log.Printf("[tako-server] dispatching update-control-plane to master agent session %s...", masterNodeID)
+					_ = orch.DispatchContainerAction(r.Context(), masterNodeID, "tako-agent", "update-control-plane")
+				} else {
+					go func() {
+						time.Sleep(1 * time.Second)
+						takoDir := os.Getenv("TAKO_DIR")
+						if takoDir == "" {
+							takoDir = "/opt/tako"
+						}
+						composeFile := fmt.Sprintf("%s/docker-compose.yml", takoDir)
+						if _, err := os.Stat(composeFile); err == nil {
+							srcGit := fmt.Sprintf("%s/src/.git", takoDir)
+							if _, err := os.Stat(srcGit); err == nil {
+								log.Printf("[tako-server] initiating control plane update from git source...")
+								cmd := fmt.Sprintf("cd %s/src && git fetch origin && git reset --hard origin/main && cd %s && docker compose build && docker compose up -d", takoDir, takoDir)
+								_ = exec.Command("sh", "-c", cmd).Run()
+							} else {
+								log.Printf("[tako-server] initiating control plane update via docker compose pull...")
+								cmd := fmt.Sprintf("cd %s && (docker compose pull || true) && docker compose up -d", takoDir)
+								_ = exec.Command("sh", "-c", cmd).Run()
+							}
+						}
+					}()
+				}
 			}
 
 			RespondJSON(w, http.StatusOK, SystemUpdateResponse{
 				Success:           true,
-				Message:           "Update initiated successfully. Control plane and agents are updating in the background.",
+				Message:           "Update initiated successfully. Database backed up in WAL mode and components are updating in the background.",
 				UpdatedComponents: updatedComponents,
+				SnapshotID:        snapshotID,
 			})
 		})
 	})

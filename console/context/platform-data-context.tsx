@@ -1917,9 +1917,17 @@ export function PlatformDataProvider({
     [persistSetting]
   )
 
-  const updateSystem = React.useCallback(async (target: string) => {
-    await apiPost("/system/update", { target })
-  }, [])
+  const updateSystem = React.useCallback(
+    async (target: string) => {
+      await apiPost("/system/update", { target })
+      await Promise.allSettled([
+        refreshSnapshots(),
+        refreshSystemVersion(),
+        refreshNodes(),
+      ])
+    },
+    [refreshSnapshots, refreshSystemVersion, refreshNodes]
+  )
 
   React.useEffect(() => {
     if (status !== "authenticated") return

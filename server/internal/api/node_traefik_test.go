@@ -127,6 +127,19 @@ func TestNodeTraefikConfigurationAPI(t *testing.T) {
 		t.Errorf("expected reload success=true, got %v", reloadResp["success"])
 	}
 
+	// 4b. POST /api/v1/nodes/{id}/traefik/upgrade -> dispatches upgrade sequence and returns 200/202
+	upgradeReq := httptest.NewRequest(http.MethodPost, "/api/v1/nodes/"+nodeID+"/traefik/upgrade", nil)
+	upgradeW := httptest.NewRecorder()
+	router.ServeHTTP(upgradeW, upgradeReq)
+	if upgradeW.Code != http.StatusOK && upgradeW.Code != http.StatusAccepted {
+		t.Fatalf("expected 200 or 202 for upgrade traefik, got %d: %s", upgradeW.Code, upgradeW.Body.String())
+	}
+	var upgradeResp map[string]any
+	_ = json.Unmarshal(upgradeW.Body.Bytes(), &upgradeResp)
+	if upgradeResp["success"] != true {
+		t.Errorf("expected upgrade success=true, got %v", upgradeResp["success"])
+	}
+
 	// 5. GET /api/v1/nodes/non-existent-node/traefik -> returns 404
 	notFoundReq := httptest.NewRequest(http.MethodGet, "/api/v1/nodes/non-existent/traefik", nil)
 	notFoundW := httptest.NewRecorder()

@@ -229,6 +229,9 @@ func registerNodeRoutes(r chi.Router, orch *orchestrator.Orchestrator) {
 		// POST /api/v1/nodes/{id}/traefik/reload
 		r.With(RequireAdmin).Post("/{id}/traefik/reload", handleReloadNodeTraefik(orch))
 
+		// POST /api/v1/nodes/{id}/traefik/upgrade
+		r.With(RequireAdmin).Post("/{id}/traefik/upgrade", handleUpgradeNodeTraefik(orch))
+
 		// Traefik dynamic configuration files
 		r.Get("/{id}/traefik/files", handleListNodeTraefikFiles(orch))
 		r.Get("/{id}/traefik/files/{filename}", handleGetNodeTraefikFile(orch))

@@ -6,14 +6,17 @@ import type { Route } from "next"
 import {
   Activity,
   ArrowLeft,
+  ArrowUpCircle,
   Check,
   CheckCircle2,
+  ChevronDown,
   Copy,
   Cpu,
   ExternalLink,
   FileCode2,
   HardDrive,
   Layers,
+  MoreHorizontal,
   Radio,
   RotateCw,
   Server,
@@ -29,6 +32,14 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { DeleteNodeDialog } from "@/components/nodes/delete-node-dialog"
 import { NodeMetricsCharts } from "@/components/nodes/node-metrics-charts"
 import { NodeTraefikConfigView } from "@/components/nodes/node-traefik-config-view"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { usePlatformData } from "@/context/platform-data-context"
 import {
   useNode,
@@ -318,6 +329,19 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
 
         {/* Quick Operations */}
         <div className="flex flex-wrap items-center gap-2">
+          {agentRestartSuccess && (
+            <span className="inline-flex items-center gap-1 rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 font-mono text-[11px] text-emerald-500">
+              <CheckCircle2 className="size-3" />
+              <span>Agent update signal sent</span>
+            </span>
+          )}
+          {pruneSuccess && (
+            <span className="inline-flex items-center gap-1 rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 font-mono text-[11px] text-emerald-500">
+              <CheckCircle2 className="size-3" />
+              <span>Disk pruned</span>
+            </span>
+          )}
+
           <Button
             size="md"
             variant="outline"
@@ -338,63 +362,70 @@ export function NodeDetailView({ nodeId }: NodeDetailViewProps) {
             </span>
           </Button>
 
-          <Button
-            size="md"
-            variant="outline"
-            onClick={handleRestartAgent}
-            disabled={isRestartingAgent}
-            className="gap-1.5 text-xs"
-          >
-            {isRestartingAgent ? (
-              <RotateCw className="size-3.5 animate-spin text-muted-foreground" />
-            ) : agentRestartSuccess ? (
-              <CheckCircle2 className="size-3.5 text-emerald-500" />
-            ) : (
-              <RotateCw className="size-3.5" />
-            )}
-            <span>
-              {isRestartingAgent
-                ? "Restarting Agent..."
-                : agentRestartSuccess
-                  ? "Agent Active"
-                  : "Restart Agent"}
-            </span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  size="md"
+                  variant="outline"
+                  className="gap-1.5 text-xs text-foreground hover:bg-muted"
+                >
+                  <MoreHorizontal className="size-3.5" />
+                  <span>Actions</span>
+                  <ChevronDown className="size-3 text-muted-foreground" />
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Node Operations</DropdownMenuLabel>
+              <DropdownMenuItem
+                disabled={isRestartingAgent || !node.agentConnected}
+                onClick={handleRestartAgent}
+                className="gap-2 text-xs"
+              >
+                {isRestartingAgent ? (
+                  <RotateCw className="size-3.5 animate-spin text-primary" />
+                ) : (
+                  <ArrowUpCircle className="size-3.5 text-primary" />
+                )}
+                <span>
+                  {isRestartingAgent
+                    ? "Updating Agent..."
+                    : "Update Agent to Latest"}
+                </span>
+              </DropdownMenuItem>
 
-          <Button
-            size="md"
-            variant="outline"
-            onClick={handlePruneDisk}
-            disabled={isPruning}
-            className="gap-1.5 text-xs"
-          >
-            {isPruning ? (
-              <RotateCw className="size-3.5 animate-spin text-muted-foreground" />
-            ) : pruneSuccess ? (
-              <CheckCircle2 className="size-3.5 text-emerald-500" />
-            ) : (
-              <Trash2 className="size-3.5" />
-            )}
-            <span>
-              {isPruning
-                ? "Pruning Disk..."
-                : pruneSuccess
-                  ? "Disk Cleaned"
-                  : "Prune Disk"}
-            </span>
-          </Button>
+              <DropdownMenuItem
+                disabled={isPruning || !node.agentConnected}
+                onClick={handlePruneDisk}
+                className="gap-2 text-xs"
+              >
+                {isPruning ? (
+                  <RotateCw className="size-3.5 animate-spin text-muted-foreground" />
+                ) : (
+                  <HardDrive className="size-3.5 text-muted-foreground" />
+                )}
+                <span>
+                  {isPruning ? "Pruning Disk..." : "Prune Docker Cache"}
+                </span>
+              </DropdownMenuItem>
 
-          {node.role !== NODE_ROLE.MASTER && (
-            <Button
-              size="md"
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(true)}
-              className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 className="size-3.5" />
-              <span>Remove Node</span>
-            </Button>
-          )}
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                disabled={node.role === NODE_ROLE.MASTER}
+                onClick={() => setDeleteDialogOpen(true)}
+                className="gap-2 text-xs text-destructive focus:bg-destructive/10 focus:text-destructive data-highlighted:bg-destructive/10 data-highlighted:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+                <span>
+                  {node.role === NODE_ROLE.MASTER
+                    ? "Master Cannot Be Removed"
+                    : "Remove Node"}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 

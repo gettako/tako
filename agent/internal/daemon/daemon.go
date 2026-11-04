@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -21,7 +20,6 @@ import (
 	"gettako.dev/tako/agent/internal/traefik"
 	takov1 "gettako.dev/tako/proto/gen/go/tako/v1"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/image"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -519,6 +517,44 @@ func (d *Daemon) handleTask(ctx context.Context, stream takov1.AgentService_Stre
 			return
 		}
 
+		if action == "update-control-plane" || action == "update-platform" {
+			_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_ContainerActionResult{
+					ContainerActionResult: &takov1.ContainerActionResponse{
+						Success: true,
+						Message: "control plane rolling update scheduled",
+					},
+				},
+			})
+
+			go func() {
+				time.Sleep(1 * time.Second)
+				d.executeControlPlaneUpdate()
+			}()
+			return
+		}
+
+		if action == "update-traefik" {
+			_ = d.sendTaskResult(stream, &takov1.AgentTaskResult{
+				TaskId: taskID,
+				NodeId: nodeID,
+				Result: &takov1.AgentTaskResult_ContainerActionResult{
+					ContainerActionResult: &takov1.ContainerActionResponse{
+						Success: true,
+						Message: "traefik update scheduled",
+					},
+				},
+			})
+
+			go func() {
+				time.Sleep(1 * time.Second)
+				d.executeTraefikUpdate()
+			}()
+			return
+		}
+
 		var err error
 		if d.dockerCli != nil {
 			err = d.dockerCli.ContainerAction(ctx, containerID, action)
@@ -609,34 +645,56 @@ func (d *Daemon) executeHostReboot() {
 	}
 }
 
-// executeAgentUpdate pulls the latest agent image and restarts the agent service.
+// executeAgentUpdate initiates an agent update using Docker helper or systemd fallback.
 func (d *Daemon) executeAgentUpdate() {
 	log.Printf("[tako-agent] executing agent update sequence...")
 
-	// 1. Docker socket container update
 	if d.dockerCli != nil {
-		targetImage := os.Getenv("TAKO_AGENT_IMAGE")
-		if targetImage == "" {
-			targetImage = "ghcr.io/gettako/tako-agent:latest"
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-
-		log.Printf("[tako-agent] pulling newest agent image: %s...", targetImage)
-		reader, err := d.dockerCli.RawClient().ImagePull(ctx, targetImage, image.PullOptions{})
-		if err == nil {
-			_, _ = io.Copy(io.Discard, reader)
-			_ = reader.Close()
+		if err := d.dockerCli.UpdateAgent(ctx); err == nil {
+			log.Printf("[tako-agent] agent updater container launched successfully")
+			return
+		} else {
+			log.Printf("[tako-agent] warning: docker UpdateAgent helper error: %v, attempting direct fallback...", err)
 		}
-
-		updateCmd := `(docker pull ghcr.io/gettako/tako-agent:latest || true); (docker compose -f /opt/tako/docker-compose.yml up -d agent 2>/dev/null || docker restart tako-agent || true)`
-		_ = exec.Command("sh", "-c", updateCmd).Run()
 	}
 
-	// 2. Direct systemd / standalone fallback
+	// Direct systemd / standalone fallback
 	if _, err := exec.LookPath("systemctl"); err == nil {
 		_ = exec.Command("systemctl", "restart", "tako-agent").Run()
+	}
+}
+
+// executeControlPlaneUpdate initiates rolling upgrade of control plane containers.
+func (d *Daemon) executeControlPlaneUpdate() {
+	log.Printf("[tako-agent] executing control plane rolling upgrade sequence...")
+
+	if d.dockerCli != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := d.dockerCli.UpdateControlPlane(ctx); err == nil {
+			log.Printf("[tako-agent] control plane updater container launched successfully")
+			return
+		} else {
+			log.Printf("[tako-agent] warning: docker UpdateControlPlane helper error: %v", err)
+		}
+	}
+}
+
+// executeTraefikUpdate initiates update of the Traefik ingress container.
+func (d *Daemon) executeTraefikUpdate() {
+	log.Printf("[tako-agent] executing Traefik ingress update sequence...")
+
+	if d.dockerCli != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := d.dockerCli.UpdateTraefik(ctx); err == nil {
+			log.Printf("[tako-agent] traefik updater container launched successfully")
+			return
+		} else {
+			log.Printf("[tako-agent] warning: docker UpdateTraefik helper error: %v", err)
+		}
 	}
 }
 
